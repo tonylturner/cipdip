@@ -15,11 +15,34 @@ CIPDIP is a Go-based command-line tool designed to generate repeatable, controll
 
 ## Installation
 
+### Build from Source
+
 ```bash
 git clone https://github.com/tturner/cipdip.git
 cd cipdip
 go build ./cmd/cipdip
 ```
+
+### Install Binary and Shell Completion
+
+After building, you can install the binary to your PATH and set up shell completion:
+
+```bash
+# Install to PATH and set up completion for your shell
+./cipdip install
+
+# Or specify a custom install directory
+./cipdip install --binary-path /usr/local/bin
+
+# Force overwrite existing installation
+./cipdip install --force
+```
+
+The install command will:
+- Detect your shell (zsh, bash, fish, PowerShell)
+- Install the binary to a directory in your PATH
+- Set up tab completion for your shell
+- Provide instructions for enabling completion
 
 ## Quick Start
 

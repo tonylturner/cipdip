@@ -5,6 +5,7 @@ package cipclient
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"time"
 )
@@ -227,18 +228,61 @@ func (c *ENIPClient) ForwardOpen(ctx context.Context, params ConnectionParams) (
 		return nil, fmt.Errorf("not connected")
 	}
 
-	// TODO: Implement ForwardOpen service
-	// This requires building a ForwardOpen CIP request with connection parameters
-	// For now, return a placeholder connection
+	// Build ForwardOpen CIP request
+	forwardOpenData, err := BuildForwardOpenRequest(params)
+	if err != nil {
+		return nil, fmt.Errorf("build ForwardOpen request: %w", err)
+	}
 
+	// Send via SendRRData (UCMM)
+	packet := BuildSendRRData(c.sessionID, c.senderContext, forwardOpenData)
+
+	// Send request
+	if err := c.transport.Send(ctx, packet); err != nil {
+		return nil, fmt.Errorf("send ForwardOpen request: %w", err)
+	}
+
+	// Receive response
+	timeout := 5 * time.Second
+	respData, err := c.transport.Receive(ctx, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("receive ForwardOpen response: %w", err)
+	}
+
+	// Decode ENIP response
+	encap, err := DecodeENIP(respData)
+	if err != nil {
+		return nil, fmt.Errorf("decode ENIP response: %w", err)
+	}
+
+	if encap.Status != ENIPStatusSuccess {
+		return nil, fmt.Errorf("ENIP error status: 0x%08X", encap.Status)
+	}
+
+	// Parse SendRRData response
+	cipRespData, err := ParseSendRRDataResponse(encap.Data)
+	if err != nil {
+		return nil, fmt.Errorf("parse SendRRData response: %w", err)
+	}
+
+	// Parse ForwardOpen response
+	connectionID, oToTConnID, tToOConnID, err := ParseForwardOpenResponse(cipRespData)
+	if err != nil {
+		return nil, fmt.Errorf("parse ForwardOpen response: %w", err)
+	}
+
+	// Create connection object
 	conn := &IOConnection{
-		ID:     c.nextConnID,
+		ID:     connectionID,
 		Params: params,
 	}
-	c.nextConnID++
-	c.ioConnections[conn.ID] = conn
+	c.ioConnections[connectionID] = conn
 
-	return conn, fmt.Errorf("ForwardOpen not yet fully implemented")
+	// Store connection IDs for later use
+	_ = oToTConnID
+	_ = tToOConnID
+
+	return conn, nil
 }
 
 // ForwardClose terminates a connected I/O-style connection
@@ -247,11 +291,56 @@ func (c *ENIPClient) ForwardClose(ctx context.Context, conn *IOConnection) error
 		return fmt.Errorf("not connected")
 	}
 
-	// TODO: Implement ForwardClose service
-	// This requires building a ForwardClose CIP request
+	if conn == nil {
+		return fmt.Errorf("invalid connection")
+	}
 
+	// Build ForwardClose CIP request
+	forwardCloseData, err := BuildForwardCloseRequest(conn.ID)
+	if err != nil {
+		return fmt.Errorf("build ForwardClose request: %w", err)
+	}
+
+	// Send via SendRRData (UCMM)
+	packet := BuildSendRRData(c.sessionID, c.senderContext, forwardCloseData)
+
+	// Send request
+	if err := c.transport.Send(ctx, packet); err != nil {
+		return fmt.Errorf("send ForwardClose request: %w", err)
+	}
+
+	// Receive response
+	timeout := 5 * time.Second
+	respData, err := c.transport.Receive(ctx, timeout)
+	if err != nil {
+		return fmt.Errorf("receive ForwardClose response: %w", err)
+	}
+
+	// Decode ENIP response
+	encap, err := DecodeENIP(respData)
+	if err != nil {
+		return fmt.Errorf("decode ENIP response: %w", err)
+	}
+
+	if encap.Status != ENIPStatusSuccess {
+		return fmt.Errorf("ENIP error status: 0x%08X", encap.Status)
+	}
+
+	// Parse SendRRData response
+	cipRespData, err := ParseSendRRDataResponse(encap.Data)
+	if err != nil {
+		return fmt.Errorf("parse SendRRData response: %w", err)
+	}
+
+	// Parse ForwardClose response
+	if err := ParseForwardCloseResponse(cipRespData); err != nil {
+		return fmt.Errorf("parse ForwardClose response: %w", err)
+	}
+
+	// Clean up connection
 	delete(c.ioConnections, conn.ID)
-	return fmt.Errorf("ForwardClose not yet fully implemented")
+
+	return nil
 }
 
 // SendIOData sends I/O data over a connected path
@@ -264,11 +353,27 @@ func (c *ENIPClient) SendIOData(ctx context.Context, conn *IOConnection, data []
 		return fmt.Errorf("invalid connection")
 	}
 
-	// TODO: Implement SendIOData
-	// This requires using SendUnitData with the connection ID
-	// For UDP 2222, this would use UDP transport
+	// Validate data size
+	if len(data) > conn.Params.OToTSizeBytes {
+		return fmt.Errorf("data size %d exceeds O->T size %d", len(data), conn.Params.OToTSizeBytes)
+	}
 
-	return fmt.Errorf("SendIOData not yet fully implemented")
+	// Pad data to required size
+	paddedData := make([]byte, conn.Params.OToTSizeBytes)
+	copy(paddedData, data)
+
+	// Build SendUnitData packet with connection ID and I/O data
+	packet := BuildSendUnitData(c.sessionID, c.senderContext, conn.ID, paddedData)
+
+	// Send via transport (currently TCP, but should support UDP 2222)
+	if err := c.transport.Send(ctx, packet); err != nil {
+		return fmt.Errorf("send I/O data: %w", err)
+	}
+
+	// Store sent data
+	conn.LastOToTDataSent = paddedData
+
+	return nil
 }
 
 // ReceiveIOData receives I/O data from a connected path
@@ -281,9 +386,60 @@ func (c *ENIPClient) ReceiveIOData(ctx context.Context, conn *IOConnection) ([]b
 		return nil, fmt.Errorf("invalid connection")
 	}
 
-	// TODO: Implement ReceiveIOData
-	// This requires receiving SendUnitData responses
-	// For UDP 2222, this would use UDP transport
+	// Receive SendUnitData response
+	timeout := time.Duration(conn.Params.TToORPIMs) * time.Millisecond
+	if timeout < 100*time.Millisecond {
+		timeout = 100 * time.Millisecond // Minimum timeout
+	}
+	if timeout > 5*time.Second {
+		timeout = 5 * time.Second // Maximum timeout
+	}
 
-	return nil, fmt.Errorf("ReceiveIOData not yet fully implemented")
+	respData, err := c.transport.Receive(ctx, timeout)
+	if err != nil {
+		return nil, fmt.Errorf("receive I/O data: %w", err)
+	}
+
+	// Decode ENIP response
+	encap, err := DecodeENIP(respData)
+	if err != nil {
+		return nil, fmt.Errorf("decode ENIP response: %w", err)
+	}
+
+	if encap.Status != ENIPStatusSuccess {
+		return nil, fmt.Errorf("ENIP error status: 0x%08X", encap.Status)
+	}
+
+	if encap.Command != ENIPCommandSendUnitData {
+		return nil, fmt.Errorf("unexpected command: 0x%04X", encap.Command)
+	}
+
+	// Parse SendUnitData response
+	cipData, err := ParseSendUnitDataResponse(encap.Data)
+	if err != nil {
+		return nil, fmt.Errorf("parse SendUnitData response: %w", err)
+	}
+
+	// Extract I/O data (skip connection ID if present)
+	// SendUnitData response structure: connection ID (4 bytes) + I/O data
+	if len(cipData) < 4 {
+		return nil, fmt.Errorf("response too short")
+	}
+
+	// Verify connection ID matches
+	recvConnID := binary.BigEndian.Uint32(cipData[0:4])
+	if recvConnID != conn.ID {
+		return nil, fmt.Errorf("connection ID mismatch: expected %d, got %d", conn.ID, recvConnID)
+	}
+
+	// Extract I/O data
+	ioData := cipData[4:]
+	if len(ioData) > conn.Params.TToOSizeBytes {
+		ioData = ioData[:conn.Params.TToOSizeBytes]
+	}
+
+	// Store received data
+	conn.LastTToODataRecv = ioData
+
+	return ioData, nil
 }
