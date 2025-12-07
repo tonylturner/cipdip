@@ -3,8 +3,11 @@ module github.com/tturner/cipdip
 go 1.24.3
 
 require (
+	github.com/google/gopacket v1.1.19 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
+	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
+	golang.org/x/sys v0.0.0-20190412213103-97732733099d // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

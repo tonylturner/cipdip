@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/capture"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -18,6 +19,7 @@ type serverFlags struct {
 	personality  string
 	serverConfig string
 	enableUDPIO  bool
+	pcapFile     string
 }
 
 func newServerCmd() *cobra.Command {
@@ -57,7 +59,10 @@ Press Ctrl+C to stop the server gracefully.`,
   cipdip server --listen-ip 192.168.1.100 --listen-port 44818
 
   # Use custom config file
-  cipdip server --server-config ./my_server.yaml`,
+  cipdip server --server-config ./my_server.yaml
+
+  # Capture packets to PCAP file
+  cipdip server --pcap server_capture.pcap`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := runServer(flags)
 			if err != nil {
@@ -74,11 +79,24 @@ Press Ctrl+C to stop the server gracefully.`,
 	cmd.Flags().StringVar(&flags.personality, "personality", "adapter", "Server personality: adapter|logix_like (default \"adapter\")")
 	cmd.Flags().StringVar(&flags.serverConfig, "server-config", "cipdip_server.yaml", "Server config file path (default \"cipdip_server.yaml\")")
 	cmd.Flags().BoolVar(&flags.enableUDPIO, "enable-udp-io", false, "Enable UDP I/O on port 2222 (default false)")
+	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., server_capture.pcap)")
 
 	return cmd
 }
 
 func runServer(flags *serverFlags) error {
+	// Start packet capture if requested
+	var pcapCapture *capture.Capture
+	if flags.pcapFile != "" {
+		fmt.Fprintf(os.Stdout, "Starting packet capture: %s\n", flags.pcapFile)
+		var err error
+		pcapCapture, err = capture.StartCaptureLoopback(flags.pcapFile)
+		if err != nil {
+			return fmt.Errorf("start packet capture: %w", err)
+		}
+		defer pcapCapture.Stop()
+	}
+
 	// Print startup message to stdout FIRST (so user sees it immediately)
 	fmt.Fprintf(os.Stdout, "CIPDIP Server starting...\n")
 	fmt.Fprintf(os.Stdout, "  Personality: %s\n", flags.personality)
@@ -86,6 +104,9 @@ func runServer(flags *serverFlags) error {
 	fmt.Fprintf(os.Stdout, "  Listening on: %s:%d\n", flags.listenIP, flags.listenPort)
 	if flags.enableUDPIO {
 		fmt.Fprintf(os.Stdout, "  UDP I/O enabled on port 2222\n")
+	}
+	if flags.pcapFile != "" {
+		fmt.Fprintf(os.Stdout, "  PCAP: %s\n", flags.pcapFile)
 	}
 	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
 	os.Stdout.Sync() // Flush output immediately
@@ -148,6 +169,13 @@ func runServer(flags *serverFlags) error {
 	// Stop server
 	if err := srv.Stop(); err != nil {
 		return fmt.Errorf("stop server: %w", err)
+	}
+
+	// Stop capture and report
+	if pcapCapture != nil {
+		pcapCapture.Stop()
+		packetCount := pcapCapture.GetPacketCount()
+		fmt.Fprintf(os.Stdout, "Packets captured: %d (%s)\n", packetCount, flags.pcapFile)
 	}
 
 	return nil

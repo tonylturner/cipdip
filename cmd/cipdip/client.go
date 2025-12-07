@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/capture"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
@@ -17,16 +18,17 @@ import (
 )
 
 type clientFlags struct {
-	ip             string
-	port           int
-	scenario       string
-	intervalMs     int
-	durationSec    int
-	config         string
-	logFile        string
-	metricsFile    string
-	verbose        bool
-	debug          bool
+	ip          string
+	port        int
+	scenario    string
+	intervalMs  int
+	durationSec int
+	config      string
+	logFile     string
+	metricsFile string
+	verbose     bool
+	debug       bool
+	pcapFile    string
 }
 
 func newClientCmd() *cobra.Command {
@@ -75,7 +77,10 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
   cipdip client --ip 10.0.0.50 --scenario io --verbose
 
   # Save metrics to file
-  cipdip client --ip 10.0.0.50 --scenario baseline --metrics-file metrics.csv`,
+  cipdip client --ip 10.0.0.50 --scenario baseline --metrics-file metrics.csv
+
+  # Capture packets to PCAP file
+  cipdip client --ip 10.0.0.50 --scenario baseline --pcap capture.pcap`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := runClient(flags)
 			if err != nil {
@@ -103,6 +108,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().StringVar(&flags.metricsFile, "metrics-file", "", "Metrics output file path (default: print summary only)")
 	cmd.Flags().BoolVar(&flags.verbose, "verbose", false, "Enable verbose output")
 	cmd.Flags().BoolVar(&flags.debug, "debug", false, "Enable debug output")
+	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., capture.pcap)")
 
 	return cmd
 }
@@ -113,7 +119,7 @@ func runClient(flags *clientFlags) error {
 		"baseline": true,
 		"mixed":    true,
 		"stress":   true,
-		"churn":   true,
+		"churn":    true,
 		"io":       true,
 	}
 	if !validScenarios[flags.scenario] {
@@ -170,12 +176,26 @@ func runClient(flags *clientFlags) error {
 		defer metricsWriter.Close()
 	}
 
+	// Start packet capture if requested
+	var pcapCapture *capture.Capture
+	if flags.pcapFile != "" {
+		fmt.Fprintf(os.Stdout, "Starting packet capture: %s\n", flags.pcapFile)
+		pcapCapture, err = capture.StartCaptureLoopback(flags.pcapFile)
+		if err != nil {
+			return fmt.Errorf("start packet capture: %w", err)
+		}
+		defer pcapCapture.Stop()
+	}
+
 	// Print startup message to stdout FIRST (so user sees it immediately)
 	fmt.Fprintf(os.Stdout, "CIPDIP Client starting...\n")
 	fmt.Fprintf(os.Stdout, "  Scenario: %s\n", flags.scenario)
 	fmt.Fprintf(os.Stdout, "  Target: %s:%d\n", flags.ip, flags.port)
 	fmt.Fprintf(os.Stdout, "  Interval: %d ms\n", flags.intervalMs)
 	fmt.Fprintf(os.Stdout, "  Duration: %d seconds\n", flags.durationSec)
+	if flags.pcapFile != "" {
+		fmt.Fprintf(os.Stdout, "  PCAP: %s\n", flags.pcapFile)
+	}
 	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
 	os.Stdout.Sync() // Flush output immediately
 

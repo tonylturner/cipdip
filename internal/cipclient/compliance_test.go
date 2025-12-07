@@ -133,15 +133,19 @@ func TestENIPHeaderLengthConsistency(t *testing.T) {
 }
 
 // TestENIPByteOrder validates all fields use big-endian byte order
+// Note: Length field is calculated from Data length per ODVA spec, not set directly
 func TestENIPByteOrder(t *testing.T) {
+	// Create data that will result in length 0x5678 (22136 bytes)
+	// For testing, use a smaller length that's easier to verify
+	testData := make([]byte, 0x1234) // 4660 bytes
 	encap := ENIPEncapsulation{
 		Command:     0x1234, // Will be 0x12 0x34 in big-endian
-		Length:      0x5678, // Will be 0x56 0x78 in big-endian
+		Length:      0,      // Ignored - calculated from Data length
 		SessionID:   0xABCDEF00,
 		Status:      0x11223344,
 		SenderContext: [8]byte{0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22},
 		Options:     0x99887766,
-		Data:        []byte{},
+		Data:        testData, // Length will be calculated from this
 	}
 
 	packet := EncodeENIP(encap)
@@ -151,8 +155,10 @@ func TestENIPByteOrder(t *testing.T) {
 		t.Errorf("Command byte order: got 0x%02X%02X, want 0x1234", packet[0], packet[1])
 	}
 
-	if packet[2] != 0x56 || packet[3] != 0x78 {
-		t.Errorf("Length byte order: got 0x%02X%02X, want 0x5678", packet[2], packet[3])
+	// Length should be calculated from Data length (0x1234 = 4660 bytes)
+	// In big-endian: 0x12 0x34
+	if packet[2] != 0x12 || packet[3] != 0x34 {
+		t.Errorf("Length byte order: got 0x%02X%02X, want 0x1234 (calculated from Data length per ODVA spec)", packet[2], packet[3])
 	}
 
 	// Session ID: 0xABCDEF00 should be 0xAB 0xCD 0xEF 0x00
