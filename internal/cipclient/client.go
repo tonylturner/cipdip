@@ -13,6 +13,7 @@ import (
 // ConnectionParams represents parameters for establishing a connected I/O connection
 type ConnectionParams struct {
 	Name                  string
+	Transport             string // "tcp" or "udp" - transport for I/O data (default: "tcp")
 	OToTRPIMs             int
 	TToORPIMs             int
 	OToTSizeBytes         int
@@ -28,6 +29,7 @@ type ConnectionParams struct {
 type IOConnection struct {
 	ID              uint32 // connection ID or identifying handle
 	Params          ConnectionParams
+	ioTransport     Transport // transport for I/O data (UDP 2222 or TCP 44818)
 	LastOToTDataSent []byte
 	LastTToODataRecv []byte
 }
@@ -56,6 +58,8 @@ type Client interface {
 // ENIPClient implements the Client interface
 type ENIPClient struct {
 	transport      Transport
+	targetIP       string // Store target IP for UDP I/O connections
+	targetPort     int    // Store target port for reference
 	sessionID      uint32
 	senderContext  [8]byte
 	connected      bool
@@ -83,9 +87,22 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 		return fmt.Errorf("already connected")
 	}
 
+	// Validate IP address format (basic check)
+	if ip == "" {
+		return fmt.Errorf("IP address cannot be empty")
+	}
+
+	// Store target IP/port for UDP I/O connections
+	c.targetIP = ip
+	c.targetPort = port
+
 	addr := fmt.Sprintf("%s:%d", ip, port)
 	if err := c.transport.Connect(ctx, addr); err != nil {
-		return fmt.Errorf("transport connect: %w", err)
+		// Provide more helpful error messages
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("connection timeout: unable to connect to %s:%d (device may be offline or unreachable)", ip, port)
+		}
+		return fmt.Errorf("transport connect to %s:%d: %w", ip, port, err)
 	}
 
 	// Send RegisterSession
@@ -130,6 +147,10 @@ func (c *ENIPClient) Disconnect(ctx context.Context) error {
 	// Close all I/O connections
 	for _, conn := range c.ioConnections {
 		_ = c.ForwardClose(ctx, conn)
+		// Close UDP transport if it's separate from main transport
+		if conn.ioTransport != nil && conn.ioTransport != c.transport {
+			_ = conn.ioTransport.Disconnect()
+		}
 	}
 	c.ioConnections = make(map[uint32]*IOConnection)
 
@@ -271,10 +292,32 @@ func (c *ENIPClient) ForwardOpen(ctx context.Context, params ConnectionParams) (
 		return nil, fmt.Errorf("parse ForwardOpen response: %w", err)
 	}
 
+	// Determine transport for I/O data
+	// ForwardOpen/ForwardClose always use TCP 44818, but I/O data can use UDP 2222
+	transportType := params.Transport
+	if transportType == "" {
+		transportType = "tcp" // Default to TCP
+	}
+
+	var ioTransport Transport
+	if transportType == "udp" {
+		// Create UDP transport for I/O data on port 2222
+		udpTransport := NewUDPTransport()
+		udpAddr := fmt.Sprintf("%s:2222", c.targetIP)
+		if err := udpTransport.Connect(ctx, udpAddr); err != nil {
+			return nil, fmt.Errorf("connect UDP transport for I/O: %w", err)
+		}
+		ioTransport = udpTransport
+	} else {
+		// Use the main TCP transport for I/O data
+		ioTransport = c.transport
+	}
+
 	// Create connection object
 	conn := &IOConnection{
-		ID:     connectionID,
-		Params: params,
+		ID:          connectionID,
+		Params:      params,
+		ioTransport: ioTransport,
 	}
 	c.ioConnections[connectionID] = conn
 
@@ -301,7 +344,7 @@ func (c *ENIPClient) ForwardClose(ctx context.Context, conn *IOConnection) error
 		return fmt.Errorf("build ForwardClose request: %w", err)
 	}
 
-	// Send via SendRRData (UCMM)
+	// Send via SendRRData (UCMM) - ForwardClose always uses TCP 44818
 	packet := BuildSendRRData(c.sessionID, c.senderContext, forwardCloseData)
 
 	// Send request
@@ -338,6 +381,10 @@ func (c *ENIPClient) ForwardClose(ctx context.Context, conn *IOConnection) error
 	}
 
 	// Clean up connection
+	// Close UDP transport if it's separate from main transport
+	if conn.ioTransport != nil && conn.ioTransport != c.transport {
+		_ = conn.ioTransport.Disconnect()
+	}
 	delete(c.ioConnections, conn.ID)
 
 	return nil
@@ -365,8 +412,11 @@ func (c *ENIPClient) SendIOData(ctx context.Context, conn *IOConnection, data []
 	// Build SendUnitData packet with connection ID and I/O data
 	packet := BuildSendUnitData(c.sessionID, c.senderContext, conn.ID, paddedData)
 
-	// Send via transport (currently TCP, but should support UDP 2222)
-	if err := c.transport.Send(ctx, packet); err != nil {
+	// Send via connection's I/O transport (UDP 2222 or TCP 44818)
+	if conn.ioTransport == nil {
+		return fmt.Errorf("I/O transport not initialized")
+	}
+	if err := conn.ioTransport.Send(ctx, packet); err != nil {
 		return fmt.Errorf("send I/O data: %w", err)
 	}
 
@@ -395,7 +445,11 @@ func (c *ENIPClient) ReceiveIOData(ctx context.Context, conn *IOConnection) ([]b
 		timeout = 5 * time.Second // Maximum timeout
 	}
 
-	respData, err := c.transport.Receive(ctx, timeout)
+	// Receive via connection's I/O transport (UDP 2222 or TCP 44818)
+	if conn.ioTransport == nil {
+		return nil, fmt.Errorf("I/O transport not initialized")
+	}
+	respData, err := conn.ioTransport.Receive(ctx, timeout)
 	if err != nil {
 		return nil, fmt.Errorf("receive I/O data: %w", err)
 	}

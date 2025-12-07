@@ -45,8 +45,15 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 	// Establish I/O connections
 	var ioConns []*cipclient.IOConnection
 	for _, connCfg := range cfg.IOConnections {
+		// Determine transport (default to "udp" for io scenario per spec)
+		transport := connCfg.Transport
+		if transport == "" {
+			transport = "udp" // Default to UDP 2222 for I/O scenario
+		}
+
 		connParams := cipclient.ConnectionParams{
 			Name:                  connCfg.Name,
+			Transport:             transport,
 			OToTRPIMs:             connCfg.OToTRPIMs,
 			TToORPIMs:             connCfg.TToORPIMs,
 			OToTSizeBytes:         connCfg.OToTSizeBytes,
@@ -61,8 +68,6 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		params.Logger.Verbose("Opening I/O connection: %s (class=0x%04X, instance=0x%04X, transport=%s)",
 			connCfg.Name, connCfg.Class, connCfg.Instance, connCfg.Transport)
 
-		// TODO: ForwardOpen is stubbed, so this will fail
-		// For now, we'll log a warning and continue
 		conn, err := client.ForwardOpen(ctx, connParams)
 		if err != nil {
 			params.Logger.Error("Failed to open I/O connection %s: %v", connCfg.Name, err)

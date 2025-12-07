@@ -22,10 +22,35 @@ func newInstallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install cipdip binary and shell completion",
-		Long: `Install the cipdip binary to a directory in PATH and set up shell completion.
-Automatically detects your shell (zsh, bash, fish) and installs appropriate completion scripts.`,
-		Example: `  cipdip install
+		Long: `Install the cipdip binary to a directory in your PATH and set up shell completion.
+
+This command:
+  1. Detects a suitable directory in your PATH (e.g., /usr/local/bin, ~/bin)
+  2. Copies the cipdip binary to that directory
+  3. Detects your shell (zsh, bash, fish, PowerShell)
+  4. Generates and installs tab completion scripts
+
+After installation, you can:
+  - Run 'cipdip' from anywhere (it's in your PATH)
+  - Use tab completion for commands and flags
+  - Get command suggestions when typing
+
+The command will prompt before overwriting existing files unless --force is used.
+On macOS/Linux, you may need to add the completion directory to your shell config
+if it's not already configured (the command will provide instructions).
+
+Supported shells:
+  - zsh (macOS default, Linux)
+  - bash (Linux, macOS)
+  - fish (Linux, macOS)
+  - PowerShell (Windows)`,
+		Example: `  # Install to auto-detected PATH directory
+  cipdip install
+
+  # Install to specific directory
   cipdip install --binary-path /usr/local/bin
+
+  # Force overwrite existing files
   cipdip install --force`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInstall(flags)
