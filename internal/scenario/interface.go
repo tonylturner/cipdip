@@ -14,6 +14,8 @@ import (
 
 // ScenarioParams contains parameters for running a scenario
 type ScenarioParams struct {
+	IP          string
+	Port        int
 	Interval    time.Duration
 	Duration    time.Duration
 	MetricsSink *metrics.Sink

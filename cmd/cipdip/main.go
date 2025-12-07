@@ -28,6 +28,7 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 	rootCmd.AddCommand(newClientCmd())
 	rootCmd.AddCommand(newServerCmd())
 	rootCmd.AddCommand(newDiscoverCmd())
+	rootCmd.AddCommand(newInstallCmd())
 
 	// Custom help command
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
@@ -44,6 +45,8 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		// Exit code 1 for CLI/usage errors (invalid flags, missing args, etc.)
+		// Exit code 2 is handled by individual commands for runtime errors
 		os.Exit(1)
 	}
 }

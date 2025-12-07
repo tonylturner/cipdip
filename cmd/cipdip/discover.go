@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/cipclient"
 )
 
 type discoverFlags struct {
@@ -44,12 +47,45 @@ func runDiscover(flags *discoverFlags) error {
 		return fmt.Errorf("invalid output format '%s'; must be 'text' or 'json'", flags.output)
 	}
 
-	// TODO: Implement ListIdentity discovery
-	// TODO: Send UDP broadcast on port 44818
-	// TODO: Collect responses
-	// TODO: Format and output results
+	// Create context
+	ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
+	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "error: discover mode not yet fully implemented\n")
-	return fmt.Errorf("discover mode not yet fully implemented")
+	// Discover devices
+	devices, err := cipclient.DiscoverDevices(ctx, flags.interfaceName, flags.timeout)
+	if err != nil {
+		return fmt.Errorf("discover devices: %w", err)
+	}
+
+	// Output results
+	if flags.output == "json" {
+		// JSON output
+		jsonData, err := json.MarshalIndent(devices, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal JSON: %w", err)
+		}
+		fmt.Fprintf(os.Stdout, "%s\n", jsonData)
+	} else {
+		// Text output
+		if len(devices) == 0 {
+			fmt.Fprintf(os.Stdout, "No devices discovered\n")
+			return nil
+		}
+
+		fmt.Fprintf(os.Stdout, "Discovered %d device(s):\n\n", len(devices))
+		for i, device := range devices {
+			fmt.Fprintf(os.Stdout, "Device %d:\n", i+1)
+			fmt.Fprintf(os.Stdout, "  IP:           %s\n", device.IP)
+			fmt.Fprintf(os.Stdout, "  Vendor ID:    0x%04X\n", device.VendorID)
+			fmt.Fprintf(os.Stdout, "  Product ID:   0x%04X\n", device.ProductID)
+			fmt.Fprintf(os.Stdout, "  Product Name: %s\n", device.ProductName)
+			fmt.Fprintf(os.Stdout, "  Serial:       0x%08X\n", device.SerialNumber)
+			fmt.Fprintf(os.Stdout, "  State:        0x%02X\n", device.State)
+			if i < len(devices)-1 {
+				fmt.Fprintf(os.Stdout, "\n")
+			}
+		}
+	}
+
+	return nil
 }
-

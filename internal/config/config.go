@@ -66,8 +66,10 @@ type Config struct {
 type ServerConfigSection struct {
 	Name        string `yaml:"name"`
 	Personality string `yaml:"personality"` // "adapter" or "logix_like"
+	ListenIP    string `yaml:"listen_ip"`
 	TCPPort     int    `yaml:"tcp_port"`
 	UDPIOPort   int    `yaml:"udp_io_port"`
+	EnableUDPIO bool   `yaml:"enable_udp_io"`
 }
 
 // AdapterAssemblyConfig represents an adapter assembly configuration
@@ -253,6 +255,9 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 	}
 
 	// Apply defaults
+	if cfg.Server.ListenIP == "" {
+		cfg.Server.ListenIP = "0.0.0.0"
+	}
 	if cfg.Server.TCPPort == 0 {
 		cfg.Server.TCPPort = 44818
 	}

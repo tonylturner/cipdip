@@ -20,8 +20,17 @@ const (
 
 // ENIP status codes
 const (
-	ENIPStatusSuccess uint32 = 0x00000000
+	ENIPStatusSuccess              uint32 = 0x00000000
+	ENIPStatusInvalidCommand        uint32 = 0x00000001
+	ENIPStatusInsufficientMemory    uint32 = 0x00000002
+	ENIPStatusIncorrectData         uint32 = 0x00000003
+	ENIPStatusInvalidSessionHandle  uint32 = 0x0064
+	ENIPStatusInvalidLength          uint32 = 0x0065
+	ENIPStatusUnsupportedCommand    uint32 = 0x0066
 )
+
+// ENIPStatus represents an ENIP status code
+type ENIPStatus uint32
 
 // ENIPEncapsulation represents an EtherNet/IP encapsulation header
 type ENIPEncapsulation struct {

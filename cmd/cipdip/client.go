@@ -1,10 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/config"
+	"github.com/tturner/cipdip/internal/logging"
+	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tturner/cipdip/internal/scenario"
 )
 
 type clientFlags struct {
@@ -32,7 +41,13 @@ This is the primary mode for DPI testing.`,
   cipdip client --ip 10.0.0.50 --scenario mixed --duration-seconds 600
   cipdip client --ip 10.0.0.50 --scenario stress --interval-ms 10`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runClient(flags)
+			err := runClient(flags)
+			if err != nil {
+				// Runtime errors (after CLI validation) should exit with code 2
+				// CLI errors (invalid flags, etc.) exit with code 1 via main
+				os.Exit(2)
+			}
+			return nil
 		},
 	}
 
@@ -57,12 +72,12 @@ This is the primary mode for DPI testing.`,
 }
 
 func runClient(flags *clientFlags) error {
-	// Validate scenario
+	// Validate scenario (CLI error - exit code 1)
 	validScenarios := map[string]bool{
 		"baseline": true,
 		"mixed":    true,
 		"stress":   true,
-		"churn":    true,
+		"churn":   true,
 		"io":       true,
 	}
 	if !validScenarios[flags.scenario] {
@@ -85,22 +100,105 @@ func runClient(flags *clientFlags) error {
 		}
 	}
 
-	// TODO: Load config
-	// TODO: Initialize logger
-	// TODO: Initialize metrics
-	// TODO: Create client
-	// TODO: Run scenario
-
-	// Placeholder output
-	if flags.verbose {
-		fmt.Fprintf(os.Stdout, "Connecting to %s:%d\n", flags.ip, flags.port)
-		fmt.Fprintf(os.Stdout, "Scenario: %s\n", flags.scenario)
-		fmt.Fprintf(os.Stdout, "Interval: %d ms\n", flags.intervalMs)
-		fmt.Fprintf(os.Stdout, "Duration: %d seconds\n", flags.durationSec)
-		fmt.Fprintf(os.Stdout, "Config: %s\n", flags.config)
+	// Determine log level
+	logLevel := logging.LogLevelInfo
+	if flags.debug {
+		logLevel = logging.LogLevelDebug
+	} else if flags.verbose {
+		logLevel = logging.LogLevelVerbose
 	}
 
-	fmt.Fprintf(os.Stderr, "error: client mode not yet fully implemented\n")
-	return fmt.Errorf("client mode not yet fully implemented")
-}
+	// Initialize logger (runtime error)
+	logger, err := logging.NewLogger(logLevel, flags.logFile)
+	if err != nil {
+		return fmt.Errorf("create logger: %w", err)
+	}
+	defer logger.Close()
 
+	// Load config (runtime error if file issues, CLI error if validation fails)
+	cfg, err := config.LoadClientConfig(flags.config)
+	if err != nil {
+		// Config loading errors are runtime errors - return error to be handled by caller
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	// Initialize metrics (runtime error)
+	metricsSink := metrics.NewSink()
+	var metricsWriter *metrics.Writer
+	if flags.metricsFile != "" {
+		metricsWriter, err = metrics.NewWriter(flags.metricsFile, "")
+		if err != nil {
+			return fmt.Errorf("create metrics writer: %w", err)
+		}
+		defer metricsWriter.Close()
+	}
+
+	// Log startup
+	logger.LogStartup(flags.scenario, flags.ip, flags.port, flags.intervalMs, flags.durationSec, flags.config)
+
+	// Create context with signal handling
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle SIGINT (Ctrl+C)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		logger.Info("Received interrupt signal, shutting down gracefully...")
+		cancel()
+	}()
+
+	// Create client
+	client := cipclient.NewClient()
+
+	// Get scenario (runtime error - should not happen if validation passed)
+	scenarioImpl, err := scenario.GetScenario(flags.scenario)
+	if err != nil {
+		return fmt.Errorf("get scenario: %w", err)
+	}
+
+	// Prepare scenario parameters
+	params := scenario.ScenarioParams{
+		IP:          flags.ip,
+		Port:        flags.port,
+		Interval:    time.Duration(flags.intervalMs) * time.Millisecond,
+		Duration:    time.Duration(flags.durationSec) * time.Second,
+		MetricsSink: metricsSink,
+		Logger:      logger,
+		TargetType:  metrics.TargetTypeClick, // TODO: Determine from config or flag
+	}
+
+	// Run scenario
+	startTime := time.Now()
+	err = scenarioImpl.Run(ctx, client, cfg, params)
+	elapsed := time.Since(startTime)
+
+	// Write metrics to file if specified
+	if metricsWriter != nil {
+		for _, m := range metricsSink.GetMetrics() {
+			if err := metricsWriter.WriteMetric(m); err != nil {
+				logger.Error("Failed to write metric: %v", err)
+			}
+		}
+	}
+
+	// Get and print summary
+	summary := metricsSink.GetSummary()
+	if flags.verbose || flags.debug {
+		fmt.Fprintf(os.Stdout, "\n%s", metrics.FormatSummary(summary))
+	} else {
+		// Minimal output
+		fmt.Fprintf(os.Stdout, "Completed scenario '%s' in %.1fs (%d operations, %d errors)\n",
+			flags.scenario, elapsed.Seconds(), summary.TotalOperations, summary.FailedOps)
+	}
+
+	if err != nil {
+		// Runtime error - exit code 2
+		// Return error to be handled by main, which will exit with code 1
+		// We'll handle exit code 2 in the error handling
+		return fmt.Errorf("scenario failed: %w", err)
+	}
+
+	return nil
+}

@@ -112,6 +112,74 @@ func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	return data, nil
 }
 
+// DecodeCIPRequest decodes a CIP request from bytes
+func DecodeCIPRequest(data []byte) (CIPRequest, error) {
+	if len(data) < 1 {
+		return CIPRequest{}, fmt.Errorf("request too short")
+	}
+
+	req := CIPRequest{
+		Service: CIPServiceCode(data[0]),
+	}
+
+	// Decode EPATH (simplified - assumes standard 8-bit class/instance/attribute)
+	offset := 1
+	if len(data) < offset+6 {
+		return req, fmt.Errorf("incomplete EPATH")
+	}
+
+	// Class (8-bit)
+	if data[offset]&0xF0 != 0x20 {
+		return req, fmt.Errorf("invalid class segment")
+	}
+	req.Path.Class = uint16(data[offset+1])
+	offset += 2
+
+	// Instance (8-bit)
+	if data[offset]&0xF0 != 0x24 {
+		return req, fmt.Errorf("invalid instance segment")
+	}
+	req.Path.Instance = uint16(data[offset+1])
+	offset += 2
+
+	// Attribute (8-bit)
+	if data[offset]&0xF0 != 0x30 {
+		return req, fmt.Errorf("invalid attribute segment")
+	}
+	req.Path.Attribute = data[offset+1]
+	offset += 2
+
+	// Remaining data is payload
+	if len(data) > offset {
+		req.Payload = data[offset:]
+	}
+
+	return req, nil
+}
+
+// EncodeCIPResponse encodes a CIP response into bytes
+func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
+	var data []byte
+
+	// Service code (echoed from request)
+	data = append(data, uint8(resp.Service))
+
+	// Status
+	data = append(data, resp.Status)
+
+	// Extended status (if present)
+	if len(resp.ExtStatus) > 0 {
+		data = append(data, resp.ExtStatus...)
+	}
+
+	// Payload
+	if len(resp.Payload) > 0 {
+		data = append(data, resp.Payload...)
+	}
+
+	return data, nil
+}
+
 // DecodeCIPResponse decodes a CIP response from bytes
 func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 	if len(data) < 1 {

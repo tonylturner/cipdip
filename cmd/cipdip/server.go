@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/config"
+	"github.com/tturner/cipdip/internal/logging"
+	"github.com/tturner/cipdip/internal/server"
 )
 
 type serverFlags struct {
@@ -26,7 +31,12 @@ Supports adapter and logix_like personalities.`,
 		Example: `  cipdip server --personality adapter
   cipdip server --personality logix_like --listen-ip 0.0.0.0 --enable-udp-io`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer(flags)
+			err := runServer(flags)
+			if err != nil {
+				// Runtime errors should exit with code 2
+				os.Exit(2)
+			}
+			return nil
 		},
 	}
 
@@ -46,11 +56,55 @@ func runServer(flags *serverFlags) error {
 		return fmt.Errorf("invalid personality '%s'; must be 'adapter' or 'logix_like'", flags.personality)
 	}
 
-	// TODO: Load server config
-	// TODO: Initialize server
-	// TODO: Start listening
+	// Load server config
+	cfg, err := config.LoadServerConfig(flags.serverConfig)
+	if err != nil {
+		return fmt.Errorf("load server config: %w", err)
+	}
 
-	fmt.Fprintf(os.Stderr, "error: server mode not yet fully implemented\n")
-	return fmt.Errorf("server mode not yet fully implemented")
+	// Override config with CLI flags
+	if flags.listenIP != "" {
+		cfg.Server.ListenIP = flags.listenIP
+	}
+	if flags.listenPort != 0 {
+		cfg.Server.TCPPort = flags.listenPort
+	}
+	if flags.personality != "" {
+		cfg.Server.Personality = flags.personality
+	}
+	if flags.enableUDPIO {
+		cfg.Server.EnableUDPIO = true
+	}
+
+	// Create logger
+	logger, err := logging.NewLogger(logging.LogLevelInfo, "")
+	if err != nil {
+		return fmt.Errorf("create logger: %w", err)
+	}
+
+	// Create server
+	srv, err := server.NewServer(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
+	}
+
+	// Start server
+	if err := srv.Start(); err != nil {
+		return fmt.Errorf("start server: %w", err)
+	}
+
+	// Setup signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Wait for signal
+	<-sigChan
+
+	// Stop server
+	if err := srv.Stop(); err != nil {
+		return fmt.Errorf("stop server: %w", err)
+	}
+
+	return nil
 }
 
