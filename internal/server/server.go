@@ -96,6 +96,7 @@ func (s *Server) Start() error {
 	}
 
 	s.logger.Info("TCP server listening on %s:%d", s.config.Server.ListenIP, s.config.Server.TCPPort)
+	fmt.Printf("[SERVER] TCP server listening on %s:%d\n", s.config.Server.ListenIP, s.config.Server.TCPPort)
 
 	// Start UDP listener if enabled
 	if s.config.Server.EnableUDPIO {
@@ -110,6 +111,7 @@ func (s *Server) Start() error {
 		}
 
 		s.logger.Info("UDP I/O server listening on %s:%d", s.config.Server.ListenIP, s.config.Server.UDPIOPort)
+		fmt.Printf("[SERVER] UDP I/O server listening on %s:%d\n", s.config.Server.ListenIP, s.config.Server.UDPIOPort)
 
 		// Start UDP handler
 		s.wg.Add(1)
@@ -125,9 +127,10 @@ func (s *Server) Start() error {
 
 // Stop stops the server
 func (s *Server) Stop() error {
+	// Cancel context to signal all goroutines to stop
 	s.cancel()
 
-	// Close TCP listener
+	// Close TCP listener (this will cause acceptLoop to exit)
 	if s.tcpListener != nil {
 		s.tcpListener.Close()
 	}
@@ -137,18 +140,21 @@ func (s *Server) Stop() error {
 		s.udpListener.Close()
 	}
 
-	// Close all sessions
+	// Close all active connections
 	s.sessionsMu.Lock()
 	for _, session := range s.sessions {
-		session.Conn.Close()
+		if session != nil && session.Conn != nil {
+			session.Conn.Close()
+		}
 	}
 	s.sessions = make(map[uint32]*Session)
 	s.sessionsMu.Unlock()
 
-	// Wait for goroutines
+	// Wait for all goroutines to finish
 	s.wg.Wait()
 
 	s.logger.Info("Server stopped")
+	fmt.Printf("[SERVER] Server stopped gracefully\n")
 	return nil
 }
 
@@ -186,10 +192,22 @@ func (s *Server) acceptLoop() {
 // handleConnection handles a TCP connection
 func (s *Server) handleConnection(conn *net.TCPConn) {
 	defer s.wg.Done()
-	defer conn.Close()
+	defer func() {
+		// Remove session from map when connection closes
+		s.sessionsMu.Lock()
+		for sessionID, session := range s.sessions {
+			if session != nil && session.Conn == conn {
+				delete(s.sessions, sessionID)
+				break
+			}
+		}
+		s.sessionsMu.Unlock()
+		conn.Close()
+	}()
 
 	remoteAddr := conn.RemoteAddr().String()
 	s.logger.Info("New connection from %s", remoteAddr)
+	fmt.Printf("[SERVER] New connection from %s\n", remoteAddr)
 
 	// Read packets until connection closes
 	for {
@@ -207,6 +225,7 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 		if _, err := io.ReadFull(conn, header); err != nil {
 			if err == io.EOF {
 				s.logger.Info("Connection closed by client: %s", remoteAddr)
+				fmt.Printf("[SERVER] Connection closed by client: %s\n", remoteAddr)
 				return
 			}
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
@@ -244,16 +263,20 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 			}
 		}
 
-		// Update session activity
+		// Update session activity and associate connection with session
 		if encap.SessionID != 0 {
-			s.sessionsMu.RLock()
+			s.sessionsMu.Lock()
 			session, ok := s.sessions[encap.SessionID]
-			s.sessionsMu.RUnlock()
-			if ok {
+			if ok && session != nil {
+				// Associate connection with session if not already set
+				if session.Conn == nil {
+					session.Conn = conn
+				}
 				session.mu.Lock()
 				session.LastActivity = time.Now()
 				session.mu.Unlock()
 			}
+			s.sessionsMu.Unlock()
 		}
 	}
 }
@@ -292,11 +315,15 @@ func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation) []byte
 	s.nextSessionID++
 	s.sessionsMu.Unlock()
 
-	// Create session
+	// Find the connection for this session
+	// Note: We need to associate the session with the connection
+	// For now, we'll store sessions without Conn, and handle connection cleanup separately
 	session := &Session{
 		ID:           sessionID,
 		CreatedAt:    time.Now(),
 		LastActivity: time.Now(),
+		// Conn will be set when we handle the connection
+		// For RegisterSession, we don't have the connection yet
 	}
 
 	s.sessionsMu.Lock()
@@ -304,6 +331,7 @@ func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation) []byte
 	s.sessionsMu.Unlock()
 
 	s.logger.Info("Registered session %d", sessionID)
+	fmt.Printf("[SERVER] Registered session %d\n", sessionID)
 
 	// Build response
 	response := cipclient.ENIPEncapsulation{
@@ -326,6 +354,7 @@ func (s *Server) handleUnregisterSession(encap cipclient.ENIPEncapsulation) []by
 	s.sessionsMu.Unlock()
 
 	s.logger.Info("Unregistered session %d", encap.SessionID)
+	fmt.Printf("[SERVER] Unregistered session %d\n", encap.SessionID)
 
 	// Build response
 	response := cipclient.ENIPEncapsulation{
@@ -345,12 +374,19 @@ func (s *Server) handleUnregisterSession(encap cipclient.ENIPEncapsulation) []by
 func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
 	// Verify session exists
 	s.sessionsMu.RLock()
-	_, ok := s.sessions[encap.SessionID]
+	session, ok := s.sessions[encap.SessionID]
 	s.sessionsMu.RUnlock()
 
 	if !ok {
 		s.logger.Error("SendRRData with invalid session %d from %s", encap.SessionID, remoteAddr)
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
+	}
+
+	// Update session activity
+	if session != nil {
+		session.mu.Lock()
+		session.LastActivity = time.Now()
+		session.mu.Unlock()
 	}
 
 	// Parse SendRRData structure
@@ -368,16 +404,29 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
 
+	// Log incoming request
+	fmt.Printf("[SERVER] Received CIP request: service=0x%02X class=0x%04X instance=0x%04X attribute=0x%02X\n",
+		uint8(cipReq.Service), cipReq.Path.Class, cipReq.Path.Instance, cipReq.Path.Attribute)
+
 	// Handle CIP request via personality
 	cipResp, err := s.personality.HandleCIPRequest(s.ctx, cipReq)
 	if err != nil {
 		s.logger.Error("Handle CIP request error: %v", err)
+		fmt.Printf("[SERVER] Request failed: %v\n", err)
 		// Return CIP error response
 		cipResp = cipclient.CIPResponse{
 			Service: cipReq.Service,
 			Status:  0x01, // General error
 			Payload: nil,
 		}
+	} else {
+		// Log successful response
+		payloadSize := 0
+		if cipResp.Payload != nil {
+			payloadSize = len(cipResp.Payload)
+		}
+		fmt.Printf("[SERVER] Responded: service=0x%02X status=0x%02X payload=%d bytes\n",
+			uint8(cipResp.Service), cipResp.Status, payloadSize)
 	}
 
 	// Encode CIP response

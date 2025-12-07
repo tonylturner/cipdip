@@ -135,6 +135,8 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 	c.sessionID = encap.SessionID
 	c.connected = true
 
+	fmt.Printf("[CLIENT] Connected and registered session 0x%08X\n", c.sessionID)
+
 	return nil
 }
 

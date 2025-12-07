@@ -51,6 +51,8 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 	loopCount := 0
 	startTime := time.Now()
+	fmt.Printf("[CLIENT] Starting mixed scenario (reads: %d, writes: %d, interval: %dms)\n", len(cfg.ReadTargets), len(cfg.WriteTargets), params.Interval.Milliseconds())
+	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
 	// Main loop
 	for {
@@ -78,6 +80,24 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			start := time.Now()
 			resp, err := client.ReadAttribute(ctx, path)
 			rtt := time.Since(start).Seconds() * 1000
+
+			// Log operation
+			if err == nil && resp.Status == 0 {
+				payloadSize := 0
+				if resp.Payload != nil {
+					payloadSize = len(resp.Payload)
+				}
+				fmt.Printf("[CLIENT] Read %s: class=0x%04X instance=0x%04X status=0x%02X payload=%d bytes RTT=%.2fms\n",
+					target.Name, path.Class, path.Instance, resp.Status, payloadSize, rtt)
+			} else {
+				errorMsg := "unknown error"
+				if err != nil {
+					errorMsg = err.Error()
+				} else if resp.Status != 0 {
+					errorMsg = fmt.Sprintf("CIP status 0x%02X", resp.Status)
+				}
+				fmt.Printf("[CLIENT] Read %s FAILED: %s\n", target.Name, errorMsg)
+			}
 
 			success := err == nil && resp.Status == 0
 			var errorMsg string
@@ -131,6 +151,20 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			start := time.Now()
 			resp, err := client.WriteAttribute(ctx, path, valueBytes)
 			rtt := time.Since(start).Seconds() * 1000
+
+			// Log operation
+			if err == nil && resp.Status == 0 {
+				fmt.Printf("[CLIENT] Write %s: class=0x%04X instance=0x%04X status=0x%02X value=%d RTT=%.2fms\n",
+					target.Name, path.Class, path.Instance, resp.Status, value, rtt)
+			} else {
+				errorMsg := "unknown error"
+				if err != nil {
+					errorMsg = err.Error()
+				} else if resp.Status != 0 {
+					errorMsg = fmt.Sprintf("CIP status 0x%02X", resp.Status)
+				}
+				fmt.Printf("[CLIENT] Write %s FAILED: %s\n", target.Name, errorMsg)
+			}
 
 			success := err == nil && resp.Status == 0
 			var errorMsg string

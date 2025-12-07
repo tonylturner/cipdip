@@ -30,6 +30,8 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	cycleCount := 0
 	failedConnections := 0
 	startTime := time.Now()
+	fmt.Printf("[CLIENT] Starting churn scenario (connection cycles every %dms)\n", params.Interval.Milliseconds())
+	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
 	// Outer loop: connection cycles
 	for {
@@ -57,6 +59,7 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		}
 		if err := client.Connect(ctx, params.IP, port); err != nil {
 			failedConnections++
+			fmt.Printf("[CLIENT] Cycle %d: Connection FAILED: %v\n", cycleCount, err)
 			params.Logger.Error("Connection failed in cycle %d: %v", cycleCount, err)
 			
 			// Record connection failure metric
@@ -77,6 +80,8 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			case <-time.After(params.Interval):
 			}
 			continue
+		} else {
+			fmt.Printf("[CLIENT] Cycle %d: Connected successfully\n", cycleCount)
 		}
 
 		// Perform 1-3 reads per target
@@ -94,6 +99,24 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 					start := time.Now()
 					resp, err := client.ReadAttribute(ctx, path)
 					rtt := time.Since(start).Seconds() * 1000
+
+					// Log operation
+					if err == nil && resp.Status == 0 {
+						payloadSize := 0
+						if resp.Payload != nil {
+							payloadSize = len(resp.Payload)
+						}
+						fmt.Printf("[CLIENT] Cycle %d Read %s: status=0x%02X payload=%d bytes RTT=%.2fms\n",
+							cycleCount, target.Name, resp.Status, payloadSize, rtt)
+					} else {
+						errorMsg := "unknown error"
+						if err != nil {
+							errorMsg = err.Error()
+						} else if resp.Status != 0 {
+							errorMsg = fmt.Sprintf("CIP status 0x%02X", resp.Status)
+						}
+						fmt.Printf("[CLIENT] Cycle %d Read %s FAILED: %s\n", cycleCount, target.Name, errorMsg)
+					}
 
 					success := err == nil && resp.Status == 0
 					var errorMsg string
@@ -134,7 +157,10 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 		// Disconnect
 		if err := client.Disconnect(ctx); err != nil {
+			fmt.Printf("[CLIENT] Cycle %d: Disconnect FAILED: %v\n", cycleCount, err)
 			params.Logger.Error("Disconnect failed in cycle %d: %v", cycleCount, err)
+		} else {
+			fmt.Printf("[CLIENT] Cycle %d: Disconnected\n", cycleCount)
 		}
 
 		// Sleep between cycles

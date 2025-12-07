@@ -79,6 +79,17 @@ Press Ctrl+C to stop the server gracefully.`,
 }
 
 func runServer(flags *serverFlags) error {
+	// Print startup message to stdout FIRST (so user sees it immediately)
+	fmt.Fprintf(os.Stdout, "CIPDIP Server starting...\n")
+	fmt.Fprintf(os.Stdout, "  Personality: %s\n", flags.personality)
+	fmt.Fprintf(os.Stdout, "  Config: %s\n", flags.serverConfig)
+	fmt.Fprintf(os.Stdout, "  Listening on: %s:%d\n", flags.listenIP, flags.listenPort)
+	if flags.enableUDPIO {
+		fmt.Fprintf(os.Stdout, "  UDP I/O enabled on port 2222\n")
+	}
+	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
+	os.Stdout.Sync() // Flush output immediately
+
 	// Validate personality
 	if flags.personality != "adapter" && flags.personality != "logix_like" {
 		return fmt.Errorf("invalid personality '%s'; must be 'adapter' or 'logix_like'", flags.personality)
@@ -87,6 +98,7 @@ func runServer(flags *serverFlags) error {
 	// Load server config
 	cfg, err := config.LoadServerConfig(flags.serverConfig)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to load server config: %v\n", err)
 		return fmt.Errorf("load server config: %w", err)
 	}
 
@@ -118,8 +130,11 @@ func runServer(flags *serverFlags) error {
 
 	// Start server
 	if err := srv.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to start server: %v\n", err)
 		return fmt.Errorf("start server: %w", err)
 	}
+
+	fmt.Fprintf(os.Stdout, "Server started successfully\n")
 
 	// Setup signal handling
 	sigChan := make(chan os.Signal, 1)
@@ -127,6 +142,8 @@ func runServer(flags *serverFlags) error {
 
 	// Wait for signal
 	<-sigChan
+
+	fmt.Fprintf(os.Stdout, "\nShutting down server...\n")
 
 	// Stop server
 	if err := srv.Stop(); err != nil {

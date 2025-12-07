@@ -1,0 +1,59 @@
+# CIPDIP Client Configuration Example
+# Copy this file to cipdip_client.yaml and customize for your target device
+
+adapter:
+  name: "CLICK C2-03CPU"   # Human-friendly name (for logs only)
+  port: 44818              # EtherNet/IP TCP port (default 44818)
+
+# CIP targets to read.
+# Each entry specifies a CIP path (class/instance/attribute) to read.
+read_targets:
+  - name: "InputBlock1"
+    service: "get_attribute_single"
+    class: 0x04
+    instance: 0x65
+    attribute: 0x03
+
+  - name: "InputBlock2"
+    service: "get_attribute_single"
+    class: 0x04
+    instance: 0x66
+    attribute: 0x03
+
+# CIP targets to write.
+# Each entry specifies a CIP path and write pattern.
+write_targets:
+  - name: "OutputBlock1"
+    service: "set_attribute_single"
+    class: 0x04
+    instance: 0x67
+    attribute: 0x03
+    pattern: "increment"        # "increment", "toggle", or "constant"
+    initial_value: 0
+
+# Optional generic/custom services (broader support)
+# These entries allow specifying any service code and raw payload template.
+custom_targets:
+  - name: "CustomServiceExample"
+    service: "custom"
+    service_code: 0x01          # e.g., Get_Attribute_All, or any CIP service
+    class: 0x01                 # example class
+    instance: 0x01              # example instance
+    attribute: 0x00             # may be unused depending on service
+    request_payload_hex: ""      # raw hex string for request body (optional)
+
+# Optional I/O connections for connected Class 1 I/O-style behavior
+# Used by the 'io' scenario
+io_connections:
+  - name: "IOConn1"
+    transport: "udp"             # "udp" (default) or "tcp"
+    o_to_t_rpi_ms: 20           # Requested Packet Interval (originator to target)
+    t_to_o_rpi_ms: 20           # Requested Packet Interval (target to originator)
+    o_to_t_size_bytes: 8         # Size of O->T connection data (bytes)
+    t_to_o_size_bytes: 8        # Size of T->O connection data (bytes)
+    priority: "scheduled"        # or "low", "high", "urgent"
+    transport_class_trigger: 3   # CIP transport class; 1, 2, or 3 (typically 1 or 3 for cyclic)
+    class: 0x04                 # Logical CIP path to the target object or assembly
+    instance: 0x65
+    connection_path_hex: ""     # Optional raw hex path if needed for complex routing
+

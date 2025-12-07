@@ -43,6 +43,8 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 	loopCount := 0
 	startTime := time.Now()
 	timeoutCount := 0
+	fmt.Printf("[CLIENT] Starting stress scenario (polling %d targets every %dms)\n", len(cfg.ReadTargets), params.Interval.Milliseconds())
+	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
 	// Main loop
 	for {
@@ -81,6 +83,21 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 				}
 			} else if resp.Status != 0 {
 				errorMsg = fmt.Sprintf("CIP status: 0x%02X", resp.Status)
+			}
+
+			// Log operation (only failures in stress mode to reduce noise)
+			if !success {
+				fmt.Printf("[CLIENT] Read %s FAILED: %s (RTT=%.2fms)\n", target.Name, errorMsg, rtt)
+			} else {
+				// Log every 100th success to show activity without flooding
+				if loopCount%100 == 0 {
+					payloadSize := 0
+					if resp.Payload != nil {
+						payloadSize = len(resp.Payload)
+					}
+					fmt.Printf("[CLIENT] Read %s: status=0x%02X payload=%d bytes RTT=%.2fms (loop %d)\n",
+						target.Name, resp.Status, payloadSize, rtt, loopCount)
+				}
 			}
 
 			metric := metrics.Metric{

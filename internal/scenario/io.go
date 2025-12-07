@@ -117,6 +117,8 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 	loopCount := 0
 	startTime := time.Now()
 	counter := uint32(0)
+	fmt.Printf("[CLIENT] Starting I/O scenario (%d connections, interval: %dms)\n", len(ioConns), loopInterval.Milliseconds())
+	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
 	// Main loop
 	for {
@@ -151,6 +153,14 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 			err := client.SendIOData(ctx, conn, oToTData)
 			rtt := time.Since(start).Seconds() * 1000
 
+			// Log operation
+			if err == nil {
+				fmt.Printf("[CLIENT] I/O %s: Sent O->T data (%d bytes) RTT=%.2fms\n",
+					connCfg.Name, len(oToTData), rtt)
+			} else {
+				fmt.Printf("[CLIENT] I/O %s: Send FAILED: %v\n", connCfg.Name, err)
+			}
+
 			success := err == nil
 			var errorMsg string
 			if err != nil {
@@ -177,6 +187,14 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 			start = time.Now()
 			tToOData, err := client.ReceiveIOData(ctx, conn)
 			rtt = time.Since(start).Seconds() * 1000
+
+			// Log operation
+			if err == nil {
+				fmt.Printf("[CLIENT] I/O %s: Received T->O data (%d bytes) RTT=%.2fms\n",
+					connCfg.Name, len(tToOData), rtt)
+			} else {
+				fmt.Printf("[CLIENT] I/O %s: Receive FAILED: %v\n", connCfg.Name, err)
+			}
 
 			success = err == nil
 			errorMsg = ""

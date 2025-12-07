@@ -154,7 +154,8 @@ func runClient(flags *clientFlags) error {
 	// Load config (runtime error if file issues, CLI error if validation fails)
 	cfg, err := config.LoadClientConfig(flags.config)
 	if err != nil {
-		// Config loading errors are runtime errors - return error to be handled by caller
+		// Config loading errors are runtime errors - print helpful error message
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return fmt.Errorf("load config: %w", err)
 	}
 
@@ -169,7 +170,16 @@ func runClient(flags *clientFlags) error {
 		defer metricsWriter.Close()
 	}
 
-	// Log startup
+	// Print startup message to stdout FIRST (so user sees it immediately)
+	fmt.Fprintf(os.Stdout, "CIPDIP Client starting...\n")
+	fmt.Fprintf(os.Stdout, "  Scenario: %s\n", flags.scenario)
+	fmt.Fprintf(os.Stdout, "  Target: %s:%d\n", flags.ip, flags.port)
+	fmt.Fprintf(os.Stdout, "  Interval: %d ms\n", flags.intervalMs)
+	fmt.Fprintf(os.Stdout, "  Duration: %d seconds\n", flags.durationSec)
+	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
+	os.Stdout.Sync() // Flush output immediately
+
+	// Log startup (for log file if specified)
 	logger.LogStartup(flags.scenario, flags.ip, flags.port, flags.intervalMs, flags.durationSec, flags.config)
 
 	// Create context with signal handling

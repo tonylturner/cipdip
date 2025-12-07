@@ -9,10 +9,9 @@ import (
 // TestCIPResponseStructure validates CIP response structure
 func TestCIPResponseStructure(t *testing.T) {
 	// Test response with success status
-	// Note: DecodeCIPResponse currently treats first byte as status (simplified implementation)
-	// Actual CIP responses have: [service_code, status, ...payload]
-	// For this test, we'll use simplified format: [status, ...payload]
+	// CIP response structure: [service_code, status, ...payload]
 	responseData := []byte{
+		0x0E, // Service code: Get_Attribute_Single (echoed from request)
 		0x00, // General status (success)
 		0x01, 0x02, 0x03, 0x04, // Payload data
 	}
@@ -49,11 +48,12 @@ func TestCIPResponseStructure(t *testing.T) {
 // TestCIPResponseWithError validates CIP error response structure
 func TestCIPResponseWithError(t *testing.T) {
 	// Test response with error status
-	// Note: DecodeCIPResponse currently treats first byte as status (simplified implementation)
+	// CIP response structure: [service_code, status, extended_status_size, ...extended_status]
 	responseData := []byte{
+		0x0E, // Service code: Get_Attribute_Single (echoed from request)
 		0x01, // General status (error)
-		0x05, // Extended status length (if applicable)
-		0x01, 0x02, 0x03, 0x04, 0x05, // Extended status
+		0x05, // Extended status size
+		0x01, 0x02, 0x03, 0x04, 0x05, // Extended status bytes
 	}
 
 	path := CIPPath{
@@ -196,8 +196,12 @@ func TestCIPStatusCodes(t *testing.T) {
 	}
 
 	// Test that we handle success status correctly
-	// Note: DecodeCIPResponse currently treats first byte as status
-	successData := []byte{0x00, 0x01, 0x02}
+	// CIP response structure: [service_code, status, ...payload]
+	successData := []byte{
+		0x0E, // Service code: Get_Attribute_Single
+		0x00, // Status: success
+		0x01, 0x02, // Payload
+	}
 	path := CIPPath{Class: 0x04, Instance: 0x65, Attribute: 0x03}
 	resp, err := DecodeCIPResponse(successData, path)
 	if err != nil {
@@ -205,6 +209,9 @@ func TestCIPStatusCodes(t *testing.T) {
 	}
 	if resp.Status != 0x00 {
 		t.Errorf("Success status: got 0x%02X, want 0x00", resp.Status)
+	}
+	if resp.Service != CIPServiceGetAttributeSingle {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, CIPServiceGetAttributeSingle)
 	}
 }
 
