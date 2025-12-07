@@ -26,10 +26,38 @@ func newServerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server",
 		Short: "Run in server/emulator mode",
-		Long: `Act as an EtherNet/IP / CIP endpoint (emulator) that clients can connect to.
-Supports adapter and logix_like personalities.`,
-		Example: `  cipdip server --personality adapter
-  cipdip server --personality logix_like --listen-ip 0.0.0.0 --enable-udp-io`,
+		Long: `Run CIPDIP as an EtherNet/IP / CIP endpoint (emulator) that other CIP clients can connect to.
+
+This command starts a CIP server that responds to CIP requests, allowing you to test
+client behavior or act as a target for DPI testing. The server supports two personalities:
+
+  adapter      - Assembly-style object model (like CLICK PLCs)
+                 Responds to Get/Set Attribute Single requests on configured assemblies
+                 
+  logix_like    - Tag-based interface (like Allen-Bradley Logix controllers)
+                 Responds to tag read/write requests
+
+The server listens on TCP port 44818 for explicit messaging. Optionally, you can enable
+UDP port 2222 for Class 1 I/O (implicit messaging) using --enable-udp-io.
+
+Configuration is loaded from cipdip_server.yaml (or --server-config). The config file
+defines which assemblies or tags are available and how they behave.
+
+Press Ctrl+C to stop the server gracefully.`,
+		Example: `  # Start adapter personality server (default)
+  cipdip server
+
+  # Start logix_like personality server
+  cipdip server --personality logix_like
+
+  # Start server with UDP I/O enabled
+  cipdip server --enable-udp-io
+
+  # Start server on specific IP and port
+  cipdip server --listen-ip 192.168.1.100 --listen-port 44818
+
+  # Use custom config file
+  cipdip server --server-config ./my_server.yaml`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := runServer(flags)
 			if err != nil {
@@ -107,4 +135,3 @@ func runServer(flags *serverFlags) error {
 
 	return nil
 }
-

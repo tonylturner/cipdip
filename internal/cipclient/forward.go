@@ -5,6 +5,7 @@ package cipclient
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 )
 
 // BuildForwardOpenRequest builds a ForwardOpen CIP request
@@ -97,8 +98,19 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	var connPath []byte
 	if params.ConnectionPathHex != "" {
 		// Use raw hex path if provided
-		// TODO: Parse hex string
-		connPath = []byte{0x20, uint8(params.Class), 0x24, uint8(params.Instance)}
+		// Parse hex string (format: "20 04 24 65" or "20042465")
+		hexStr := strings.ReplaceAll(params.ConnectionPathHex, " ", "")
+		if len(hexStr)%2 != 0 {
+			return nil, fmt.Errorf("connection_path_hex must have even number of hex digits")
+		}
+		connPath = make([]byte, len(hexStr)/2)
+		for i := 0; i < len(hexStr); i += 2 {
+			var b byte
+			if _, err := fmt.Sscanf(hexStr[i:i+2], "%02x", &b); err != nil {
+				return nil, fmt.Errorf("invalid hex in connection_path_hex: %w", err)
+			}
+			connPath[i/2] = b
+		}
 	} else {
 		// Build EPATH from Class/Instance
 		connPath = EncodeEPATH(CIPPath{
@@ -108,9 +120,10 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	}
 	
 	// Path size in 16-bit words (round up)
-	pathSizeWords := (len(connPath) + 1) / 2
+	// ODVA spec: Path size is in 16-bit words, round up if odd number of bytes
+	pathSizeWords := len(connPath) / 2
 	if len(connPath)%2 != 0 {
-		pathSizeWords++
+		pathSizeWords++ // Round up for odd number of bytes
 	}
 	data = append(data, uint8(pathSizeWords))
 
@@ -194,9 +207,10 @@ func BuildForwardCloseRequest(connectionID uint32) ([]byte, error) {
 	pathBytes = binary.BigEndian.AppendUint32(pathBytes, connectionID)
 	
 	// Path size in 16-bit words (round up)
-	pathSizeWords := (len(pathBytes) + 1) / 2
+	// ODVA spec: Path size is in 16-bit words, round up if odd number of bytes
+	pathSizeWords := len(pathBytes) / 2
 	if len(pathBytes)%2 != 0 {
-		pathSizeWords++
+		pathSizeWords++ // Round up for odd number of bytes
 	}
 	data = append(data, uint8(pathSizeWords))
 

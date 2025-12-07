@@ -78,7 +78,32 @@ cipdip server --personality logix_like --server-config ./configs/cipdip_server.y
 cipdip discover --interface eth0 --timeout 5s
 ```
 
+### Test Connectivity
+
+```bash
+# Test basic connectivity to a device
+cipdip test --ip 10.0.0.50
+
+# Test with custom port
+cipdip test --ip 10.0.0.50 --port 44818
+```
+
+### Packet Analysis
+
+```bash
+# Analyze a captured packet file
+cipdip pcap --input packet.bin --validate
+
+# Compare two packets
+cipdip pcap --input packet1.bin --compare packet2.bin
+
+# Output in JSON format
+cipdip pcap --input packet.bin --format json
+```
+
 ## Configuration
+
+For detailed configuration documentation, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ### Client Config (`cipdip_client.yaml`)
 
@@ -122,8 +147,10 @@ io_connections:
 server:
   name: "Go CIP Emulator"
   personality: "adapter"
+  listen_ip: "0.0.0.0"
   tcp_port: 44818
   udp_io_port: 2222
+  enable_udp_io: false
 
 adapter_assemblies:
   - name: "InputAssembly1"
@@ -143,6 +170,44 @@ adapter_assemblies:
 - **io**: Connected Class 1 I/O-style behavior (10ms default, UDP 2222)
 
 ## Command Reference
+
+### `cipdip test`
+
+Test basic connectivity to a CIP device.
+
+**Required flags:**
+- `--ip`: Target CIP adapter IP address
+
+**Optional flags:**
+- `--port`: TCP port (default: 44818)
+
+**Example:**
+```bash
+cipdip test --ip 10.0.0.50
+```
+
+### `cipdip pcap`
+
+Analyze EtherNet/IP packet captures for compliance and structure validation.
+
+**Required flags:**
+- `--input`: Input packet file (raw binary)
+
+**Optional flags:**
+- `--validate`: Validate ODVA compliance
+- `--compare`: Compare with another packet file
+- `--format`: Output format (text|json, default: text)
+- `--output`: Output file (default: stdout)
+- `--hexdump`: Display raw packet hex dump
+
+**Examples:**
+```bash
+# Analyze and validate a packet
+cipdip pcap --input capture.bin --validate
+
+# Compare two packets
+cipdip pcap --input packet1.bin --compare packet2.bin
+```
 
 ### `cipdip client`
 

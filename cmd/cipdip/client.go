@@ -35,11 +35,47 @@ func newClientCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "client",
 		Short: "Run in client/scanner mode",
-		Long: `Connect to a CIP target and generate traffic using the specified scenario.
-This is the primary mode for DPI testing.`,
-		Example: `  cipdip client --ip 10.0.0.50 --scenario baseline
+		Long: `Connect to a CIP device and generate traffic using the specified scenario.
+
+This is the primary mode for DPI (Deep Packet Inspection) testing. CIPDIP acts as a CIP
+client that connects to a target device and generates repeatable, controllable traffic
+patterns based on the selected scenario.
+
+Available scenarios:
+  baseline  - Low-frequency read-only polling (250ms default interval)
+              Reads configured targets periodically
+              
+  mixed     - Medium-frequency mixed reads/writes (100ms default interval)
+              Alternates between reading and writing configured targets
+              
+  stress    - High-frequency reads (20ms default interval)
+              Rapid read requests to stress test DPI systems
+              
+  churn     - Connection setup/teardown cycles (100ms default interval)
+              Repeatedly connects, performs operations, then disconnects
+              
+  io        - Connected Class 1 I/O-style behavior (10ms default interval)
+              Uses ForwardOpen/ForwardClose and SendIOData/ReceiveIOData
+              Requires io_connections configured in cipdip_client.yaml
+
+Configuration is loaded from cipdip_client.yaml (or --config). The config file defines
+which CIP paths (class/instance/attribute) to read/write and any I/O connections.
+
+Use --verbose or --debug for detailed logging, and --metrics-file to save metrics data.`,
+		Example: `  # Run baseline scenario (low-frequency reads)
+  cipdip client --ip 10.0.0.50 --scenario baseline
+
+  # Run mixed scenario for 10 minutes
   cipdip client --ip 10.0.0.50 --scenario mixed --duration-seconds 600
-  cipdip client --ip 10.0.0.50 --scenario stress --interval-ms 10`,
+
+  # Run stress test with custom interval
+  cipdip client --ip 10.0.0.50 --scenario stress --interval-ms 10
+
+  # Run I/O scenario with verbose logging
+  cipdip client --ip 10.0.0.50 --scenario io --verbose
+
+  # Save metrics to file
+  cipdip client --ip 10.0.0.50 --scenario baseline --metrics-file metrics.csv`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := runClient(flags)
 			if err != nil {
@@ -166,7 +202,7 @@ func runClient(flags *clientFlags) error {
 		Duration:    time.Duration(flags.durationSec) * time.Second,
 		MetricsSink: metricsSink,
 		Logger:      logger,
-		TargetType:  metrics.TargetTypeClick, // TODO: Determine from config or flag
+		TargetType:  determineTargetType(cfg, flags.ip),
 	}
 
 	// Run scenario
@@ -201,4 +237,21 @@ func runClient(flags *clientFlags) error {
 	}
 
 	return nil
+}
+
+// determineTargetType determines the target type based on config and IP
+func determineTargetType(cfg *config.Config, ip string) metrics.TargetType {
+	// Check if IP is localhost/127.0.0.1 - likely emulator
+	if ip == "127.0.0.1" || ip == "localhost" || ip == "::1" {
+		// Could be emulator, but we don't know personality from client config
+		// Default to click for now
+		return metrics.TargetTypeClick
+	}
+
+	// Default to click (real device)
+	// In the future, this could be determined from:
+	// - Config file metadata
+	// - Command-line flag
+	// - Device discovery information
+	return metrics.TargetTypeClick
 }

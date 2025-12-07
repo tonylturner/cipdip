@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version = "dev"
+	version = "0.1"
 	commit  = "unknown"
 	date    = "unknown"
 )
@@ -29,19 +29,10 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 	rootCmd.AddCommand(newServerCmd())
 	rootCmd.AddCommand(newDiscoverCmd())
 	rootCmd.AddCommand(newInstallCmd())
+	rootCmd.AddCommand(newPcapCmd())
+	rootCmd.AddCommand(newTestCmd())
 
-	// Custom help command
-	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		// Print short top-level usage
-		fmt.Fprintf(os.Stdout, "Usage:\n  %s <command> [arguments] [options]\n\n", cmd.Name())
-		fmt.Fprintf(os.Stdout, "Available Commands:\n")
-		for _, subCmd := range cmd.Commands() {
-			if !subCmd.Hidden {
-				fmt.Fprintf(os.Stdout, "  %-15s %s\n", subCmd.Name(), subCmd.Short)
-			}
-		}
-		fmt.Fprintf(os.Stdout, "\nUse \"%s help <command>\" for more information about a command.\n", cmd.Name())
-	})
+	// Let Cobra handle help automatically - it will show flags and detailed descriptions
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
