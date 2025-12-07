@@ -18,26 +18,26 @@ import (
 
 // Server represents an EtherNet/IP CIP server
 type Server struct {
-	config       *config.ServerConfig
-	logger       *logging.Logger
-	tcpListener  *net.TCPListener
-	udpListener  *net.UDPConn
-	sessions     map[uint32]*Session
-	sessionsMu   sync.RWMutex
+	config        *config.ServerConfig
+	logger        *logging.Logger
+	tcpListener   *net.TCPListener
+	udpListener   *net.UDPConn
+	sessions      map[uint32]*Session
+	sessionsMu    sync.RWMutex
 	nextSessionID uint32
-	personality  Personality
-	ctx          context.Context
-	cancel       context.CancelFunc
-	wg           sync.WaitGroup
+	personality   Personality
+	ctx           context.Context
+	cancel        context.CancelFunc
+	wg            sync.WaitGroup
 }
 
 // Session represents an active EtherNet/IP session
 type Session struct {
-	ID            uint32
-	Conn          *net.TCPConn
-	CreatedAt     time.Time
-	LastActivity  time.Time
-	mu            sync.Mutex
+	ID           uint32
+	Conn         *net.TCPConn
+	CreatedAt    time.Time
+	LastActivity time.Time
+	mu           sync.Mutex
 }
 
 // Personality interface for different server behaviors
@@ -359,12 +359,12 @@ func (s *Server) handleUnregisterSession(encap cipclient.ENIPEncapsulation) []by
 	// Build response
 	response := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandUnregisterSession,
-		Length:         0,
-		SessionID:      encap.SessionID,
-		Status:         cipclient.ENIPStatusSuccess,
-		SenderContext:  encap.SenderContext,
-		Options:        0,
-		Data:           nil,
+		Length:        0,
+		SessionID:     encap.SessionID,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          nil,
 	}
 
 	return cipclient.EncodeENIP(response)
@@ -396,6 +396,18 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 
 	// Skip Interface Handle (4 bytes) and Timeout (2 bytes)
 	cipData := encap.Data[6:]
+
+	// Check if this is a ForwardOpen request (service 0x54)
+	if len(cipData) > 0 && cipclient.CIPServiceCode(cipData[0]) == cipclient.CIPServiceForwardOpen {
+		// Handle ForwardOpen specially (it doesn't follow standard CIP request format)
+		return s.handleForwardOpen(encap, cipData)
+	}
+
+	// Check if this is a ForwardClose request (service 0x4E)
+	if len(cipData) > 0 && cipclient.CIPServiceCode(cipData[0]) == cipclient.CIPServiceForwardClose {
+		// Handle ForwardClose specially (it doesn't follow standard CIP request format)
+		return s.handleForwardClose(encap, cipData)
+	}
 
 	// Decode CIP request
 	cipReq, err := cipclient.DecodeCIPRequest(cipData)
@@ -455,6 +467,93 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	return cipclient.EncodeENIP(response)
 }
 
+// handleForwardOpen handles a ForwardOpen request (I/O connection establishment)
+func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []byte) []byte {
+	fmt.Printf("[SERVER] Received ForwardOpen request\n")
+
+	// ForwardOpen response structure:
+	// - General status (1 byte) = 0x00 (success)
+	// - Additional status size (1 byte) = 0x00
+	// - O->T connection ID (4 bytes)
+	// - T->O connection ID (4 bytes)
+	// - Connection serial number (2 bytes) = 0x0000
+	// - Originator vendor ID (2 bytes) = 0x0000
+	// - Originator serial number (4 bytes) = 0x00000000
+	// - Connection timeout multiplier (1 byte) = 0x01
+
+	// Generate connection IDs (simple incrementing for now)
+	s.sessionsMu.Lock()
+	oToTConnID := uint32(0x10000000 + s.nextSessionID*2)
+	tToOConnID := uint32(0x10000000 + s.nextSessionID*2 + 1)
+	s.nextSessionID++
+	s.sessionsMu.Unlock()
+
+	// Build ForwardOpen response
+	var respData []byte
+	respData = append(respData, 0x00)                              // General status (success)
+	respData = append(respData, 0x00)                              // Additional status size
+	respData = binary.BigEndian.AppendUint32(respData, oToTConnID) // O->T connection ID
+	respData = binary.BigEndian.AppendUint32(respData, tToOConnID) // T->O connection ID
+	respData = binary.BigEndian.AppendUint16(respData, 0x0000)     // Connection serial number
+	respData = binary.BigEndian.AppendUint16(respData, 0x0000)     // Originator vendor ID
+	respData = binary.BigEndian.AppendUint32(respData, 0x00000000) // Originator serial number
+	respData = append(respData, 0x01)                              // Connection timeout multiplier
+
+	// Build SendRRData response
+	var sendData []byte
+	sendData = binary.BigEndian.AppendUint32(sendData, 0) // Interface Handle
+	sendData = binary.BigEndian.AppendUint16(sendData, 0) // Timeout
+	sendData = append(sendData, respData...)
+
+	response := cipclient.ENIPEncapsulation{
+		Command:       cipclient.ENIPCommandSendRRData,
+		Length:        uint16(len(sendData)),
+		SessionID:     encap.SessionID,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          sendData,
+	}
+
+	fmt.Printf("[SERVER] ForwardOpen response: O->T=0x%08X T->O=0x%08X\n", oToTConnID, tToOConnID)
+
+	return cipclient.EncodeENIP(response)
+}
+
+// handleForwardClose handles a ForwardClose request (I/O connection teardown)
+func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData []byte) []byte {
+	fmt.Printf("[SERVER] Received ForwardClose request\n")
+
+	// ForwardClose response structure:
+	// - General status (1 byte) = 0x00 (success)
+	// - Additional status size (1 byte) = 0x00
+
+	// Build ForwardClose response
+	var respData []byte
+	respData = append(respData, 0x00) // General status (success)
+	respData = append(respData, 0x00) // Additional status size
+
+	// Build SendRRData response
+	var sendData []byte
+	sendData = binary.BigEndian.AppendUint32(sendData, 0) // Interface Handle
+	sendData = binary.BigEndian.AppendUint16(sendData, 0) // Timeout
+	sendData = append(sendData, respData...)
+
+	response := cipclient.ENIPEncapsulation{
+		Command:       cipclient.ENIPCommandSendRRData,
+		Length:        uint16(len(sendData)),
+		SessionID:     encap.SessionID,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          sendData,
+	}
+
+	fmt.Printf("[SERVER] ForwardClose response: success\n")
+
+	return cipclient.EncodeENIP(response)
+}
+
 // handleSendUnitData handles a SendUnitData request (connected messaging)
 func (s *Server) handleSendUnitData(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
 	// Verify session exists
@@ -477,11 +576,15 @@ func (s *Server) handleSendUnitData(encap cipclient.ENIPEncapsulation, remoteAdd
 	cipData := encap.Data[4:]
 
 	s.logger.Debug("SendUnitData: connection %d, data length %d", connectionID, len(cipData))
+	fmt.Printf("[SERVER] Received I/O data: connection=0x%08X size=%d bytes\n", connectionID, len(cipData))
 
-	// For now, just acknowledge (I/O handling can be extended later)
+	// Echo back the data (T->O response)
 	var sendData []byte
 	sendData = binary.BigEndian.AppendUint32(sendData, connectionID)
-	// Echo back data or generate response based on personality
+	// Echo back the I/O data
+	if len(cipData) > 0 {
+		sendData = append(sendData, cipData...)
+	}
 
 	response := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendUnitData,
@@ -521,8 +624,33 @@ func (s *Server) handleUDP() {
 			continue
 		}
 
-		s.logger.Debug("UDP I/O packet from %s: %d bytes", addr.String(), n)
-		// Handle UDP I/O packet (can be extended based on personality)
+		// Parse ENIP packet
+		if n < 24 {
+			s.logger.Debug("UDP packet too short: %d bytes", n)
+			continue
+		}
+
+		// Decode ENIP header
+		encap, err := cipclient.DecodeENIP(buffer[:n])
+		if err != nil {
+			s.logger.Debug("UDP decode error from %s: %v", addr.String(), err)
+			continue
+		}
+
+		// Handle SendUnitData on UDP (I/O data)
+		if encap.Command == cipclient.ENIPCommandSendUnitData {
+			resp := s.handleSendUnitData(encap, addr.String())
+			if resp != nil {
+				// Send response back to client
+				if _, err := s.udpListener.WriteToUDP(resp, addr); err != nil {
+					s.logger.Error("UDP write error to %s: %v", addr.String(), err)
+				} else {
+					s.logger.Debug("UDP I/O response sent to %s: %d bytes", addr.String(), len(resp))
+				}
+			}
+		} else {
+			s.logger.Debug("UDP I/O packet from %s: unsupported command 0x%04X", addr.String(), encap.Command)
+		}
 	}
 }
 

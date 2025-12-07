@@ -109,6 +109,9 @@ func runBaseline(flags *baselineFlags) error {
 
 		// Update server config personality
 		serverCfg.Server.Personality = personality
+		
+		// Enable UDP I/O for I/O scenarios
+		serverCfg.Server.EnableUDPIO = true
 
 		// Start server
 		srv, err := server.NewServer(serverCfg, logger)
