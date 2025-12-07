@@ -103,7 +103,15 @@ type ServerConfig struct {
 func LoadClientConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read config file: %w", err)
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("config file not found: %s\n\n"+
+				"To fix this:\n"+
+				"  1. Copy the example config: cp configs/cipdip_client.yaml.example cipdip_client.yaml\n"+
+				"  2. Edit cipdip_client.yaml with your target device settings\n"+
+				"  3. Or specify a custom config file with --config <path>\n\n"+
+				"See docs/CONFIGURATION.md for detailed configuration instructions", path)
+		}
+		return nil, fmt.Errorf("read config file %s: %w", path, err)
 	}
 
 	var cfg Config
@@ -246,7 +254,15 @@ func validateIOConnection(conn IOConnectionConfig, index int) error {
 func LoadServerConfig(path string) (*ServerConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("read config file: %w", err)
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("config file not found: %s\n\n"+
+				"To fix this:\n"+
+				"  1. Copy the example config: cp configs/cipdip_server.yaml.example cipdip_server.yaml\n"+
+				"  2. Edit cipdip_server.yaml with your server settings\n"+
+				"  3. Or specify a custom config file with --server-config <path>\n\n"+
+				"See docs/CONFIGURATION.md for detailed configuration instructions", path)
+		}
+		return nil, fmt.Errorf("read config file %s: %w", path, err)
 	}
 
 	var cfg ServerConfig

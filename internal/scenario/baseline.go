@@ -33,7 +33,10 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() {
+		fmt.Printf("[CLIENT] Disconnecting...\n")
+		client.Disconnect(ctx)
+	}()
 
 	// Create deadline for duration
 	deadline := time.Now().Add(params.Duration)
@@ -42,12 +45,15 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 
 	loopCount := 0
 	startTime := time.Now()
+	fmt.Printf("[CLIENT] Starting baseline scenario (polling %d targets every %dms)\n", len(cfg.ReadTargets), params.Interval.Milliseconds())
+	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
 	// Main loop
 	for {
 		select {
 		case <-ctx.Done():
 			params.Logger.Info("Baseline scenario completed (duration expired or cancelled)")
+			fmt.Printf("[CLIENT] Scenario completed after %d operations\n", loopCount)
 			return nil
 		default:
 		}
@@ -70,6 +76,24 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 			start := time.Now()
 			resp, err := client.ReadAttribute(ctx, path)
 			rtt := time.Since(start).Seconds() * 1000 // Convert to milliseconds
+
+			// Log operation
+			if err == nil && resp.Status == 0 {
+				payloadSize := 0
+				if resp.Payload != nil {
+					payloadSize = len(resp.Payload)
+				}
+				fmt.Printf("[CLIENT] Read %s: class=0x%04X instance=0x%04X status=0x%02X payload=%d bytes RTT=%.2fms\n",
+					target.Name, path.Class, path.Instance, resp.Status, payloadSize, rtt)
+			} else {
+				errorMsg := "unknown error"
+				if err != nil {
+					errorMsg = err.Error()
+				} else if resp.Status != 0 {
+					errorMsg = fmt.Sprintf("CIP status 0x%02X", resp.Status)
+				}
+				fmt.Printf("[CLIENT] Read %s FAILED: %s\n", target.Name, errorMsg)
+			}
 
 			// Record metric
 			success := err == nil && resp.Status == 0

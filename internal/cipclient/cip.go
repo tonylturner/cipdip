@@ -128,26 +128,70 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 		return req, fmt.Errorf("incomplete EPATH")
 	}
 
-	// Class (8-bit)
-	if data[offset]&0xF0 != 0x20 {
-		return req, fmt.Errorf("invalid class segment")
-	}
-	req.Path.Class = uint16(data[offset+1])
-	offset += 2
+	// Decode EPATH segments
+	// EPATH segment format: segment type byte + data bytes
+	// Segment type byte encoding:
+	//   - Bits 4-7: Segment type (0x2=class/instance, 0x3=attribute)
+	//   - Bits 0-3: Format (0x0=8-bit, 0x1=16-bit, 0x4=instance marker)
+	// Constants: 0x20 (class), 0x24 (instance), 0x30 (attribute)
+	// For 16-bit: 0x21 (class), 0x25 (instance), 0x31 (attribute)
 
-	// Instance (8-bit)
-	if data[offset]&0xF0 != 0x24 {
-		return req, fmt.Errorf("invalid instance segment")
+	// Class segment
+	if data[offset] == 0x20 {
+		// 8-bit class
+		if len(data) < offset+2 {
+			return req, fmt.Errorf("incomplete class segment")
+		}
+		req.Path.Class = uint16(data[offset+1])
+		offset += 2
+	} else if data[offset] == 0x21 {
+		// 16-bit class
+		if len(data) < offset+3 {
+			return req, fmt.Errorf("incomplete 16-bit class segment")
+		}
+		req.Path.Class = binary.BigEndian.Uint16(data[offset+1 : offset+3])
+		offset += 3
+	} else {
+		return req, fmt.Errorf("invalid class segment: got 0x%02X, expected 0x20 or 0x21", data[offset])
 	}
-	req.Path.Instance = uint16(data[offset+1])
-	offset += 2
 
-	// Attribute (8-bit)
-	if data[offset]&0xF0 != 0x30 {
-		return req, fmt.Errorf("invalid attribute segment")
+	// Instance segment
+	if data[offset] == 0x24 {
+		// 8-bit instance
+		if len(data) < offset+2 {
+			return req, fmt.Errorf("incomplete instance segment")
+		}
+		req.Path.Instance = uint16(data[offset+1])
+		offset += 2
+	} else if data[offset] == 0x25 {
+		// 16-bit instance
+		if len(data) < offset+3 {
+			return req, fmt.Errorf("incomplete 16-bit instance segment")
+		}
+		req.Path.Instance = binary.BigEndian.Uint16(data[offset+1 : offset+3])
+		offset += 3
+	} else {
+		return req, fmt.Errorf("invalid instance segment: got 0x%02X, expected 0x24 or 0x25", data[offset])
 	}
-	req.Path.Attribute = data[offset+1]
-	offset += 2
+
+	// Attribute segment
+	if data[offset] == 0x30 {
+		// 8-bit attribute
+		if len(data) < offset+2 {
+			return req, fmt.Errorf("incomplete attribute segment")
+		}
+		req.Path.Attribute = data[offset+1]
+		offset += 2
+	} else if data[offset] == 0x31 {
+		// 16-bit attribute (rare, but supported)
+		if len(data) < offset+3 {
+			return req, fmt.Errorf("incomplete 16-bit attribute segment")
+		}
+		req.Path.Attribute = data[offset+1] // For now, just take first byte
+		offset += 3
+	} else {
+		return req, fmt.Errorf("invalid attribute segment: got 0x%02X, expected 0x30 or 0x31", data[offset])
+	}
 
 	// Remaining data is payload
 	if len(data) > offset {
@@ -181,40 +225,46 @@ func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 }
 
 // DecodeCIPResponse decodes a CIP response from bytes
+// CIP response structure per ODVA spec:
+// - Byte 0: Service code (echoed from request)
+// - Byte 1: General status (0x00 = success)
+// - Bytes 2+: Extended status (if status != 0x00) + Additional status size byte
+// - Bytes N+: Response data (if status == 0x00)
 func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
-	if len(data) < 1 {
-		return CIPResponse{}, fmt.Errorf("response too short")
+	if len(data) < 2 {
+		return CIPResponse{}, fmt.Errorf("response too short: %d bytes (minimum 2: service + status)", len(data))
 	}
 
 	resp := CIPResponse{
 		Path: path,
 	}
 
-	// General status (first byte after service code in response)
-	// Note: In actual CIP responses, the service code is echoed, then status
-	// For now, assume the first byte is the status
-	offset := 0
-	if len(data) > offset {
-		resp.Status = data[offset]
-		offset++
+	// Byte 0: Service code (echoed from request)
+	serviceCode := CIPServiceCode(data[0])
+	resp.Service = serviceCode
+
+	// Byte 1: General status
+	resp.Status = data[1]
+	offset := 2
+
+	// Extended status (if status != 0x00)
+	// Extended status format: size byte (1 byte) + status bytes
+	if resp.Status != 0x00 {
+		if len(data) > offset {
+			extStatusSize := int(data[offset])
+			offset++
+			if len(data) >= offset+extStatusSize {
+				resp.ExtStatus = data[offset : offset+extStatusSize]
+				offset += extStatusSize
+			}
+		}
 	}
 
-	// Extended status (if present, indicated by status code)
-	// Status 0x00 = success, no extended status
-	// Other statuses may have extended status bytes
-	if resp.Status != 0x00 && len(data) > offset {
-		// Extended status length (if applicable)
-		// For now, take remaining bytes as extended status
-		resp.ExtStatus = data[offset:]
-	}
-
-	// Payload is typically after status bytes
-	// This is a simplified parser; full implementation would need to handle
-	// the actual CIP response structure more carefully
+	// Payload follows status bytes (if status == 0x00, payload is after status byte)
 	if resp.Status == 0x00 {
-		// Success: payload follows status
-		if len(data) > 1 {
-			resp.Payload = data[1:]
+		// Success: payload follows status byte
+		if len(data) > offset {
+			resp.Payload = data[offset:]
 		}
 	}
 
