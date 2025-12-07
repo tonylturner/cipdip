@@ -3,6 +3,7 @@ package capture
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/google/gopacket"
@@ -18,6 +19,7 @@ type Capture struct {
 	packets   []gopacket.Packet
 	startTime time.Time
 	stopChan  chan struct{}
+	stopOnce  sync.Once
 }
 
 // StartCapture starts capturing packets on the specified interface
@@ -136,17 +138,21 @@ func (c *Capture) captureLoop() {
 	}
 }
 
-// Stop stops the capture and closes resources
+// Stop stops the capture and closes resources (idempotent)
 func (c *Capture) Stop() error {
-	close(c.stopChan)
-	time.Sleep(100 * time.Millisecond) // Give capture loop time to stop
+	c.stopOnce.Do(func() {
+		close(c.stopChan)
+		time.Sleep(100 * time.Millisecond) // Give capture loop time to stop
 
-	if c.file != nil {
-		c.file.Close()
-	}
-	if c.handle != nil {
-		c.handle.Close()
-	}
+		if c.file != nil {
+			c.file.Close()
+			c.file = nil
+		}
+		if c.handle != nil {
+			c.handle.Close()
+			c.handle = nil
+		}
+	})
 	return nil
 }
 

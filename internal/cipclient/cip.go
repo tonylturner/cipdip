@@ -174,23 +174,25 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 		return req, fmt.Errorf("invalid instance segment: got 0x%02X, expected 0x24 or 0x25", data[offset])
 	}
 
-	// Attribute segment
-	if data[offset] == 0x30 {
-		// 8-bit attribute
-		if len(data) < offset+2 {
-			return req, fmt.Errorf("incomplete attribute segment")
+	// Attribute segment (optional - some services like ForwardOpen don't have attributes)
+	if offset < len(data) {
+		if data[offset] == 0x30 {
+			// 8-bit attribute
+			if len(data) < offset+2 {
+				return req, fmt.Errorf("incomplete attribute segment")
+			}
+			req.Path.Attribute = data[offset+1]
+			offset += 2
+		} else if data[offset] == 0x31 {
+			// 16-bit attribute (rare, but supported)
+			if len(data) < offset+3 {
+				return req, fmt.Errorf("incomplete 16-bit attribute segment")
+			}
+			req.Path.Attribute = data[offset+1] // For now, just take first byte
+			offset += 3
 		}
-		req.Path.Attribute = data[offset+1]
-		offset += 2
-	} else if data[offset] == 0x31 {
-		// 16-bit attribute (rare, but supported)
-		if len(data) < offset+3 {
-			return req, fmt.Errorf("incomplete 16-bit attribute segment")
-		}
-		req.Path.Attribute = data[offset+1] // For now, just take first byte
-		offset += 3
-	} else {
-		return req, fmt.Errorf("invalid attribute segment: got 0x%02X, expected 0x30 or 0x31", data[offset])
+		// If not 0x30 or 0x31, assume no attribute segment (e.g., ForwardOpen)
+		// Don't return error - just leave attribute as 0
 	}
 
 	// Remaining data is payload

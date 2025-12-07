@@ -110,7 +110,7 @@ func (ap *AdapterPersonality) HandleCIPRequest(ctx context.Context, req cipclien
 		return cipclient.CIPResponse{
 			Service: req.Service,
 			Status:  0x08, // Service not supported
-		}, fmt.Errorf("unsupported service: 0x%02X", req.Service)
+		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), req.Service)
 	}
 }
 
