@@ -11,6 +11,7 @@ import (
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tturner/cipdip/internal/progress"
 )
 
 // MixedScenario implements the mixed scenario
@@ -53,6 +54,14 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	startTime := time.Now()
 	fmt.Printf("[CLIENT] Starting mixed scenario (reads: %d, writes: %d, interval: %dms)\n", len(cfg.ReadTargets), len(cfg.WriteTargets), params.Interval.Milliseconds())
 	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
+
+	// Calculate total operations for progress bar
+	totalOps := int64(params.Duration / params.Interval)
+	if totalOps == 0 {
+		totalOps = 1 // At least 1 operation
+	}
+	progressBar := progress.NewProgressBar(totalOps, "Mixed scenario")
+	defer progressBar.Finish()
 
 	// Main loop
 	for {
@@ -200,6 +209,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		}
 
 		loopCount++
+		progressBar.Increment()
 
 		// Sleep for interval
 		select {

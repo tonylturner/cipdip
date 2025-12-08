@@ -10,6 +10,7 @@ import (
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tturner/cipdip/internal/progress"
 )
 
 // BaselineScenario implements the baseline scenario
@@ -47,6 +48,14 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 	startTime := time.Now()
 	fmt.Printf("[CLIENT] Starting baseline scenario (polling %d targets every %dms)\n", len(cfg.ReadTargets), params.Interval.Milliseconds())
 	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
+
+	// Calculate total operations for progress bar
+	totalOps := int64(params.Duration / params.Interval)
+	if totalOps == 0 {
+		totalOps = 1 // At least 1 operation
+	}
+	progressBar := progress.NewProgressBar(totalOps, "Baseline scenario")
+	defer progressBar.Finish()
 
 	// Main loop
 	for {
@@ -131,6 +140,7 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 		}
 
 		loopCount++
+		progressBar.Increment()
 
 		// Sleep for interval
 		select {

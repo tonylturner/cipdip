@@ -74,7 +74,7 @@ func runBaseline(flags *baselineFlags) error {
 	}
 
 	// Load configs
-	clientCfg, err := config.LoadClientConfig("cipdip_client.yaml")
+	clientCfg, err := config.LoadClientConfig("cipdip_client.yaml", false)
 	if err != nil {
 		return fmt.Errorf("load client config: %w", err)
 	}
@@ -109,7 +109,7 @@ func runBaseline(flags *baselineFlags) error {
 
 		// Update server config personality
 		serverCfg.Server.Personality = personality
-		
+
 		// Enable UDP I/O for I/O scenarios
 		serverCfg.Server.EnableUDPIO = true
 
