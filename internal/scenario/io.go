@@ -11,6 +11,7 @@ import (
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tturner/cipdip/internal/progress"
 )
 
 // IOScenario implements the io scenario
@@ -120,6 +121,14 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 	fmt.Printf("[CLIENT] Starting I/O scenario (%d connections, interval: %dms)\n", len(ioConns), loopInterval.Milliseconds())
 	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
+	// Calculate total operations for progress bar
+	totalOps := int64(params.Duration / loopInterval)
+	if totalOps == 0 {
+		totalOps = 1 // At least 1 operation
+	}
+	progressBar := progress.NewProgressBar(totalOps, "I/O scenario")
+	defer progressBar.Finish()
+
 	// Main loop
 	for {
 		select {
@@ -223,6 +232,7 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		}
 
 		loopCount++
+		progressBar.Increment()
 
 		// Sleep for loop interval
 		select {

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/tturner/cipdip/internal/errors"
 )
 
 // ServiceType represents the type of CIP service
@@ -27,38 +29,38 @@ type AdapterConfig struct {
 
 // CIPTarget represents a CIP target (read, write, or custom)
 type CIPTarget struct {
-	Name            string      `yaml:"name"`
-	Service         ServiceType `yaml:"service"`
-	ServiceCode     uint8       `yaml:"service_code,omitempty"` // used for custom services
-	Class           uint16      `yaml:"class"`
-	Instance        uint16      `yaml:"instance"`
-	Attribute       uint8       `yaml:"attribute"`
-	Pattern         string      `yaml:"pattern,omitempty"`         // "increment", "toggle", "constant"
-	InitialValue    int64       `yaml:"initial_value,omitempty"`
-	RequestPayloadHex string    `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
+	Name              string      `yaml:"name"`
+	Service           ServiceType `yaml:"service"`
+	ServiceCode       uint8       `yaml:"service_code,omitempty"` // used for custom services
+	Class             uint16      `yaml:"class"`
+	Instance          uint16      `yaml:"instance"`
+	Attribute         uint8       `yaml:"attribute"`
+	Pattern           string      `yaml:"pattern,omitempty"` // "increment", "toggle", "constant"
+	InitialValue      int64       `yaml:"initial_value,omitempty"`
+	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
 }
 
 // IOConnectionConfig represents configuration for a connected I/O connection
 type IOConnectionConfig struct {
-	Name                 string `yaml:"name"`
-	Transport            string `yaml:"transport"`             // "udp" (default) or "tcp"
-	OToTRPIMs            int    `yaml:"o_to_t_rpi_ms"`
-	TToORPIMs            int    `yaml:"t_to_o_rpi_ms"`
-	OToTSizeBytes        int    `yaml:"o_to_t_size_bytes"`
-	TToOSizeBytes        int    `yaml:"t_to_o_size_bytes"`
-	Priority             string `yaml:"priority"`
-	TransportClassTrigger int   `yaml:"transport_class_trigger"`
-	Class                uint16 `yaml:"class"`
-	Instance             uint16 `yaml:"instance"`
-	ConnectionPathHex    string `yaml:"connection_path_hex,omitempty"`
+	Name                  string `yaml:"name"`
+	Transport             string `yaml:"transport"` // "udp" (default) or "tcp"
+	OToTRPIMs             int    `yaml:"o_to_t_rpi_ms"`
+	TToORPIMs             int    `yaml:"t_to_o_rpi_ms"`
+	OToTSizeBytes         int    `yaml:"o_to_t_size_bytes"`
+	TToOSizeBytes         int    `yaml:"t_to_o_size_bytes"`
+	Priority              string `yaml:"priority"`
+	TransportClassTrigger int    `yaml:"transport_class_trigger"`
+	Class                 uint16 `yaml:"class"`
+	Instance              uint16 `yaml:"instance"`
+	ConnectionPathHex     string `yaml:"connection_path_hex,omitempty"`
 }
 
 // Config represents the client configuration
 type Config struct {
-	Adapter       AdapterConfig       `yaml:"adapter"`
-	ReadTargets   []CIPTarget         `yaml:"read_targets"`
-	WriteTargets  []CIPTarget         `yaml:"write_targets"`
-	CustomTargets []CIPTarget         `yaml:"custom_targets"`
+	Adapter       AdapterConfig        `yaml:"adapter"`
+	ReadTargets   []CIPTarget          `yaml:"read_targets"`
+	WriteTargets  []CIPTarget          `yaml:"write_targets"`
+	CustomTargets []CIPTarget          `yaml:"custom_targets"`
 	IOConnections []IOConnectionConfig `yaml:"io_connections"`
 }
 
@@ -86,32 +88,101 @@ type AdapterAssemblyConfig struct {
 // LogixTagConfig represents a Logix tag configuration
 type LogixTagConfig struct {
 	Name          string `yaml:"name"`
-	Type          string `yaml:"type"`          // "BOOL", "SINT", "INT", "DINT", "REAL", etc.
+	Type          string `yaml:"type"` // "BOOL", "SINT", "INT", "DINT", "REAL", etc.
 	ArrayLength   int    `yaml:"array_length"`
 	UpdatePattern string `yaml:"update_pattern"` // "counter", "static", "random", "sine", "sawtooth"
 }
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
-	Server          ServerConfigSection    `yaml:"server"`
+	Server            ServerConfigSection     `yaml:"server"`
 	AdapterAssemblies []AdapterAssemblyConfig `yaml:"adapter_assemblies"`
 	LogixTags         []LogixTagConfig        `yaml:"logix_tags"`
 	TagNamespace      string                  `yaml:"tag_namespace"`
 }
 
+// CreateDefaultClientConfig creates a default client configuration
+func CreateDefaultClientConfig() *Config {
+	return &Config{
+		Adapter: AdapterConfig{
+			Name: "Default Device",
+			Port: 44818,
+		},
+		ReadTargets: []CIPTarget{
+			{
+				Name:      "InputBlock1",
+				Service:   ServiceGetAttributeSingle,
+				Class:     0x04,
+				Instance:  0x65,
+				Attribute: 0x03,
+			},
+			{
+				Name:      "InputBlock2",
+				Service:   ServiceGetAttributeSingle,
+				Class:     0x04,
+				Instance:  0x66,
+				Attribute: 0x03,
+			},
+		},
+		WriteTargets: []CIPTarget{
+			{
+				Name:         "OutputBlock1",
+				Service:      ServiceSetAttributeSingle,
+				Class:        0x04,
+				Instance:     0x67,
+				Attribute:    0x03,
+				Pattern:      "increment",
+				InitialValue: 0,
+			},
+		},
+	}
+}
+
+// WriteDefaultClientConfig writes a default client configuration to a file
+func WriteDefaultClientConfig(path string) error {
+	cfg := CreateDefaultClientConfig()
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("marshal default config: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+	return nil
+}
+
 // LoadClientConfig loads a client configuration from a YAML file
-func LoadClientConfig(path string) (*Config, error) {
+// If the file doesn't exist and autoCreate is true, it will create a default config file
+func LoadClientConfig(path string, autoCreate bool) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("config file not found: %s\n\n"+
-				"To fix this:\n"+
-				"  1. Copy the example config: cp configs/cipdip_client.yaml.example cipdip_client.yaml\n"+
-				"  2. Edit cipdip_client.yaml with your target device settings\n"+
-				"  3. Or specify a custom config file with --config <path>\n\n"+
-				"See docs/CONFIGURATION.md for detailed configuration instructions", path)
+			if autoCreate {
+				// Create default config
+				if err := WriteDefaultClientConfig(path); err != nil {
+					return nil, fmt.Errorf("create default config: %w", err)
+				}
+				// Read the newly created file
+				data, err = os.ReadFile(path)
+				if err != nil {
+					return nil, errors.WrapConfigError(
+						fmt.Errorf("read created config file: %w", err),
+						path,
+					)
+				}
+			} else {
+				// Return user-friendly error
+				return nil, errors.WrapConfigError(
+					fmt.Errorf("config file not found: %s", path),
+					path,
+				)
+			}
+		} else {
+			return nil, errors.WrapConfigError(
+				fmt.Errorf("read config file: %w", err),
+				path,
+			)
 		}
-		return nil, fmt.Errorf("read config file %s: %w", path, err)
 	}
 
 	var cfg Config

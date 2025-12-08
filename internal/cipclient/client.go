@@ -8,6 +8,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"time"
+
+	"github.com/tturner/cipdip/internal/errors"
 )
 
 // ConnectionParams represents parameters for establishing a connected I/O connection
@@ -98,18 +100,24 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 
 	addr := fmt.Sprintf("%s:%d", ip, port)
 	if err := c.transport.Connect(ctx, addr); err != nil {
-		// Provide more helpful error messages
-		if ctx.Err() == context.DeadlineExceeded {
-			return fmt.Errorf("connection timeout: unable to connect to %s:%d (device may be offline or unreachable)", ip, port)
-		}
-		return fmt.Errorf("transport connect to %s:%d: %w", ip, port, err)
+		// Wrap with user-friendly error message
+		return errors.WrapNetworkError(err, ip, port)
 	}
 
 	// Send RegisterSession
 	regPacket := BuildRegisterSession(c.senderContext)
+	
+	// Validate packet before sending (non-strict mode for now)
+	validator := NewPacketValidator(false)
+	encapReq, _ := DecodeENIP(regPacket)
+	if err := validator.ValidateENIP(encapReq); err != nil {
+		c.transport.Disconnect()
+		return fmt.Errorf("invalid RegisterSession packet: %w", err)
+	}
+	
 	if err := c.transport.Send(ctx, regPacket); err != nil {
 		c.transport.Disconnect()
-		return fmt.Errorf("send RegisterSession: %w", err)
+		return errors.WrapNetworkError(err, ip, port)
 	}
 
 	// Receive RegisterSession response
@@ -117,18 +125,24 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 	respData, err := c.transport.Receive(ctx, timeout)
 	if err != nil {
 		c.transport.Disconnect()
-		return fmt.Errorf("receive RegisterSession response: %w", err)
+		return errors.WrapNetworkError(err, ip, port)
 	}
 
 	encap, err := DecodeENIP(respData)
 	if err != nil {
 		c.transport.Disconnect()
-		return fmt.Errorf("decode RegisterSession response: %w", err)
+		return errors.WrapCIPError(err, "RegisterSession")
+	}
+
+	// Validate response
+	if err := validator.ValidateENIP(encap); err != nil {
+		c.transport.Disconnect()
+		return errors.WrapCIPError(err, "RegisterSession response validation")
 	}
 
 	if encap.Status != ENIPStatusSuccess {
 		c.transport.Disconnect()
-		return fmt.Errorf("RegisterSession failed with status: 0x%08X", encap.Status)
+		return errors.WrapCIPError(fmt.Errorf("RegisterSession failed with status: 0x%08X", encap.Status), "RegisterSession")
 	}
 
 	// Store session ID
@@ -175,10 +189,16 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req CIPRequest) (CIPResp
 		return CIPResponse{}, fmt.Errorf("not connected")
 	}
 
+	// Validate CIP request
+	validator := NewPacketValidator(false)
+	if err := validator.ValidateCIPRequest(req); err != nil {
+		return CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s request", req.Service))
+	}
+
 	// Encode CIP request
 	cipData, err := EncodeCIPRequest(req)
 	if err != nil {
-		return CIPResponse{}, fmt.Errorf("encode CIP request: %w", err)
+		return CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("encode %s", req.Service))
 	}
 
 	// Build SendRRData packet
@@ -215,10 +235,16 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req CIPRequest) (CIPResp
 	// Decode CIP response
 	resp, err := DecodeCIPResponse(cipRespData, req.Path)
 	if err != nil {
-		return CIPResponse{}, fmt.Errorf("decode CIP response: %w", err)
+		return CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s response", req.Service))
 	}
 
 	resp.Service = req.Service
+
+	// Validate response
+	if err := validator.ValidateCIPResponse(resp, req.Service); err != nil {
+		// Log validation error but don't fail - device may be non-compliant
+		// In strict mode, this would fail
+	}
 
 	return resp, nil
 }

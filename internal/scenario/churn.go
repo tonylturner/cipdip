@@ -10,6 +10,7 @@ import (
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tturner/cipdip/internal/progress"
 )
 
 // ChurnScenario implements the churn scenario
@@ -32,6 +33,14 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	startTime := time.Now()
 	fmt.Printf("[CLIENT] Starting churn scenario (connection cycles every %dms)\n", params.Interval.Milliseconds())
 	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
+
+	// Calculate total cycles for progress bar
+	totalCycles := int64(params.Duration / params.Interval)
+	if totalCycles == 0 {
+		totalCycles = 1 // At least 1 cycle
+	}
+	progressBar := progress.NewProgressBar(totalCycles, "Churn scenario")
+	defer progressBar.Finish()
 
 	// Outer loop: connection cycles
 	for {
@@ -61,7 +70,7 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			failedConnections++
 			fmt.Printf("[CLIENT] Cycle %d: Connection FAILED: %v\n", cycleCount, err)
 			params.Logger.Error("Connection failed in cycle %d: %v", cycleCount, err)
-			
+
 			// Record connection failure metric
 			metric := metrics.Metric{
 				Timestamp:  time.Now(),
@@ -162,6 +171,8 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		} else {
 			fmt.Printf("[CLIENT] Cycle %d: Disconnected\n", cycleCount)
 		}
+
+		progressBar.Increment()
 
 		// Sleep between cycles
 		select {

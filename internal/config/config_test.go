@@ -20,10 +20,10 @@ func TestValidateClientConfig(t *testing.T) {
 				},
 				ReadTargets: []CIPTarget{
 					{
-						Name:     "TestTarget",
-						Service:  ServiceGetAttributeSingle,
-						Class:    0x04,
-						Instance: 0x65,
+						Name:      "TestTarget",
+						Service:   ServiceGetAttributeSingle,
+						Class:     0x04,
+						Instance:  0x65,
 						Attribute: 0x03,
 					},
 				},
@@ -45,10 +45,10 @@ func TestValidateClientConfig(t *testing.T) {
 				},
 				CustomTargets: []CIPTarget{
 					{
-						Name:     "Custom",
-						Service:  ServiceCustom,
-						Class:    0x01,
-						Instance: 0x01,
+						Name:      "Custom",
+						Service:   ServiceCustom,
+						Class:     0x01,
+						Instance:  0x01,
 						Attribute: 0x00,
 						// Missing ServiceCode
 					},
@@ -64,24 +64,24 @@ func TestValidateClientConfig(t *testing.T) {
 				},
 				ReadTargets: []CIPTarget{
 					{
-						Name:     "Test",
-						Service:  ServiceGetAttributeSingle,
-						Class:    0x04,
-						Instance: 0x65,
+						Name:      "Test",
+						Service:   ServiceGetAttributeSingle,
+						Class:     0x04,
+						Instance:  0x65,
 						Attribute: 0x03,
 					},
 				},
 				IOConnections: []IOConnectionConfig{
 					{
-						Name:                 "IO1",
-						Transport:            "invalid",
-						OToTRPIMs:           20,
-						TToORPIMs:           20,
-						OToTSizeBytes:       8,
-						TToOSizeBytes:       8,
+						Name:                  "IO1",
+						Transport:             "invalid",
+						OToTRPIMs:             20,
+						TToORPIMs:             20,
+						OToTSizeBytes:         8,
+						TToOSizeBytes:         8,
 						TransportClassTrigger: 3,
-						Class:               0x04,
-						Instance:            0x65,
+						Class:                 0x04,
+						Instance:              0x65,
 					},
 				},
 			},
@@ -125,7 +125,7 @@ read_targets:
 	tmpfile.Close()
 
 	// Load config
-	cfg, err := LoadClientConfig(tmpfile.Name())
+	cfg, err := LoadClientConfig(tmpfile.Name(), false)
 	if err != nil {
 		t.Fatalf("LoadClientConfig failed: %v", err)
 	}
@@ -168,7 +168,7 @@ read_targets:
 	tmpfile.Close()
 
 	// Load config
-	cfg, err := LoadClientConfig(tmpfile.Name())
+	cfg, err := LoadClientConfig(tmpfile.Name(), false)
 	if err != nil {
 		t.Fatalf("LoadClientConfig failed: %v", err)
 	}
@@ -178,4 +178,3 @@ read_targets:
 		t.Errorf("adapter port: got %d, want 44818 (default)", cfg.Adapter.Port)
 	}
 }
-

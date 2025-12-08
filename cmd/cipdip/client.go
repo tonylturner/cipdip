@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 	"github.com/tturner/cipdip/internal/capture"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
+	cipdipErrors "github.com/tturner/cipdip/internal/errors"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/scenario"
@@ -29,6 +31,7 @@ type clientFlags struct {
 	verbose     bool
 	debug       bool
 	pcapFile    string
+	quickStart  bool
 }
 
 func newClientCmd() *cobra.Command {
@@ -109,6 +112,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().BoolVar(&flags.verbose, "verbose", false, "Enable verbose output")
 	cmd.Flags().BoolVar(&flags.debug, "debug", false, "Enable debug output")
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., capture.pcap)")
+	cmd.Flags().BoolVar(&flags.quickStart, "quick-start", false, "Auto-generate default config if missing (zero-config usage)")
 
 	return cmd
 }
@@ -158,11 +162,34 @@ func runClient(flags *clientFlags) error {
 	defer logger.Close()
 
 	// Load config (runtime error if file issues, CLI error if validation fails)
-	cfg, err := config.LoadClientConfig(flags.config)
+	// If quick-start is enabled, auto-create default config if missing
+	autoCreate := flags.quickStart
+	cfg, err := config.LoadClientConfig(flags.config, autoCreate)
 	if err != nil {
-		// Config loading errors are runtime errors - print helpful error message
-		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		// Check if it's a "file not found" error and we're not in quick-start mode
+		var pathErr *os.PathError
+		if !autoCreate && errors.As(err, &pathErr) && os.IsNotExist(pathErr.Err) {
+			fmt.Fprintf(os.Stderr, "ERROR: Config file not found: %s\n", flags.config)
+			fmt.Fprintf(os.Stderr, "Hint: Use --quick-start to auto-generate a default config file\n")
+			fmt.Fprintf(os.Stderr, "      Or copy configs/cipdip_client.yaml.example to %s and customize it\n", flags.config)
+			return fmt.Errorf("load config: %w", err)
+		}
+		// Wrap config error with user-friendly message
+		userErr := cipdipErrors.WrapConfigError(err, flags.config)
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", userErr)
 		return fmt.Errorf("load config: %w", err)
+	}
+
+	// If we auto-created the config, inform the user
+	if autoCreate {
+		// Check if file was just created (stat the file to see if it's new)
+		if info, err := os.Stat(flags.config); err == nil {
+			// File exists, check if it's very new (created in last 2 seconds)
+			if time.Since(info.ModTime()) < 2*time.Second {
+				fmt.Fprintf(os.Stdout, "Created default config file: %s\n", flags.config)
+				fmt.Fprintf(os.Stdout, "You can customize this file for your target device.\n\n")
+			}
+		}
 	}
 
 	// Initialize metrics (runtime error)

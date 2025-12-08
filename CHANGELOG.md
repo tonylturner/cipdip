@@ -5,6 +5,64 @@ All notable changes to CIPDIP will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Progress Indicators**: Added progress bars to all scenario types (baseline, mixed, stress, churn, io) to provide visual feedback during long-running operations. Progress bars show completion percentage, elapsed time, and ETA. Progress bars write to stderr to avoid interfering with stdout logging.
+
+- **Auto-Generate Default Config**: Added `--quick-start` flag to automatically generate a default configuration file if missing. This enables zero-config usage for quick testing. The default config includes common CIP paths (InputBlock1, InputBlock2, OutputBlock1) that work with many devices.
+
+- **Wireshark Integration**: Added Wireshark validation for ENIP packets using `tshark`. The `internal/validation/wireshark.go` package validates that generated packets are correctly structured and can be read by Wireshark without errors. Validates packet structure (Ethernet/IP/TCP on port 44818) and ensures tshark can parse the PCAP file. Provides `ValidateENIPPacket()` and `ValidateENIPPacketWithDetails()` functions for easy integration.
+
+- **User-Friendly Error Messages** (`internal/errors/userfriendly.go`)
+  - `UserFriendlyError` type with context, hints, and suggestions
+  - `WrapNetworkError()` for network errors with helpful context
+  - `WrapCIPError()` for CIP protocol errors
+  - `WrapConfigError()` for configuration errors
+  - Integrated throughout client, config, and CLI code
+
+- **Packet Validation Layer** (`internal/cipclient/validation.go`)
+  - `PacketValidator` with strict/non-strict modes
+  - `ValidateENIP()` for ENIP encapsulation validation
+  - `ValidateCIPRequest()` for CIP request validation
+  - `ValidateCIPResponse()` for CIP response validation
+  - `ValidateRPIMicroseconds()` and `ValidateConnectionSize()` for parameter validation
+  - Integrated into client operations for pre-send and post-receive validation
+
+- **Reference Packet Library** (`internal/cipclient/reference.go`)
+  - `ReferencePacket` type for storing known-good ODVA-compliant packets
+  - `CompareWithReference()` for packet comparison
+  - `FindFirstDifference()` for byte-level diff analysis
+  - `ValidatePacketStructure()` for structural validation
+  - Ready for population with real device packets
+
+- **Progress Indicator Helper** (`internal/progress/progress.go`)
+  - `ProgressBar` with percentage, ETA, and elapsed time
+  - `SimpleProgress` for operation count tracking
+  - Throttled updates to avoid excessive output
+  - Ready for integration into scenarios
+
+- **Documentation**
+  - Comprehensive audit recommendations (`docs/AUDIT_RECOMMENDATIONS.md`)
+  - Audit summary with implementation status (`docs/AUDIT_SUMMARY.md`)
+  - Step-by-step implementation guide (`docs/IMPLEMENTATION_GUIDE.md`)
+
+### Changed
+- **Error Handling**: All network, CIP, and config errors now use user-friendly wrappers
+  - More helpful error messages with context and suggestions
+  - Better error messages in CLI output
+  - Improved error messages in config loading
+
+- **Packet Validation**: All packets validated before sending and after receiving
+  - RegisterSession packets validated
+  - CIP requests validated
+  - CIP responses validated (non-strict mode)
+
+### Improved
+- **UX**: Better error messages make troubleshooting easier
+- **Compliance**: Packet validation catches protocol issues early
+- **Maintainability**: Clear separation of concerns with new packages
+
 ## [0.1] - 2025-01-27
 
 ### Added
