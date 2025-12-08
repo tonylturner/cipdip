@@ -238,50 +238,50 @@ The loader should:
 
 ```bash
 go run ./cmd/cipscanner \
-  --ip 10.0.0.50 \
-  --scenario baseline \
-  --interval-ms 250 \
-  --duration-seconds 300 \
-  --config ./cip_targets.yaml \
-  --log-file ./logs/cip_scanner.log \
-  --metrics-file ./logs/cip_metrics.csv
+  ip 10.0.0.50 \
+  scenario baseline \
+  interval-ms 250 \
+  duration-seconds 300 \
+  config ./cip_targets.yaml \
+  log-file ./logs/cip_scanner.log \
+  metrics-file ./logs/cip_metrics.csv
 ```
 
 ### 5.2 Flags
 
 **Required:**
 
-- `--ip` (string)  
+- `ip` (string)  
   Target CIP adapter IP (e.g., CLICK CPU).
 
-- `--scenario` (string)  
+- `scenario` (string)  
   One of: `baseline`, `mixed`, `stress`, `churn`.
 
 **Optional:**
 
-- `--port` (int, default: `44818`)  
+- `port` (int, default: `44818`)  
   EtherNet/IP TCP port.
 
-- `--interval-ms` (int)  
+- `interval-ms` (int)  
   Base polling interval; scenario-specific defaults if omitted:
   - `baseline`: 250 ms
   - `mixed`: 100 ms
   - `stress`: 20 ms
   - `churn`: 100 ms (connection cycle timing)
 
-- `--duration-seconds` (int, default: `300`)  
+- `duration-seconds` (int, default: `300`)  
   Total run time in seconds.
 
-- `--config` (string, default: `cip_targets.yaml`)  
+- `config` (string, default: `cip_targets.yaml`)  
   Path to YAML config file.
 
-- `--log-file` (string, optional)  
+- `log-file` (string, optional)  
   Path for detailed log output. If omitted, log to stdout only.
 
-- `--metrics-file` (string, optional)  
+- `metrics-file` (string, optional)  
   Path for CSV/JSON metrics. If omitted, metrics can still be printed at the end.
 
-- `--verbose` (bool, default: false)  
+- `verbose` (bool, default: false)  
   Enable debug-level logging.
 
 ### 5.3 Behavior on Invalid Inputs

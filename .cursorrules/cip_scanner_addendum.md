@@ -179,7 +179,7 @@ Add a fifth scenario, `io`, in the `scenario` package.
 
 ### 4.1 CLI
 
-Extend the `--scenario` flag:
+Extend the `scenario` flag:
 
 - Valid values now: `baseline`, `mixed`, `stress`, `churn`, `io`.
 
@@ -236,7 +236,7 @@ func (s *IOScenario) Run(ctx context.Context, client Client, cfg Config, params 
 
 ### 4.4 Default Timing for `io` Scenario
 
-- If `--interval-ms` is not supplied:
+- If `interval-ms` is not supplied:
   - Default to **10 ms**.
   - The scenario may internally clamp/adjust the loop timing based on each connection’s RPI.
 

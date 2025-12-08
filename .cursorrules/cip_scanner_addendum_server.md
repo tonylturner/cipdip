@@ -44,33 +44,33 @@ The same binary can therefore run on **both sides of the firewall**:
 
 Add a new CLI flag:
 
-- `--mode` (string, default: `"client"`)  
+- `mode` (string, default: `"client"`)  
   Valid values:
   - `"client"` – current behavior (scanner).
   - `"server"` – new emulator mode.
 
 ### 2.2 Server Options
 
-When `--mode=server`, additional flags become relevant:
+When `mode=server`, additional flags become relevant:
 
-- `--listen-ip` (string, default: `"0.0.0.0"`)  
+- `listen-ip` (string, default: `"0.0.0.0"`)  
   IP address to bind the server to (TCP 44818; optional UDP 2222).
 
-- `--listen-port` (int, default: `44818`)  
+- `listen-port` (int, default: `44818`)  
   TCP port for EtherNet/IP sessions.
 
-- `--server-config` (string, default: `server_config.yaml`)  
+- `server-config` (string, default: `server_config.yaml`)  
   Path to server/emulator configuration file (see Section 3).
 
-- `--personality` (string, default: `"adapter"`)  
+- `personality` (string, default: `"adapter"`)  
   Valid values:
   - `"adapter"`
   - `"logix_like"`
 
-- `--enable-udp-io` (bool, default: `false`)  
+- `enable-udp-io` (bool, default: `false`)  
   If true, the server also binds a UDP port (2222) to simulate Class 1 I/O-style traffic for the `io` scenario.
 
-When `--mode=client` (default), these flags may be ignored or rejected if provided incorrectly.
+When `mode=client` (default), these flags may be ignored or rejected if provided incorrectly.
 
 ---
 
