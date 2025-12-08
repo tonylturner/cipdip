@@ -95,6 +95,7 @@ cipdip server --listen-ip 0.0.0.0 --personality adapter
 
 - For routine success cases:
   - Either print nothing or a brief confirmation line.
+  - Prefer patterns with brief metrics, no more than a few characters
   - Examples:
     - `OK`
     - `Completed scenario 'baseline' in 60s (1200 operations, 0 errors)`
@@ -259,6 +260,3 @@ Options:
   - `cipdip help`
   - Any docs and comments in the spec.
 
----
-
-By adopting these CLI best practices from the beginning, the Go tool will remain consistent, scriptable, and easy to reason about, while keeping output simple and free of unnecessary noise.
