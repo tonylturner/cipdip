@@ -63,6 +63,15 @@ Available scenarios:
               Uses ForwardOpen/ForwardClose and SendIOData/ReceiveIOData
               Requires io_connections configured in cipdip_client.yaml
 
+  edge_valid - Protocol-valid edge cases for DPI falsification
+               Uses edge_targets in cipdip_client.yaml
+
+  vendor_variants - Replay traffic across protocol profile variants
+                    Uses protocol_variants in cipdip_client.yaml
+
+  mixed_state - Interleaves UCMM and connected I/O traffic
+                Requires read_targets and io_connections
+
 Configuration is loaded from cipdip_client.yaml (or --config). The config file defines
 which CIP paths (class/instance/attribute) to read/write and any I/O connections.
 
@@ -99,7 +108,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
 	cmd.MarkFlagRequired("ip")
 
-	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io (required)")
+	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|vendor_variants|mixed_state (required)")
 	cmd.MarkFlagRequired("scenario")
 
 	// Optional flags
@@ -120,14 +129,17 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 func runClient(flags *clientFlags) error {
 	// Validate scenario (CLI error - exit code 1)
 	validScenarios := map[string]bool{
-		"baseline": true,
-		"mixed":    true,
-		"stress":   true,
-		"churn":    true,
-		"io":       true,
+		"baseline":        true,
+		"mixed":           true,
+		"stress":          true,
+		"churn":           true,
+		"io":              true,
+		"edge_valid":      true,
+		"vendor_variants": true,
+		"mixed_state":     true,
 	}
 	if !validScenarios[flags.scenario] {
-		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io", flags.scenario)
+		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, vendor_variants, mixed_state", flags.scenario)
 	}
 
 	// Set default interval based on scenario if not provided
@@ -143,6 +155,12 @@ func runClient(flags *clientFlags) error {
 			flags.intervalMs = 100
 		case "io":
 			flags.intervalMs = 10
+		case "edge_valid":
+			flags.intervalMs = 100
+		case "vendor_variants":
+			flags.intervalMs = 100
+		case "mixed_state":
+			flags.intervalMs = 50
 		}
 	}
 

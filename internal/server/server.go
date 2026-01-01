@@ -23,6 +23,8 @@ type Server struct {
 	udpListener   *net.UDPConn
 	sessions      map[uint32]*Session
 	sessionsMu    sync.RWMutex
+	connections   map[uint32]*ConnectionState
+	connectionsMu sync.RWMutex
 	nextSessionID uint32
 	personality   Personality
 	ctx           context.Context
@@ -37,6 +39,15 @@ type Session struct {
 	CreatedAt    time.Time
 	LastActivity time.Time
 	mu           sync.Mutex
+}
+
+// ConnectionState tracks ForwardOpen connection state.
+type ConnectionState struct {
+	ID           uint32
+	SessionID    uint32
+	CreatedAt    time.Time
+	LastActivity time.Time
+	RemoteAddr   string
 }
 
 // Personality interface for different server behaviors
@@ -72,6 +83,7 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 		config:        cfg,
 		logger:        logger,
 		sessions:      make(map[uint32]*Session),
+		connections:   make(map[uint32]*ConnectionState),
 		nextSessionID: 1,
 		personality:   personality,
 		ctx:           ctx,
@@ -149,6 +161,10 @@ func (s *Server) Stop() error {
 	s.sessions = make(map[uint32]*Session)
 	s.sessionsMu.Unlock()
 
+	s.connectionsMu.Lock()
+	s.connections = make(map[uint32]*ConnectionState)
+	s.connectionsMu.Unlock()
+
 	// Wait for all goroutines to finish
 	s.wg.Wait()
 
@@ -197,6 +213,7 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 		for sessionID, session := range s.sessions {
 			if session != nil && session.Conn == conn {
 				delete(s.sessions, sessionID)
+				s.dropConnectionsForSession(sessionID)
 				break
 			}
 		}
@@ -402,7 +419,7 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	// Check if this is a ForwardOpen request (service 0x54)
 	if len(cipData) > 0 && cipclient.CIPServiceCode(cipData[0]) == cipclient.CIPServiceForwardOpen {
 		// Handle ForwardOpen specially (it doesn't follow standard CIP request format)
-		return s.handleForwardOpen(encap, cipData)
+		return s.handleForwardOpen(encap, cipData, remoteAddr)
 	}
 
 	// Check if this is a ForwardClose request (service 0x4E)
@@ -466,7 +483,7 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 }
 
 // handleForwardOpen handles a ForwardOpen request (I/O connection establishment)
-func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []byte) []byte {
+func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []byte, remoteAddr string) []byte {
 	fmt.Printf("[SERVER] Received ForwardOpen request\n")
 
 	// ForwardOpen response structure:
@@ -515,6 +532,9 @@ func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []
 		Data:          sendData,
 	}
 
+	s.trackConnection(oToTConnID, encap.SessionID, remoteAddr)
+	s.trackConnection(tToOConnID, encap.SessionID, remoteAddr)
+
 	fmt.Printf("[SERVER] ForwardOpen response: O->T=0x%08X T->O=0x%08X\n", oToTConnID, tToOConnID)
 
 	return cipclient.EncodeENIP(response)
@@ -523,6 +543,10 @@ func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []
 // handleForwardClose handles a ForwardClose request (I/O connection teardown)
 func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData []byte) []byte {
 	fmt.Printf("[SERVER] Received ForwardClose request\n")
+
+	if connID := parseForwardCloseConnectionID(cipData); connID != 0 {
+		s.untrackConnection(connID)
+	}
 
 	// ForwardClose response structure:
 	// - General status (1 byte) = 0x00 (success)
@@ -572,6 +596,12 @@ func (s *Server) handleSendUnitData(encap cipclient.ENIPEncapsulation, remoteAdd
 		s.logger.Error("Parse SendUnitData error: %v", err)
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
+
+	if !s.isConnectionActive(connectionID, encap.SessionID) {
+		s.logger.Error("SendUnitData for inactive connection %d from %s", connectionID, remoteAddr)
+		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
+	}
+	s.touchConnection(connectionID)
 
 	s.logger.Debug("SendUnitData: connection %d, data length %d", connectionID, len(cipData))
 	fmt.Printf("[SERVER] Received I/O data: connection=0x%08X size=%d bytes\n", connectionID, len(cipData))
@@ -644,6 +674,76 @@ func (s *Server) handleUDP() {
 			s.logger.Debug("UDP I/O packet from %s: unsupported command 0x%04X", addr.String(), encap.Command)
 		}
 	}
+}
+
+func (s *Server) trackConnection(connID uint32, sessionID uint32, remoteAddr string) {
+	if connID == 0 {
+		return
+	}
+	state := &ConnectionState{
+		ID:           connID,
+		SessionID:    sessionID,
+		CreatedAt:    time.Now(),
+		LastActivity: time.Now(),
+		RemoteAddr:   remoteAddr,
+	}
+	s.connectionsMu.Lock()
+	s.connections[connID] = state
+	s.connectionsMu.Unlock()
+}
+
+func (s *Server) untrackConnection(connID uint32) {
+	s.connectionsMu.Lock()
+	delete(s.connections, connID)
+	s.connectionsMu.Unlock()
+}
+
+func (s *Server) touchConnection(connID uint32) {
+	s.connectionsMu.Lock()
+	if state, ok := s.connections[connID]; ok {
+		state.LastActivity = time.Now()
+	}
+	s.connectionsMu.Unlock()
+}
+
+func (s *Server) dropConnectionsForSession(sessionID uint32) {
+	s.connectionsMu.Lock()
+	for connID, state := range s.connections {
+		if state != nil && state.SessionID == sessionID {
+			delete(s.connections, connID)
+		}
+	}
+	s.connectionsMu.Unlock()
+}
+
+func (s *Server) isConnectionActive(connID uint32, sessionID uint32) bool {
+	s.connectionsMu.RLock()
+	state, ok := s.connections[connID]
+	s.connectionsMu.RUnlock()
+	if !ok || state == nil {
+		return false
+	}
+	if state.SessionID != sessionID {
+		return false
+	}
+
+	timeout := time.Duration(s.config.Server.ConnectionTimeoutMs) * time.Millisecond
+	if timeout > 0 && time.Since(state.LastActivity) > timeout {
+		s.untrackConnection(connID)
+		return false
+	}
+
+	return true
+}
+
+func parseForwardCloseConnectionID(cipData []byte) uint32 {
+	order := cipclient.CurrentProtocolProfile().CIPByteOrder
+	for i := 0; i+5 <= len(cipData); i++ {
+		if cipData[i] == 0x34 && i+5 <= len(cipData) {
+			return order.Uint32(cipData[i+1 : i+5])
+		}
+	}
+	return 0
 }
 
 // buildErrorResponse builds an error response

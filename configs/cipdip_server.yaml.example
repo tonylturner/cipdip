@@ -8,6 +8,8 @@ server:
   tcp_port: 44818               # TCP port for explicit messaging
   udp_io_port: 2222             # UDP port for I/O (optional, used if enable_udp_io is true)
   enable_udp_io: false          # Enable UDP I/O server on port 2222 (default: false)
+  connection_timeout_ms: 10000  # I/O connection inactivity timeout (ms)
+  rng_seed: 0                   # RNG seed (0 = time-based) for deterministic personalities
 
 # Protocol behavior (strict ODVA by default)
 protocol:

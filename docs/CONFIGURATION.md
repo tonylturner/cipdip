@@ -63,6 +63,24 @@ protocol:
 - `mode: strict_odva` is the default and enforces ODVA-compliant framing.
 - `vendor_variant` should be used with captured, validated deviations.
 - `legacy_compat` preserves historical behavior for regression comparisons.
+- Known vendor presets (if available): `rockwell_v32`, `schneider_m580`, `siemens_s7_1200`.
+
+#### 2.1 `protocol_variants` Section
+
+Optional list of protocol profiles used by the `vendor_variants` scenario.
+
+```yaml
+protocol_variants:
+  - mode: "strict_odva"
+  - mode: "vendor_variant"
+    variant: "rockwell_v32"
+  - mode: "vendor_variant"
+    variant: "schneider_m580"
+```
+
+**Notes:**
+- Each entry follows the same structure as `protocol`.
+- Missing `mode` defaults to `vendor_variant`.
 
 #### 3. `read_targets` Section
 
@@ -206,7 +224,47 @@ custom_targets:
 - Requires knowledge of CIP service codes and payload formats.
 - Useful for DPI testing of edge cases.
 
-#### 6. `io_connections` Section
+#### 6. `edge_targets` Section
+
+Defines protocol-valid edge case requests for DPI falsification.
+
+```yaml
+edge_targets:
+  - name: "Class16_Instance8_Attr8"
+    service: "get_attribute_single"
+    class: 0x0100
+    instance: 0x65
+    attribute: 0x03
+    expected_outcome: "success"
+  - name: "Class8_Instance16_Attr16"
+    service: "get_attribute_single"
+    class: 0x04
+    instance: 0x0100
+    attribute: 0x0100
+    expected_outcome: "success"
+```
+
+**Fields (per target):**
+- `name` (string, required): Unique identifier for this edge case.
+- `service` (string, required): `get_attribute_single`, `set_attribute_single`, or `custom`.
+- `service_code` (hex integer, required for `custom`): CIP service code.
+- `class` / `instance` / `attribute` (hex integer, required): CIP path segments.
+- `request_payload_hex` (string, optional): Hex-encoded payload.
+- `expected_outcome` (string, optional): `success`, `error`, `timeout`, or `any`.
+
+**Notes:**
+- Used by the `edge_valid` scenario.
+- Use 16-bit values to force 16-bit EPATH segments.
+
+#### 7. `scenario_jitter_ms` Section
+
+Optional per-operation jitter (milliseconds) injected into edge cases and mixed-state traffic.
+
+```yaml
+scenario_jitter_ms: 5
+```
+
+#### 8. `io_connections` Section
 
 Defines connected Class 1 I/O connections for the `io` scenario.
 
@@ -325,9 +383,11 @@ io_connections:
 ### Client Config Validation
 
 The following rules apply:
-- At least one of `read_targets`, `write_targets`, or `custom_targets` must be populated.
+- At least one of `read_targets`, `write_targets`, `custom_targets`, or `edge_targets` must be populated.
 - All targets must have a `name` and `service`.
 - Custom targets must have a `service_code` when `service` is `"custom"`.
+- Edge targets must have a `service_code` when `service` is `"custom"`.
+- `protocol_variants` entries must use valid `mode` and optional `variant`.
 - I/O connections must have all required fields with valid values (RPI > 0, sizes > 0, etc.).
 
 ## Server Configuration (`cipdip_server.yaml`)
@@ -353,6 +413,8 @@ server:
   tcp_port: 44818               # TCP port for explicit messaging
   udp_io_port: 2222             # UDP port for I/O (optional, used if enable_udp_io is true)
   enable_udp_io: false          # Enable UDP I/O server on port 2222
+  connection_timeout_ms: 10000  # I/O connection inactivity timeout (ms)
+  rng_seed: 0                   # RNG seed (0 = time-based) for deterministic personalities
 ```
 
 **Fields:**
@@ -364,6 +426,8 @@ server:
 - `tcp_port` (integer, optional): TCP port for explicit messaging. Default: `44818`.
 - `udp_io_port` (integer, optional): UDP port for Class 1 I/O. Default: `2222`.
 - `enable_udp_io` (boolean, optional): Enable UDP I/O server. Default: `false`.
+- `connection_timeout_ms` (integer, optional): I/O connection inactivity timeout in milliseconds. Default: `10000`.
+- `rng_seed` (integer, optional): Seed for deterministic random data patterns. Default: `0` (time-based).
 
 **Example:**
 ```yaml

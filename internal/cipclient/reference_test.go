@@ -5,6 +5,9 @@ import (
 )
 
 func TestReferencePackets(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(LegacyCompatProfile)
+	defer SetProtocolProfile(prevProfile)
 	// Test that reference packets are populated
 	expectedPackets := []string{
 		"RegisterSession_Response",
@@ -60,6 +63,9 @@ func TestReferencePackets(t *testing.T) {
 }
 
 func TestCompareWithReference(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(LegacyCompatProfile)
+	defer SetProtocolProfile(prevProfile)
 	// Test comparison with a reference packet
 	ref, ok := ReferencePackets["GetAttributeSingle_Request"]
 	if !ok || len(ref.Data) == 0 {
@@ -111,6 +117,9 @@ func TestFindFirstDifference(t *testing.T) {
 }
 
 func TestValidatePacketStructure(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(LegacyCompatProfile)
+	defer SetProtocolProfile(prevProfile)
 	ref, ok := ReferencePackets["RegisterSession_Response"]
 	if !ok || len(ref.Data) == 0 {
 		t.Skip("RegisterSession_Response reference packet not available")
@@ -127,4 +136,3 @@ func TestValidatePacketStructure(t *testing.T) {
 		t.Error("Should fail validation with wrong structure")
 	}
 }
-

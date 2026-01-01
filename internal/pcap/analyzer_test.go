@@ -145,4 +145,3 @@ func TestComparePackets(t *testing.T) {
 	// Test passes if no error - differences may or may not be detected
 	// depending on implementation details
 }
-

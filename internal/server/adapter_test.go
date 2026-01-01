@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/binary"
 	"testing"
 	"time"
 
@@ -11,11 +10,13 @@ import (
 	"github.com/tturner/cipdip/internal/logging"
 )
 
+var cipOrder = cipclient.CurrentProtocolProfile().CIPByteOrder
+
 // createTestAdapterPersonality creates a test adapter personality
 func createTestAdapterPersonality() (*AdapterPersonality, *config.ServerConfig, error) {
 	cfg := &config.ServerConfig{
 		Server: config.ServerConfigSection{
-			Name:       "Test Server",
+			Name:        "Test Server",
 			Personality: "adapter",
 		},
 		AdapterAssemblies: []config.AdapterAssemblyConfig{
@@ -251,7 +252,7 @@ func TestAdapterUpdatePatternCounter(t *testing.T) {
 		}
 
 		if len(resp.Payload) >= 4 {
-			value := binary.BigEndian.Uint32(resp.Payload[0:4])
+			value := cipOrder.Uint32(resp.Payload[0:4])
 			values = append(values, value)
 		}
 
@@ -351,4 +352,3 @@ func TestAdapterUnsupportedService(t *testing.T) {
 		t.Errorf("Expected status 0x08 (service not supported), got 0x%02X", resp.Status)
 	}
 }
-

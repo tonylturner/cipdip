@@ -23,4 +23,3 @@ reporting bugs or verifying which version is installed.`,
 		},
 	}
 }
-

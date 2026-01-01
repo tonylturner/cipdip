@@ -298,4 +298,3 @@ func isValidCIPService(svc CIPServiceCode) bool {
 		return false
 	}
 }
-

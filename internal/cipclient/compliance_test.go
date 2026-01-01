@@ -27,13 +27,13 @@ import (
 func TestENIPHeaderCompliance(t *testing.T) {
 	order := currentENIPByteOrder()
 	encap := ENIPEncapsulation{
-		Command:     ENIPCommandRegisterSession,
-		Length:      4,
-		SessionID:   0x12345678,
-		Status:      0,
+		Command:       ENIPCommandRegisterSession,
+		Length:        4,
+		SessionID:     0x12345678,
+		Status:        0,
 		SenderContext: [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
-		Options:     0,
-		Data:        []byte{0x01, 0x00, 0x00, 0x00},
+		Options:       0,
+		Data:          []byte{0x01, 0x00, 0x00, 0x00},
 	}
 
 	packet := EncodeENIP(encap)
@@ -110,13 +110,13 @@ func TestENIPHeaderLengthConsistency(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			data := make([]byte, tt.dataLen)
 			encap := ENIPEncapsulation{
-				Command:      ENIPCommandSendRRData,
-				Length:       uint16(tt.dataLen),
-				SessionID:    0x12345678,
-				Status:       0,
+				Command:       ENIPCommandSendRRData,
+				Length:        uint16(tt.dataLen),
+				SessionID:     0x12345678,
+				Status:        0,
 				SenderContext: [8]byte{},
-				Options:      0,
-				Data:         data,
+				Options:       0,
+				Data:          data,
 			}
 
 			packet := EncodeENIP(encap)
@@ -141,13 +141,13 @@ func TestENIPByteOrder(t *testing.T) {
 	// For testing, use a smaller length that's easier to verify
 	testData := make([]byte, 0x1234) // 4660 bytes
 	encap := ENIPEncapsulation{
-		Command:     0x1234, // Will be 0x12 0x34 in big-endian
-		Length:      0,      // Ignored - calculated from Data length
-		SessionID:   0xABCDEF00,
-		Status:      0x11223344,
+		Command:       0x1234, // Will be 0x12 0x34 in big-endian
+		Length:        0,      // Ignored - calculated from Data length
+		SessionID:     0xABCDEF00,
+		Status:        0x11223344,
 		SenderContext: [8]byte{0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x11, 0x22},
-		Options:     0x99887766,
-		Data:        testData, // Length will be calculated from this
+		Options:       0x99887766,
+		Data:          testData, // Length will be calculated from this
 	}
 
 	packet := EncodeENIP(encap)
@@ -220,13 +220,13 @@ func TestENIPStatusCodes(t *testing.T) {
 	}
 
 	actualStatuses := map[uint32]uint32{
-		ENIPStatusSuccess:             0x00000000,
+		ENIPStatusSuccess:              0x00000000,
 		ENIPStatusInvalidCommand:       0x00000001,
-		ENIPStatusInsufficientMemory:  0x00000002,
+		ENIPStatusInsufficientMemory:   0x00000002,
 		ENIPStatusIncorrectData:        0x00000003,
 		ENIPStatusInvalidSessionHandle: 0x00000064,
-		ENIPStatusInvalidLength:       0x00000065,
-		ENIPStatusUnsupportedCommand:  0x00000066,
+		ENIPStatusInvalidLength:        0x00000065,
+		ENIPStatusUnsupportedCommand:   0x00000066,
 	}
 
 	for status, name := range expectedStatuses {
@@ -833,13 +833,13 @@ func TestSessionIDRange(t *testing.T) {
 
 	for _, sid := range sessionIDs {
 		encap := ENIPEncapsulation{
-			Command:      ENIPCommandSendRRData,
-			Length:       0,
-			SessionID:    sid,
-			Status:       0,
+			Command:       ENIPCommandSendRRData,
+			Length:        0,
+			SessionID:     sid,
+			Status:        0,
 			SenderContext: [8]byte{},
-			Options:      0,
-			Data:         []byte{},
+			Options:       0,
+			Data:          []byte{},
 		}
 
 		packet := EncodeENIP(encap)

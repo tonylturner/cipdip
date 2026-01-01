@@ -11,12 +11,12 @@ import (
 
 // DiscoveredDevice represents a device discovered via ListIdentity
 type DiscoveredDevice struct {
-	IP         string
-	VendorID   uint16
-	ProductID  uint16
-	ProductName string
+	IP           string
+	VendorID     uint16
+	ProductID    uint16
+	ProductName  string
 	SerialNumber uint32
-	State      uint8
+	State        uint8
 }
 
 // DiscoverDevices sends ListIdentity requests via UDP broadcast and collects responses
@@ -24,19 +24,19 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 	// Resolve broadcast address
 	var broadcastAddr *net.UDPAddr
 	var err error
-	
+
 	if iface != "" {
 		// Use specific interface
 		ief, err := net.InterfaceByName(iface)
 		if err != nil {
 			return nil, fmt.Errorf("interface %s: %w", iface, err)
 		}
-		
+
 		addrs, err := ief.Addrs()
 		if err != nil {
 			return nil, fmt.Errorf("get interface addresses: %w", err)
 		}
-		
+
 		// Find IPv4 address and calculate broadcast
 		for _, addr := range addrs {
 			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -56,7 +56,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 				}
 			}
 		}
-		
+
 		if broadcastAddr == nil {
 			return nil, fmt.Errorf("no IPv4 address found on interface %s", iface)
 		}
@@ -92,7 +92,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 	// Collect responses
 	var devices []DiscoveredDevice
 	seenIPs := make(map[string]bool)
-	
+
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		// Update read deadline
@@ -222,4 +222,3 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 
 	return device, nil
 }
-

@@ -36,6 +36,35 @@ var (
 		UseCPF:                 false,
 		IOSequenceMode:         "omit",
 	}
+	VendorProfiles = map[string]ProtocolProfile{
+		"rockwell_v32": {
+			Name:                   "rockwell_v32",
+			ENIPByteOrder:          binary.LittleEndian,
+			CIPByteOrder:           binary.LittleEndian,
+			IncludeCIPPathSize:     true,
+			IncludeCIPRespReserved: true,
+			UseCPF:                 true,
+			IOSequenceMode:         "increment",
+		},
+		"schneider_m580": {
+			Name:                   "schneider_m580",
+			ENIPByteOrder:          binary.LittleEndian,
+			CIPByteOrder:           binary.LittleEndian,
+			IncludeCIPPathSize:     true,
+			IncludeCIPRespReserved: false,
+			UseCPF:                 true,
+			IOSequenceMode:         "omit",
+		},
+		"siemens_s7_1200": {
+			Name:                   "siemens_s7_1200",
+			ENIPByteOrder:          binary.LittleEndian,
+			CIPByteOrder:           binary.LittleEndian,
+			IncludeCIPPathSize:     true,
+			IncludeCIPRespReserved: true,
+			UseCPF:                 true,
+			IOSequenceMode:         "omit",
+		},
+	}
 )
 
 var (
@@ -67,7 +96,11 @@ func ResolveProtocolProfile(mode, variant, enipEndian, cipEndian string, cipPath
 	case "vendor_variant":
 		profile = StrictODVAProfile
 		if variant != "" {
-			profile.Name = variant
+			if vendorProfile, ok := VendorProfiles[variant]; ok {
+				profile = vendorProfile
+			} else {
+				profile.Name = variant
+			}
 		}
 	}
 

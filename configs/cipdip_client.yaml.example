@@ -17,6 +17,14 @@ protocol:
     use_cpf: true                    # encode CPF items for SendRRData/SendUnitData
     io_sequence_mode: "increment"    # "increment", "random", or "omit"
 
+# Optional protocol variant list used by the vendor_variants scenario.
+protocol_variants:
+  - mode: "strict_odva"
+  - mode: "vendor_variant"
+    variant: "rockwell_v32"
+  - mode: "vendor_variant"
+    variant: "schneider_m580"
+
 # CIP targets to read.
 # Each entry specifies a CIP path (class/instance/attribute) to read.
 read_targets:
@@ -54,6 +62,23 @@ custom_targets:
     attribute: 0x00             # may be unused depending on service
     request_payload_hex: ""      # raw hex string for request body (optional)
 
+# Edge-valid targets for DPI falsification (used by edge_valid scenario)
+edge_targets:
+  - name: "Class16_Instance8_Attr8"
+    service: "get_attribute_single"
+    class: 0x0100
+    instance: 0x65
+    attribute: 0x03
+    expected_outcome: "success"
+  - name: "Class8_Instance16_Attr16"
+    service: "get_attribute_single"
+    class: 0x04
+    instance: 0x0100
+    attribute: 0x0100
+    expected_outcome: "success"
+
+# Optional per-scenario jitter in milliseconds (0 disables).
+scenario_jitter_ms: 0
 # Optional I/O connections for connected Class 1 I/O-style behavior
 # Used by the 'io' scenario
 io_connections:

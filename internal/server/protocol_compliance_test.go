@@ -1,11 +1,12 @@
 package server
 
 import (
-	"encoding/binary"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
 )
+
+var enipOrder = cipclient.CurrentProtocolProfile().ENIPByteOrder
 
 // TestRegisterSessionODVACompliance validates RegisterSession response against ODVA spec
 // ODVA EtherNet/IP Specification: RegisterSession response must:
@@ -192,11 +193,7 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 	cipData, _ := cipclient.EncodeCIPRequest(cipReq)
 
 	// Build SendRRData request per ODVA spec
-	// SendRRData structure: Interface Handle (4 bytes) + Timeout (2 bytes) + CIP data
-	sendRRData := make([]byte, 6+len(cipData))
-	binary.BigEndian.PutUint32(sendRRData[0:4], 0) // Interface Handle (0 for UCMM)
-	binary.BigEndian.PutUint16(sendRRData[4:6], 0) // Timeout (0 = no timeout)
-	copy(sendRRData[6:], cipData)
+	sendRRData := cipclient.BuildSendRRDataPayload(cipData)
 
 	sendRRDataEncap := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendRRData,
@@ -233,9 +230,9 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 		t.Errorf("Session ID: got 0x%08X, want 0x%08X (must echo request per ODVA spec)", respEncap.SessionID, sessionID)
 	}
 
-	// Validate length per ODVA spec (must be at least 6 bytes: Interface Handle + Timeout)
-	if respEncap.Length < 6 {
-		t.Errorf("Length: got %d, want at least 6 (Interface Handle + Timeout per ODVA spec)", respEncap.Length)
+	// Validate length per ODVA spec (matches data length)
+	if respEncap.Length != uint16(len(respEncap.Data)) {
+		t.Errorf("Length: got %d, want %d (data length per ODVA spec)", respEncap.Length, len(respEncap.Data))
 	}
 
 	// Validate SendRRData response structure per ODVA spec
@@ -244,20 +241,23 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 	}
 
 	// Interface Handle (4 bytes) - should be 0 for UCMM per ODVA spec
-	interfaceHandle := binary.BigEndian.Uint32(respEncap.Data[0:4])
+	interfaceHandle := enipOrder.Uint32(respEncap.Data[0:4])
 	if interfaceHandle != 0 {
 		t.Errorf("Interface Handle: got 0x%08X, want 0x00000000 (UCMM per ODVA spec)", interfaceHandle)
 	}
 
 	// Timeout (2 bytes) - should be 0 per ODVA spec
-	timeout := binary.BigEndian.Uint16(respEncap.Data[4:6])
+	timeout := enipOrder.Uint16(respEncap.Data[4:6])
 	if timeout != 0 {
 		t.Errorf("Timeout: got 0x%04X, want 0x0000 (no timeout per ODVA spec)", timeout)
 	}
 
 	// Validate CIP response structure per ODVA spec
-	// CIP response: Service code (1 byte) + Status (1 byte) + Payload
-	cipRespData := respEncap.Data[6:]
+	// CIP response: Service code + status + optional reserved fields
+	cipRespData, err := cipclient.ParseSendRRDataRequest(respEncap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
+	}
 	if len(cipRespData) < 2 {
 		t.Fatalf("CIP response too short: got %d, want at least 2", len(cipRespData))
 	}
@@ -267,9 +267,13 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 		t.Errorf("CIP service code: got 0x%02X, want 0x0E (Get_Attribute_Single per ODVA spec)", cipRespData[0])
 	}
 
+	statusOffset := 1
+	if cipclient.CurrentProtocolProfile().IncludeCIPRespReserved {
+		statusOffset = 2
+	}
 	// Status should be 0x00 (success)
-	if cipRespData[1] != 0x00 {
-		t.Errorf("CIP status: got 0x%02X, want 0x00 (success per ODVA spec)", cipRespData[1])
+	if cipRespData[statusOffset] != 0x00 {
+		t.Errorf("CIP status: got 0x%02X, want 0x00 (success per ODVA spec)", cipRespData[statusOffset])
 	}
 }
 
@@ -314,10 +318,7 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 
 	cipData, _ := cipclient.EncodeCIPRequest(cipReq)
 
-	sendRRData := make([]byte, 6+len(cipData))
-	binary.BigEndian.PutUint32(sendRRData[0:4], 0)
-	binary.BigEndian.PutUint16(sendRRData[4:6], 0)
-	copy(sendRRData[6:], cipData)
+	sendRRData := cipclient.BuildSendRRDataPayload(cipData)
 
 	sendRRDataEncap := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendRRData,
@@ -333,7 +334,10 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 	respEncap, _ := cipclient.DecodeENIP(resp)
 
 	// Extract CIP response
-	cipRespData := respEncap.Data[6:]
+	cipRespData, err := cipclient.ParseSendRRDataRequest(respEncap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
+	}
 
 	// Validate CIP response structure per ODVA spec
 	if len(cipRespData) < 2 {
@@ -347,13 +351,21 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 	}
 
 	// Byte 1: General status (must be 0x00 for success per ODVA spec)
-	status := cipRespData[1]
+	statusOffset := 1
+	if cipclient.CurrentProtocolProfile().IncludeCIPRespReserved {
+		statusOffset = 2
+	}
+	status := cipRespData[statusOffset]
 	if status != 0x00 {
 		t.Errorf("Status: got 0x%02X, want 0x00 (success per ODVA spec)", status)
 	}
 
 	// Bytes 2+: Response data (must be present for success per ODVA spec)
-	if len(cipRespData) < 3 {
+	minPayloadOffset := 2
+	if cipclient.CurrentProtocolProfile().IncludeCIPRespReserved {
+		minPayloadOffset = 4
+	}
+	if len(cipRespData) < minPayloadOffset+1 {
 		t.Error("Response data must be present for successful Get_Attribute_Single per ODVA spec")
 	}
 }
@@ -400,10 +412,7 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 
 	cipData, _ := cipclient.EncodeCIPRequest(cipReq)
 
-	sendRRData := make([]byte, 6+len(cipData))
-	binary.BigEndian.PutUint32(sendRRData[0:4], 0)
-	binary.BigEndian.PutUint16(sendRRData[4:6], 0)
-	copy(sendRRData[6:], cipData)
+	sendRRData := cipclient.BuildSendRRDataPayload(cipData)
 
 	sendRRDataEncap := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendRRData,
@@ -419,7 +428,10 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 	respEncap, _ := cipclient.DecodeENIP(resp)
 
 	// Extract CIP response
-	cipRespData := respEncap.Data[6:]
+	cipRespData, err := cipclient.ParseSendRRDataRequest(respEncap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
+	}
 
 	// Validate CIP error response structure per ODVA spec
 	if len(cipRespData) < 2 {
@@ -433,7 +445,11 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 	}
 
 	// Byte 1: General status (must be non-zero for error per ODVA spec)
-	status := cipRespData[1]
+	statusOffset := 1
+	if cipclient.CurrentProtocolProfile().IncludeCIPRespReserved {
+		statusOffset = 2
+	}
+	status := cipRespData[statusOffset]
 	if status == 0x00 {
 		t.Error("Status must be non-zero for error response per ODVA spec")
 	}
@@ -503,4 +519,3 @@ func TestENIPErrorResponseODVACompliance(t *testing.T) {
 		t.Errorf("Length: got %d, want 0 (no data for error per ODVA spec)", respEncap.Length)
 	}
 }
-

@@ -178,9 +178,9 @@ func (t *TCPTransport) IsConnected() bool {
 
 // UDPTransport implements UDP transport
 type UDPTransport struct {
-	conn     *net.UDPConn
-	addr     *net.UDPAddr
-	connMu   sync.RWMutex
+	conn   *net.UDPConn
+	addr   *net.UDPAddr
+	connMu sync.RWMutex
 }
 
 var _ Transport = (*UDPTransport)(nil)

@@ -203,4 +203,3 @@ func (s *SimpleProgress) Finish() {
 	}
 	fmt.Fprint(s.output, "\n")
 }
-
