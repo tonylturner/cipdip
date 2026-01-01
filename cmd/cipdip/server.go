@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/capture"
+	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -122,6 +123,18 @@ func runServer(flags *serverFlags) error {
 		fmt.Fprintf(os.Stderr, "ERROR: Failed to load server config: %v\n", err)
 		return fmt.Errorf("load server config: %w", err)
 	}
+
+	profile := cipclient.ResolveProtocolProfile(
+		cfg.Protocol.Mode,
+		cfg.Protocol.Variant,
+		cfg.Protocol.Overrides.ENIPEndianness,
+		cfg.Protocol.Overrides.CIPEndianness,
+		cfg.Protocol.Overrides.CIPPathSize,
+		cfg.Protocol.Overrides.CIPResponseReserved,
+		cfg.Protocol.Overrides.UseCPF,
+		cfg.Protocol.Overrides.IOSequenceMode,
+	)
+	cipclient.SetProtocolProfile(profile)
 
 	// Override config with CLI flags
 	if flags.listenIP != "" {
