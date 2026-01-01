@@ -33,7 +33,7 @@ const (
 type CIPPath struct {
 	Class     uint16
 	Instance  uint16
-	Attribute uint8
+	Attribute uint16
 	Name      string // from config, for logging
 }
 
@@ -86,9 +86,14 @@ func EncodeEPATH(path CIPPath) []byte {
 		epath = appendUint16(order, epath, path.Instance)
 	}
 
-	// Attribute segment (8-bit attribute ID)
-	epath = append(epath, EPathSegmentAttributeID|0x00) // 8-bit format
-	epath = append(epath, path.Attribute)
+	// Attribute segment (8-bit or 16-bit attribute ID)
+	if path.Attribute <= 0xFF {
+		epath = append(epath, EPathSegmentAttributeID|0x00) // 8-bit format
+		epath = append(epath, uint8(path.Attribute))
+	} else {
+		epath = append(epath, EPathSegmentAttributeID|0x01) // 16-bit format
+		epath = appendUint16(order, epath, path.Attribute)
+	}
 
 	return epath
 }
@@ -322,13 +327,13 @@ func DecodeEPATH(data []byte) (CIPPath, error) {
 			if len(data) < offset+2 {
 				return path, fmt.Errorf("incomplete attribute segment")
 			}
-			path.Attribute = data[offset+1]
+			path.Attribute = uint16(data[offset+1])
 			offset += 2
 		case 0x31: // 16-bit attribute
 			if len(data) < offset+3 {
 				return path, fmt.Errorf("incomplete 16-bit attribute segment")
 			}
-			path.Attribute = data[offset+1]
+			path.Attribute = order.Uint16(data[offset+1 : offset+3])
 			offset += 3
 		default:
 			return path, fmt.Errorf("invalid EPATH segment: 0x%02X", seg)

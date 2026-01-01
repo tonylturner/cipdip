@@ -220,4 +220,3 @@ func ComparePackets(packet1, packet2 []byte) ([]string, error) {
 
 	return differences, nil
 }
-

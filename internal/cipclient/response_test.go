@@ -8,12 +8,24 @@ import (
 
 // TestCIPResponseStructure validates CIP response structure
 func TestCIPResponseStructure(t *testing.T) {
+	profile := CurrentProtocolProfile()
 	// Test response with success status
-	// CIP response structure: [service_code, status, ...payload]
-	responseData := []byte{
-		0x0E, // Service code: Get_Attribute_Single (echoed from request)
-		0x00, // General status (success)
-		0x01, 0x02, 0x03, 0x04, // Payload data
+	// CIP response structure: [service_code, reserved?, status, ext_size, ...payload]
+	var responseData []byte
+	if profile.IncludeCIPRespReserved {
+		responseData = []byte{
+			0x0E,                   // Service code
+			0x00,                   // Reserved
+			0x00,                   // Status
+			0x00,                   // Additional status size
+			0x01, 0x02, 0x03, 0x04, // Payload data
+		}
+	} else {
+		responseData = []byte{
+			0x0E,                   // Service code
+			0x00,                   // Status
+			0x01, 0x02, 0x03, 0x04, // Payload data
+		}
 	}
 
 	path := CIPPath{
@@ -47,13 +59,24 @@ func TestCIPResponseStructure(t *testing.T) {
 
 // TestCIPResponseWithError validates CIP error response structure
 func TestCIPResponseWithError(t *testing.T) {
+	profile := CurrentProtocolProfile()
 	// Test response with error status
-	// CIP response structure: [service_code, status, extended_status_size, ...extended_status]
-	responseData := []byte{
-		0x0E, // Service code: Get_Attribute_Single (echoed from request)
-		0x01, // General status (error)
-		0x05, // Extended status size
-		0x01, 0x02, 0x03, 0x04, 0x05, // Extended status bytes
+	var responseData []byte
+	if profile.IncludeCIPRespReserved {
+		responseData = []byte{
+			0x0E,       // Service code
+			0x00,       // Reserved
+			0x01,       // Status
+			0x01,       // Additional status size (words)
+			0x01, 0x02, // Extended status bytes (2 bytes)
+		}
+	} else {
+		responseData = []byte{
+			0x0E,       // Service code
+			0x01,       // Status
+			0x02,       // Extended status size
+			0x01, 0x02, // Extended status bytes
+		}
 	}
 
 	path := CIPPath{
@@ -92,10 +115,10 @@ func TestForwardOpenResponseStructure(t *testing.T) {
 	// - Connection timeout multiplier (1 byte)
 
 	responseData := []byte{
-		0x00, // General status (success)
-		0x00, // Additional status size (0 for success)
-		0x12, 0x34, 0x56, 0x78, // O->T connection ID
-		0x9A, 0xBC, 0xDE, 0xF0, // T->O connection ID
+		0x00,                   // General status (success)
+		0x00,                   // Additional status size (0 for success)
+		0x78, 0x56, 0x34, 0x12, // O->T connection ID (little-endian)
+		0xF0, 0xDE, 0xBC, 0x9A, // T->O connection ID (little-endian)
 		0x00, 0x01, // Connection serial number
 		0x00, 0x01, // Originator vendor ID
 		0x00, 0x00, 0x00, 0x01, // Originator serial number
@@ -129,8 +152,8 @@ func TestForwardOpenResponseStructure(t *testing.T) {
 func TestForwardOpenResponseWithError(t *testing.T) {
 	// Error response with additional status
 	responseData := []byte{
-		0x01, // General status (error)
-		0x02, // Additional status size
+		0x01,       // General status (error)
+		0x02,       // Additional status size
 		0x05, 0x06, // Additional status
 	}
 
@@ -196,11 +219,22 @@ func TestCIPStatusCodes(t *testing.T) {
 	}
 
 	// Test that we handle success status correctly
-	// CIP response structure: [service_code, status, ...payload]
-	successData := []byte{
-		0x0E, // Service code: Get_Attribute_Single
-		0x00, // Status: success
-		0x01, 0x02, // Payload
+	profile := CurrentProtocolProfile()
+	var successData []byte
+	if profile.IncludeCIPRespReserved {
+		successData = []byte{
+			0x0E,       // Service code
+			0x00,       // Reserved
+			0x00,       // Status
+			0x00,       // Additional status size
+			0x01, 0x02, // Payload
+		}
+	} else {
+		successData = []byte{
+			0x0E,       // Service code
+			0x00,       // Status
+			0x01, 0x02, // Payload
+		}
 	}
 	path := CIPPath{Class: 0x04, Instance: 0x65, Attribute: 0x03}
 	resp, err := DecodeCIPResponse(successData, path)
@@ -214,4 +248,3 @@ func TestCIPStatusCodes(t *testing.T) {
 		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, CIPServiceGetAttributeSingle)
 	}
 }
-

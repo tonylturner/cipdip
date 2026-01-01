@@ -20,6 +20,7 @@
 - [ ] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
 - [ ] Add "vendor_variant" mode family (e.g., "rockwell", "schneider", "siemens") with explicit deviations.
 - [ ] Add config validation to prevent incompatible combinations.
+ - [x] Add protocol_variants list support for vendor_variants scenario.
 
 ### ENIP/CIP encoding fixes
 - [ ] Verify/align byte order in ENIP encapsulation and CIP multi-byte fields.
@@ -34,10 +35,10 @@
 - [ ] Add I/O jitter/burst options for DPI stress.
 
 ### Scenarios + metrics
-- [ ] Add "edge_valid" scenario for spec-compliant edge cases.
-- [ ] Add "vendor_variants" scenario to replay known deviations safely.
-- [ ] Add "mixed_state" scenario (UCMM + connected I/O interleaving).
-- [ ] Extend metrics: percentiles, jitter, error class, expected/observed outcome.
+- [x] Add "edge_valid" scenario for spec-compliant edge cases.
+- [x] Add "vendor_variants" scenario to replay known deviations safely.
+- [x] Add "mixed_state" scenario (UCMM + connected I/O interleaving).
+- [x] Extend metrics: percentiles, jitter, error class, expected/observed outcome.
 
 ### Docs cleanup
 - [ ] Inventory docs with value status (active, stale, replace, remove).
@@ -51,6 +52,7 @@
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
 - Protocol accuracy is the primary objective; tooling changes should be scoped to DPI needs.
+- PCAP on deck: `C:\Users\tony\Documents\GitHub\cipdip\pcaps\ENIP.pcap` for reference extraction.
 
 ## Audit findings (initial)
 - CIP request encoding omits path size byte and assumes no reserved fields in responses; tests reflect the same.
@@ -60,4 +62,6 @@
 ## Recent changes
 - Protocol config and strict ODVA defaults added (profiles + overrides).
 - ENIP/CIP encoding switched to strict framing (path size, response reserved/status-size, CPF).
+- Vendor profiles scaffolded (Rockwell/Schneider/Siemens presets).
+- Server tracks Forward Open connections and validates SendUnitData.
 - Docs cleanup plan captured in `docs/DOCS_CLEANUP_PLAN.md`.

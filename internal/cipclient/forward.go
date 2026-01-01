@@ -122,7 +122,7 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 			Instance: params.Instance,
 		})
 	}
-	
+
 	// Path size in 16-bit words (round up)
 	// ODVA spec: Path size is in 16-bit words, round up if odd number of bytes
 	pathSizeWords := len(connPath) / 2
@@ -215,7 +215,7 @@ func BuildForwardCloseRequest(connectionID uint32) ([]byte, error) {
 	// Path: 0x34 (connection segment) + connection ID (4 bytes) = 5 bytes = 3 words (rounded up)
 	pathBytes := []byte{0x34} // Connection segment
 	pathBytes = appendUint32(order, pathBytes, connectionID)
-	
+
 	// Path size in 16-bit words (round up)
 	// ODVA spec: Path size is in 16-bit words, round up if odd number of bytes
 	pathSizeWords := len(pathBytes) / 2
@@ -246,4 +246,3 @@ func ParseForwardCloseResponse(data []byte) error {
 
 	return nil
 }
-

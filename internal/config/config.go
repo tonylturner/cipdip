@@ -29,19 +29,19 @@ type AdapterConfig struct {
 
 // ProtocolOverrides provides optional overrides for protocol behavior.
 type ProtocolOverrides struct {
-	ENIPEndianness       string `yaml:"enip_endianness,omitempty"`        // "little" or "big"
-	CIPEndianness        string `yaml:"cip_endianness,omitempty"`         // "little" or "big"
-	CIPPathSize          *bool  `yaml:"cip_path_size,omitempty"`          // include path size byte
-	CIPResponseReserved  *bool  `yaml:"cip_response_reserved,omitempty"`  // include reserved/status-size fields
-	UseCPF              *bool  `yaml:"use_cpf,omitempty"`                // encode CPF items for SendRRData/SendUnitData
-	IOSequenceMode       string `yaml:"io_sequence_mode,omitempty"`       // "increment", "random", "omit"
+	ENIPEndianness      string `yaml:"enip_endianness,omitempty"`       // "little" or "big"
+	CIPEndianness       string `yaml:"cip_endianness,omitempty"`        // "little" or "big"
+	CIPPathSize         *bool  `yaml:"cip_path_size,omitempty"`         // include path size byte
+	CIPResponseReserved *bool  `yaml:"cip_response_reserved,omitempty"` // include reserved/status-size fields
+	UseCPF              *bool  `yaml:"use_cpf,omitempty"`               // encode CPF items for SendRRData/SendUnitData
+	IOSequenceMode      string `yaml:"io_sequence_mode,omitempty"`      // "increment", "random", "omit"
 }
 
 // ProtocolConfig controls strict ODVA compliance and vendor-variant behavior.
 type ProtocolConfig struct {
-	Mode      string            `yaml:"mode"`                 // "strict_odva", "vendor_variant", "legacy_compat"
-	Variant   string            `yaml:"variant,omitempty"`    // optional vendor preset when mode=vendor_variant
-	Overrides ProtocolOverrides `yaml:"overrides,omitempty"`  // optional per-field overrides
+	Mode      string            `yaml:"mode"`                // "strict_odva", "vendor_variant", "legacy_compat"
+	Variant   string            `yaml:"variant,omitempty"`   // optional vendor preset when mode=vendor_variant
+	Overrides ProtocolOverrides `yaml:"overrides,omitempty"` // optional per-field overrides
 }
 
 // CIPTarget represents a CIP target (read, write, or custom)
@@ -51,7 +51,7 @@ type CIPTarget struct {
 	ServiceCode       uint8       `yaml:"service_code,omitempty"` // used for custom services
 	Class             uint16      `yaml:"class"`
 	Instance          uint16      `yaml:"instance"`
-	Attribute         uint8       `yaml:"attribute"`
+	Attribute         uint16      `yaml:"attribute"`
 	Pattern           string      `yaml:"pattern,omitempty"` // "increment", "toggle", "constant"
 	InitialValue      int64       `yaml:"initial_value,omitempty"`
 	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
@@ -72,24 +72,41 @@ type IOConnectionConfig struct {
 	ConnectionPathHex     string `yaml:"connection_path_hex,omitempty"`
 }
 
+// EdgeTarget represents a protocol-valid edge case target.
+type EdgeTarget struct {
+	Name              string      `yaml:"name"`
+	Service           ServiceType `yaml:"service"`
+	ServiceCode       uint8       `yaml:"service_code,omitempty"`
+	Class             uint16      `yaml:"class"`
+	Instance          uint16      `yaml:"instance"`
+	Attribute         uint16      `yaml:"attribute"`
+	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"`
+	ExpectedOutcome   string      `yaml:"expected_outcome,omitempty"` // "success", "error", "timeout", or "any"
+}
+
 // Config represents the client configuration
 type Config struct {
-	Adapter       AdapterConfig        `yaml:"adapter"`
-	Protocol      ProtocolConfig       `yaml:"protocol"`
-	ReadTargets   []CIPTarget          `yaml:"read_targets"`
-	WriteTargets  []CIPTarget          `yaml:"write_targets"`
-	CustomTargets []CIPTarget          `yaml:"custom_targets"`
-	IOConnections []IOConnectionConfig `yaml:"io_connections"`
+	Adapter          AdapterConfig        `yaml:"adapter"`
+	Protocol         ProtocolConfig       `yaml:"protocol"`
+	ProtocolVariants []ProtocolConfig     `yaml:"protocol_variants"`
+	ReadTargets      []CIPTarget          `yaml:"read_targets"`
+	WriteTargets     []CIPTarget          `yaml:"write_targets"`
+	CustomTargets    []CIPTarget          `yaml:"custom_targets"`
+	EdgeTargets      []EdgeTarget         `yaml:"edge_targets"`
+	IOConnections    []IOConnectionConfig `yaml:"io_connections"`
+	ScenarioJitterMs int                  `yaml:"scenario_jitter_ms"`
 }
 
 // ServerConfigSection represents the server section in server config
 type ServerConfigSection struct {
-	Name        string `yaml:"name"`
-	Personality string `yaml:"personality"` // "adapter" or "logix_like"
-	ListenIP    string `yaml:"listen_ip"`
-	TCPPort     int    `yaml:"tcp_port"`
-	UDPIOPort   int    `yaml:"udp_io_port"`
-	EnableUDPIO bool   `yaml:"enable_udp_io"`
+	Name                string `yaml:"name"`
+	Personality         string `yaml:"personality"` // "adapter" or "logix_like"
+	ListenIP            string `yaml:"listen_ip"`
+	TCPPort             int    `yaml:"tcp_port"`
+	UDPIOPort           int    `yaml:"udp_io_port"`
+	EnableUDPIO         bool   `yaml:"enable_udp_io"`
+	ConnectionTimeoutMs int    `yaml:"connection_timeout_ms"`
+	RNGSeed             int64  `yaml:"rng_seed"`
 }
 
 // AdapterAssemblyConfig represents an adapter assembly configuration
@@ -97,7 +114,7 @@ type AdapterAssemblyConfig struct {
 	Name          string `yaml:"name"`
 	Class         uint16 `yaml:"class"`
 	Instance      uint16 `yaml:"instance"`
-	Attribute     uint8  `yaml:"attribute"`
+	Attribute     uint16 `yaml:"attribute"`
 	SizeBytes     int    `yaml:"size_bytes"`
 	Writable      bool   `yaml:"writable"`
 	UpdatePattern string `yaml:"update_pattern"` // "counter", "static", "random", "reflect_inputs"
@@ -237,13 +254,24 @@ func LoadClientConfig(path string, autoCreate bool) (*Config, error) {
 
 // ValidateClientConfig validates a client configuration
 func ValidateClientConfig(cfg *Config) error {
+	if cfg.Protocol.Mode == "" {
+		cfg.Protocol.Mode = "strict_odva"
+	}
 	if err := validateProtocolConfig(cfg.Protocol); err != nil {
 		return err
 	}
+	for i := range cfg.ProtocolVariants {
+		if cfg.ProtocolVariants[i].Mode == "" {
+			cfg.ProtocolVariants[i].Mode = "vendor_variant"
+		}
+		if err := validateProtocolConfig(cfg.ProtocolVariants[i]); err != nil {
+			return fmt.Errorf("protocol_variants[%d]: %w", i, err)
+		}
+	}
 
 	// Check that at least one target type is populated
-	if len(cfg.ReadTargets) == 0 && len(cfg.WriteTargets) == 0 && len(cfg.CustomTargets) == 0 {
-		return fmt.Errorf("at least one of read_targets, write_targets, or custom_targets must be populated")
+	if len(cfg.ReadTargets) == 0 && len(cfg.WriteTargets) == 0 && len(cfg.CustomTargets) == 0 && len(cfg.EdgeTargets) == 0 {
+		return fmt.Errorf("at least one of read_targets, write_targets, custom_targets, or edge_targets must be populated")
 	}
 
 	// Validate read targets
@@ -269,12 +297,20 @@ func ValidateClientConfig(cfg *Config) error {
 			return fmt.Errorf("custom_targets[%d]: service_code is required when service is 'custom'", i)
 		}
 	}
+	for i, target := range cfg.EdgeTargets {
+		if err := validateEdgeTarget(target, i); err != nil {
+			return err
+		}
+	}
 
 	// Validate IO connections
 	for i, conn := range cfg.IOConnections {
 		if err := validateIOConnection(conn, i); err != nil {
 			return err
 		}
+	}
+	if cfg.ScenarioJitterMs < 0 {
+		return fmt.Errorf("scenario_jitter_ms must be >= 0")
 	}
 
 	return nil
@@ -383,6 +419,9 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 	if cfg.Server.Personality == "" {
 		cfg.Server.Personality = "adapter"
 	}
+	if cfg.Server.ConnectionTimeoutMs == 0 {
+		cfg.Server.ConnectionTimeoutMs = 10000
+	}
 	if cfg.Protocol.Mode == "" {
 		cfg.Protocol.Mode = "strict_odva"
 	}
@@ -431,6 +470,41 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 		}
 	}
 
+	return nil
+}
+
+func validateEdgeTarget(target EdgeTarget, index int) error {
+	if target.Name == "" {
+		return fmt.Errorf("edge_targets[%d]: name is required", index)
+	}
+	if target.Service == "" {
+		return fmt.Errorf("edge_targets[%d]: service is required", index)
+	}
+	validServices := []ServiceType{
+		ServiceGetAttributeSingle,
+		ServiceSetAttributeSingle,
+		ServiceCustom,
+	}
+	valid := false
+	for _, vs := range validServices {
+		if target.Service == vs {
+			valid = true
+			break
+		}
+	}
+	if !valid {
+		return fmt.Errorf("edge_targets[%d]: invalid service type '%s'", index, target.Service)
+	}
+	if target.Service == ServiceCustom && target.ServiceCode == 0 {
+		return fmt.Errorf("edge_targets[%d]: service_code is required when service is 'custom'", index)
+	}
+	if target.ExpectedOutcome != "" {
+		switch target.ExpectedOutcome {
+		case "success", "error", "timeout", "any":
+		default:
+			return fmt.Errorf("edge_targets[%d]: expected_outcome must be 'success', 'error', 'timeout', or 'any'", index)
+		}
+	}
 	return nil
 }
 

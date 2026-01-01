@@ -18,9 +18,11 @@ package cipclient
 // 4. Test edge cases and constraints from spec
 
 import (
-	"encoding/binary"
 	"testing"
 )
+
+var enipOrder = currentENIPByteOrder()
+var cipOrder = currentCIPByteOrder()
 
 // TestENIPHeaderStructureODVA validates ENIP header matches ODVA spec exactly
 // ODVA Spec: EtherNet/IP Encapsulation Protocol
@@ -32,6 +34,9 @@ import (
 // - Bytes 12-19: Sender Context (8 bytes, opaque)
 // - Bytes 20-23: Options (4 bytes, big-endian, typically 0)
 func TestENIPHeaderStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	encap := ENIPEncapsulation{
 		Command:       ENIPCommandRegisterSession,
 		Length:        4,
@@ -50,7 +55,7 @@ func TestENIPHeaderStructureODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: Length field is data length only (not including header)
-	lengthField := binary.BigEndian.Uint16(packet[2:4])
+	lengthField := enipOrder.Uint16(packet[2:4])
 	if lengthField != 4 {
 		t.Errorf("ODVA violation: Length field must be data length (4), got %d", lengthField)
 	}
@@ -61,20 +66,19 @@ func TestENIPHeaderStructureODVA(t *testing.T) {
 			len(packet), 24+int(lengthField))
 	}
 
-	// ODVA requirement: All multi-byte fields use big-endian
-	// Verify by checking byte order of known values
-	if packet[0] != 0x00 || packet[1] != 0x65 {
-		t.Errorf("ODVA violation: Command must be big-endian, got 0x%02X%02X, want 0x0065", packet[0], packet[1])
+	// ODVA requirement: Command must be correctly encoded
+	if enipOrder.Uint16(packet[0:2]) != 0x0065 {
+		t.Errorf("ODVA violation: Command must be 0x0065, got 0x%04X", enipOrder.Uint16(packet[0:2]))
 	}
 
 	// ODVA requirement: Session Handle in bytes 4-7
-	sessionID := binary.BigEndian.Uint32(packet[4:8])
+	sessionID := enipOrder.Uint32(packet[4:8])
 	if sessionID != 0x12345678 {
 		t.Errorf("ODVA violation: Session Handle must be in bytes 4-7, got 0x%08X, want 0x12345678", sessionID)
 	}
 
 	// ODVA requirement: Status in bytes 8-11 (must be 0 in request)
-	status := binary.BigEndian.Uint32(packet[8:12])
+	status := enipOrder.Uint32(packet[8:12])
 	if status != 0 {
 		t.Errorf("ODVA violation: Status must be 0 in request, got 0x%08X", status)
 	}
@@ -87,7 +91,7 @@ func TestENIPHeaderStructureODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: Options in bytes 20-23 (typically 0)
-	options := binary.BigEndian.Uint32(packet[20:24])
+	options := enipOrder.Uint32(packet[20:24])
 	if options != 0 {
 		t.Errorf("ODVA violation: Options should be 0, got 0x%08X", options)
 	}
@@ -100,6 +104,9 @@ func TestENIPHeaderStructureODVA(t *testing.T) {
 // - Bytes 2-3: Option Flags (2 bytes, big-endian, MUST be 0)
 // Total: Exactly 4 bytes
 func TestRegisterSessionODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	packet := BuildRegisterSession(senderContext)
 
@@ -124,13 +131,13 @@ func TestRegisterSessionODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: Protocol Version MUST be 1
-	protocolVersion := binary.BigEndian.Uint16(encap.Data[0:2])
+	protocolVersion := enipOrder.Uint16(encap.Data[0:2])
 	if protocolVersion != 1 {
 		t.Errorf("ODVA violation: Protocol version must be 1, got %d", protocolVersion)
 	}
 
 	// ODVA requirement: Option Flags MUST be 0
-	optionFlags := binary.BigEndian.Uint16(encap.Data[2:4])
+	optionFlags := enipOrder.Uint16(encap.Data[2:4])
 	if optionFlags != 0 {
 		t.Errorf("ODVA violation: Option flags must be 0, got %d", optionFlags)
 	}
@@ -148,6 +155,9 @@ func TestRegisterSessionODVA(t *testing.T) {
 // - Bytes 4-5: Timeout (2 bytes, big-endian, in seconds, 0 = no timeout)
 // - Bytes 6+: CIP data (variable length)
 func TestSendRRDataStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03}
@@ -169,23 +179,25 @@ func TestSendRRDataStructureODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: Interface Handle MUST be 0 for UCMM
-	interfaceHandle := binary.BigEndian.Uint32(encap.Data[0:4])
+	interfaceHandle := enipOrder.Uint32(encap.Data[0:4])
 	if interfaceHandle != 0 {
 		t.Errorf("ODVA violation: Interface Handle must be 0 for UCMM, got 0x%08X", interfaceHandle)
 	}
 
 	// ODVA requirement: Timeout field present (2 bytes)
-	timeout := binary.BigEndian.Uint16(encap.Data[4:6])
+	timeout := enipOrder.Uint16(encap.Data[4:6])
 	_ = timeout // Can be any value, but must be present
 
-	// ODVA requirement: Length field = 6 + CIP data length
-	expectedLength := 6 + len(cipData)
-	if encap.Length != uint16(expectedLength) {
-		t.Errorf("ODVA violation: Length must be 6 + CIP data length, got %d, want %d", encap.Length, expectedLength)
+	// ODVA requirement: Length field matches data length
+	if encap.Length != uint16(len(encap.Data)) {
+		t.Errorf("ODVA violation: Length must match data length, got %d, want %d", encap.Length, len(encap.Data))
 	}
 
-	// ODVA requirement: CIP data follows timeout
-	cipDataFromPacket := encap.Data[6:]
+	// ODVA requirement: CIP data present
+	cipDataFromPacket, err := ParseSendRRDataRequest(encap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
+	}
 	if len(cipDataFromPacket) != len(cipData) {
 		t.Errorf("ODVA violation: CIP data length mismatch, got %d, want %d", len(cipDataFromPacket), len(cipData))
 	}
@@ -197,6 +209,9 @@ func TestSendRRDataStructureODVA(t *testing.T) {
 // - Bytes 0-3: Connection ID (4 bytes, big-endian)
 // - Bytes 4+: CIP data (variable length)
 func TestSendUnitDataStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	connectionID := uint32(0xABCDEF00)
@@ -218,16 +233,18 @@ func TestSendUnitDataStructureODVA(t *testing.T) {
 		t.Fatalf("ODVA violation: SendUnitData data must be at least 4 bytes, got %d", len(encap.Data))
 	}
 
-	// ODVA requirement: Connection ID in first 4 bytes (big-endian)
-	recvConnectionID := binary.BigEndian.Uint32(encap.Data[0:4])
+	// ODVA requirement: Connection ID present
+	recvConnectionID, _, err := ParseSendUnitDataRequest(encap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendUnitDataRequest failed: %v", err)
+	}
 	if recvConnectionID != connectionID {
 		t.Errorf("ODVA violation: Connection ID must be in bytes 0-3, got 0x%08X, want 0x%08X", recvConnectionID, connectionID)
 	}
 
-	// ODVA requirement: Length field = 4 + CIP data length
-	expectedLength := 4 + len(cipData)
-	if encap.Length != uint16(expectedLength) {
-		t.Errorf("ODVA violation: Length must be 4 + CIP data length, got %d, want %d", encap.Length, expectedLength)
+	// ODVA requirement: Length field matches data length
+	if encap.Length != uint16(len(encap.Data)) {
+		t.Errorf("ODVA violation: Length must match data length, got %d, want %d", encap.Length, len(encap.Data))
 	}
 }
 
@@ -245,6 +262,9 @@ func TestSendUnitDataStructureODVA(t *testing.T) {
 // - 0x30 = Attribute ID (8-bit)
 // - 0x31 = Attribute ID (16-bit)
 func TestEPATHEncodingODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	tests := []struct {
 		name          string
 		path          CIPPath
@@ -273,11 +293,11 @@ func TestEPATHEncodingODVA(t *testing.T) {
 				Attribute: 0x03,
 			},
 			expectedEPATH: []byte{
-				0x21, 0x01, 0x00, // Class ID (16-bit): type 0x21, value 0x0100 (big-endian)
+				0x21, 0x00, 0x01, // Class ID (16-bit): type 0x21, value 0x0100 (little-endian)
 				0x24, 0x65, // Instance ID (8-bit)
 				0x30, 0x03, // Attribute ID (8-bit)
 			},
-			description: "ODVA spec: 16-bit segments use type 0x21/0x25/0x31, big-endian",
+			description: "ODVA spec: 16-bit segments use type 0x21/0x25/0x31, little-endian",
 		},
 		{
 			name: "16-bit instance (ODVA requirement for instance > 0xFF)",
@@ -288,10 +308,10 @@ func TestEPATHEncodingODVA(t *testing.T) {
 			},
 			expectedEPATH: []byte{
 				0x20, 0x04, // Class ID (8-bit)
-				0x25, 0x01, 0x00, // Instance ID (16-bit): type 0x25, value 0x0100 (big-endian)
+				0x25, 0x00, 0x01, // Instance ID (16-bit): type 0x25, value 0x0100 (little-endian)
 				0x30, 0x03, // Attribute ID (8-bit)
 			},
-			description: "ODVA spec: Instance > 0xFF must use 16-bit encoding",
+			description: "ODVA spec: Instance > 0xFF must use 16-bit encoding (little-endian)",
 		},
 	}
 
@@ -315,12 +335,12 @@ func TestEPATHEncodingODVA(t *testing.T) {
 				}
 			}
 
-			// ODVA requirement: 16-bit values must be big-endian
+			// ODVA requirement: 16-bit values must follow CIP byte order
 			if tt.path.Class > 0xFF {
 				// Check 16-bit class encoding
-				classValue := binary.BigEndian.Uint16(epath[1:3])
+				classValue := cipOrder.Uint16(epath[1:3])
 				if classValue != tt.path.Class {
-					t.Errorf("ODVA violation: 16-bit class must be big-endian, got 0x%04X, want 0x%04X", classValue, tt.path.Class)
+					t.Errorf("ODVA violation: 16-bit class must use CIP byte order, got 0x%04X, want 0x%04X", classValue, tt.path.Class)
 				}
 			}
 			if tt.path.Instance > 0xFF {
@@ -329,7 +349,7 @@ func TestEPATHEncodingODVA(t *testing.T) {
 				if tt.path.Class > 0xFF {
 					instanceOffset = 3
 				}
-				instanceValue := binary.BigEndian.Uint16(epath[instanceOffset+1 : instanceOffset+3])
+				instanceValue := cipOrder.Uint16(epath[instanceOffset+1 : instanceOffset+3])
 				if instanceValue != tt.path.Instance {
 					t.Errorf("ODVA violation: 16-bit instance must be big-endian, got 0x%04X, want 0x%04X", instanceValue, tt.path.Instance)
 				}
@@ -354,6 +374,10 @@ func TestEPATHEncodingODVA(t *testing.T) {
 //   - Byte 25: Connection path size (in 16-bit words)
 //   - Bytes 26+: Connection path (padded to 16-bit boundary)
 func TestForwardOpenStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
+	profile := CurrentProtocolProfile()
 	params := ConnectionParams{
 		OToTRPIMs:             20,
 		TToORPIMs:             20,
@@ -380,19 +404,23 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	if len(forwardOpenData) < 5 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for Connection Manager path")
 	}
-	if forwardOpenData[1] != 0x20 || forwardOpenData[2] != 0x06 {
-		t.Errorf("ODVA violation: Connection Manager class path must be 0x20 0x06, got 0x%02X 0x%02X",
-			forwardOpenData[1], forwardOpenData[2])
+	pathOffset := 1
+	if profile.IncludeCIPPathSize {
+		pathOffset = 2
 	}
-	if forwardOpenData[3] != 0x24 || forwardOpenData[4] != 0x01 {
+	if forwardOpenData[pathOffset] != 0x20 || forwardOpenData[pathOffset+1] != 0x06 {
+		t.Errorf("ODVA violation: Connection Manager class path must be 0x20 0x06, got 0x%02X 0x%02X",
+			forwardOpenData[pathOffset], forwardOpenData[pathOffset+1])
+	}
+	if forwardOpenData[pathOffset+2] != 0x24 || forwardOpenData[pathOffset+3] != 0x01 {
 		t.Errorf("ODVA violation: Connection Manager instance path must be 0x24 0x01, got 0x%02X 0x%02X",
-			forwardOpenData[3], forwardOpenData[4])
+			forwardOpenData[pathOffset+2], forwardOpenData[pathOffset+3])
 	}
 
 	// ODVA requirement: Priority and tick time at byte 5
 	// Bits 0-3: Priority (0=low, 1=scheduled, 2=high, 3=urgent)
 	// Bits 4-7: Tick time (typically 0)
-	priorityByte := forwardOpenData[5]
+	priorityByte := forwardOpenData[pathOffset+4]
 	priority := priorityByte & 0x0F
 	if priority != 0x01 { // scheduled
 		t.Errorf("ODVA violation: Priority for 'scheduled' must be 0x01, got 0x%02X", priority)
@@ -406,7 +434,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	if len(forwardOpenData) < 8 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for timeout field")
 	}
-	timeout := binary.BigEndian.Uint16(forwardOpenData[6:8])
+	timeout := cipOrder.Uint16(forwardOpenData[pathOffset+5 : pathOffset+7])
 	if timeout != 30 {
 		t.Errorf("ODVA violation: Connection timeout should be 30 seconds, got %d", timeout)
 	}
@@ -415,7 +443,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	if len(forwardOpenData) < 12 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for O->T RPI")
 	}
-	rpiOToT := binary.BigEndian.Uint32(forwardOpenData[8:12])
+	rpiOToT := cipOrder.Uint32(forwardOpenData[pathOffset+7 : pathOffset+11])
 	expectedRPI := uint32(20 * 1000) // 20ms = 20000 microseconds
 	if rpiOToT != expectedRPI {
 		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d", rpiOToT, expectedRPI)
@@ -425,7 +453,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	if len(forwardOpenData) < 20 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for T->O RPI")
 	}
-	rpiTToO := binary.BigEndian.Uint32(forwardOpenData[16:20])
+	rpiTToO := cipOrder.Uint32(forwardOpenData[pathOffset+15 : pathOffset+19])
 	expectedTToORPI := uint32(20 * 1000) // 20ms = 20000 microseconds
 	if rpiTToO != expectedTToORPI {
 		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d", rpiTToO, expectedTToORPI)
@@ -437,7 +465,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	if len(forwardOpenData) < 26 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for connection path")
 	}
-	pathSizeByte := forwardOpenData[25]
+	pathSizeByte := forwardOpenData[pathOffset+24]
 
 	// Verify connection path follows
 	// Path includes: class 0x04, instance 0x65, attribute 0x00 (default)
@@ -449,7 +477,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	}
 
 	// Verify connection path content
-	pathStart := 26
+	pathStart := pathOffset + 25
 	if len(forwardOpenData) < pathStart+6 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for connection path data")
 	}
@@ -478,6 +506,10 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 //   - Bytes 6+: Connection path with connection ID
 //     Path: 0x34 (connection segment) + connection ID (4 bytes, big-endian)
 func TestForwardCloseStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
+	profile := CurrentProtocolProfile()
 	connectionID := uint32(0x12345678)
 
 	forwardCloseData, err := BuildForwardCloseRequest(connectionID)
@@ -494,20 +526,24 @@ func TestForwardCloseStructureODVA(t *testing.T) {
 	if len(forwardCloseData) < 5 {
 		t.Fatalf("ODVA violation: ForwardClose too short for Connection Manager path")
 	}
-	if forwardCloseData[1] != 0x20 || forwardCloseData[2] != 0x06 {
-		t.Errorf("ODVA violation: Connection Manager class path must be 0x20 0x06, got 0x%02X 0x%02X",
-			forwardCloseData[1], forwardCloseData[2])
+	pathOffset := 1
+	if profile.IncludeCIPPathSize {
+		pathOffset = 2
 	}
-	if forwardCloseData[3] != 0x24 || forwardCloseData[4] != 0x01 {
+	if forwardCloseData[pathOffset] != 0x20 || forwardCloseData[pathOffset+1] != 0x06 {
+		t.Errorf("ODVA violation: Connection Manager class path must be 0x20 0x06, got 0x%02X 0x%02X",
+			forwardCloseData[pathOffset], forwardCloseData[pathOffset+1])
+	}
+	if forwardCloseData[pathOffset+2] != 0x24 || forwardCloseData[pathOffset+3] != 0x01 {
 		t.Errorf("ODVA violation: Connection Manager instance path must be 0x24 0x01, got 0x%02X 0x%02X",
-			forwardCloseData[3], forwardCloseData[4])
+			forwardCloseData[pathOffset+2], forwardCloseData[pathOffset+3])
 	}
 
 	// ODVA requirement: Connection path size in 16-bit words
 	if len(forwardCloseData) < 6 {
 		t.Fatalf("ODVA violation: ForwardClose too short for path size")
 	}
-	pathSizeByte := forwardCloseData[5]
+	pathSizeByte := forwardCloseData[pathOffset+4]
 
 	// Connection path: 0x34 (connection segment) + 4 bytes (connection ID) = 5 bytes
 	// Path size in words: 5 bytes / 2 = 2.5, rounded up = 3 words
@@ -520,15 +556,15 @@ func TestForwardCloseStructureODVA(t *testing.T) {
 	if len(forwardCloseData) < 7 {
 		t.Fatalf("ODVA violation: ForwardClose too short for connection path")
 	}
-	if forwardCloseData[6] != 0x34 {
-		t.Errorf("ODVA violation: Connection path must start with connection segment 0x34, got 0x%02X", forwardCloseData[6])
+	if forwardCloseData[pathOffset+5] != 0x34 {
+		t.Errorf("ODVA violation: Connection path must start with connection segment 0x34, got 0x%02X", forwardCloseData[pathOffset+5])
 	}
 
 	// ODVA requirement: Connection ID follows (4 bytes, big-endian)
 	if len(forwardCloseData) < 11 {
 		t.Fatalf("ODVA violation: ForwardClose too short for connection ID")
 	}
-	recvConnectionID := binary.BigEndian.Uint32(forwardCloseData[7:11])
+	recvConnectionID := cipOrder.Uint32(forwardCloseData[pathOffset+6 : pathOffset+10])
 	if recvConnectionID != connectionID {
 		t.Errorf("ODVA violation: Connection ID must be big-endian, got 0x%08X, want 0x%08X", recvConnectionID, connectionID)
 	}
@@ -542,6 +578,10 @@ func TestForwardCloseStructureODVA(t *testing.T) {
 // - Bytes 2+: Extended status (if status != 0x00) + Additional status size byte
 // - Bytes N+: Response data (if status == 0x00)
 func TestCIPResponseStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
+	profile := CurrentProtocolProfile()
 	// Test success response
 	successResp := CIPResponse{
 		Service: CIPServiceGetAttributeSingle,
@@ -560,16 +600,28 @@ func TestCIPResponseStructureODVA(t *testing.T) {
 			data[0], uint8(CIPServiceGetAttributeSingle))
 	}
 
-	// ODVA requirement: Status must be second byte
-	if data[1] != 0x00 {
-		t.Errorf("ODVA violation: Status must be second byte, got 0x%02X, want 0x00", data[1])
+	offset := 1
+	if profile.IncludeCIPRespReserved {
+		if len(data) < 4 {
+			t.Fatalf("ODVA violation: Response too short for reserved fields")
+		}
+		if data[2] != 0x00 {
+			t.Errorf("ODVA violation: Status must be byte 2, got 0x%02X, want 0x00", data[2])
+		}
+		offset = 4
+	} else {
+		// ODVA requirement: Status must be second byte
+		if data[1] != 0x00 {
+			t.Errorf("ODVA violation: Status must be second byte, got 0x%02X, want 0x00", data[1])
+		}
+		offset = 2
 	}
 
 	// ODVA requirement: Payload follows status for success (status = 0x00)
-	if len(data) < 2+len(successResp.Payload) {
+	if len(data) < offset+len(successResp.Payload) {
 		t.Errorf("ODVA violation: Response too short for payload")
 	}
-	payload := data[2:]
+	payload := data[offset:]
 	if len(payload) != len(successResp.Payload) {
 		t.Errorf("ODVA violation: Payload length mismatch, got %d, want %d", len(payload), len(successResp.Payload))
 	}
@@ -582,6 +634,9 @@ func TestCIPResponseStructureODVA(t *testing.T) {
 // - Length: 0 (no data field)
 // - Session ID: 0 (no session required for discovery)
 func TestListIdentityODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	packet := BuildListIdentity(senderContext)
 
@@ -618,6 +673,10 @@ func TestListIdentityODVA(t *testing.T) {
 // - Bit 1: Priority (from priority byte)
 // - Bits 2-3: Connection size encoding (0=8 bytes, 1=16 bytes, 2=32 bytes, 3=variable)
 func TestForwardOpenConnectionParametersODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
+	profile := CurrentProtocolProfile()
 	tests := []struct {
 		name         string
 		sizeBytes    int
@@ -651,7 +710,11 @@ func TestForwardOpenConnectionParametersODVA(t *testing.T) {
 			if len(forwardOpenData) < 16 {
 				t.Fatalf("ODVA violation: ForwardOpen too short for O->T connection parameters")
 			}
-			oToTParams := binary.BigEndian.Uint32(forwardOpenData[12:16])
+			paramOffset := 12
+			if profile.IncludeCIPPathSize {
+				paramOffset = 13
+			}
+			oToTParams := cipOrder.Uint32(forwardOpenData[paramOffset : paramOffset+4])
 
 			// ODVA requirement: Bit 0 must be 1 for IO connection
 			if oToTParams&0x01 != 0x01 {
@@ -673,6 +736,10 @@ func TestForwardOpenConnectionParametersODVA(t *testing.T) {
 // ODVA Spec: CIP Connection Management Specification
 // RPI (Requested Packet Interval) MUST be encoded in microseconds (not milliseconds)
 func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
+	profile := CurrentProtocolProfile()
 	params := ConnectionParams{
 		OToTRPIMs:             20, // 20 milliseconds
 		TToORPIMs:             20, // 20 milliseconds
@@ -693,7 +760,11 @@ func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
 	if len(forwardOpenData) < 12 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for O->T RPI")
 	}
-	rpiOToT := binary.BigEndian.Uint32(forwardOpenData[8:12])
+	offset := 8
+	if profile.IncludeCIPPathSize {
+		offset = 9
+	}
+	rpiOToT := cipOrder.Uint32(forwardOpenData[offset : offset+4])
 	expectedMicroseconds := uint32(20 * 1000) // 20ms = 20000 microseconds
 	if rpiOToT != expectedMicroseconds {
 		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d (20ms = 20000μs)",
@@ -704,7 +775,7 @@ func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
 	if len(forwardOpenData) < 20 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for T->O RPI")
 	}
-	rpiTToO := binary.BigEndian.Uint32(forwardOpenData[16:20])
+	rpiTToO := cipOrder.Uint32(forwardOpenData[offset+8 : offset+12])
 	if rpiTToO != expectedMicroseconds {
 		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d (20ms = 20000μs)",
 			rpiTToO, expectedMicroseconds)
@@ -724,12 +795,15 @@ func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
 // - Bytes N+12 to N+15: Originator serial number (4 bytes, big-endian)
 // - Byte N+16: Connection timeout multiplier (1 byte)
 func TestForwardOpenResponseStructureODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	// Build a valid ForwardOpen response (success case)
 	responseData := []byte{
 		0x00,                   // General status: success
 		0x00,                   // Additional status size: 0 (no extended status)
-		0x12, 0x34, 0x56, 0x78, // O->T connection ID
-		0x9A, 0xBC, 0xDE, 0xF0, // T->O connection ID
+		0x78, 0x56, 0x34, 0x12, // O->T connection ID (little-endian)
+		0xF0, 0xDE, 0xBC, 0x9A, // T->O connection ID (little-endian)
 		0x00, 0x01, // Connection serial number
 		0x00, 0x01, // Originator vendor ID
 		0x00, 0x00, 0x00, 0x01, // Originator serial number
@@ -764,6 +838,9 @@ func TestForwardOpenResponseStructureODVA(t *testing.T) {
 // ODVA Spec: CIP Specification Volume 1, Table 3-5.1
 // These values are standardized and MUST match exactly
 func TestCIPServiceCodeValuesODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	// ODVA standard service codes from CIP Specification Volume 1, Table 3-5.1
 	odvaServiceCodes := map[string]uint8{
 		"Get_Attribute_All":         0x01,
@@ -822,6 +899,9 @@ func TestCIPServiceCodeValuesODVA(t *testing.T) {
 // ODVA Spec: EtherNet/IP Encapsulation Protocol
 // These values are standardized and MUST match exactly
 func TestENIPCommandCodeValuesODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	// ODVA standard command codes from EtherNet/IP Encapsulation Protocol
 	odvaCommandCodes := map[string]uint16{
 		"RegisterSession":   0x0065,
@@ -863,6 +943,9 @@ func TestENIPCommandCodeValuesODVA(t *testing.T) {
 // - Bits 0-3: Format (0=8-bit, 1=16-bit)
 // - Bits 4-7: Segment type (0x2=class, 0x2=instance, 0x3=attribute)
 func TestEPATHSegmentTypeODVA(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	tests := []struct {
 		name          string
 		path          CIPPath

@@ -88,4 +88,3 @@ func runTest(flags *testFlags) error {
 
 	return nil
 }
-

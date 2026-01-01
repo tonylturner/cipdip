@@ -8,24 +8,24 @@ import (
 
 // ENIP command codes
 const (
-	ENIPCommandRegisterSession    uint16 = 0x0065
-	ENIPCommandUnregisterSession  uint16 = 0x0066
-	ENIPCommandSendRRData         uint16 = 0x006F
-	ENIPCommandSendUnitData       uint16 = 0x0070
-	ENIPCommandListIdentity       uint16 = 0x0063
-	ENIPCommandListServices       uint16 = 0x0004
-	ENIPCommandListInterfaces     uint16 = 0x0064
+	ENIPCommandRegisterSession   uint16 = 0x0065
+	ENIPCommandUnregisterSession uint16 = 0x0066
+	ENIPCommandSendRRData        uint16 = 0x006F
+	ENIPCommandSendUnitData      uint16 = 0x0070
+	ENIPCommandListIdentity      uint16 = 0x0063
+	ENIPCommandListServices      uint16 = 0x0004
+	ENIPCommandListInterfaces    uint16 = 0x0064
 )
 
 // ENIP status codes
 const (
 	ENIPStatusSuccess              uint32 = 0x00000000
-	ENIPStatusInvalidCommand        uint32 = 0x00000001
-	ENIPStatusInsufficientMemory    uint32 = 0x00000002
-	ENIPStatusIncorrectData         uint32 = 0x00000003
-	ENIPStatusInvalidSessionHandle  uint32 = 0x0064
-	ENIPStatusInvalidLength          uint32 = 0x0065
-	ENIPStatusUnsupportedCommand    uint32 = 0x0066
+	ENIPStatusInvalidCommand       uint32 = 0x00000001
+	ENIPStatusInsufficientMemory   uint32 = 0x00000002
+	ENIPStatusIncorrectData        uint32 = 0x00000003
+	ENIPStatusInvalidSessionHandle uint32 = 0x0064
+	ENIPStatusInvalidLength        uint32 = 0x0065
+	ENIPStatusUnsupportedCommand   uint32 = 0x0066
 )
 
 // ENIPStatus represents an ENIP status code
@@ -33,13 +33,13 @@ type ENIPStatus uint32
 
 // ENIPEncapsulation represents an EtherNet/IP encapsulation header
 type ENIPEncapsulation struct {
-	Command     uint16
-	Length      uint16
-	SessionID   uint32
-	Status      uint32
+	Command       uint16
+	Length        uint16
+	SessionID     uint32
+	Status        uint32
 	SenderContext [8]byte
-	Options     uint32
-	Data        []byte
+	Options       uint32
+	Data          []byte
 }
 
 // CPF item type IDs
@@ -115,13 +115,13 @@ func BuildSendRRData(sessionID uint32, senderContext [8]byte, cipData []byte) []
 	sendData := BuildSendRRDataPayload(cipData)
 
 	encap := ENIPEncapsulation{
-		Command:      ENIPCommandSendRRData,
-		Length:       uint16(len(sendData)),
-		SessionID:    sessionID,
-		Status:       0,
+		Command:       ENIPCommandSendRRData,
+		Length:        uint16(len(sendData)),
+		SessionID:     sessionID,
+		Status:        0,
 		SenderContext: senderContext,
-		Options:      0,
-		Data:         sendData,
+		Options:       0,
+		Data:          sendData,
 	}
 
 	return EncodeENIP(encap)
@@ -132,13 +132,13 @@ func BuildSendUnitData(sessionID uint32, senderContext [8]byte, connectionID uin
 	sendData := BuildSendUnitDataPayload(connectionID, cipData)
 
 	encap := ENIPEncapsulation{
-		Command:      ENIPCommandSendUnitData,
-		Length:       uint16(len(sendData)),
-		SessionID:    sessionID,
-		Status:       0,
+		Command:       ENIPCommandSendUnitData,
+		Length:        uint16(len(sendData)),
+		SessionID:     sessionID,
+		Status:        0,
 		SenderContext: senderContext,
-		Options:      0,
-		Data:         sendData,
+		Options:       0,
+		Data:          sendData,
 	}
 
 	return EncodeENIP(encap)
@@ -156,13 +156,13 @@ func BuildRegisterSession(senderContext [8]byte) []byte {
 	regData = appendUint16(order, regData, 0) // Option flags
 
 	encap := ENIPEncapsulation{
-		Command:      ENIPCommandRegisterSession,
-		Length:       uint16(len(regData)),
-		SessionID:    0, // Will be set by server
-		Status:       0,
+		Command:       ENIPCommandRegisterSession,
+		Length:        uint16(len(regData)),
+		SessionID:     0, // Will be set by server
+		Status:        0,
 		SenderContext: senderContext,
-		Options:      0,
-		Data:         regData,
+		Options:       0,
+		Data:          regData,
 	}
 
 	return EncodeENIP(encap)
@@ -171,13 +171,13 @@ func BuildRegisterSession(senderContext [8]byte) []byte {
 // BuildUnregisterSession builds an UnregisterSession encapsulation
 func BuildUnregisterSession(sessionID uint32, senderContext [8]byte) []byte {
 	encap := ENIPEncapsulation{
-		Command:      ENIPCommandUnregisterSession,
-		Length:       0,
-		SessionID:    sessionID,
-		Status:       0,
+		Command:       ENIPCommandUnregisterSession,
+		Length:        0,
+		SessionID:     sessionID,
+		Status:        0,
 		SenderContext: senderContext,
-		Options:      0,
-		Data:         nil,
+		Options:       0,
+		Data:          nil,
 	}
 
 	return EncodeENIP(encap)
@@ -186,13 +186,13 @@ func BuildUnregisterSession(sessionID uint32, senderContext [8]byte) []byte {
 // BuildListIdentity builds a ListIdentity encapsulation
 func BuildListIdentity(senderContext [8]byte) []byte {
 	encap := ENIPEncapsulation{
-		Command:      ENIPCommandListIdentity,
-		Length:       0,
-		SessionID:    0,
-		Status:       0,
+		Command:       ENIPCommandListIdentity,
+		Length:        0,
+		SessionID:     0,
+		Status:        0,
 		SenderContext: senderContext,
-		Options:      0,
-		Data:         nil,
+		Options:       0,
+		Data:          nil,
 	}
 
 	return EncodeENIP(encap)

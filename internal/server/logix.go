@@ -18,10 +18,11 @@ import (
 
 // LogixPersonality implements logix-like behavior
 type LogixPersonality struct {
-	config  *config.ServerConfig
-	logger  *logging.Logger
-	tags    map[string]*Tag
-	mu      sync.RWMutex
+	config *config.ServerConfig
+	logger *logging.Logger
+	tags   map[string]*Tag
+	rng    *rand.Rand
+	mu     sync.RWMutex
 }
 
 // Tag represents a logix tag
@@ -36,10 +37,15 @@ type Tag struct {
 
 // NewLogixPersonality creates a new logix personality
 func NewLogixPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*LogixPersonality, error) {
+	seed := cfg.Server.RNGSeed
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
 	lp := &LogixPersonality{
 		config: cfg,
 		logger: logger,
 		tags:   make(map[string]*Tag),
+		rng:    rand.New(rand.NewSource(seed)),
 	}
 
 	// Initialize tags
@@ -65,8 +71,7 @@ func NewLogixPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*Log
 				binary.BigEndian.PutUint32(tag.Data[0:4], 0)
 			}
 		case "random":
-			rand.Seed(time.Now().UnixNano())
-			rand.Read(tag.Data)
+			lp.rng.Read(tag.Data)
 		}
 
 		lp.tags[tagCfg.Name] = tag
@@ -205,7 +210,7 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 		}
 
 	case "random":
-		rand.Read(tag.Data)
+		lp.rng.Read(tag.Data)
 
 	case "static":
 		// No update

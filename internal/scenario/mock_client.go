@@ -10,16 +10,16 @@ import (
 
 // MockClient is a mock implementation of cipclient.Client for testing
 type MockClient struct {
-	connected      bool
-	connectError   error
+	connected       bool
+	connectError    error
 	disconnectError error
-	readResponses  map[string]cipclient.CIPResponse
-	readErrors     map[string]error
-	writeResponses map[string]cipclient.CIPResponse
-	writeErrors    map[string]error
-	readCount      map[string]int
-	writeCount     map[string]int
-	mu             sync.RWMutex
+	readResponses   map[string]cipclient.CIPResponse
+	readErrors      map[string]error
+	writeResponses  map[string]cipclient.CIPResponse
+	writeErrors     map[string]error
+	readCount       map[string]int
+	writeCount      map[string]int
+	mu              sync.RWMutex
 
 	// I/O connection support
 	forwardOpenError   error
@@ -208,6 +208,5 @@ func (m *MockClient) GetWriteCount(path cipclient.CIPPath) int {
 
 // pathKey creates a unique key for a path
 func pathKey(path cipclient.CIPPath) string {
-	return fmt.Sprintf("%04X:%04X:%02X", path.Class, path.Instance, path.Attribute)
+	return fmt.Sprintf("%04X:%04X:%04X", path.Class, path.Instance, path.Attribute)
 }
-

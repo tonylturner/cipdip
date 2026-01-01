@@ -28,12 +28,12 @@ type ConnectionParams struct {
 
 // IOConnection represents an active connected I/O connection
 type IOConnection struct {
-	ID              uint32 // connection ID or identifying handle
-	Params          ConnectionParams
-	ioTransport     Transport // transport for I/O data (UDP 2222 or TCP 44818)
+	ID               uint32 // connection ID or identifying handle
+	Params           ConnectionParams
+	ioTransport      Transport // transport for I/O data (UDP 2222 or TCP 44818)
 	LastOToTDataSent []byte
 	LastTToODataRecv []byte
-	Sequence        uint16
+	Sequence         uint16
 }
 
 // Client interface for CIP/EtherNet-IP communication
@@ -59,14 +59,14 @@ type Client interface {
 
 // ENIPClient implements the Client interface
 type ENIPClient struct {
-	transport      Transport
-	targetIP       string // Store target IP for UDP I/O connections
-	targetPort     int    // Store target port for reference
-	sessionID      uint32
-	senderContext  [8]byte
-	connected      bool
-	ioConnections  map[uint32]*IOConnection
-	nextConnID     uint32
+	transport     Transport
+	targetIP      string // Store target IP for UDP I/O connections
+	targetPort    int    // Store target port for reference
+	sessionID     uint32
+	senderContext [8]byte
+	connected     bool
+	ioConnections map[uint32]*IOConnection
+	nextConnID    uint32
 }
 
 // NewClient creates a new CIP/EtherNet-IP client
@@ -106,7 +106,7 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 
 	// Send RegisterSession
 	regPacket := BuildRegisterSession(c.senderContext)
-	
+
 	// Validate packet before sending (strict unless legacy_compat)
 	profile := CurrentProtocolProfile()
 	validator := NewPacketValidator(profile.Name != "legacy_compat")
@@ -115,7 +115,7 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 		c.transport.Disconnect()
 		return fmt.Errorf("invalid RegisterSession packet: %w", err)
 	}
-	
+
 	if err := c.transport.Send(ctx, regPacket); err != nil {
 		c.transport.Disconnect()
 		return errors.WrapNetworkError(err, ip, port)

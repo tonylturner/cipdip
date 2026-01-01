@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
 
@@ -15,7 +15,7 @@ func createTestServerConfig() *config.ServerConfig {
 	return &config.ServerConfig{
 		Server: config.ServerConfigSection{
 			Name:        "Test Server",
-			Personality:  "adapter",
+			Personality: "adapter",
 			ListenIP:    "127.0.0.1",
 			TCPPort:     0, // Use 0 to get random port
 			UDPIOPort:   2222,
@@ -320,4 +320,3 @@ func TestServerContextCancellation(t *testing.T) {
 		t.Errorf("Server.Stop failed after context cancellation: %v", err)
 	}
 }
-

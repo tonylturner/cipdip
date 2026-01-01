@@ -31,14 +31,14 @@ func NewWiresharkValidator(tsharkPath string) *WiresharkValidator {
 
 // ValidateResult represents the result of Wireshark validation
 type ValidateResult struct {
-	Valid       bool              // Whether the packet was successfully parsed
-	Command     string            // ENIP command code (hex) - if extracted
-	Status      string            // ENIP status (hex) - if extracted
-	CIPService  string            // CIP service code (if applicable)
-	Warnings    []string          // Any warnings from tshark
-	Errors      []string          // Any errors from tshark
-	Fields      map[string]string // Extracted protocol fields
-	Message     string            // Validation message
+	Valid      bool              // Whether the packet was successfully parsed
+	Command    string            // ENIP command code (hex) - if extracted
+	Status     string            // ENIP status (hex) - if extracted
+	CIPService string            // CIP service code (if applicable)
+	Warnings   []string          // Any warnings from tshark
+	Errors     []string          // Any errors from tshark
+	Fields     map[string]string // Extracted protocol fields
+	Message    string            // Validation message
 }
 
 // ValidatePacket validates a single ENIP packet using Wireshark
@@ -145,12 +145,12 @@ func (v *WiresharkValidator) runTshark(pcapFile string) (*ValidateResult, error)
 	// Run tshark to validate the PCAP structure
 	// First, check if tshark can read the file without errors
 	cmd := exec.Command(v.tsharkPath,
-		"-r", pcapFile,                    // Read from PCAP file
-		"-T", "json",                      // JSON output
-		"-e", "frame.number",               // Frame number
-		"-e", "tcp.port",                   // TCP port (should be 44818)
-		"-e", "tcp.len",                    // TCP payload length
-		"-e", "frame.protocols",            // Protocol stack
+		"-r", pcapFile, // Read from PCAP file
+		"-T", "json", // JSON output
+		"-e", "frame.number", // Frame number
+		"-e", "tcp.port", // TCP port (should be 44818)
+		"-e", "tcp.len", // TCP payload length
+		"-e", "frame.protocols", // Protocol stack
 	)
 
 	output, err := cmd.Output()
@@ -210,12 +210,12 @@ func (v *WiresharkValidator) runTshark(pcapFile string) (*ValidateResult, error)
 					}
 				}
 			}
-			
+
 			// Check TCP payload length - should match our ENIP packet size
 			if tcpLen, ok := layerData["tcp.len"].(string); ok {
 				result.Fields["tcp.len"] = tcpLen
 			}
-			
+
 			// Check protocol stack
 			var protocolStr string
 			if protocols, ok := layerData["frame.protocols"].(string); ok {
@@ -229,11 +229,11 @@ func (v *WiresharkValidator) runTshark(pcapFile string) (*ValidateResult, error)
 				}
 				protocolStr = strings.Join(parts, ":")
 			}
-			
+
 			if protocolStr != "" {
 				result.Fields["frame.protocols"] = protocolStr
 			}
-			
+
 			// Validation logic:
 			// 1. If tshark successfully read the PCAP and found a packet on port 44818, that's a good sign
 			// 2. The packet structure is correct (Ethernet/IP/TCP)
@@ -294,4 +294,3 @@ func ValidateENIPPacketWithDetails(packet []byte) (*ValidateResult, error) {
 	validator := NewWiresharkValidator("")
 	return validator.ValidatePacket(packet)
 }
-

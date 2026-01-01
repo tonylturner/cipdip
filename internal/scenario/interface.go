@@ -41,6 +41,12 @@ func GetScenario(name string) (Scenario, error) {
 		return &ChurnScenario{}, nil
 	case "io":
 		return &IOScenario{}, nil
+	case "edge_valid":
+		return &EdgeValidScenario{}, nil
+	case "vendor_variants":
+		return &VendorVariantsScenario{}, nil
+	case "mixed_state":
+		return &MixedStateScenario{}, nil
 	default:
 		return nil, &UnknownScenarioError{Name: name}
 	}

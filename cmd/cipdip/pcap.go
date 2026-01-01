@@ -85,7 +85,7 @@ func runPcap(flags *pcapFlags) error {
 
 	// Handle hexdump first if requested
 	if flags.hexdump {
-		fmt.Fprintf(os.Stdout, pcap.FormatPacketHex(data, true))
+		fmt.Fprint(os.Stdout, pcap.FormatPacketHex(data, true))
 		return nil
 	}
 
@@ -167,9 +167,8 @@ func runPcap(flags *pcapFlags) error {
 
 		// Show hex dump
 		fmt.Fprintf(os.Stdout, "\nPacket Hex Dump:\n")
-		fmt.Fprintf(os.Stdout, pcap.FormatPacketHex(data, true))
+		fmt.Fprint(os.Stdout, pcap.FormatPacketHex(data, true))
 	}
 
 	return nil
 }
-

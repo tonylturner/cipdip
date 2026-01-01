@@ -6,7 +6,7 @@ CIPDIP is a Go-based command-line tool designed to generate repeatable, controll
 
 ## Features
 
-- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, and io
+- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, vendor_variants, mixed_state
 - **Transport Support**: TCP 44818 (explicit messaging), UDP 2222 (I/O), UDP 44818 (discovery)
 - **Config-Driven**: YAML-based configuration for flexible device targeting
 - **Server Mode**: Emulator with adapter and logix-like personalities
@@ -101,6 +101,13 @@ cipdip pcap --input packet1.bin --compare packet2.bin
 cipdip pcap --input packet.bin --format json
 ```
 
+### Reference Extraction
+
+```bash
+# Extract reference packets from PCAPs (including pcaps/ENIP.pcap)
+cipdip extract-reference --baseline-dir pcaps --output internal/cipclient/reference_packets_gen.go
+```
+
 ## Configuration
 
 For detailed configuration documentation, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
@@ -168,6 +175,9 @@ adapter_assemblies:
 - **stress**: High-frequency reads (20ms default)
 - **churn**: Connection setup/teardown cycles (100ms default)
 - **io**: Connected Class 1 I/O-style behavior (10ms default, UDP 2222)
+- **edge_valid**: Protocol-valid edge cases for DPI falsification
+- **vendor_variants**: Replays traffic across protocol variants
+- **mixed_state**: Interleaves UCMM and connected I/O traffic
 
 ## Command Reference
 
@@ -215,7 +225,7 @@ Scanner mode that connects to CIP targets and generates traffic.
 
 **Required flags:**
 - `--ip`: Target CIP adapter IP address
-- `--scenario`: Scenario name (baseline|mixed|stress|churn|io)
+- `--scenario`: Scenario name (baseline|mixed|stress|churn|io|edge_valid|vendor_variants|mixed_state)
 
 **Optional flags:**
 - `--port`: TCP port (default: 44818)

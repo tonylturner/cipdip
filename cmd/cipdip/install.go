@@ -133,7 +133,7 @@ func runInstall(flags *installFlags) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "Installation complete!\n")
-	
+
 	// Provide instructions for enabling completion
 	sourceFile := getCompletionSourceFile(shell)
 	if sourceFile != "" {
@@ -252,17 +252,17 @@ func detectShell() string {
 		if psModulePath != "" {
 			return "powershell"
 		}
-		
+
 		comspec := os.Getenv("COMSPEC")
 		if strings.Contains(strings.ToLower(comspec), "powershell") {
 			return "powershell"
 		}
-		
+
 		// Check for Git Bash or other bash on Windows
 		if shell != "" && strings.Contains(strings.ToLower(shell), "bash") {
 			return "bash"
 		}
-		
+
 		// Default to cmd.exe (though completion may not work well)
 		return "cmd"
 	}
@@ -489,4 +489,3 @@ func copyFile(src, dst string) error {
 	// Write destination file
 	return os.WriteFile(dst, data, 0644)
 }
-
