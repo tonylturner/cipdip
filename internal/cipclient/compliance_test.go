@@ -20,12 +20,12 @@ package cipclient
 // - ForwardOpen/ForwardClose: CIP Connection Management Specification
 
 import (
-	"encoding/binary"
 	"testing"
 )
 
 // TestENIPHeaderCompliance validates ENIP encapsulation header structure
 func TestENIPHeaderCompliance(t *testing.T) {
+	order := currentENIPByteOrder()
 	encap := ENIPEncapsulation{
 		Command:     ENIPCommandRegisterSession,
 		Length:      4,
@@ -48,25 +48,25 @@ func TestENIPHeaderCompliance(t *testing.T) {
 	// - All multi-byte fields use big-endian byte order (ODVA requirement)
 	// - Field order: Command, Length, SessionID, Status, SenderContext, Options (ODVA requirement)
 	// Offset 0-1: Command (2 bytes, big-endian)
-	cmd := binary.BigEndian.Uint16(packet[0:2])
+	cmd := order.Uint16(packet[0:2])
 	if cmd != ENIPCommandRegisterSession {
 		t.Errorf("Command: got 0x%04X, want 0x%04X", cmd, ENIPCommandRegisterSession)
 	}
 
 	// Offset 2-3: Length (2 bytes, big-endian)
-	length := binary.BigEndian.Uint16(packet[2:4])
+	length := order.Uint16(packet[2:4])
 	if length != 4 {
 		t.Errorf("Length: got %d, want 4", length)
 	}
 
 	// Offset 4-7: Session Handle (4 bytes, big-endian)
-	sessionID := binary.BigEndian.Uint32(packet[4:8])
+	sessionID := order.Uint32(packet[4:8])
 	if sessionID != 0x12345678 {
 		t.Errorf("Session ID: got 0x%08X, want 0x%08X", sessionID, 0x12345678)
 	}
 
 	// Offset 8-11: Status (4 bytes, big-endian)
-	status := binary.BigEndian.Uint32(packet[8:12])
+	status := order.Uint32(packet[8:12])
 	if status != 0 {
 		t.Errorf("Status: got 0x%08X, want 0x00000000", status)
 	}
@@ -80,7 +80,7 @@ func TestENIPHeaderCompliance(t *testing.T) {
 	}
 
 	// Offset 20-23: Options (4 bytes, big-endian)
-	options := binary.BigEndian.Uint32(packet[20:24])
+	options := order.Uint32(packet[20:24])
 	if options != 0 {
 		t.Errorf("Options: got 0x%08X, want 0x00000000", options)
 	}
@@ -93,6 +93,7 @@ func TestENIPHeaderCompliance(t *testing.T) {
 
 // TestENIPHeaderLengthConsistency validates length field matches data
 func TestENIPHeaderLengthConsistency(t *testing.T) {
+	order := currentENIPByteOrder()
 	tests := []struct {
 		name     string
 		dataLen  int
@@ -119,7 +120,7 @@ func TestENIPHeaderLengthConsistency(t *testing.T) {
 			}
 
 			packet := EncodeENIP(encap)
-			length := binary.BigEndian.Uint16(packet[2:4])
+			length := order.Uint16(packet[2:4])
 
 			if length != tt.expected {
 				t.Errorf("Length field: got %d, want %d", length, tt.expected)
@@ -135,6 +136,7 @@ func TestENIPHeaderLengthConsistency(t *testing.T) {
 // TestENIPByteOrder validates all fields use big-endian byte order
 // Note: Length field is calculated from Data length per ODVA spec, not set directly
 func TestENIPByteOrder(t *testing.T) {
+	order := currentENIPByteOrder()
 	// Create data that will result in length 0x5678 (22136 bytes)
 	// For testing, use a smaller length that's easier to verify
 	testData := make([]byte, 0x1234) // 4660 bytes
@@ -150,27 +152,25 @@ func TestENIPByteOrder(t *testing.T) {
 
 	packet := EncodeENIP(encap)
 
-	// Verify big-endian encoding
-	if packet[0] != 0x12 || packet[1] != 0x34 {
-		t.Errorf("Command byte order: got 0x%02X%02X, want 0x1234", packet[0], packet[1])
+	// Verify byte order encoding
+	cmd := order.Uint16(packet[0:2])
+	if cmd != 0x1234 {
+		t.Errorf("Command byte order: got 0x%04X, want 0x1234", cmd)
 	}
 
-	// Length should be calculated from Data length (0x1234 = 4660 bytes)
-	// In big-endian: 0x12 0x34
-	if packet[2] != 0x12 || packet[3] != 0x34 {
-		t.Errorf("Length byte order: got 0x%02X%02X, want 0x1234 (calculated from Data length per ODVA spec)", packet[2], packet[3])
+	length := order.Uint16(packet[2:4])
+	if length != 0x1234 {
+		t.Errorf("Length byte order: got 0x%04X, want 0x1234 (calculated from Data length per ODVA spec)", length)
 	}
 
-	// Session ID: 0xABCDEF00 should be 0xAB 0xCD 0xEF 0x00
-	if packet[4] != 0xAB || packet[5] != 0xCD || packet[6] != 0xEF || packet[7] != 0x00 {
-		t.Errorf("Session ID byte order: got 0x%02X%02X%02X%02X, want 0xABCDEF00",
-			packet[4], packet[5], packet[6], packet[7])
+	session := order.Uint32(packet[4:8])
+	if session != 0xABCDEF00 {
+		t.Errorf("Session ID byte order: got 0x%08X, want 0xABCDEF00", session)
 	}
 
-	// Status: 0x11223344 should be 0x11 0x22 0x33 0x44
-	if packet[8] != 0x11 || packet[9] != 0x22 || packet[10] != 0x33 || packet[11] != 0x44 {
-		t.Errorf("Status byte order: got 0x%02X%02X%02X%02X, want 0x11223344",
-			packet[8], packet[9], packet[10], packet[11])
+	status := order.Uint32(packet[8:12])
+	if status != 0x11223344 {
+		t.Errorf("Status byte order: got 0x%08X, want 0x11223344", status)
 	}
 }
 
@@ -238,6 +238,7 @@ func TestENIPStatusCodes(t *testing.T) {
 
 // TestRegisterSessionCompliance validates RegisterSession packet structure
 func TestRegisterSessionCompliance(t *testing.T) {
+	order := currentENIPByteOrder()
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	packet := BuildRegisterSession(senderContext)
 
@@ -260,12 +261,12 @@ func TestRegisterSessionCompliance(t *testing.T) {
 		t.Errorf("RegisterSession data length: got %d, want 4", len(encap.Data))
 	}
 
-	protocolVersion := binary.BigEndian.Uint16(encap.Data[0:2])
+	protocolVersion := order.Uint16(encap.Data[0:2])
 	if protocolVersion != 1 {
 		t.Errorf("Protocol Version: got %d, want 1", protocolVersion)
 	}
 
-	optionFlags := binary.BigEndian.Uint16(encap.Data[2:4])
+	optionFlags := order.Uint16(encap.Data[2:4])
 	if optionFlags != 0 {
 		t.Errorf("Option Flags: got %d, want 0", optionFlags)
 	}
@@ -311,6 +312,7 @@ func TestUnregisterSessionCompliance(t *testing.T) {
 
 // TestSendRRDataCompliance validates SendRRData packet structure
 func TestSendRRDataCompliance(t *testing.T) {
+	order := currentENIPByteOrder()
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03} // Get_Attribute_Single
@@ -336,25 +338,26 @@ func TestSendRRDataCompliance(t *testing.T) {
 		t.Fatalf("SendRRData data too short: %d bytes (minimum 6)", len(encap.Data))
 	}
 
-	interfaceHandle := binary.BigEndian.Uint32(encap.Data[0:4])
+	interfaceHandle := order.Uint32(encap.Data[0:4])
 	if interfaceHandle != 0 {
 		t.Errorf("Interface Handle: got 0x%08X, want 0x00000000 (must be 0 for UCMM)", interfaceHandle)
 	}
 
-	timeout := binary.BigEndian.Uint16(encap.Data[4:6])
+	timeout := order.Uint16(encap.Data[4:6])
 	// Timeout can be 0 or other values, but typically 0 for UCMM
 	_ = timeout
 
-	// Verify CIP data follows
-	cipDataFromPacket := encap.Data[6:]
+	cipDataFromPacket, err := ParseSendRRDataRequest(encap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
+	}
 	if len(cipDataFromPacket) != len(cipData) {
 		t.Errorf("CIP data length: got %d, want %d", len(cipDataFromPacket), len(cipData))
 	}
 
-	// Verify length field matches
-	expectedLength := 6 + len(cipData)
-	if encap.Length != uint16(expectedLength) {
-		t.Errorf("Length field: got %d, want %d", encap.Length, expectedLength)
+	// Verify length field matches data length
+	if encap.Length != uint16(len(encap.Data)) {
+		t.Errorf("Length field: got %d, want %d", encap.Length, len(encap.Data))
 	}
 
 	// Verify session ID
@@ -390,21 +393,20 @@ func TestSendUnitDataCompliance(t *testing.T) {
 		t.Fatalf("SendUnitData data too short: %d bytes (minimum 4)", len(encap.Data))
 	}
 
-	recvConnectionID := binary.BigEndian.Uint32(encap.Data[0:4])
+	recvConnectionID, cipDataFromPacket, err := ParseSendUnitDataRequest(encap.Data)
+	if err != nil {
+		t.Fatalf("ParseSendUnitDataRequest failed: %v", err)
+	}
 	if recvConnectionID != connectionID {
 		t.Errorf("Connection ID: got 0x%08X, want 0x%08X", recvConnectionID, connectionID)
 	}
-
-	// Verify CIP data follows
-	cipDataFromPacket := encap.Data[4:]
 	if len(cipDataFromPacket) != len(cipData) {
 		t.Errorf("CIP data length: got %d, want %d", len(cipDataFromPacket), len(cipData))
 	}
 
-	// Verify length field matches
-	expectedLength := 4 + len(cipData)
-	if encap.Length != uint16(expectedLength) {
-		t.Errorf("Length field: got %d, want %d", encap.Length, expectedLength)
+	// Verify length field matches data length
+	if encap.Length != uint16(len(encap.Data)) {
+		t.Errorf("Length field: got %d, want %d", encap.Length, len(encap.Data))
 	}
 
 	// Verify session ID
@@ -423,6 +425,7 @@ func TestSendUnitDataCompliance(t *testing.T) {
 // - 0x30 = 8-bit attribute ID
 // All multi-byte values use big-endian byte order (ODVA requirement).
 func TestEPATHEncodingCompliance(t *testing.T) {
+	order := currentCIPByteOrder()
 	tests := []struct {
 		name     string
 		path     CIPPath
@@ -479,7 +482,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 				if epath[0] != 0x21 {
 					t.Errorf("Class segment type: got 0x%02X, want 0x21 (16-bit)", epath[0])
 				}
-				classID := binary.BigEndian.Uint16(epath[1:3])
+				classID := order.Uint16(epath[1:3])
 				if classID != 0x0100 {
 					t.Errorf("Class ID: got 0x%04X, want 0x0100", classID)
 				}
@@ -502,7 +505,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 				if epath[2] != 0x25 {
 					t.Errorf("Instance segment type: got 0x%02X, want 0x25 (16-bit)", epath[2])
 				}
-				instanceID := binary.BigEndian.Uint16(epath[3:5])
+				instanceID := order.Uint16(epath[3:5])
 				if instanceID != 0x0100 {
 					t.Errorf("Instance ID: got 0x%04X, want 0x0100", instanceID)
 				}
@@ -537,7 +540,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 				if epath[0] != 0x21 {
 					t.Errorf("Class segment type: got 0x%02X, want 0x21 (16-bit)", epath[0])
 				}
-				classID := binary.BigEndian.Uint16(epath[1:3])
+				classID := order.Uint16(epath[1:3])
 				if classID != 0x0100 {
 					t.Errorf("Class ID: got 0x%04X, want 0x0100", classID)
 				}
@@ -598,6 +601,7 @@ func TestCIPServiceCodeCompliance(t *testing.T) {
 // - Connection Manager path: class 0x06, instance 0x01 (ODVA standard)
 // - Connection parameters must be valid per ODVA spec
 func TestForwardOpenCompliance(t *testing.T) {
+	profile := CurrentProtocolProfile()
 	params := ConnectionParams{
 		OToTRPIMs:             20,
 		TToORPIMs:             20,
@@ -622,11 +626,15 @@ func TestForwardOpenCompliance(t *testing.T) {
 
 	// - Connection Manager path: class 0x06, instance 0x01 (ODVA standard path)
 	//   EPATH encoding: 0x20 0x06 0x24 0x01 (8-bit class + 8-bit instance)
-	if forwardOpenData[1] != 0x20 || forwardOpenData[2] != 0x06 {
-		t.Errorf("Connection Manager class path: got 0x%02X 0x%02X, want 0x20 0x06", forwardOpenData[1], forwardOpenData[2])
+	pathOffset := 1
+	if profile.IncludeCIPPathSize {
+		pathOffset = 2
 	}
-	if forwardOpenData[3] != 0x24 || forwardOpenData[4] != 0x01 {
-		t.Errorf("Connection Manager instance path: got 0x%02X 0x%02X, want 0x24 0x01", forwardOpenData[3], forwardOpenData[4])
+	if forwardOpenData[pathOffset] != 0x20 || forwardOpenData[pathOffset+1] != 0x06 {
+		t.Errorf("Connection Manager class path: got 0x%02X 0x%02X, want 0x20 0x06", forwardOpenData[pathOffset], forwardOpenData[pathOffset+1])
+	}
+	if forwardOpenData[pathOffset+2] != 0x24 || forwardOpenData[pathOffset+3] != 0x01 {
+		t.Errorf("Connection Manager instance path: got 0x%02X 0x%02X, want 0x24 0x01", forwardOpenData[pathOffset+2], forwardOpenData[pathOffset+3])
 	}
 
 	// Verify minimum structure exists
@@ -660,6 +668,7 @@ func TestForwardOpenCompliance(t *testing.T) {
 // - Connection Manager path: class 0x06, instance 0x01 (ODVA standard)
 // - Connection path must reference the connection ID from ForwardOpen response
 func TestForwardCloseCompliance(t *testing.T) {
+	profile := CurrentProtocolProfile()
 	connectionID := uint32(0x12345678)
 
 	forwardCloseData, err := BuildForwardCloseRequest(connectionID)
@@ -674,11 +683,15 @@ func TestForwardCloseCompliance(t *testing.T) {
 	}
 
 	// - Connection Manager path (class 0x06, instance 0x01)
-	if forwardCloseData[1] != 0x20 || forwardCloseData[2] != 0x06 {
-		t.Errorf("Connection Manager class path: got 0x%02X 0x%02X, want 0x20 0x06", forwardCloseData[1], forwardCloseData[2])
+	pathOffset := 1
+	if profile.IncludeCIPPathSize {
+		pathOffset = 2
 	}
-	if forwardCloseData[3] != 0x24 || forwardCloseData[4] != 0x01 {
-		t.Errorf("Connection Manager instance path: got 0x%02X 0x%02X, want 0x24 0x01", forwardCloseData[3], forwardCloseData[4])
+	if forwardCloseData[pathOffset] != 0x20 || forwardCloseData[pathOffset+1] != 0x06 {
+		t.Errorf("Connection Manager class path: got 0x%02X 0x%02X, want 0x20 0x06", forwardCloseData[pathOffset], forwardCloseData[pathOffset+1])
+	}
+	if forwardCloseData[pathOffset+2] != 0x24 || forwardCloseData[pathOffset+3] != 0x01 {
+		t.Errorf("Connection Manager instance path: got 0x%02X 0x%02X, want 0x24 0x01", forwardCloseData[pathOffset+2], forwardCloseData[pathOffset+3])
 	}
 
 	// Verify minimum structure exists
@@ -744,6 +757,7 @@ func TestDecodeENIPErrorHandling(t *testing.T) {
 
 // TestCIPRequestEncoding validates CIP request encoding structure
 func TestCIPRequestEncoding(t *testing.T) {
+	profile := CurrentProtocolProfile()
 	req := CIPRequest{
 		Service: CIPServiceGetAttributeSingle,
 		Path: CIPPath{
@@ -759,9 +773,13 @@ func TestCIPRequestEncoding(t *testing.T) {
 		t.Fatalf("EncodeCIPRequest failed: %v", err)
 	}
 
-	// Should have: service code (1) + EPATH (6) = 7 bytes minimum
-	if len(data) < 7 {
-		t.Errorf("CIP request too short: %d bytes (minimum 7)", len(data))
+	// Should have: service code (1) + path size (1, if enabled) + EPATH (6) = 8 bytes minimum
+	minLen := 7
+	if profile.IncludeCIPPathSize {
+		minLen = 8
+	}
+	if len(data) < minLen {
+		t.Errorf("CIP request too short: %d bytes (minimum %d)", len(data), minLen)
 	}
 
 	// Verify service code
@@ -770,8 +788,12 @@ func TestCIPRequestEncoding(t *testing.T) {
 	}
 
 	// Verify EPATH follows
-	if data[1] != 0x20 || data[2] != 0x04 {
-		t.Errorf("Class segment: got 0x%02X 0x%02X, want 0x20 0x04", data[1], data[2])
+	offset := 1
+	if profile.IncludeCIPPathSize {
+		offset = 2
+	}
+	if data[offset] != 0x20 || data[offset+1] != 0x04 {
+		t.Errorf("Class segment: got 0x%02X 0x%02X, want 0x20 0x04", data[offset], data[offset+1])
 	}
 }
 

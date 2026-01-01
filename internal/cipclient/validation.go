@@ -172,13 +172,13 @@ func (v *PacketValidator) validateRegisterSession(encap ENIPEncapsulation) error
 	}
 
 	// Protocol version should be 1
-	protocolVersion := uint16(encap.Data[0])<<8 | uint16(encap.Data[1])
+	protocolVersion := currentENIPByteOrder().Uint16(encap.Data[0:2])
 	if protocolVersion != 1 {
 		return fmt.Errorf("RegisterSession protocol version must be 1, got %d", protocolVersion)
 	}
 
 	// Option flags should be 0
-	optionFlags := uint16(encap.Data[2])<<8 | uint16(encap.Data[3])
+	optionFlags := currentENIPByteOrder().Uint16(encap.Data[2:4])
 	if v.strict && optionFlags != 0 {
 		return fmt.Errorf("RegisterSession option flags should be 0, got 0x%04X", optionFlags)
 	}
@@ -193,9 +193,16 @@ func (v *PacketValidator) validateSendRRData(encap ENIPEncapsulation) error {
 	}
 
 	// Interface Handle should be 0 for UCMM
-	interfaceHandle := uint32(encap.Data[0])<<24 | uint32(encap.Data[1])<<16 | uint32(encap.Data[2])<<8 | uint32(encap.Data[3])
+	interfaceHandle := currentENIPByteOrder().Uint32(encap.Data[0:4])
 	if interfaceHandle != 0 {
 		return fmt.Errorf("SendRRData Interface Handle must be 0 for UCMM, got 0x%08X", interfaceHandle)
+	}
+
+	profile := CurrentProtocolProfile()
+	if profile.UseCPF {
+		if _, err := ParseCPFItems(encap.Data[6:]); err != nil {
+			return fmt.Errorf("invalid CPF items: %w", err)
+		}
 	}
 
 	return nil
@@ -203,16 +210,35 @@ func (v *PacketValidator) validateSendRRData(encap ENIPEncapsulation) error {
 
 // validateSendUnitData validates SendUnitData structure
 func (v *PacketValidator) validateSendUnitData(encap ENIPEncapsulation) error {
-	if len(encap.Data) < 4 {
-		return fmt.Errorf("SendUnitData data too short: %d bytes (minimum 4)", len(encap.Data))
+	profile := CurrentProtocolProfile()
+	if profile.UseCPF {
+		if len(encap.Data) < 6 {
+			return fmt.Errorf("SendUnitData data too short: %d bytes (minimum 6)", len(encap.Data))
+		}
+		items, err := ParseCPFItems(encap.Data[6:])
+		if err != nil {
+			return fmt.Errorf("invalid CPF items: %w", err)
+		}
+		connID := uint32(0)
+		for _, item := range items {
+			if item.TypeID == CPFItemConnectedAddress && len(item.Data) >= 4 {
+				connID = currentENIPByteOrder().Uint32(item.Data[0:4])
+				break
+			}
+		}
+		if connID == 0 {
+			return fmt.Errorf("SendUnitData Connection ID must be non-zero")
+		}
+	} else {
+		if len(encap.Data) < 4 {
+			return fmt.Errorf("SendUnitData data too short: %d bytes (minimum 4)", len(encap.Data))
+		}
+		// Connection ID should be non-zero
+		connectionID := currentENIPByteOrder().Uint32(encap.Data[0:4])
+		if connectionID == 0 {
+			return fmt.Errorf("SendUnitData Connection ID must be non-zero")
+		}
 	}
-
-	// Connection ID should be non-zero
-	connectionID := uint32(encap.Data[0])<<24 | uint32(encap.Data[1])<<16 | uint32(encap.Data[2])<<8 | uint32(encap.Data[3])
-	if connectionID == 0 {
-		return fmt.Errorf("SendUnitData Connection ID must be non-zero")
-	}
-
 	return nil
 }
 

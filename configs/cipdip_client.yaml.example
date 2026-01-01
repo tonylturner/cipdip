@@ -5,6 +5,18 @@ adapter:
   name: "CLICK C2-03CPU"   # Human-friendly name (for logs only)
   port: 44818              # EtherNet/IP TCP port (default 44818)
 
+# Protocol behavior (strict ODVA by default)
+protocol:
+  mode: "strict_odva"        # "strict_odva", "vendor_variant", or "legacy_compat"
+  variant: ""                # vendor preset name when mode=vendor_variant
+  overrides:
+    enip_endianness: "little"        # "little" or "big"
+    cip_endianness: "little"         # "little" or "big"
+    cip_path_size: true              # include path size byte in CIP requests
+    cip_response_reserved: true      # include reserved/status-size fields in CIP responses
+    use_cpf: true                    # encode CPF items for SendRRData/SendUnitData
+    io_sequence_mode: "increment"    # "increment", "random", or "omit"
+
 # CIP targets to read.
 # Each entry specifies a CIP path (class/instance/attribute) to read.
 read_targets:

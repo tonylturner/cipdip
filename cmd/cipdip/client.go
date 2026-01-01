@@ -180,6 +180,18 @@ func runClient(flags *clientFlags) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
+	profile := cipclient.ResolveProtocolProfile(
+		cfg.Protocol.Mode,
+		cfg.Protocol.Variant,
+		cfg.Protocol.Overrides.ENIPEndianness,
+		cfg.Protocol.Overrides.CIPEndianness,
+		cfg.Protocol.Overrides.CIPPathSize,
+		cfg.Protocol.Overrides.CIPResponseReserved,
+		cfg.Protocol.Overrides.UseCPF,
+		cfg.Protocol.Overrides.IOSequenceMode,
+	)
+	cipclient.SetProtocolProfile(profile)
+
 	// If we auto-created the config, inform the user
 	if autoCreate {
 		// Check if file was just created (stat the file to see if it's new)

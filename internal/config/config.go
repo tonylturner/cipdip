@@ -27,6 +27,23 @@ type AdapterConfig struct {
 	Port int    `yaml:"port"`
 }
 
+// ProtocolOverrides provides optional overrides for protocol behavior.
+type ProtocolOverrides struct {
+	ENIPEndianness       string `yaml:"enip_endianness,omitempty"`        // "little" or "big"
+	CIPEndianness        string `yaml:"cip_endianness,omitempty"`         // "little" or "big"
+	CIPPathSize          *bool  `yaml:"cip_path_size,omitempty"`          // include path size byte
+	CIPResponseReserved  *bool  `yaml:"cip_response_reserved,omitempty"`  // include reserved/status-size fields
+	UseCPF              *bool  `yaml:"use_cpf,omitempty"`                // encode CPF items for SendRRData/SendUnitData
+	IOSequenceMode       string `yaml:"io_sequence_mode,omitempty"`       // "increment", "random", "omit"
+}
+
+// ProtocolConfig controls strict ODVA compliance and vendor-variant behavior.
+type ProtocolConfig struct {
+	Mode      string            `yaml:"mode"`                 // "strict_odva", "vendor_variant", "legacy_compat"
+	Variant   string            `yaml:"variant,omitempty"`    // optional vendor preset when mode=vendor_variant
+	Overrides ProtocolOverrides `yaml:"overrides,omitempty"`  // optional per-field overrides
+}
+
 // CIPTarget represents a CIP target (read, write, or custom)
 type CIPTarget struct {
 	Name              string      `yaml:"name"`
@@ -58,6 +75,7 @@ type IOConnectionConfig struct {
 // Config represents the client configuration
 type Config struct {
 	Adapter       AdapterConfig        `yaml:"adapter"`
+	Protocol      ProtocolConfig       `yaml:"protocol"`
 	ReadTargets   []CIPTarget          `yaml:"read_targets"`
 	WriteTargets  []CIPTarget          `yaml:"write_targets"`
 	CustomTargets []CIPTarget          `yaml:"custom_targets"`
@@ -96,6 +114,7 @@ type LogixTagConfig struct {
 // ServerConfig represents the server configuration
 type ServerConfig struct {
 	Server            ServerConfigSection     `yaml:"server"`
+	Protocol          ProtocolConfig          `yaml:"protocol"`
 	AdapterAssemblies []AdapterAssemblyConfig `yaml:"adapter_assemblies"`
 	LogixTags         []LogixTagConfig        `yaml:"logix_tags"`
 	TagNamespace      string                  `yaml:"tag_namespace"`
@@ -107,6 +126,9 @@ func CreateDefaultClientConfig() *Config {
 		Adapter: AdapterConfig{
 			Name: "Default Device",
 			Port: 44818,
+		},
+		Protocol: ProtocolConfig{
+			Mode: "strict_odva",
 		},
 		ReadTargets: []CIPTarget{
 			{
@@ -194,6 +216,9 @@ func LoadClientConfig(path string, autoCreate bool) (*Config, error) {
 	if cfg.Adapter.Port == 0 {
 		cfg.Adapter.Port = 44818
 	}
+	if cfg.Protocol.Mode == "" {
+		cfg.Protocol.Mode = "strict_odva"
+	}
 
 	// Apply defaults for IO connections
 	for i := range cfg.IOConnections {
@@ -212,6 +237,10 @@ func LoadClientConfig(path string, autoCreate bool) (*Config, error) {
 
 // ValidateClientConfig validates a client configuration
 func ValidateClientConfig(cfg *Config) error {
+	if err := validateProtocolConfig(cfg.Protocol); err != nil {
+		return err
+	}
+
 	// Check that at least one target type is populated
 	if len(cfg.ReadTargets) == 0 && len(cfg.WriteTargets) == 0 && len(cfg.CustomTargets) == 0 {
 		return fmt.Errorf("at least one of read_targets, write_targets, or custom_targets must be populated")
@@ -354,6 +383,9 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 	if cfg.Server.Personality == "" {
 		cfg.Server.Personality = "adapter"
 	}
+	if cfg.Protocol.Mode == "" {
+		cfg.Protocol.Mode = "strict_odva"
+	}
 
 	// Validate
 	if err := ValidateServerConfig(&cfg); err != nil {
@@ -365,6 +397,10 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 
 // ValidateServerConfig validates a server configuration
 func ValidateServerConfig(cfg *ServerConfig) error {
+	if err := validateProtocolConfig(cfg.Protocol); err != nil {
+		return err
+	}
+
 	// Validate personality
 	if cfg.Server.Personality != "adapter" && cfg.Server.Personality != "logix_like" {
 		return fmt.Errorf("server.personality must be 'adapter' or 'logix_like', got '%s'", cfg.Server.Personality)
@@ -393,6 +429,30 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func validateProtocolConfig(cfg ProtocolConfig) error {
+	switch cfg.Mode {
+	case "strict_odva", "vendor_variant", "legacy_compat":
+	default:
+		return fmt.Errorf("protocol.mode must be 'strict_odva', 'vendor_variant', or 'legacy_compat', got '%s'", cfg.Mode)
+	}
+
+	if cfg.Mode != "vendor_variant" && cfg.Variant != "" {
+		return fmt.Errorf("protocol.variant requires mode 'vendor_variant'")
+	}
+
+	if cfg.Overrides.ENIPEndianness != "" && cfg.Overrides.ENIPEndianness != "little" && cfg.Overrides.ENIPEndianness != "big" {
+		return fmt.Errorf("protocol.overrides.enip_endianness must be 'little' or 'big'")
+	}
+	if cfg.Overrides.CIPEndianness != "" && cfg.Overrides.CIPEndianness != "little" && cfg.Overrides.CIPEndianness != "big" {
+		return fmt.Errorf("protocol.overrides.cip_endianness must be 'little' or 'big'")
+	}
+	if cfg.Overrides.IOSequenceMode != "" && cfg.Overrides.IOSequenceMode != "increment" && cfg.Overrides.IOSequenceMode != "random" && cfg.Overrides.IOSequenceMode != "omit" {
+		return fmt.Errorf("protocol.overrides.io_sequence_mode must be 'increment', 'random', or 'omit'")
 	}
 
 	return nil

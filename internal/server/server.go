@@ -4,7 +4,6 @@ package server
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -394,8 +393,11 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
 
-	// Skip Interface Handle (4 bytes) and Timeout (2 bytes)
-	cipData := encap.Data[6:]
+	cipData, err := cipclient.ParseSendRRDataRequest(encap.Data)
+	if err != nil {
+		s.logger.Error("Parse SendRRData error: %v", err)
+		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+	}
 
 	// Check if this is a ForwardOpen request (service 0x54)
 	if len(cipData) > 0 && cipclient.CIPServiceCode(cipData[0]) == cipclient.CIPServiceForwardOpen {
@@ -448,11 +450,7 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
 
-	// Build SendRRData response
-	var sendData []byte
-	sendData = binary.BigEndian.AppendUint32(sendData, 0) // Interface Handle
-	sendData = binary.BigEndian.AppendUint16(sendData, 0) // Timeout
-	sendData = append(sendData, cipRespData...)
+	sendData := cipclient.BuildSendRRDataPayload(cipRespData)
 
 	response := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendRRData,
@@ -489,21 +487,23 @@ func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []
 	s.sessionsMu.Unlock()
 
 	// Build ForwardOpen response
+	order := cipclient.CurrentProtocolProfile().CIPByteOrder
 	var respData []byte
-	respData = append(respData, 0x00)                              // General status (success)
-	respData = append(respData, 0x00)                              // Additional status size
-	respData = binary.BigEndian.AppendUint32(respData, oToTConnID) // O->T connection ID
-	respData = binary.BigEndian.AppendUint32(respData, tToOConnID) // T->O connection ID
-	respData = binary.BigEndian.AppendUint16(respData, 0x0000)     // Connection serial number
-	respData = binary.BigEndian.AppendUint16(respData, 0x0000)     // Originator vendor ID
-	respData = binary.BigEndian.AppendUint32(respData, 0x00000000) // Originator serial number
-	respData = append(respData, 0x01)                              // Connection timeout multiplier
+	respData = append(respData, 0x00) // General status (success)
+	respData = append(respData, 0x00) // Additional status size
+	respData = append(respData, make([]byte, 4)...)
+	order.PutUint32(respData[len(respData)-4:], oToTConnID) // O->T connection ID
+	respData = append(respData, make([]byte, 4)...)
+	order.PutUint32(respData[len(respData)-4:], tToOConnID) // T->O connection ID
+	respData = append(respData, make([]byte, 2)...)
+	order.PutUint16(respData[len(respData)-2:], 0x0000) // Connection serial number
+	respData = append(respData, make([]byte, 2)...)
+	order.PutUint16(respData[len(respData)-2:], 0x0000) // Originator vendor ID
+	respData = append(respData, make([]byte, 4)...)
+	order.PutUint32(respData[len(respData)-4:], 0x00000000) // Originator serial number
+	respData = append(respData, 0x01)                       // Connection timeout multiplier
 
-	// Build SendRRData response
-	var sendData []byte
-	sendData = binary.BigEndian.AppendUint32(sendData, 0) // Interface Handle
-	sendData = binary.BigEndian.AppendUint16(sendData, 0) // Timeout
-	sendData = append(sendData, respData...)
+	sendData := cipclient.BuildSendRRDataPayload(respData)
 
 	response := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendRRData,
@@ -533,11 +533,7 @@ func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData [
 	respData = append(respData, 0x00) // General status (success)
 	respData = append(respData, 0x00) // Additional status size
 
-	// Build SendRRData response
-	var sendData []byte
-	sendData = binary.BigEndian.AppendUint32(sendData, 0) // Interface Handle
-	sendData = binary.BigEndian.AppendUint16(sendData, 0) // Timeout
-	sendData = append(sendData, respData...)
+	sendData := cipclient.BuildSendRRDataPayload(respData)
 
 	response := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendRRData,
@@ -571,20 +567,16 @@ func (s *Server) handleSendUnitData(encap cipclient.ENIPEncapsulation, remoteAdd
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
 
-	// Connection ID (4 bytes)
-	connectionID := binary.BigEndian.Uint32(encap.Data[0:4])
-	cipData := encap.Data[4:]
+	connectionID, cipData, err := cipclient.ParseSendUnitDataRequest(encap.Data)
+	if err != nil {
+		s.logger.Error("Parse SendUnitData error: %v", err)
+		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+	}
 
 	s.logger.Debug("SendUnitData: connection %d, data length %d", connectionID, len(cipData))
 	fmt.Printf("[SERVER] Received I/O data: connection=0x%08X size=%d bytes\n", connectionID, len(cipData))
 
-	// Echo back the data (T->O response)
-	var sendData []byte
-	sendData = binary.BigEndian.AppendUint32(sendData, connectionID)
-	// Echo back the I/O data
-	if len(cipData) > 0 {
-		sendData = append(sendData, cipData...)
-	}
+	sendData := cipclient.BuildSendUnitDataPayload(connectionID, cipData)
 
 	response := cipclient.ENIPEncapsulation{
 		Command:       cipclient.ENIPCommandSendUnitData,

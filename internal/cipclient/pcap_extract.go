@@ -1,7 +1,6 @@
 package cipclient
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -90,7 +89,7 @@ func extractENIPFromPayload(payload []byte, isToServer bool) *ENIPPacket {
 
 	// Check if it looks like an ENIP packet
 	// ENIP header starts with command code
-	command := binary.BigEndian.Uint16(payload[0:2])
+	command := currentENIPByteOrder().Uint16(payload[0:2])
 
 	// Validate command code
 	validCommands := map[uint16]bool{
@@ -105,7 +104,7 @@ func extractENIPFromPayload(payload []byte, isToServer bool) *ENIPPacket {
 	}
 
 	// Extract length
-	length := binary.BigEndian.Uint16(payload[2:4])
+	length := currentENIPByteOrder().Uint16(payload[2:4])
 
 	// Validate length
 	if len(payload) < 24+int(length) {
@@ -124,11 +123,11 @@ func extractENIPFromPayload(payload []byte, isToServer bool) *ENIPPacket {
 	}
 
 	// Extract session ID
-	sessionID := binary.BigEndian.Uint32(payload[4:8])
+	sessionID := currentENIPByteOrder().Uint32(payload[4:8])
 
 	// Determine if request or response
 	// Requests typically have status = 0, responses may have non-zero status
-	status := binary.BigEndian.Uint32(payload[8:12])
+	status := currentENIPByteOrder().Uint32(payload[8:12])
 
 	// Special handling for RegisterSession:
 	// - Request: status = 0 AND sessionID = 0
@@ -179,7 +178,12 @@ func generatePacketDescription(command uint16, isRequest bool, data []byte) stri
 
 	// Try to identify CIP service if it's SendRRData
 	if command == 0x006F && len(data) >= 6 {
-		cipData := data[6:] // Skip interface handle and timeout
+		cipData := data[6:]
+		if CurrentProtocolProfile().UseCPF {
+			if parsed, err := ParseSendRRDataRequest(data); err == nil {
+				cipData = parsed
+			}
+		}
 		if len(cipData) > 0 {
 			serviceCode := cipData[0]
 			serviceName := getCIPServiceName(serviceCode)
@@ -246,6 +250,11 @@ func getReferenceKey(pkt ENIPPacket) string {
 	case 0x006F: // SendRRData
 		if len(pkt.Data) >= 6 {
 			cipData := pkt.Data[6:]
+			if CurrentProtocolProfile().UseCPF {
+				if parsed, err := ParseSendRRDataRequest(pkt.Data); err == nil {
+					cipData = parsed
+				}
+			}
 			if len(cipData) > 0 {
 				serviceCode := cipData[0]
 				switch CIPServiceCode(serviceCode) {

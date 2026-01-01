@@ -5,7 +5,6 @@ package cipclient
 import (
 	"context"
 	"crypto/rand"
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -34,6 +33,7 @@ type IOConnection struct {
 	ioTransport     Transport // transport for I/O data (UDP 2222 or TCP 44818)
 	LastOToTDataSent []byte
 	LastTToODataRecv []byte
+	Sequence        uint16
 }
 
 // Client interface for CIP/EtherNet-IP communication
@@ -107,8 +107,9 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 	// Send RegisterSession
 	regPacket := BuildRegisterSession(c.senderContext)
 	
-	// Validate packet before sending (non-strict mode for now)
-	validator := NewPacketValidator(false)
+	// Validate packet before sending (strict unless legacy_compat)
+	profile := CurrentProtocolProfile()
+	validator := NewPacketValidator(profile.Name != "legacy_compat")
 	encapReq, _ := DecodeENIP(regPacket)
 	if err := validator.ValidateENIP(encapReq); err != nil {
 		c.transport.Disconnect()
@@ -190,7 +191,8 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req CIPRequest) (CIPResp
 	}
 
 	// Validate CIP request
-	validator := NewPacketValidator(false)
+	profile := CurrentProtocolProfile()
+	validator := NewPacketValidator(profile.Name != "legacy_compat")
 	if err := validator.ValidateCIPRequest(req); err != nil {
 		return CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s request", req.Service))
 	}
@@ -437,8 +439,24 @@ func (c *ENIPClient) SendIOData(ctx context.Context, conn *IOConnection, data []
 	paddedData := make([]byte, conn.Params.OToTSizeBytes)
 	copy(paddedData, data)
 
+	profile := CurrentProtocolProfile()
+	payload := paddedData
+	if profile.UseCPF && profile.IOSequenceMode != "omit" {
+		order := currentCIPByteOrder()
+		seq := conn.Sequence
+		if profile.IOSequenceMode == "random" {
+			seq = uint16(time.Now().UnixNano())
+		} else {
+			seq++
+		}
+		conn.Sequence = seq
+		var seqBytes [2]byte
+		order.PutUint16(seqBytes[:], seq)
+		payload = append(seqBytes[:], paddedData...)
+	}
+
 	// Build SendUnitData packet with connection ID and I/O data
-	packet := BuildSendUnitData(c.sessionID, c.senderContext, conn.ID, paddedData)
+	packet := BuildSendUnitData(c.sessionID, c.senderContext, conn.ID, payload)
 
 	// Send via connection's I/O transport (UDP 2222 or TCP 44818)
 	if conn.ioTransport == nil {
@@ -502,20 +520,14 @@ func (c *ENIPClient) ReceiveIOData(ctx context.Context, conn *IOConnection) ([]b
 		return nil, fmt.Errorf("parse SendUnitData response: %w", err)
 	}
 
-	// Extract I/O data (skip connection ID if present)
-	// SendUnitData response structure: connection ID (4 bytes) + I/O data
-	if len(cipData) < 4 {
-		return nil, fmt.Errorf("response too short")
+	profile := CurrentProtocolProfile()
+	ioData := cipData
+	if profile.UseCPF && profile.IOSequenceMode != "omit" {
+		if len(ioData) < 2 {
+			return nil, fmt.Errorf("response too short for sequence count")
+		}
+		ioData = ioData[2:]
 	}
-
-	// Verify connection ID matches
-	recvConnID := binary.BigEndian.Uint32(cipData[0:4])
-	if recvConnID != conn.ID {
-		return nil, fmt.Errorf("connection ID mismatch: expected %d, got %d", conn.ID, recvConnID)
-	}
-
-	// Extract I/O data
-	ioData := cipData[4:]
 	if len(ioData) > conn.Params.TToOSizeBytes {
 		ioData = ioData[:conn.Params.TToOSizeBytes]
 	}

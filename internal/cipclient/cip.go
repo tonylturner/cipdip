@@ -3,7 +3,6 @@ package cipclient
 // CIP (Common Industrial Protocol) encoding and decoding
 
 import (
-	"encoding/binary"
 	"fmt"
 )
 
@@ -65,6 +64,7 @@ const (
 // EPATH format: segment type (1 byte) + segment data (variable length)
 func EncodeEPATH(path CIPPath) []byte {
 	var epath []byte
+	order := currentCIPByteOrder()
 
 	// Class segment (8-bit class ID)
 	if path.Class <= 0xFF {
@@ -73,7 +73,7 @@ func EncodeEPATH(path CIPPath) []byte {
 	} else {
 		// 16-bit class ID
 		epath = append(epath, EPathSegmentClassID|0x01) // 16-bit format
-		epath = binary.BigEndian.AppendUint16(epath, path.Class)
+		epath = appendUint16(order, epath, path.Class)
 	}
 
 	// Instance segment (8-bit instance ID)
@@ -83,7 +83,7 @@ func EncodeEPATH(path CIPPath) []byte {
 	} else {
 		// 16-bit instance ID
 		epath = append(epath, EPathSegmentInstanceID|0x01) // 16-bit format
-		epath = binary.BigEndian.AppendUint16(epath, path.Instance)
+		epath = appendUint16(order, epath, path.Instance)
 	}
 
 	// Attribute segment (8-bit attribute ID)
@@ -96,12 +96,21 @@ func EncodeEPATH(path CIPPath) []byte {
 // EncodeCIPRequest encodes a CIP request into bytes
 func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	var data []byte
+	profile := CurrentProtocolProfile()
 
 	// Service code
 	data = append(data, uint8(req.Service))
 
 	// EPATH
 	epath := EncodeEPATH(req.Path)
+	if profile.IncludeCIPPathSize {
+		pathSizeWords := len(epath) / 2
+		if len(epath)%2 != 0 {
+			epath = append(epath, 0x00)
+			pathSizeWords++
+		}
+		data = append(data, uint8(pathSizeWords))
+	}
 	data = append(data, epath...)
 
 	// Payload
@@ -122,77 +131,36 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 		Service: CIPServiceCode(data[0]),
 	}
 
-	// Decode EPATH (simplified - assumes standard 8-bit class/instance/attribute)
+	profile := CurrentProtocolProfile()
 	offset := 1
-	if len(data) < offset+6 {
-		return req, fmt.Errorf("incomplete EPATH")
-	}
-
-	// Decode EPATH segments
-	// EPATH segment format: segment type byte + data bytes
-	// Segment type byte encoding:
-	//   - Bits 4-7: Segment type (0x2=class/instance, 0x3=attribute)
-	//   - Bits 0-3: Format (0x0=8-bit, 0x1=16-bit, 0x4=instance marker)
-	// Constants: 0x20 (class), 0x24 (instance), 0x30 (attribute)
-	// For 16-bit: 0x21 (class), 0x25 (instance), 0x31 (attribute)
-
-	// Class segment
-	if data[offset] == 0x20 {
-		// 8-bit class
-		if len(data) < offset+2 {
-			return req, fmt.Errorf("incomplete class segment")
+	if profile.IncludeCIPPathSize {
+		if len(data) < 2 {
+			return req, fmt.Errorf("missing path size")
 		}
-		req.Path.Class = uint16(data[offset+1])
-		offset += 2
-	} else if data[offset] == 0x21 {
-		// 16-bit class
-		if len(data) < offset+3 {
-			return req, fmt.Errorf("incomplete 16-bit class segment")
+		pathSizeWords := int(data[1])
+		offset++
+		pathSizeBytes := pathSizeWords * 2
+		if len(data) < offset+pathSizeBytes {
+			return req, fmt.Errorf("incomplete EPATH")
 		}
-		req.Path.Class = binary.BigEndian.Uint16(data[offset+1 : offset+3])
-		offset += 3
+		pathBytes := data[offset : offset+pathSizeBytes]
+		path, err := DecodeEPATH(pathBytes)
+		if err != nil {
+			return req, err
+		}
+		req.Path = path
+		offset += pathSizeBytes
 	} else {
-		return req, fmt.Errorf("invalid class segment: got 0x%02X, expected 0x20 or 0x21", data[offset])
-	}
+		if len(data) < offset+6 {
+			return req, fmt.Errorf("incomplete EPATH")
+		}
 
-	// Instance segment
-	if data[offset] == 0x24 {
-		// 8-bit instance
-		if len(data) < offset+2 {
-			return req, fmt.Errorf("incomplete instance segment")
+		path, err := DecodeEPATH(data[offset:])
+		if err != nil {
+			return req, err
 		}
-		req.Path.Instance = uint16(data[offset+1])
-		offset += 2
-	} else if data[offset] == 0x25 {
-		// 16-bit instance
-		if len(data) < offset+3 {
-			return req, fmt.Errorf("incomplete 16-bit instance segment")
-		}
-		req.Path.Instance = binary.BigEndian.Uint16(data[offset+1 : offset+3])
-		offset += 3
-	} else {
-		return req, fmt.Errorf("invalid instance segment: got 0x%02X, expected 0x24 or 0x25", data[offset])
-	}
-
-	// Attribute segment (optional - some services like ForwardOpen don't have attributes)
-	if offset < len(data) {
-		if data[offset] == 0x30 {
-			// 8-bit attribute
-			if len(data) < offset+2 {
-				return req, fmt.Errorf("incomplete attribute segment")
-			}
-			req.Path.Attribute = data[offset+1]
-			offset += 2
-		} else if data[offset] == 0x31 {
-			// 16-bit attribute (rare, but supported)
-			if len(data) < offset+3 {
-				return req, fmt.Errorf("incomplete 16-bit attribute segment")
-			}
-			req.Path.Attribute = data[offset+1] // For now, just take first byte
-			offset += 3
-		}
-		// If not 0x30 or 0x31, assume no attribute segment (e.g., ForwardOpen)
-		// Don't return error - just leave attribute as 0
+		req.Path = path
+		offset = len(data)
 	}
 
 	// Remaining data is payload
@@ -206,16 +174,34 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 // EncodeCIPResponse encodes a CIP response into bytes
 func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 	var data []byte
+	profile := CurrentProtocolProfile()
 
 	// Service code (echoed from request)
 	data = append(data, uint8(resp.Service))
 
-	// Status
-	data = append(data, resp.Status)
+	if profile.IncludeCIPRespReserved {
+		// Reserved (1 byte) + status (1 byte) + ext status size (1 byte)
+		data = append(data, 0x00)
+		data = append(data, resp.Status)
+		extSizeWords := uint8(0)
+		if len(resp.ExtStatus) > 0 {
+			extSizeWords = uint8((len(resp.ExtStatus) + 1) / 2)
+		}
+		data = append(data, extSizeWords)
+		if len(resp.ExtStatus) > 0 {
+			data = append(data, resp.ExtStatus...)
+			if len(resp.ExtStatus)%2 != 0 {
+				data = append(data, 0x00)
+			}
+		}
+	} else {
+		// Status
+		data = append(data, resp.Status)
 
-	// Extended status (if present)
-	if len(resp.ExtStatus) > 0 {
-		data = append(data, resp.ExtStatus...)
+		// Extended status (if present)
+		if len(resp.ExtStatus) > 0 {
+			data = append(data, resp.ExtStatus...)
+		}
 	}
 
 	// Payload
@@ -233,7 +219,12 @@ func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 // - Bytes 2+: Extended status (if status != 0x00) + Additional status size byte
 // - Bytes N+: Response data (if status == 0x00)
 func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
-	if len(data) < 2 {
+	profile := CurrentProtocolProfile()
+	if profile.IncludeCIPRespReserved {
+		if len(data) < 4 {
+			return CIPResponse{}, fmt.Errorf("response too short: %d bytes (minimum 4: service + reserved + status + ext size)", len(data))
+		}
+	} else if len(data) < 2 {
 		return CIPResponse{}, fmt.Errorf("response too short: %d bytes (minimum 2: service + status)", len(data))
 	}
 
@@ -245,19 +236,37 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 	serviceCode := CIPServiceCode(data[0])
 	resp.Service = serviceCode
 
-	// Byte 1: General status
-	resp.Status = data[1]
-	offset := 2
+	offset := 1
+	if profile.IncludeCIPRespReserved {
+		// Byte 1: Reserved
+		offset++
+		// Byte 2: General status
+		resp.Status = data[2]
+		// Byte 3: Additional status size (in 16-bit words)
+		extSizeWords := int(data[3])
+		offset = 4
+		extLen := extSizeWords * 2
+		if extLen > 0 {
+			if len(data) < offset+extLen {
+				return resp, fmt.Errorf("extended status too short")
+			}
+			resp.ExtStatus = data[offset : offset+extLen]
+			offset += extLen
+		}
+	} else {
+		// Byte 1: General status
+		resp.Status = data[1]
+		offset = 2
 
-	// Extended status (if status != 0x00)
-	// Extended status format: size byte (1 byte) + status bytes
-	if resp.Status != 0x00 {
-		if len(data) > offset {
-			extStatusSize := int(data[offset])
-			offset++
-			if len(data) >= offset+extStatusSize {
-				resp.ExtStatus = data[offset : offset+extStatusSize]
-				offset += extStatusSize
+		// Extended status (if status != 0x00)
+		if resp.Status != 0x00 {
+			if len(data) > offset {
+				extStatusSize := int(data[offset])
+				offset++
+				if len(data) >= offset+extStatusSize {
+					resp.ExtStatus = data[offset : offset+extStatusSize]
+					offset += extStatusSize
+				}
 			}
 		}
 	}
@@ -271,6 +280,61 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 	}
 
 	return resp, nil
+}
+
+// DecodeEPATH decodes an EPATH into a CIPPath.
+func DecodeEPATH(data []byte) (CIPPath, error) {
+	order := currentCIPByteOrder()
+	path := CIPPath{}
+	offset := 0
+	for offset < len(data) {
+		seg := data[offset]
+		if seg == 0x00 {
+			offset++
+			continue
+		}
+		switch seg {
+		case 0x20: // 8-bit class
+			if len(data) < offset+2 {
+				return path, fmt.Errorf("incomplete class segment")
+			}
+			path.Class = uint16(data[offset+1])
+			offset += 2
+		case 0x21: // 16-bit class
+			if len(data) < offset+3 {
+				return path, fmt.Errorf("incomplete 16-bit class segment")
+			}
+			path.Class = order.Uint16(data[offset+1 : offset+3])
+			offset += 3
+		case 0x24: // 8-bit instance
+			if len(data) < offset+2 {
+				return path, fmt.Errorf("incomplete instance segment")
+			}
+			path.Instance = uint16(data[offset+1])
+			offset += 2
+		case 0x25: // 16-bit instance
+			if len(data) < offset+3 {
+				return path, fmt.Errorf("incomplete 16-bit instance segment")
+			}
+			path.Instance = order.Uint16(data[offset+1 : offset+3])
+			offset += 3
+		case 0x30: // 8-bit attribute
+			if len(data) < offset+2 {
+				return path, fmt.Errorf("incomplete attribute segment")
+			}
+			path.Attribute = data[offset+1]
+			offset += 2
+		case 0x31: // 16-bit attribute
+			if len(data) < offset+3 {
+				return path, fmt.Errorf("incomplete 16-bit attribute segment")
+			}
+			path.Attribute = data[offset+1]
+			offset += 3
+		default:
+			return path, fmt.Errorf("invalid EPATH segment: 0x%02X", seg)
+		}
+	}
+	return path, nil
 }
 
 // String returns a string representation of the service code

@@ -148,7 +148,8 @@ func (t *TCPTransport) Receive(ctx context.Context, timeout time.Duration) ([]by
 	}
 
 	// Extract length from header (bytes 2-4, big-endian)
-	length := uint16(header[2])<<8 | uint16(header[3])
+	order := currentENIPByteOrder()
+	length := order.Uint16(header[2:4])
 
 	// Read data field
 	if length > 0 {

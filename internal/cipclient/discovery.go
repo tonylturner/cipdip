@@ -4,7 +4,6 @@ package cipclient
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
@@ -179,14 +178,14 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 	offset += 16
 
 	// Vendor ID (2 bytes, big-endian)
-	device.VendorID = binary.BigEndian.Uint16(encap.Data[offset : offset+2])
+	device.VendorID = currentENIPByteOrder().Uint16(encap.Data[offset : offset+2])
 	offset += 2
 
 	// Product Type (2 bytes) - skip
 	offset += 2
 
 	// Product Code (2 bytes, big-endian)
-	device.ProductID = binary.BigEndian.Uint16(encap.Data[offset : offset+2])
+	device.ProductID = currentENIPByteOrder().Uint16(encap.Data[offset : offset+2])
 	offset += 2
 
 	// Revision (2 bytes) - skip
@@ -196,7 +195,7 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 	offset += 2
 
 	// Serial Number (4 bytes, big-endian)
-	device.SerialNumber = binary.BigEndian.Uint32(encap.Data[offset : offset+4])
+	device.SerialNumber = currentENIPByteOrder().Uint32(encap.Data[offset : offset+4])
 	offset += 4
 
 	// Product Name Length (1 byte)

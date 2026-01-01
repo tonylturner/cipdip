@@ -42,7 +42,29 @@ adapter:
   port: 44818
 ```
 
-#### 2. `read_targets` Section
+#### 2. `protocol` Section
+
+Controls strict ODVA compliance and optional vendor-variant behavior.
+
+```yaml
+protocol:
+  mode: "strict_odva"        # "strict_odva", "vendor_variant", or "legacy_compat"
+  variant: ""                # vendor preset name when mode=vendor_variant
+  overrides:
+    enip_endianness: "little"        # "little" or "big"
+    cip_endianness: "little"         # "little" or "big"
+    cip_path_size: true              # include path size byte in CIP requests
+    cip_response_reserved: true      # include reserved/status-size fields in CIP responses
+    use_cpf: true                    # encode CPF items for SendRRData/SendUnitData
+    io_sequence_mode: "increment"    # "increment", "random", or "omit"
+```
+
+**Notes:**
+- `mode: strict_odva` is the default and enforces ODVA-compliant framing.
+- `vendor_variant` should be used with captured, validated deviations.
+- `legacy_compat` preserves historical behavior for regression comparisons.
+
+#### 3. `read_targets` Section
 
 Defines CIP paths to read using Get Attribute Single service.
 
@@ -83,7 +105,7 @@ read_targets:
 - Values are read periodically based on scenario interval.
 - Results are logged and included in metrics.
 
-#### 3. `write_targets` Section
+#### 4. `write_targets` Section
 
 Defines CIP paths to write using Set Attribute Single service.
 
@@ -135,7 +157,7 @@ write_targets:
 - Write patterns help generate predictable, repeatable traffic.
 - Ensure target device supports writes to these paths.
 
-#### 4. `custom_targets` Section
+#### 5. `custom_targets` Section
 
 Defines custom CIP services with arbitrary service codes and payloads.
 
@@ -184,7 +206,7 @@ custom_targets:
 - Requires knowledge of CIP service codes and payload formats.
 - Useful for DPI testing of edge cases.
 
-#### 5. `io_connections` Section
+#### 6. `io_connections` Section
 
 Defines connected Class 1 I/O connections for the `io` scenario.
 
@@ -265,6 +287,11 @@ io_connections:
 adapter:
   name: "CLICK C2-03CPU"
   port: 44818
+
+protocol:
+  mode: "strict_odva"
+  overrides:
+    use_cpf: true
 
 read_targets:
   - name: "InputBlock1"
@@ -354,7 +381,24 @@ server:
 - `enable_udp_io` must be `true` for the `io` scenario to work with UDP 2222.
 - CLI flags (`--listen-ip`, `--listen-port`, `--enable-udp-io`) override config file values.
 
-#### 2. `adapter_assemblies` Section
+#### 2. `protocol` Section
+
+Same structure as the client `protocol` section; controls protocol framing for server responses.
+
+```yaml
+protocol:
+  mode: "strict_odva"
+  variant: ""
+  overrides:
+    enip_endianness: "little"
+    cip_endianness: "little"
+    cip_path_size: true
+    cip_response_reserved: true
+    use_cpf: true
+    io_sequence_mode: "increment"
+```
+
+#### 3. `adapter_assemblies` Section
 
 Defines assembly objects for adapter personality. Only used when `personality: "adapter"`.
 
@@ -407,7 +451,7 @@ adapter_assemblies:
 - Assemblies respond to Get/Set Attribute Single requests.
 - Writable assemblies with `"reflect_inputs"` pattern echo back written values.
 
-#### 3. `logix_tags` Section
+#### 4. `logix_tags` Section
 
 Defines tags for logix_like personality. Only used when `personality: "logix_like"`.
 
@@ -460,7 +504,7 @@ logix_tags:
 - Tags respond to tag read/write requests.
 - Array tags can be indexed (e.g., `scada[0]`, `scada[1]`).
 
-#### 4. `tag_namespace` Section
+#### 5. `tag_namespace` Section
 
 Optional namespace prefix for logix_like tags.
 
@@ -493,6 +537,9 @@ server:
   udp_io_port: 2222
   enable_udp_io: true
 
+protocol:
+  mode: "strict_odva"
+
 adapter_assemblies:
   - name: "InputAssembly1"
     class: 0x04
@@ -521,6 +568,9 @@ server:
   tcp_port: 44818
   udp_io_port: 2222
   enable_udp_io: false
+
+protocol:
+  mode: "strict_odva"
 
 logix_tags:
   - name: "scada"
