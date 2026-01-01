@@ -348,6 +348,4 @@ After implementing each feature:
 
 ## See Also
 
-- `docs/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations
-- `docs/AUDIT_SUMMARY.md` - Audit summary and status
 

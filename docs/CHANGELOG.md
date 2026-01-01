@@ -43,8 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ready for integration into scenarios
 
 - **Documentation**
-  - Comprehensive audit recommendations (`docs/AUDIT_RECOMMENDATIONS.md`)
-  - Audit summary with implementation status (`docs/AUDIT_SUMMARY.md`)
   - Step-by-step implementation guide (`docs/IMPLEMENTATION_GUIDE.md`)
 
 ### Changed
@@ -133,8 +131,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Hardware setup guide (docs/HARDWARE_SETUP.md)
   - Packet analysis guide (docs/PCAP_USAGE.md)
   - Usage examples (docs/EXAMPLES.md)
-  - Vendor research framework (docs/VENDOR_RESEARCH.md)
-  - Project plan (project_plan.md)
   - Example configuration files
 
 ### Technical Details

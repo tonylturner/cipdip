@@ -84,7 +84,7 @@ cipdip/
 ├── go.mod
 ├── go.sum
 ├── README.md
-└── project_plan.md              # This file
+└── notes/project_plan.md              # This file
 ```
 
 ---

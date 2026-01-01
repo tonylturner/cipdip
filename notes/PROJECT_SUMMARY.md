@@ -296,5 +296,5 @@ The tool is functional and includes:
 - Main documentation: `README.md`
 - Configuration guide: `docs/CONFIGURATION.md`
 - Compliance details: `docs/COMPLIANCE.md`
-- Project plan: `project_plan.md`
+- Project plan: `notes/project_plan.md`
 

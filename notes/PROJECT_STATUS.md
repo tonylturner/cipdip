@@ -74,12 +74,12 @@ CIPDIP is a CIP/EtherNet-IP protocol tool for DPI (Deep Packet Inspection) testi
 ### Documentation
 - **Status:** ✅ Comprehensive
 - **Files:**
-  - `docs/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations
-  - `docs/AUDIT_SUMMARY.md` - Audit summary and status
-  - `docs/NEXT_STEPS.md` - Implementation roadmap
+  - `notes/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations
+  - `notes/AUDIT_SUMMARY.md` - Audit summary and status
+  - `notes/NEXT_STEPS.md` - Implementation roadmap
   - `docs/WIRESHARK_INTEGRATION.md` - Wireshark validation guide
   - `docs/REFERENCE_PACKET_SUPPORT.md` - Reference packet analysis
-  - `docs/PCAP_EXTRACTION_NOTES.md` - PCAP extraction documentation
+  - `notes/PCAP_EXTRACTION_NOTES.md` - PCAP extraction documentation
 
 ## 🎯 Next Steps (When Resuming)
 
@@ -136,7 +136,7 @@ CIPDIP is a CIP/EtherNet-IP protocol tool for DPI (Deep Packet Inspection) testi
 
 ### Documentation
 - `docs/` - Comprehensive documentation
-- `CHANGELOG.md` - Change history
+- `docs/CHANGELOG.md` - Change history
 - `README.md` - Project overview
 
 ### Configuration
@@ -175,10 +175,10 @@ go test ./...
 ## 📝 Notes for Resuming Work
 
 ### Quick Start
-1. Review `docs/NEXT_STEPS.md` for prioritized tasks
-2. Check `CHANGELOG.md` for recent changes
+1. Review `notes/NEXT_STEPS.md` for prioritized tasks
+2. Check `docs/CHANGELOG.md` for recent changes
 3. Run tests: `go test ./...`
-4. Review `docs/AUDIT_SUMMARY.md` for overall project status
+4. Review `notes/AUDIT_SUMMARY.md` for overall project status
 
 ### Known Issues
 1. **Response Packet Extraction**: GetAttributeSingle_Response and ForwardOpen_Response not yet extracted. May need to improve response detection logic in `internal/cipclient/pcap_extract.go`.
@@ -202,22 +202,22 @@ go test ./...
 
 ## 📚 Reference Documents
 
-- `docs/AUDIT_RECOMMENDATIONS.md` - Detailed audit recommendations
-- `docs/AUDIT_SUMMARY.md` - Audit summary and implementation status
-- `docs/NEXT_STEPS.md` - Prioritized implementation roadmap
+- `notes/AUDIT_RECOMMENDATIONS.md` - Detailed audit recommendations
+- `notes/AUDIT_SUMMARY.md` - Audit summary and implementation status
+- `notes/NEXT_STEPS.md` - Prioritized implementation roadmap
 - `docs/WIRESHARK_INTEGRATION.md` - Wireshark validation guide
 - `docs/REFERENCE_PACKET_SUPPORT.md` - Reference packet support analysis
-- `docs/PCAP_EXTRACTION_NOTES.md` - PCAP extraction documentation
-- `CHANGELOG.md` - Detailed change history
+- `notes/PCAP_EXTRACTION_NOTES.md` - PCAP extraction documentation
+- `docs/CHANGELOG.md` - Detailed change history
 
 ## 🚀 Ready to Resume
 
-The project is in a stable, well-documented state. All major improvements from this session are complete and tested. When resuming work, start with the high-priority items in `docs/NEXT_STEPS.md`.
+The project is in a stable, well-documented state. All major improvements from this session are complete and tested. When resuming work, start with the high-priority items in `notes/NEXT_STEPS.md`.
 
 ---
 
 **Status:** ✅ Ready for Pause  
 **All Tests:** ✅ Passing  
 **Documentation:** ✅ Complete  
-**Next Session:** Start with high-priority items in `docs/NEXT_STEPS.md`
+**Next Session:** Start with high-priority items in `notes/NEXT_STEPS.md`
 

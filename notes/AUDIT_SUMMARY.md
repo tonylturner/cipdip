@@ -178,7 +178,7 @@ for {
 
 ## Detailed Recommendations
 
-See `docs/AUDIT_RECOMMENDATIONS.md` for comprehensive recommendations including:
+See `notes/AUDIT_RECOMMENDATIONS.md` for comprehensive recommendations including:
 
 ### High Priority
 1. **Better Default Behavior** - Auto-generate config if missing
@@ -350,6 +350,6 @@ The audit has identified key areas for improvement and provided actionable recom
 4. Improve default behavior (1-2 hours)
 
 **See Also:**
-- `docs/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations and implementation guidance
+- `notes/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations and implementation guidance
 - `docs/IMPLEMENTATION_GUIDE.md` - Step-by-step implementation instructions
 

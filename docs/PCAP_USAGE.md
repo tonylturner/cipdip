@@ -233,6 +233,5 @@ Potential improvements:
 ## See Also
 
 - `docs/COMPLIANCE.md` - Protocol compliance documentation
-- `docs/VENDOR_RESEARCH.md` - Vendor research guide
 - `docs/vendors/` - Vendor-specific documentation
 

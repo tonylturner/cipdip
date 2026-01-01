@@ -1,42 +1,46 @@
 # Vendor Implementation Documentation
 
-This directory contains documentation about vendor-specific EtherNet/IP and CIP implementations.
+This directory contains **vendor-specific EtherNet/IP (ENIP) + CIP implementation notes** used to:
+- guide protocol stack implementation (client + emulator/server),
+- design **repeatable DPI test scenarios**, and
+- document interoperability behaviors observed in real industrial environments.
 
-## Structure
+These documents consolidate **public vendor documentation**, observed on‑wire behavior, and practical engineering guidance. They are not reproductions of ODVA specifications.
 
-Each vendor has its own markdown file documenting:
-- Known behaviors and deviations from ODVA standard
-- Packet structure variations
-- Service code usage
-- EPATH encoding preferences
-- Connection management quirks
-- Any other vendor-specific characteristics
+## How to use these notes
 
-## Files
+- **Protocol implementation**
+  - Treat each vendor file as a checklist of required services, EPATH forms, and connection behaviors.
+- **Emulation**
+  - Use vendor‑specific behaviors to shape emulator personalities (Identity Object, supported objects, error handling).
+- **DPI evaluation**
+  - Use the DPI sections to design tests that expose classification, state‑tracking, and performance weaknesses.
 
-- `rockwell.md` - Rockwell Automation (Allen-Bradley) implementations
-- `schneider.md` - Schneider Electric (Modicon) implementations
-- `siemens.md` - Siemens implementations
-- `other.md` - Other vendor implementations
+## Vendor coverage
 
-## Purpose
+Current coverage includes:
+- Rockwell Automation (Allen‑Bradley)
+- Schneider Electric (Modicon)
+- Siemens (MultiFieldbus EtherNet/IP)
+- Omron
+- Keyence
 
-This documentation supports:
-1. **Research**: Understanding vendor-specific behaviors
-2. **Emulation**: Optional server emulation modes (if implemented)
-3. **Testing**: Identifying behaviors that might affect DPI testing
-4. **Reference**: Quick lookup of vendor-specific quirks
+## Common structure
 
-## Contributing
+Each vendor document includes:
+- Vendor fingerprinting (Identity Object, discovery hints)
+- Common device roles and families
+- Service and EPATH usage
+- Connection and I/O behavior
+- Quirks and deviations
+- DPI testing implications
+- Public references
 
-When researching vendors:
-1. Document findings in the appropriate vendor file
-2. Include packet capture examples (hex dumps)
-3. Note any deviations from ODVA standard
-4. Reference source documentation
+## Contribution guidance
 
-## Status
+When extending this research:
+- Prefer primary vendor manuals and ODVA public publications.
+- Capture *why* a behavior matters for interoperability or DPI.
+- For packet‑level claims, record capture context and filters.
 
-**Current Status:** Research phase - documentation structure ready  
-**Last Updated:** 2025-01-27
-
+_Last updated: 2026-01-01_

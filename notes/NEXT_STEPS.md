@@ -253,7 +253,7 @@ go build ./cmd/cipdip
 
 ## See Also
 
-- `docs/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations
+- `notes/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations
 - `docs/IMPLEMENTATION_GUIDE.md` - Step-by-step implementation guide
-- `docs/AUDIT_SUMMARY.md` - Audit summary and status
+- `notes/AUDIT_SUMMARY.md` - Audit summary and status
 

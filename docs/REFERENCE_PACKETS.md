@@ -119,6 +119,4 @@ go test ./internal/cipclient/... -run TestCompareWithReference -v
 
 ## See Also
 
-- `docs/AUDIT_RECOMMENDATIONS.md` - Audit recommendations including reference packet library
-- `docs/AUDIT_SUMMARY.md` - Audit summary with implementation status
 - `internal/cipclient/validation.go` - Packet validation layer

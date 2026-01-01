@@ -106,9 +106,9 @@ CIPDIP is a complete, production-ready Go-based command-line tool for generating
 ## Documentation
 
 - ✅ README.md: Complete usage guide
-- ✅ CHANGELOG.md: Version history
+- ✅ docs/CHANGELOG.md: Version history
 - ✅ docs/COMPLIANCE.md: Protocol compliance documentation
-- ✅ project_plan.md: Detailed project plan
+- ✅ notes/project_plan.md: Detailed project plan
 - ✅ Example configuration files
 - ✅ Command help text
 

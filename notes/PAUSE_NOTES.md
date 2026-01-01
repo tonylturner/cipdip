@@ -40,9 +40,9 @@ This session focused on implementing audit recommendations to improve UX, compli
 - **Note:** Response detection logic may need enhancement
 
 ### Documentation
-- ✅ `PROJECT_STATUS.md` - Comprehensive status document
-- ✅ `docs/NEXT_STEPS.md` - Updated with completed items
-- ✅ `CHANGELOG.md` - Updated with recent changes
+- ✅ `notes/PROJECT_STATUS.md` - Comprehensive status document
+- ✅ `notes/NEXT_STEPS.md` - Updated with completed items
+- ✅ `docs/CHANGELOG.md` - Updated with recent changes
 - ✅ `docs/WIRESHARK_INTEGRATION.md` - Wireshark validation guide
 
 ## 🎯 Next Steps (When Resuming)
@@ -71,7 +71,7 @@ This session focused on implementing audit recommendations to improve UX, compli
 ### New Files Created
 - `internal/validation/wireshark.go` - Wireshark validation
 - `internal/validation/wireshark_test.go` - Wireshark tests
-- `PROJECT_STATUS.md` - Current project status
+- `notes/PROJECT_STATUS.md` - Current project status
 - `docs/WIRESHARK_INTEGRATION.md` - Wireshark guide
 
 ### Modified Files
@@ -79,15 +79,15 @@ This session focused on implementing audit recommendations to improve UX, compli
 - `internal/config/config.go` - Added auto-config generation
 - `cmd/cipdip/client.go` - Added `--quick-start` flag
 - `internal/cipclient/pcap_extract.go` - Fixed RegisterSession detection
-- `CHANGELOG.md` - Updated with recent changes
-- `docs/NEXT_STEPS.md` - Updated roadmap
+- `docs/CHANGELOG.md` - Updated with recent changes
+- `notes/NEXT_STEPS.md` - Updated roadmap
 
 ## 🔧 Quick Start (When Resuming)
 
 1. **Review Status:**
    ```bash
-   cat PROJECT_STATUS.md
-   cat docs/NEXT_STEPS.md
+   cat notes/PROJECT_STATUS.md
+   cat notes/NEXT_STEPS.md
    ```
 
 2. **Run Tests:**
@@ -118,12 +118,12 @@ This session focused on implementing audit recommendations to improve UX, compli
 - All code is tested and passing
 - Documentation is comprehensive and up-to-date
 - Project is in a stable, well-documented state
-- Ready to resume with high-priority items from `docs/NEXT_STEPS.md`
+- Ready to resume with high-priority items from `notes/NEXT_STEPS.md`
 
 ---
 
 **Status:** ✅ Ready for Pause  
 **All Tests:** ✅ Passing  
 **Documentation:** ✅ Complete  
-**Next Session:** Start with high-priority items in `docs/NEXT_STEPS.md`
+**Next Session:** Start with high-priority items in `notes/NEXT_STEPS.md`
 
