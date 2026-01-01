@@ -433,8 +433,6 @@ func (s CIPServiceCode) String() string {
 		return "Large_Forward_Open"
 	case CIPServiceForwardOpen:
 		return "Forward_Open"
-	case CIPServiceForwardClose:
-		return "Forward_Close"
 	default:
 		return fmt.Sprintf("Unknown(0x%02X)", uint8(s))
 	}

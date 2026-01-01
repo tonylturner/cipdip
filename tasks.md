@@ -75,11 +75,15 @@
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
 - Protocol accuracy is the primary objective; tooling changes should be scoped to DPI needs.
-- PCAP on deck: `C:\Users\tony\Documents\GitHub\cipdip\pcaps\ENIP.pcap` for reference extraction.
+- PCAP on deck: `C:\Users\tony\Documents\GitHub\cipdip\pcaps\stress\ENIP.pcap` for reference extraction.
 - Added pcap-summary and improved ENIP extraction to handle multi-frame TCP payloads.
-- Re-run `cipdip pcap-summary --input pcaps/ENIP.pcap` to update counts after response-code normalization.
+- Re-run `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` to update counts after response-code normalization.
 - PCAP observations: CPF present in nearly all ENIP frames, CIP path size present in all UCMM requests, no 16-bit EPATH segments, heavy vendor-specific services (0x4B/0x4D/0x52/0x51).
 - Vendor identified from PCAP: Rockwell (Vendor ID 0x0001), Product 1756-ENBT/A. Use `rockwell_enbt` profile only when identity matches.
+- Re-evaluation run: `go test ./internal/cipclient` and `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` (latest run successful).
+- New PCAP batch summaries generated in `notes/pcap_summary_report.md` and vendor rollup in `notes/pcap_vendor_summary.md`.
+- PCAP classification script: `analyze-cip-pcaps.ps1` (use for future noise/fuzz classification and folder placement).
+- PCAP folders: `pcaps/normal` (compliance/regression), `pcaps/stress` (DPI stress), `pcaps/not_cip` (ignored).
 
 ## Audit findings (initial)
 - CIP request encoding omits path size byte and assumes no reserved fields in responses; tests reflect the same.

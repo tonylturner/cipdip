@@ -22,7 +22,7 @@ func newPcapSummaryCmd() *cobra.Command {
 		Long: `Summarize ENIP/CIP traffic in a PCAP file, including command/service counts,
 CPF usage, and common EPATHs.`,
 		Example: `  # Summarize ENIP.pcap traffic
-  cipdip pcap-summary --input pcaps/ENIP.pcap`,
+  cipdip pcap-summary --input pcaps/stress/ENIP.pcap`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPcapSummary(flags)
 		},

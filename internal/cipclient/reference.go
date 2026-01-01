@@ -18,7 +18,7 @@ type ReferencePacket struct {
 // ReferencePackets is a library of known-good ODVA-compliant packets
 // Populated from:
 // - CIPDIP baseline captures (baseline_captures/*.pcap)
-// - Real-world device captures (.cursorrules/pcaps/*.pcap)
+// - Real-world device captures (pcaps/normal/*.pcap)
 // - Wireshark captures of compliant devices
 //
 // Reference packets are automatically populated from reference_packets_gen.go

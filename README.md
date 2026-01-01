@@ -101,13 +101,13 @@ cipdip pcap --input packet1.bin --compare packet2.bin
 cipdip pcap --input packet.bin --format json
 
 # Summarize ENIP/CIP traffic in a PCAP
-cipdip pcap-summary --input pcaps/ENIP.pcap
+cipdip pcap-summary --input pcaps/stress/ENIP.pcap
 ```
 
 ### Reference Extraction
 
 ```bash
-# Extract reference packets from PCAPs (including pcaps/ENIP.pcap)
+# Extract reference packets from PCAPs (pcaps/normal/* by default)
 cipdip extract-reference --baseline-dir pcaps --output internal/cipclient/reference_packets_gen.go
 ```
 
@@ -293,11 +293,4 @@ Print version information.
 
 Apache License 2.0
 
-## References
-
-- Main Spec: `.cursorrules/cip_scanner_spec.md`
-- Addendum 1: `.cursorrules/cip_scanner_addendum.md` (Connected I/O support)
-- Addendum 2: `.cursorrules/cip_scanner_addendum_v2.md` (Transport coverage)
-- Addendum 3: `.cursorrules/cip_scanner_addendum_server.md` (Server/emulator mode)
-- CLI Best Practices: `.cursorrules/go_cli_best_practices.md`
 
