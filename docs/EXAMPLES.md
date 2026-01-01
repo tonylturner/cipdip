@@ -233,5 +233,4 @@ cipdip pcap --input error_packet.bin --validate
 - `README.md` - Main documentation
 - `docs/PCAP_USAGE.md` - Packet analysis guide
 - `docs/COMPLIANCE.md` - Protocol compliance
-- `docs/VENDOR_RESEARCH.md` - Vendor research
 

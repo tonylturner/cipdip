@@ -54,17 +54,23 @@
 - [x] Add validation hooks for error_response/restore/save/nop/member ops (strict ODVA checks).
 
 ### Docs cleanup
+- [x] Relocate internal/audit docs to `notes/` and update references.
+- [x] Add `AGENTS.md` with project context for future sessions.
+- [x] Remove `.cursorrules` after capturing relevant guidance.
+- [ ] Validate `docs/COMPLIANCE_TESTING.md` against current behavior (status list normalized to ASCII; continue line-by-line review).
+- [ ] Consolidate internal plan/audit/status notes into fewer `notes/` docs, then review for accuracy.
+- [ ] Re-run evaluations that feed audit notes (compliance audit tests, pcap-summary on reference captures) before updating consolidated notes.
 - [ ] Line-by-line validation of all docs in `docs/` (excluding `docs/vendors/`) against current ODVA framing and implementation.
 - [ ] Fix outdated ODVA compliance notes (e.g., COMPLIANCE_TESTING.md big-endian assumptions).
-- [ ] Audit root-level markdown docs for alignment (README.md, STATUS.md, PROJECT_STATUS.md, PROJECT_SUMMARY.md, SUMMARY.md, EXAMPLES.md, CHANGELOG.md).
+- [ ] Audit markdown docs for alignment (README.md, docs/CHANGELOG.md, notes/STATUS.md, notes/PROJECT_STATUS.md, notes/PROJECT_SUMMARY.md, notes/SUMMARY.md, docs/EXAMPLES.md).
 - [ ] Align COMPLIANCE.md and COMPLIANCE_TESTING.md with little-endian framing + CPF/path-size expectations.
 - [ ] Inventory docs with value status (active, stale, replace, remove).
 - [ ] Consolidate compliance docs (reduce duplication, highlight strict vs variants).
 - [ ] Remove or archive stale docs only after approval.
 
-### Windows note
-- [ ] Check Windows-specific path handling and example commands.
-- [ ] Confirm any scripts rely on macOS-only tools and provide Windows alternatives.
+### Cross-platform note
+- [ ] Check path handling and example commands across macOS/Linux/Windows.
+- [ ] Confirm any scripts rely on OS-specific tools and provide alternatives or detection.
 
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
@@ -85,4 +91,4 @@
 - ENIP/CIP encoding switched to strict framing (path size, response reserved/status-size, CPF).
 - Vendor profiles scaffolded (Rockwell/Schneider/Siemens presets).
 - Server tracks Forward Open connections and validates SendUnitData.
-- Docs cleanup plan captured in `docs/DOCS_CLEANUP_PLAN.md`.
+- Docs cleanup plan captured in `notes/DOCS_CLEANUP_PLAN.md`.

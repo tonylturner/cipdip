@@ -4,7 +4,7 @@ This document explains how CIPDIP's compliance tests validate ODVA protocol requ
 
 ## Testing Philosophy
 
-Our compliance tests aim to validate **ODVA specification compliance**, not just implementation correctness. However, there are important limitations:
+Our compliance tests aim to validate **ODVA specification compliance** as expressed by the `strict_odva` profile, not just implementation correctness. However, there are important limitations:
 
 ### What We Test Against
 
@@ -20,9 +20,9 @@ Our compliance tests aim to validate **ODVA specification compliance**, not just
    - Values verified from reverse engineering compliant devices
    - Values verified from Wireshark dissector implementations
 
-3. **Implementation Validation**:
+3. **Implementation Validation** (for `strict_odva`):
    - Our code produces the expected structures
-   - Byte order is correct (little-endian for ENIP/CIP per spec)
+   - Byte order matches the protocol profile (strict ODVA uses little-endian)
    - Length fields match actual data
    - Required fields are present
 
@@ -52,7 +52,7 @@ Our compliance tests aim to validate **ODVA specification compliance**, not just
 These tests verify packet structures match ODVA requirements:
 
 - **ENIP Header**: 24-byte header with correct field order
-- **Byte Order**: All multi-byte fields use little-endian (ODVA requirement)
+- **Byte Order**: All multi-byte fields use little-endian in strict ODVA mode
 - **Length Fields**: Length fields match actual data (ODVA requirement)
 - **Required Fields**: All required fields are present
 
@@ -130,16 +130,16 @@ To make our tests more spec-compliant:
 
 ## Current Test Status
 
-- ✅ **Structure Tests**: Validating packet structures against known ODVA requirements
-- ✅ **Code Validation**: Command and service codes match ODVA standards
-- ✅ **Encoding Tests**: EPATH encoding follows ODVA rules
-- ✅ **Audit Tests**: 15+ new audit tests validate implementation against ODVA spec requirements
-- ⚠️ **Spec Coverage**: Limited by spec access - testing known requirements
-- ⚠️ **Edge Cases**: May miss edge cases without full spec access
+- [x] **Structure Tests**: Validating packet structures against known ODVA requirements
+- [x] **Code Validation**: Command and service codes match ODVA standards
+- [x] **Encoding Tests**: EPATH encoding follows ODVA rules
+- [x] **Audit Tests**: 15+ new audit tests validate implementation against ODVA spec requirements
+- [ ] **Spec Coverage**: Limited by spec access - testing known requirements
+- [ ] **Edge Cases**: May miss edge cases without full spec access
 
-### Audit Test Results
+## Audit Test Results
 
-The new `compliance_audit_test.go` file contains 15+ tests that audit our implementation against actual ODVA specification requirements:
+The `compliance_audit_test.go` file contains 15+ tests that audit our implementation against known ODVA specification requirements and reference captures:
 
 1. **ENIP Header Structure**: Validates 24-byte header, field order, byte order, length field semantics
 2. **RegisterSession**: Validates protocol version=1, option flags=0, session ID=0 in request
@@ -157,9 +157,9 @@ The new `compliance_audit_test.go` file contains 15+ tests that audit our implem
 14. **Command Code Values**: Validates all command codes match ODVA spec exactly
 15. **EPATH Segment Types**: Validates segment type byte encoding per ODVA spec
 
-These tests found and fixed issues in:
-- Path size calculation (was incorrectly rounding up)
-- Connection parameter encoding validation
+These tests are intended to catch issues such as:
+- Path size calculation errors (rounding and padding)
+- Connection parameter encoding mismatches
 
 ## Recommendations
 
