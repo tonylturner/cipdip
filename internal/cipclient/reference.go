@@ -18,7 +18,7 @@ type ReferencePacket struct {
 // ReferencePackets is a library of known-good ODVA-compliant packets
 // Populated from:
 // - CIPDIP baseline captures (baseline_captures/*.pcap)
-// - Real-world device captures (pcaps/normal/*.pcap)
+// - Real-world device captures (pcaps/*.pcap)
 // - Wireshark captures of compliant devices
 //
 // Reference packets are automatically populated from reference_packets_gen.go
@@ -64,6 +64,14 @@ var ReferencePackets = map[string]ReferencePacket{
 		Data:        nil, // TODO: Add actual reference packet
 		Source:      "ODVA Specification",
 	},
+}
+
+// ResetReferencePackets clears populated reference data so extractions don't retain stale packets.
+func ResetReferencePackets() {
+	for key, ref := range ReferencePackets {
+		ref.Data = nil
+		ReferencePackets[key] = ref
+	}
 }
 
 // CompareWithReference compares a generated packet with a reference packet

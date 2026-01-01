@@ -84,6 +84,8 @@
 - New PCAP batch summaries generated in `notes/pcap_summary_report.md` and vendor rollup in `notes/pcap_vendor_summary.md`.
 - PCAP classification script: `analyze-cip-pcaps.ps1` (use for future noise/fuzz classification and folder placement).
 - PCAP folders: `pcaps/normal` (compliance/regression), `pcaps/stress` (DPI stress), `pcaps/not_cip` (ignored).
+- Reference extraction run: `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`.
+- Reference extraction now filters for little-endian ENIP headers; `RegisterSession_Response` still missing from real-world captures.
 
 ## Audit findings (initial)
 - CIP request encoding omits path size byte and assumes no reserved fields in responses; tests reflect the same.

@@ -107,7 +107,7 @@ cipdip pcap-summary --input pcaps/stress/ENIP.pcap
 ### Reference Extraction
 
 ```bash
-# Extract reference packets from PCAPs (pcaps/normal/* by default)
+# Extract reference packets from PCAPs (pcaps/* by default)
 cipdip extract-reference --baseline-dir pcaps --output internal/cipclient/reference_packets_gen.go
 ```
 
