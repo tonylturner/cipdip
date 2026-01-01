@@ -6,7 +6,7 @@ import (
 )
 
 func TestSummarizeENIPFromPCAPVendorIdentity(t *testing.T) {
-	pcapPath := "pcaps/ENIP.pcap"
+	pcapPath := "pcaps/stress/ENIP.pcap"
 	if _, err := os.Stat(pcapPath); err != nil {
 		t.Skipf("pcap not found: %s", pcapPath)
 	}

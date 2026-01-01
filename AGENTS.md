@@ -9,7 +9,7 @@ Protocol-aware CIP/EtherNet/IP DPI test harness focused on ODVA-correct traffic 
 - Key focus: DPI falsification, Forward Open/I-O state handling, latency/jitter/misclassification metrics.
 
 ## PCAP context
-- Reference capture: `pcaps/ENIP.pcap` identifies Rockwell Vendor ID 0x0001, Product `1756-ENBT/A`.
+- Reference capture: `pcaps/stress/ENIP.pcap` identifies Rockwell Vendor ID 0x0001, Product `1756-ENBT/A`.
 - Only apply `rockwell_enbt` or vendor-specific profiles when identity matches the capture.
 
 ## Docs policy

@@ -128,7 +128,7 @@ These are missing from the reference library but are fully supported in the code
 
 ### Real-World PCAP Extraction
 
-✅ **Working**: Real-world PCAPs in `.cursorrules/pcaps/` are now being extracted:
+✅ **Working**: Real-world PCAPs in `pcaps/normal/` are now being extracted:
 - `ENIP.pcap` - Extracts SendUnitData and RegisterSession packets
 - `EthernetIP-CIP.pcap` - Extracts SendUnitData, RegisterSession, and ListIdentity packets
 

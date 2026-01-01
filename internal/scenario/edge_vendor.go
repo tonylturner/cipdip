@@ -47,7 +47,6 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 		uint8(cipclient.CIPServiceReadTagFragmented):  true,
 		uint8(cipclient.CIPServiceWriteTagFragmented): true,
 		uint8(cipclient.CIPServiceGetInstanceAttrList): true,
-		uint8(cipclient.CIPServiceUnconnectedSend):    true,
 		uint8(cipclient.CIPServiceGetConnectionData):  true,
 		uint8(cipclient.CIPServiceSearchConnectionData): true,
 		uint8(cipclient.CIPServiceGetConnectionOwner): true,

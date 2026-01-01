@@ -314,8 +314,6 @@ func isValidCIPService(svc CIPServiceCode) bool {
 		CIPServiceGroupSync,
 		CIPServiceReadTag,
 		CIPServiceWriteTag,
-		CIPServiceReadModifyWrite,
-		CIPServiceReadTagFragmented,
 		CIPServiceWriteTagFragmented,
 		CIPServiceGetInstanceAttrList,
 		CIPServiceUnconnectedSend,

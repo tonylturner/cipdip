@@ -122,6 +122,7 @@ To make our tests more spec-compliant:
    - Capture packets from compliant devices
    - Compare our packets with known-good packets
    - Use Wireshark dissector for validation
+   - Treat CIPDIP baseline captures as regression artifacts, not compliance sources of truth
 
 4. **Community Validation**:
    - Share test results with ODVA community

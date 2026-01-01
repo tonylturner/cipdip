@@ -1,0 +1,30 @@
+﻿CIP/ENIP PCAP Classification Summary
+Generated: 01/01/2026 13:11:49
+PCAP directory: .\pcaps
+tshark: C:\Program Files\Wireshark\tshark.exe
+
+Integrity buckets:
+  PROTOCOL_NORMAL
+  TRANSPORT_NOISY
+  PROTOCOL_ANOMALOUS
+  NOT_CIP_ENIP
+
+Counts:
+  PROTOCOL_NORMAL:     23
+  TRANSPORT_NOISY:     2
+  PROTOCOL_ANOMALOUS:  0
+  NOT_CIP_ENIP:        3
+
+Additional flags:
+  deformation:*         = malformed/expert errors/bad checksum signals
+  fuzz_or_invalid:*     = high CIP error rate (unsupported/invalid/fuzz-like)
+  ops_bad:*             = extreme transport conditions not conducive to normal ops
+  has_discovery:*       = discovery present
+  has_io:*              = UDP 2222 I/O present
+
+Flagged sets:
+  Deformation: 0
+  Fuzz/Invalid: 0
+  Ops bad: 2
+
+CSV: .\cip_pcap_summary.csv
