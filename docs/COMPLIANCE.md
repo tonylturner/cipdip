@@ -14,9 +14,9 @@ CIPDIP implements a custom EtherNet/IP and CIP client following ODVA specificati
 
 All packet structure tests pass, validating:
 
-- ✅ **ENIP Encapsulation Headers**: 24-byte header structure with correct field order and big-endian encoding
+- ✅ **ENIP Encapsulation Headers**: 24-byte header structure with correct field order and little-endian encoding
   - Length field consistency validation
-  - Byte order (big-endian) verification for all fields
+  - Byte order (little-endian) verification for all fields
   - Session ID range validation (full uint32 range)
   - Sender context preservation
 - ✅ **RegisterSession**: Protocol version and option flags correctly formatted
@@ -29,7 +29,7 @@ All packet structure tests pass, validating:
   - Length field matches data
   - Session ID preservation
 - ✅ **SendUnitData**: Connection ID and CIP data structure
-  - Connection ID big-endian encoding
+  - Connection ID little-endian encoding
   - Length field consistency
 - ✅ **ListIdentity**: No data field, no session required
 - ✅ **ForwardOpen**: Connection parameters, RPIs, priorities, and connection path
@@ -142,7 +142,7 @@ Integration tests validate:
 - [x] Session ID preservation
 
 ### SendUnitData (Connected Messaging)
-- [x] Connection ID (4 bytes, big-endian, validated)
+- [x] Connection ID (4 bytes, little-endian, validated)
 - [x] CIP data follows connection ID
 - [x] Length field matches data (4 + CIP data length)
 - [x] Session ID preservation
@@ -150,7 +150,7 @@ Integration tests validate:
 ### EPATH Encoding
 - [x] 8-bit segment format (0x20, 0x24, 0x30)
 - [x] 16-bit segment format (0x21, 0x25, 0x31)
-- [x] Segment data in correct byte order (big-endian for 16-bit)
+- [x] Segment data in correct byte order (little-endian for 16-bit)
 - [x] Boundary conditions (0xFF max for 8-bit, 0x0100 min for 16-bit)
 - [x] Path length validation
 

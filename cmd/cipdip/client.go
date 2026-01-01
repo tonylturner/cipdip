@@ -66,6 +66,9 @@ Available scenarios:
   edge_valid - Protocol-valid edge cases for DPI falsification
                Uses edge_targets in cipdip_client.yaml
 
+  edge_vendor - Vendor-specific edge cases (tag and connection manager extras)
+                Uses edge_targets with vendor service codes
+
   vendor_variants - Replay traffic across protocol profile variants
                     Uses protocol_variants in cipdip_client.yaml
 
@@ -108,7 +111,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
 	cmd.MarkFlagRequired("ip")
 
-	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|vendor_variants|mixed_state (required)")
+cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state (required)")
 	cmd.MarkFlagRequired("scenario")
 
 	// Optional flags
@@ -135,11 +138,12 @@ func runClient(flags *clientFlags) error {
 		"churn":           true,
 		"io":              true,
 		"edge_valid":      true,
+		"edge_vendor":     true,
 		"vendor_variants": true,
 		"mixed_state":     true,
 	}
 	if !validScenarios[flags.scenario] {
-		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, vendor_variants, mixed_state", flags.scenario)
+		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state", flags.scenario)
 	}
 
 	// Set default interval based on scenario if not provided
@@ -156,6 +160,8 @@ func runClient(flags *clientFlags) error {
 		case "io":
 			flags.intervalMs = 10
 		case "edge_valid":
+			flags.intervalMs = 100
+		case "edge_vendor":
 			flags.intervalMs = 100
 		case "vendor_variants":
 			flags.intervalMs = 100
@@ -297,6 +303,9 @@ func runClient(flags *clientFlags) error {
 	err = scenarioImpl.Run(ctx, client, cfg, params)
 	elapsed := time.Since(startTime)
 
+	// Get summary before writing metrics
+	summary := metricsSink.GetSummary()
+
 	// Write metrics to file if specified
 	if metricsWriter != nil {
 		for _, m := range metricsSink.GetMetrics() {
@@ -304,10 +313,12 @@ func runClient(flags *clientFlags) error {
 				logger.Error("Failed to write metric: %v", err)
 			}
 		}
+		if err := metricsWriter.WriteSummary(summary, metricsSink.GetMetrics()); err != nil {
+			logger.Error("Failed to write summary metrics: %v", err)
+		}
 	}
 
-	// Get and print summary
-	summary := metricsSink.GetSummary()
+	// Print summary
 	if flags.verbose || flags.debug {
 		fmt.Fprintf(os.Stdout, "\n%s", metrics.FormatSummary(summary))
 	} else {

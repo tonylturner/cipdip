@@ -6,7 +6,7 @@ CIPDIP is a Go-based command-line tool designed to generate repeatable, controll
 
 ## Features
 
-- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, vendor_variants, mixed_state
+- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state
 - **Transport Support**: TCP 44818 (explicit messaging), UDP 2222 (I/O), UDP 44818 (discovery)
 - **Config-Driven**: YAML-based configuration for flexible device targeting
 - **Server Mode**: Emulator with adapter and logix-like personalities
@@ -99,6 +99,9 @@ cipdip pcap --input packet1.bin --compare packet2.bin
 
 # Output in JSON format
 cipdip pcap --input packet.bin --format json
+
+# Summarize ENIP/CIP traffic in a PCAP
+cipdip pcap-summary --input pcaps/ENIP.pcap
 ```
 
 ### Reference Extraction
@@ -176,6 +179,7 @@ adapter_assemblies:
 - **churn**: Connection setup/teardown cycles (100ms default)
 - **io**: Connected Class 1 I/O-style behavior (10ms default, UDP 2222)
 - **edge_valid**: Protocol-valid edge cases for DPI falsification
+- **edge_vendor**: Vendor-specific edge cases (tag/connection manager extras)
 - **vendor_variants**: Replays traffic across protocol variants
 - **mixed_state**: Interleaves UCMM and connected I/O traffic
 
@@ -225,7 +229,7 @@ Scanner mode that connects to CIP targets and generates traffic.
 
 **Required flags:**
 - `--ip`: Target CIP adapter IP address
-- `--scenario`: Scenario name (baseline|mixed|stress|churn|io|edge_valid|vendor_variants|mixed_state)
+- `--scenario`: Scenario name (baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state)
 
 **Optional flags:**
 - `--port`: TCP port (default: 44818)
@@ -276,7 +280,7 @@ Print version information.
 - **Default**: Minimal output to stdout, errors to stderr
 - **Verbose**: Extra operational details
 - **Debug**: Detailed logs, raw packet hex dumps
-- **Metrics**: CSV/JSON format with operation details
+- **Metrics**: CSV/JSON format with operation details (plus `*.summary.csv` for percentiles/buckets)
 - **Logs**: Detailed operational events (when `--log-file` specified)
 
 ## Requirements

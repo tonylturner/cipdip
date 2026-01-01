@@ -402,7 +402,7 @@ cipdip/
   - [ ] Compare behavior with commercial CIP tools
   - [ ] Document any device-specific quirks
 - [ ] Protocol compliance checklist
-  - [ ] ENIP encapsulation headers (24 bytes, big-endian, correct field order)
+  - [ ] ENIP encapsulation headers (24 bytes, little-endian, correct field order)
   - [ ] RegisterSession/UnregisterSession compliance
   - [ ] SendRRData structure (Interface Handle=0, Timeout, CIP data)
   - [ ] SendUnitData structure (Connection ID, CIP data)

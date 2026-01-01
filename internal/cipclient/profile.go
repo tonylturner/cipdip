@@ -64,6 +64,24 @@ var (
 			UseCPF:                 true,
 			IOSequenceMode:         "omit",
 		},
+		"pcap_capture": {
+			Name:                   "pcap_capture",
+			ENIPByteOrder:          binary.LittleEndian,
+			CIPByteOrder:           binary.LittleEndian,
+			IncludeCIPPathSize:     true,
+			IncludeCIPRespReserved: true,
+			UseCPF:                 true,
+			IOSequenceMode:         "increment",
+		},
+		"rockwell_enbt": {
+			Name:                   "rockwell_enbt",
+			ENIPByteOrder:          binary.LittleEndian,
+			CIPByteOrder:           binary.LittleEndian,
+			IncludeCIPPathSize:     true,
+			IncludeCIPRespReserved: true,
+			UseCPF:                 true,
+			IOSequenceMode:         "increment",
+		},
 	}
 )
 

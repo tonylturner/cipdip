@@ -43,6 +43,8 @@ func GetScenario(name string) (Scenario, error) {
 		return &IOScenario{}, nil
 	case "edge_valid":
 		return &EdgeValidScenario{}, nil
+	case "edge_vendor":
+		return &EdgeVendorScenario{}, nil
 	case "vendor_variants":
 		return &VendorVariantsScenario{}, nil
 	case "mixed_state":

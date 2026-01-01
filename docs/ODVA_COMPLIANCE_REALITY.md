@@ -101,7 +101,7 @@ These are **highly likely correct** because they match:
 - Service codes match ODVA standards ✅
 - EPATH segment types match ODVA standards ✅
 - Basic packet structures (24-byte header, field order) ✅
-- Byte order (big-endian) ✅
+- Byte order (little-endian) ✅
 
 ### Medium Confidence (70-90%)
 - ForwardOpen/ForwardClose structure details

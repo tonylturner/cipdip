@@ -16,11 +16,12 @@ type Writer struct {
 	csvFile   *os.File
 	csvWriter *csv.Writer
 	jsonFile  *os.File
+	csvPath   string
 }
 
 // NewWriter creates a new metrics writer
 func NewWriter(csvPath, jsonPath string) (*Writer, error) {
-	w := &Writer{}
+	w := &Writer{csvPath: csvPath}
 
 	// Open CSV file if path provided
 	if csvPath != "" {
@@ -76,6 +77,184 @@ func NewWriter(csvPath, jsonPath string) (*Writer, error) {
 	}
 
 	return w, nil
+}
+
+// WriteSummary writes a summary CSV with distribution stats.
+func (w *Writer) WriteSummary(summary *Summary, metrics []Metric) error {
+	if w.csvPath == "" {
+		return nil
+	}
+	summaryPath := w.csvPath + ".summary.csv"
+	file, err := os.Create(summaryPath)
+	if err != nil {
+		return fmt.Errorf("create summary CSV file: %w", err)
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	header := []string{
+		"scope",
+		"scenario",
+		"operation",
+		"metric",
+		"count",
+		"min_ms",
+		"max_ms",
+		"avg_ms",
+		"p50_ms",
+		"p90_ms",
+		"p95_ms",
+		"p99_ms",
+		"bucket_lt_1ms",
+		"bucket_1_5ms",
+		"bucket_5_10ms",
+		"bucket_10_50ms",
+		"bucket_50_100ms",
+		"bucket_100_500ms",
+		"bucket_gt_500ms",
+	}
+	if err := writer.Write(header); err != nil {
+		return fmt.Errorf("write summary CSV header: %w", err)
+	}
+
+	writeRow := func(scope, scenario, operation, metricName string, values []float64) error {
+		if len(values) == 0 {
+			return nil
+		}
+		buckets := make(map[string]int)
+		var sum float64
+		min := values[0]
+		max := values[0]
+		for _, v := range values {
+			sum += v
+			if v < min {
+				min = v
+			}
+			if v > max {
+				max = v
+			}
+			incrementBucket(buckets, v)
+		}
+		percentiles := computePercentiles(values)
+		record := []string{
+			scope,
+			scenario,
+			operation,
+			metricName,
+			fmt.Sprintf("%d", len(values)),
+			fmt.Sprintf("%.3f", min),
+			fmt.Sprintf("%.3f", max),
+			fmt.Sprintf("%.3f", sum/float64(len(values))),
+			fmt.Sprintf("%.3f", percentiles[0]),
+			fmt.Sprintf("%.3f", percentiles[1]),
+			fmt.Sprintf("%.3f", percentiles[2]),
+			fmt.Sprintf("%.3f", percentiles[3]),
+			fmt.Sprintf("%d", buckets["lt_1ms"]),
+			fmt.Sprintf("%d", buckets["1_5ms"]),
+			fmt.Sprintf("%d", buckets["5_10ms"]),
+			fmt.Sprintf("%d", buckets["10_50ms"]),
+			fmt.Sprintf("%d", buckets["50_100ms"]),
+			fmt.Sprintf("%d", buckets["100_500ms"]),
+			fmt.Sprintf("%d", buckets["gt_500ms"]),
+		}
+		return writer.Write(record)
+	}
+
+	overallRTT := make([]float64, 0, len(metrics))
+	overallJitter := make([]float64, 0, len(metrics))
+	for _, m := range metrics {
+		if m.Success && m.RTTMs > 0 {
+			overallRTT = append(overallRTT, m.RTTMs)
+		}
+		if m.JitterMs > 0 {
+			overallJitter = append(overallJitter, m.JitterMs)
+		}
+	}
+	if err := writeRow("all", "", "", "rtt_ms", overallRTT); err != nil {
+		return fmt.Errorf("write overall rtt summary: %w", err)
+	}
+	if err := writeRow("all", "", "", "jitter_ms", overallJitter); err != nil {
+		return fmt.Errorf("write overall jitter summary: %w", err)
+	}
+
+	byScenario := make(map[string][]Metric)
+	byOperation := make(map[OperationType][]Metric)
+	byScenarioOp := make(map[string]map[OperationType][]Metric)
+	for _, m := range metrics {
+		byScenario[m.Scenario] = append(byScenario[m.Scenario], m)
+		byOperation[m.Operation] = append(byOperation[m.Operation], m)
+		if _, ok := byScenarioOp[m.Scenario]; !ok {
+			byScenarioOp[m.Scenario] = make(map[OperationType][]Metric)
+		}
+		byScenarioOp[m.Scenario][m.Operation] = append(byScenarioOp[m.Scenario][m.Operation], m)
+	}
+
+	for op, list := range byOperation {
+		rtts := make([]float64, 0, len(list))
+		jitters := make([]float64, 0, len(list))
+		for _, m := range list {
+			if m.Success && m.RTTMs > 0 {
+				rtts = append(rtts, m.RTTMs)
+			}
+			if m.JitterMs > 0 {
+				jitters = append(jitters, m.JitterMs)
+			}
+		}
+		if err := writeRow("operation", "", string(op), "rtt_ms", rtts); err != nil {
+			return fmt.Errorf("write operation rtt summary: %w", err)
+		}
+		if err := writeRow("operation", "", string(op), "jitter_ms", jitters); err != nil {
+			return fmt.Errorf("write operation jitter summary: %w", err)
+		}
+	}
+
+	for scenario, list := range byScenario {
+		rtts := make([]float64, 0, len(list))
+		jitters := make([]float64, 0, len(list))
+		for _, m := range list {
+			if m.Success && m.RTTMs > 0 {
+				rtts = append(rtts, m.RTTMs)
+			}
+			if m.JitterMs > 0 {
+				jitters = append(jitters, m.JitterMs)
+			}
+		}
+		if err := writeRow("scenario", scenario, "", "rtt_ms", rtts); err != nil {
+			return fmt.Errorf("write scenario rtt summary: %w", err)
+		}
+		if err := writeRow("scenario", scenario, "", "jitter_ms", jitters); err != nil {
+			return fmt.Errorf("write scenario jitter summary: %w", err)
+		}
+	}
+
+	for scenario, byOp := range byScenarioOp {
+		for op, list := range byOp {
+			rtts := make([]float64, 0, len(list))
+			jitters := make([]float64, 0, len(list))
+			for _, m := range list {
+				if m.Success && m.RTTMs > 0 {
+					rtts = append(rtts, m.RTTMs)
+				}
+				if m.JitterMs > 0 {
+					jitters = append(jitters, m.JitterMs)
+				}
+			}
+			if err := writeRow("scenario_operation", scenario, string(op), "rtt_ms", rtts); err != nil {
+				return fmt.Errorf("write scenario operation rtt summary: %w", err)
+			}
+			if err := writeRow("scenario_operation", scenario, string(op), "jitter_ms", jitters); err != nil {
+				return fmt.Errorf("write scenario operation jitter summary: %w", err)
+			}
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return fmt.Errorf("flush summary CSV: %w", err)
+	}
+
+	_ = summary
+	return nil
 }
 
 // WriteMetric writes a single metric
