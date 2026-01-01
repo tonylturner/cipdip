@@ -197,7 +197,7 @@ custom_targets:
 **Fields (per target):**
 - `name` (string, required): Unique identifier for this target.
 - `service` (string, required): Must be `"custom"` for custom targets.
-- `service_code` (hex integer, required): CIP service code (e.g., `0x01` for Get_Attribute_All, `0x0E` for Get_Attribute_List).
+- `service_code` (hex integer, required): CIP service code (e.g., `0x01` for Get_Attribute_All, `0x03` for Get_Attribute_List).
 - `class` (hex integer, required): CIP class ID.
 - `instance` (hex integer, required): CIP instance ID.
 - `attribute` (hex integer, optional): CIP attribute ID (may be unused depending on service).
@@ -216,7 +216,7 @@ custom_targets:
 
   - name: "CustomService"
     service: "custom"
-    service_code: 0x0E          # Get_Attribute_List
+    service_code: 0x03          # Get_Attribute_List
     class: 0x04
     instance: 0x65
     attribute: 0x00
@@ -666,7 +666,7 @@ logix_tags:
   - name: "status"
     type: "BOOL"
     array_length: 1
-    update_pattern: "toggle"
+    update_pattern: "static"
 ```
 
 **Notes:**

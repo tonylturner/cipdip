@@ -44,6 +44,10 @@ Our compliance tests aim to validate **ODVA specification compliance** as expres
 3. **Assumptions**:
    - Some test values are based on common practice rather than explicit spec requirements
    - We assume our understanding of the spec is correct
+4. **Reference Packet Coverage**:
+   - Reference extraction only accepts little-endian ENIP headers (to avoid polluted "known-good" samples).
+   - Some messages may lack a captured reference sample (e.g., RegisterSession_Response).
+   - These gaps are treated as test coverage limitations, not protocol support limitations.
 
 ## Test Categories
 

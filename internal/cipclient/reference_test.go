@@ -6,7 +6,7 @@ import (
 
 func TestReferencePackets(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(LegacyCompatProfile)
+	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
 	// Test that reference packets are populated
 	expectedPackets := []string{
@@ -64,7 +64,7 @@ func TestReferencePackets(t *testing.T) {
 
 func TestCompareWithReference(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(LegacyCompatProfile)
+	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
 	// Test comparison with a reference packet
 	ref, ok := ReferencePackets["GetAttributeSingle_Request"]
@@ -118,7 +118,7 @@ func TestFindFirstDifference(t *testing.T) {
 
 func TestValidatePacketStructure(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(LegacyCompatProfile)
+	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
 	ref, ok := ReferencePackets["RegisterSession_Response"]
 	if !ok || len(ref.Data) == 0 {

@@ -29,7 +29,7 @@ ForwardOpen, etc.) and extracts them as reference packets for validation.
 
 It will look for PCAP files in:
   - baseline_captures/ (cipdip-generated captures)
-  - pcaps/normal/ (real-world captures for compliance/regression)
+  - pcaps/ (real-world captures, including normal/stress)
   - Or specify custom directories with --baseline-dir and --real-world-dir
 
 The extracted packets are normalized (session IDs zeroed) so they can be used for comparison
@@ -48,7 +48,7 @@ across different sessions.`,
 	}
 
 	cmd.Flags().StringVar(&flags.baselineDir, "baseline-dir", "baseline_captures", "Directory containing baseline PCAP files")
-cmd.Flags().StringVar(&flags.realWorldDir, "real-world-dir", "pcaps/normal", "Directory containing real-world PCAP files")
+cmd.Flags().StringVar(&flags.realWorldDir, "real-world-dir", "pcaps", "Directory containing real-world PCAP files")
 	cmd.Flags().StringVar(&flags.outputFile, "output", "", "Output Go source file (default: update reference.go directly)")
 
 	return cmd
@@ -56,6 +56,7 @@ cmd.Flags().StringVar(&flags.realWorldDir, "real-world-dir", "pcaps/normal", "Di
 
 func runExtractReference(flags *extractFlags) error {
 	fmt.Fprintf(os.Stdout, "Extracting reference packets from PCAP files...\n\n")
+	cipclient.ResetReferencePackets()
 
 	// Find PCAP files
 	var pcapFiles []string

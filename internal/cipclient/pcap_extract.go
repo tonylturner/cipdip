@@ -241,16 +241,11 @@ func generatePacketDescription(command uint16, isRequest bool, data []byte) stri
 		dir = "Response"
 	}
 
-	// Try to identify CIP service if it's SendRRData
-	if command == 0x006F && len(data) >= 6 {
-		cipData := data[6:]
-		if CurrentProtocolProfile().UseCPF {
-			if parsed, err := ParseSendRRDataRequest(data); err == nil {
-				cipData = parsed
-			}
-		}
+	// Try to identify CIP service if it's SendRRData/SendUnitData
+	if (command == 0x006F || command == 0x0070) && len(data) >= 6 {
+		cipData, _, _ := extractCIPFromENIP(ENIPPacket{Data: data})
 		if len(cipData) > 0 {
-			serviceCode := cipData[0]
+			serviceCode := cipData[0] &^ 0x80
 			serviceName := getCIPServiceName(serviceCode)
 			if serviceName != "" {
 				return fmt.Sprintf("%s %s (%s)", cmdName, dir, serviceName)
@@ -306,6 +301,9 @@ func FindReferencePackets(pcapFile string) (map[string]ENIPPacket, error) {
 
 // getReferenceKey returns a key for the reference packet map
 func getReferenceKey(pkt ENIPPacket) string {
+	if !isLittleEndianENIP(pkt.FullPacket) {
+		return ""
+	}
 	switch pkt.Command {
 	case 0x0065: // RegisterSession
 		if pkt.IsRequest {
@@ -314,35 +312,31 @@ func getReferenceKey(pkt ENIPPacket) string {
 		return "RegisterSession_Response"
 	case 0x006F: // SendRRData
 		if len(pkt.Data) >= 6 {
-			cipData := pkt.Data[6:]
-			if CurrentProtocolProfile().UseCPF {
-				if parsed, err := ParseSendRRDataRequest(pkt.Data); err == nil {
-					cipData = parsed
-				}
-			}
+			cipData, _, _ := extractCIPFromENIP(pkt)
 			if len(cipData) > 0 {
-				serviceCode := cipData[0]
+				serviceCode := cipData[0] &^ 0x80
+				isResponse := cipData[0]&0x80 != 0
 				switch CIPServiceCode(serviceCode) {
 				case CIPServiceGetAttributeSingle:
-					if pkt.IsRequest {
-						return "GetAttributeSingle_Request"
+					if isResponse {
+						return "GetAttributeSingle_Response"
 					}
-					return "GetAttributeSingle_Response"
+					return "GetAttributeSingle_Request"
 				case CIPServiceSetAttributeSingle:
-					if pkt.IsRequest {
-						return "SetAttributeSingle_Request"
+					if isResponse {
+						return "SetAttributeSingle_Response"
 					}
-					return "SetAttributeSingle_Response"
+					return "SetAttributeSingle_Request"
 				case CIPServiceForwardOpen:
-					if pkt.IsRequest {
-						return "ForwardOpen_Request"
+					if isResponse {
+						return "ForwardOpen_Response"
 					}
-					return "ForwardOpen_Response"
+					return "ForwardOpen_Request"
 				case CIPServiceForwardClose:
-					if pkt.IsRequest {
-						return "ForwardClose_Request"
+					if isResponse {
+						return "ForwardClose_Response"
 					}
-					return "ForwardClose_Response"
+					return "ForwardClose_Request"
 				}
 			}
 		}
@@ -357,6 +351,18 @@ func getReferenceKey(pkt ENIPPacket) string {
 	default:
 		return ""
 	}
+}
+
+func isLittleEndianENIP(packet []byte) bool {
+	if len(packet) < 24 {
+		return false
+	}
+	command := binary.LittleEndian.Uint16(packet[0:2])
+	if !isValidENIPCommand(command) {
+		return false
+	}
+	length := binary.LittleEndian.Uint16(packet[2:4])
+	return len(packet) >= 24+int(length)
 }
 
 // PopulateReferenceLibraryFromPCAP populates the reference library from a PCAP file
