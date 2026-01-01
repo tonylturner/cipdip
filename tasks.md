@@ -9,29 +9,38 @@
 
 ## Plan (tracked steps)
 - [x] 1) Baseline compliance audit: confirm current encoding vs ODVA (endianness, EPATH path size, CPF items, SendRRData/SendUnitData format, ForwardOpen/Close semantics).
-- [ ] 2) Implement strict ODVA mode + explicit vendor-variant toggles (configurable). (in progress)
-- [ ] 3) Add DPI stress scenarios and metrics (jitter, percentiles, misclassification).
-- [ ] 4) Tighten Forward Open state handling and I/O framing (CPF, sequence counts).
+- [x] 2) Implement strict ODVA mode + explicit vendor-variant toggles (configurable).
+- [x] 3) Add DPI stress scenarios and metrics (jitter, percentiles, misclassification).
+- [x] 4) Tighten Forward Open state handling and I/O framing (CPF, sequence counts).
 - [ ] 5) Docs audit: mark stale content, consolidate, and prune as approved. (plan drafted)
 - [ ] 6) Windows sanity pass: paths, file permissions, build/test commands.
 
 ## Work Items
 ### Protocol compliance + modes
 - [ ] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
-- [ ] Add "vendor_variant" mode family (e.g., "rockwell", "schneider", "siemens") with explicit deviations.
-- [ ] Add config validation to prevent incompatible combinations.
- - [x] Add protocol_variants list support for vendor_variants scenario.
+- [x] Add "vendor_variant" mode family (e.g., "rockwell", "schneider", "siemens") with explicit deviations.
+- [x] Add config validation to prevent incompatible combinations.
+- [x] Add protocol_variants list support for vendor_variants scenario.
+- [ ] Enforce CPF presence for UCMM/connected paths in strict_odva (allow legacy_compat exceptions).
+- [ ] Require CIP path size for UCMM requests in strict_odva (based on PCAP evidence).
+- [x] Add CIP service/class enums for reference coverage (error_response, member ops, Rockwell tag services, Connection Manager extras).
+- [ ] Implement symbolic path segments and tag addressing support.
+- [ ] Add Multiple_Service_Packet support (encode/decode).
+- [ ] Add fragmentation support for Read/Write Tag Fragmented.
+- [ ] Add basic CIP data type codec library (BOOL/INT/DINT/REAL/STRING).
+- [ ] Add Identity Object attribute reads (Class 0x01, attributes 1-7) on server.
+- [ ] Audit legacy code paths for stale assumptions (big-endian, non-CPF, pre-profile logic) and remove/guard them.
 
 ### ENIP/CIP encoding fixes
-- [ ] Verify/align byte order in ENIP encapsulation and CIP multi-byte fields.
-- [ ] Ensure CIP request includes path size (words) where required and path padding rules.
-- [ ] Ensure CIP response includes reserved/additional-status-size semantics per spec.
-- [ ] Add compliance tests to lock behavior for strict vs variant modes.
+- [x] Verify/align byte order in ENIP encapsulation and CIP multi-byte fields.
+- [x] Ensure CIP request includes path size (words) where required and path padding rules.
+- [x] Ensure CIP response includes reserved/additional-status-size semantics per spec.
+- [x] Add compliance tests to lock behavior for strict vs variant modes.
 
 ### Connected messaging + I/O
-- [ ] Track Forward Open state (connection IDs, owner, inactivity timeout).
-- [ ] Require active connection for SendUnitData; reject or drop when invalid.
-- [ ] Implement CPF items and sequence counters for class 1 I/O.
+- [x] Track Forward Open state (connection IDs, owner, inactivity timeout).
+- [x] Require active connection for SendUnitData; reject or drop when invalid.
+- [x] Implement CPF items and sequence counters for class 1 I/O.
 - [ ] Add I/O jitter/burst options for DPI stress.
 
 ### Scenarios + metrics
@@ -39,8 +48,16 @@
 - [x] Add "vendor_variants" scenario to replay known deviations safely.
 - [x] Add "mixed_state" scenario (UCMM + connected I/O interleaving).
 - [x] Extend metrics: percentiles, jitter, error class, expected/observed outcome.
+- [ ] Add Rockwell ENBT replay pack (edge_targets + custom services from PCAP).
+- [ ] Re-run reference extraction to populate response packets using updated PCAP parser.
+- [x] Add optional edge scenarios for Rockwell tag services and Connection Manager extras.
+- [x] Add validation hooks for error_response/restore/save/nop/member ops (strict ODVA checks).
 
 ### Docs cleanup
+- [ ] Line-by-line validation of all docs in `docs/` (excluding `docs/vendors/`) against current ODVA framing and implementation.
+- [ ] Fix outdated ODVA compliance notes (e.g., COMPLIANCE_TESTING.md big-endian assumptions).
+- [ ] Audit root-level markdown docs for alignment (README.md, STATUS.md, PROJECT_STATUS.md, PROJECT_SUMMARY.md, SUMMARY.md, EXAMPLES.md, CHANGELOG.md).
+- [ ] Align COMPLIANCE.md and COMPLIANCE_TESTING.md with little-endian framing + CPF/path-size expectations.
 - [ ] Inventory docs with value status (active, stale, replace, remove).
 - [ ] Consolidate compliance docs (reduce duplication, highlight strict vs variants).
 - [ ] Remove or archive stale docs only after approval.
@@ -53,6 +70,10 @@
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
 - Protocol accuracy is the primary objective; tooling changes should be scoped to DPI needs.
 - PCAP on deck: `C:\Users\tony\Documents\GitHub\cipdip\pcaps\ENIP.pcap` for reference extraction.
+- Added pcap-summary and improved ENIP extraction to handle multi-frame TCP payloads.
+- Re-run `cipdip pcap-summary --input pcaps/ENIP.pcap` to update counts after response-code normalization.
+- PCAP observations: CPF present in nearly all ENIP frames, CIP path size present in all UCMM requests, no 16-bit EPATH segments, heavy vendor-specific services (0x4B/0x4D/0x52/0x51).
+- Vendor identified from PCAP: Rockwell (Vendor ID 0x0001), Product 1756-ENBT/A. Use `rockwell_enbt` profile only when identity matches.
 
 ## Audit findings (initial)
 - CIP request encoding omits path size byte and assumes no reserved fields in responses; tests reflect the same.

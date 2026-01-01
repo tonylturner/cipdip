@@ -24,6 +24,10 @@ protocol_variants:
     variant: "rockwell_v32"
   - mode: "vendor_variant"
     variant: "schneider_m580"
+  - mode: "vendor_variant"
+    variant: "pcap_capture"
+  - mode: "vendor_variant"
+    variant: "rockwell_enbt"     # use only when Vendor ID=0x0001 and Product Name=1756-ENBT/A
 
 # CIP targets to read.
 # Each entry specifies a CIP path (class/instance/attribute) to read.
@@ -76,6 +80,108 @@ edge_targets:
     instance: 0x0100
     attribute: 0x0100
     expected_outcome: "success"
+  - name: "InvalidClass_Error"
+    service: "get_attribute_single"
+    class: 0xFFFF
+    instance: 0x0001
+    attribute: 0x0001
+    expected_outcome: "error"
+  - name: "PCAP_Class0067_Path"
+    service: "get_attribute_single"
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Class00A1_Path"
+    service: "get_attribute_single"
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x4B"
+    service: "custom"
+    service_code: 0x4B
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x4D"
+    service: "custom"
+    service_code: 0x4D
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x52"
+    service: "custom"
+    service_code: 0x52
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x51"
+    service: "custom"
+    service_code: 0x51
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Read_Tag"
+    service: "custom"
+    service_code: 0x4C
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Write_Tag"
+    service: "custom"
+    service_code: 0x4D
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Read_Tag_Fragmented"
+    service: "custom"
+    service_code: 0x52
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Write_Tag_Fragmented"
+    service: "custom"
+    service_code: 0x53
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Get_Connection_Data"
+    service: "custom"
+    service_code: 0x56
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Search_Connection_Data"
+    service: "custom"
+    service_code: 0x57
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Get_Connection_Owner"
+    service: "custom"
+    service_code: 0x5A
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Large_Forward_Open"
+    service: "custom"
+    service_code: 0x5B
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
 
 # Optional per-scenario jitter in milliseconds (0 disables).
 scenario_jitter_ms: 0

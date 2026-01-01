@@ -134,7 +134,7 @@ The implementation follows ODVA EtherNet/IP specifications:
 - **ENIP Commands**: RegisterSession (0x0065), UnregisterSession (0x0066), SendRRData (0x006F), SendUnitData (0x0070), ListIdentity (0x0063)
 - **CIP Services**: Get_Attribute_Single (0x0E), Set_Attribute_Single (0x10), Forward_Open (0x54), Forward_Close (0x4E)
 - **EPATH Encoding**: Proper segment encoding (class, instance, attribute)
-- **Byte Order**: All multi-byte values use big-endian (network byte order)
+- **Byte Order**: All multi-byte values use little-endian (per ENIP/CIP spec)
 - **Session Management**: Proper session ID allocation and tracking
 
 Compliance is validated through:

@@ -25,6 +25,26 @@ const (
 	CIPServiceGetAttributeSingle CIPServiceCode = 0x0E
 	CIPServiceSetAttributeSingle CIPServiceCode = 0x10
 	CIPServiceFindNextObjectInst CIPServiceCode = 0x11
+	CIPServiceErrorResponse      CIPServiceCode = 0x14
+	CIPServiceRestore            CIPServiceCode = 0x15
+	CIPServiceSave               CIPServiceCode = 0x16
+	CIPServiceNoOp               CIPServiceCode = 0x17
+	CIPServiceGetMember          CIPServiceCode = 0x18
+	CIPServiceSetMember          CIPServiceCode = 0x19
+	CIPServiceInsertMember       CIPServiceCode = 0x1A
+	CIPServiceRemoveMember       CIPServiceCode = 0x1B
+	CIPServiceGroupSync          CIPServiceCode = 0x1C
+	CIPServiceReadTag            CIPServiceCode = 0x4C
+	CIPServiceWriteTag           CIPServiceCode = 0x4D
+	CIPServiceReadModifyWrite    CIPServiceCode = 0x4E
+	CIPServiceReadTagFragmented  CIPServiceCode = 0x52
+	CIPServiceWriteTagFragmented CIPServiceCode = 0x53
+	CIPServiceGetInstanceAttrList CIPServiceCode = 0x55
+	CIPServiceUnconnectedSend    CIPServiceCode = 0x52
+	CIPServiceGetConnectionData  CIPServiceCode = 0x56
+	CIPServiceSearchConnectionData CIPServiceCode = 0x57
+	CIPServiceGetConnectionOwner CIPServiceCode = 0x5A
+	CIPServiceLargeForwardOpen   CIPServiceCode = 0x5B
 	CIPServiceForwardOpen        CIPServiceCode = 0x54
 	CIPServiceForwardClose       CIPServiceCode = 0x4E
 )
@@ -373,6 +393,44 @@ func (s CIPServiceCode) String() string {
 		return "Set_Attribute_Single"
 	case CIPServiceFindNextObjectInst:
 		return "Find_Next_Object_Instance"
+	case CIPServiceErrorResponse:
+		return "Error_Response"
+	case CIPServiceRestore:
+		return "Restore"
+	case CIPServiceSave:
+		return "Save"
+	case CIPServiceNoOp:
+		return "No_Op"
+	case CIPServiceGetMember:
+		return "Get_Member"
+	case CIPServiceSetMember:
+		return "Set_Member"
+	case CIPServiceInsertMember:
+		return "Insert_Member"
+	case CIPServiceRemoveMember:
+		return "Remove_Member"
+	case CIPServiceGroupSync:
+		return "Group_Sync"
+	case CIPServiceReadTag:
+		return "Read_Tag"
+	case CIPServiceWriteTag:
+		return "Write_Tag"
+	case CIPServiceReadModifyWrite:
+		return "Forward_Close/Read_Modify_Write"
+	case CIPServiceReadTagFragmented:
+		return "Read_Tag_Fragmented/Unconnected_Send"
+	case CIPServiceWriteTagFragmented:
+		return "Write_Tag_Fragmented"
+	case CIPServiceGetInstanceAttrList:
+		return "Get_Instance_Attribute_List"
+	case CIPServiceGetConnectionData:
+		return "Get_Connection_Data"
+	case CIPServiceSearchConnectionData:
+		return "Search_Connection_Data"
+	case CIPServiceGetConnectionOwner:
+		return "Get_Connection_Owner"
+	case CIPServiceLargeForwardOpen:
+		return "Large_Forward_Open"
 	case CIPServiceForwardOpen:
 		return "Forward_Open"
 	case CIPServiceForwardClose:

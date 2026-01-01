@@ -22,7 +22,7 @@ Our compliance tests aim to validate **ODVA specification compliance**, not just
 
 3. **Implementation Validation**:
    - Our code produces the expected structures
-   - Byte order is correct (big-endian)
+   - Byte order is correct (little-endian for ENIP/CIP per spec)
    - Length fields match actual data
    - Required fields are present
 
@@ -52,7 +52,7 @@ Our compliance tests aim to validate **ODVA specification compliance**, not just
 These tests verify packet structures match ODVA requirements:
 
 - **ENIP Header**: 24-byte header with correct field order
-- **Byte Order**: All multi-byte fields use big-endian (ODVA requirement)
+- **Byte Order**: All multi-byte fields use little-endian (ODVA requirement)
 - **Length Fields**: Length fields match actual data (ODVA requirement)
 - **Required Fields**: All required fields are present
 
@@ -88,7 +88,7 @@ Tests verify EPATH encoding follows ODVA rules:
 
 - 8-bit segments: 0x20 (class), 0x24 (instance), 0x30 (attribute)
 - 16-bit segments: 0x21 (class), 0x25 (instance)
-- Big-endian encoding for 16-bit values
+- Little-endian encoding for 16-bit values
 - Boundary conditions (0xFF max for 8-bit, 0x0100 min for 16-bit)
 
 **ODVA Reference**: CIP Specification Volume 1, Section 3-5.2
@@ -145,7 +145,7 @@ The new `compliance_audit_test.go` file contains 15+ tests that audit our implem
 2. **RegisterSession**: Validates protocol version=1, option flags=0, session ID=0 in request
 3. **SendRRData Structure**: Validates Interface Handle=0 for UCMM, timeout field, length calculation
 4. **SendUnitData Structure**: Validates Connection ID encoding, length calculation
-5. **EPATH Encoding**: Validates 8-bit/16-bit segment types, big-endian encoding, boundary conditions
+5. **EPATH Encoding**: Validates 8-bit/16-bit segment types, little-endian encoding, boundary conditions
 6. **ForwardOpen Structure**: Validates service code, Connection Manager path, RPI encoding (microseconds), connection parameters
 7. **ForwardClose Structure**: Validates service code, Connection Manager path, connection path with connection ID
 8. **CIP Response Structure**: Validates service code echo, status byte, payload structure

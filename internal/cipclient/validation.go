@@ -80,6 +80,14 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 	if !isValidCIPService(req.Service) {
 		return fmt.Errorf("invalid CIP service code: 0x%02X", req.Service)
 	}
+	if v.strict {
+		if uint8(req.Service)&0x80 != 0 {
+			return fmt.Errorf("response service code not allowed in request: 0x%02X", req.Service)
+		}
+		if req.Service == CIPServiceErrorResponse {
+			return fmt.Errorf("error response service not allowed in request")
+		}
+	}
 
 	// Validate path
 	if err := v.validateCIPPath(req.Path); err != nil {
@@ -102,6 +110,10 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 		// Set_Attribute_Single should have payload
 		if len(req.Payload) == 0 {
 			return fmt.Errorf("Set_Attribute_Single requires payload")
+		}
+	case CIPServiceWriteTag, CIPServiceWriteTagFragmented, CIPServiceSetMember, CIPServiceInsertMember, CIPServiceRemoveMember:
+		if len(req.Payload) == 0 && v.strict {
+			return fmt.Errorf("%s requires payload", req.Service)
 		}
 	}
 
@@ -291,6 +303,26 @@ func isValidCIPService(svc CIPServiceCode) bool {
 		CIPServiceGetAttributeSingle,
 		CIPServiceSetAttributeSingle,
 		CIPServiceFindNextObjectInst,
+		CIPServiceErrorResponse,
+		CIPServiceRestore,
+		CIPServiceSave,
+		CIPServiceNoOp,
+		CIPServiceGetMember,
+		CIPServiceSetMember,
+		CIPServiceInsertMember,
+		CIPServiceRemoveMember,
+		CIPServiceGroupSync,
+		CIPServiceReadTag,
+		CIPServiceWriteTag,
+		CIPServiceReadModifyWrite,
+		CIPServiceReadTagFragmented,
+		CIPServiceWriteTagFragmented,
+		CIPServiceGetInstanceAttrList,
+		CIPServiceUnconnectedSend,
+		CIPServiceGetConnectionData,
+		CIPServiceSearchConnectionData,
+		CIPServiceGetConnectionOwner,
+		CIPServiceLargeForwardOpen,
 		CIPServiceForwardOpen,
 		CIPServiceForwardClose:
 		return true
