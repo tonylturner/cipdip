@@ -400,7 +400,87 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		seen[key] = struct{}{}
 	}
 
+	overrides := map[uint16][]config.CIPTarget{
+		cipclient.CIPClassFileObject: {
+			{
+				Name:        "File_Class_Max_Instance",
+				Service:     config.ServiceCustom,
+				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				Class:       cipclient.CIPClassFileObject,
+				Instance:    0x0000,
+				Attribute:   0x0002,
+			},
+		},
+		cipclient.CIPClassEventLog: {
+			{
+				Name:        "Event_Log_Time_Format",
+				Service:     config.ServiceCustom,
+				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				Class:       cipclient.CIPClassEventLog,
+				Instance:    0x0000,
+				Attribute:   0x0020,
+			},
+		},
+		cipclient.CIPClassTimeSync: {
+			{
+				Name:        "Time_Sync_PTP_Enable",
+				Service:     config.ServiceCustom,
+				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				Class:       cipclient.CIPClassTimeSync,
+				Instance:    0x0001,
+				Attribute:   0x0001,
+			},
+		},
+		cipclient.CIPClassModbus: {
+			{
+				Name:              "Modbus_Read_Holding_Registers",
+				Service:           config.ServiceCustom,
+				ServiceCode:       uint8(cipclient.CIPServiceReadModifyWrite),
+				Class:             cipclient.CIPClassModbus,
+				Instance:          0x0001,
+				Attribute:         0x0000,
+				RequestPayloadHex: "00000100",
+			},
+		},
+		cipclient.CIPClassMotionAxis: {
+			{
+				Name:        "Motion_Get_Axis_Attributes_List",
+				Service:     config.ServiceCustom,
+				ServiceCode: uint8(cipclient.CIPServiceExecutePCCC),
+				Class:       cipclient.CIPClassMotionAxis,
+				Instance:    0x0001,
+				Attribute:   0x0000,
+			},
+		},
+		cipclient.CIPClassSafetySupervisor: {
+			{
+				Name:        "Safety_Supervisor_Device_Status",
+				Service:     config.ServiceCustom,
+				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				Class:       cipclient.CIPClassSafetySupervisor,
+				Instance:    0x0001,
+				Attribute:   0x000B,
+			},
+		},
+		cipclient.CIPClassSafetyValidator: {
+			{
+				Name:        "Safety_Validator_State",
+				Service:     config.ServiceCustom,
+				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				Class:       cipclient.CIPClassSafetyValidator,
+				Instance:    0x0001,
+				Attribute:   0x0001,
+			},
+		},
+	}
+
 	for _, classID := range classList {
+		if targets, ok := overrides[classID]; ok {
+			for _, target := range targets {
+				addTarget(target)
+			}
+			continue
+		}
 		addTarget(config.CIPTarget{
 			Name:        fmt.Sprintf("Profile_Class_0x%04X", classID),
 			Service:     config.ServiceCustom,

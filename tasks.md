@@ -23,9 +23,10 @@
 - [x] Add protocol_variants list support for vendor_variants scenario.
 - [x] Enforce CPF presence for UCMM/connected paths in strict_odva (allow legacy_compat exceptions).
 - [ ] Require CIP path size for UCMM requests in strict_odva (based on PCAP evidence).
+- [x] Require CIP path size for UCMM requests in strict_odva (based on PCAP evidence).
 - [x] Add CIP service/class enums for reference coverage (error_response, member ops, Rockwell tag services, Connection Manager extras).
 - [x] Implement symbolic path segments and tag addressing support.
-- [ ] Add Multiple_Service_Packet support (encode/decode).
+- [x] Add Multiple_Service_Packet support (encode/decode).
 - [ ] Add fragmentation support for Read/Write Tag Fragmented.
 - [ ] Add basic CIP data type codec library (BOOL/INT/DINT/REAL/STRING).
 - [x] Add Identity Object attribute reads (Class 0x01, attributes 1-7) on server.

@@ -143,6 +143,30 @@ io_connections:
     instance: 0x65
 ```
 
+### Client Config with CIP Profiles + Evidence-Based Targets
+
+```yaml
+# cipdip_client.yaml
+adapter:
+  name: "Profile Coverage Target"
+  port: 44818
+
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+
+# Optional: override or extend with explicit targets
+custom_targets:
+  - name: "Modbus_Read_Holding_Registers"
+    service: "custom"
+    service_code: 0x4E
+    class: 0x44
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: "00000100" # start=0x0000, qty=0x0001 (UINTs)
+```
+
 ### Client Config for Unconnected Send
 
 ```yaml

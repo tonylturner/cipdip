@@ -102,6 +102,8 @@ cip_profiles:
 - Supported profiles: `energy`, `safety`, `motion`, or `all`.
 - `all` expands to `energy`, `safety`, and `motion`.
 - Use `--cip-profile` on the CLI to override or add profiles without editing YAML.
+- CIPDIP also includes a broader baseline class set when profiles are enabled, covering File Object, Event Log, Time Sync, Modbus, and Symbol/Template classes.
+- For classes with limited public payload layouts, CIPDIP uses conservative `Get_Attribute_Single` probes or minimal request payloads. Use `custom_targets` for explicit payload control.
 
 #### 2.3 `cip_profile_classes` Section
 
@@ -119,6 +121,22 @@ cip_profile_classes:
 **Notes:**
 - Overrides take precedence over built-in defaults for a profile.
 - Useful when you need to align vendor profiles to specific application classes.
+- Profile auto-targets are adjusted for some classes based on public evidence. You can override or disable by providing your own `custom_targets`.
+
+#### 2.4 Profile Auto-Targets (evidence-based defaults)
+
+When `cip_profiles` is enabled, CIPDIP creates additional `custom_targets` for classes where public sources limit safe defaults. These are intended to confirm DPI behavior without relying on unpublished ODVA layouts.
+
+Current defaults:
+- **File Object (0x37):** `Get_Attribute_Single` instance 0 attr 0x02 (Max Instance)
+- **Event Log (0x41):** `Get_Attribute_Single` instance 0 attr 0x20 (Time Format)
+- **Time Sync (0x43):** `Get_Attribute_Single` instance 1 attr 0x01 (PTP Enable)
+- **Modbus (0x44):** `Read Holding Registers` (service 0x4E) instance 1 payload `00000100` (start=0x0000, qty=0x0001)
+- **Motion Axis (0x42):** `Get Axis Attributes List` (service 0x4B) instance 1
+- **Safety Supervisor (0x39):** `Get_Attribute_Single` instance 1 attr 0x0B (Device Status)
+- **Safety Validator (0x3A):** `Get_Attribute_Single` instance 1 attr 0x01 (Validator State)
+
+If you need vendor-specific payloads (e.g., File Transfer, Modbus writes, Safety Reset), add `custom_targets` with `request_payload_hex`.
 
 #### 3. `read_targets` Section
 

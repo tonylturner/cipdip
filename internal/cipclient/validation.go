@@ -101,6 +101,15 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 
 	// Service-specific validation
 	switch req.Service {
+	case CIPServiceMultipleService:
+		if v.strict {
+			if req.Path.Class != CIPClassMessageRouter || req.Path.Instance != 0x0001 {
+				return fmt.Errorf("Multiple_Service_Packet requires Message Router class 0x0002/instance 0x0001")
+			}
+			if len(req.Payload) < 4 {
+				return fmt.Errorf("Multiple_Service_Packet payload too short")
+			}
+		}
 	case CIPServiceGetAttributeSingle:
 		// Get_Attribute_Single should not have payload
 		if len(req.Payload) > 0 && v.strict {
