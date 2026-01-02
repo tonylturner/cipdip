@@ -47,25 +47,3 @@ func BuildWriteTagPayload(typeCode uint16, elementCount uint16, data []byte) []b
 	copy(payload[4:], data)
 	return payload
 }
-
-// CIPTypeCode returns a CIP type code for a tag data type.
-func CIPTypeCode(tagType string) uint16 {
-	switch tagType {
-	case "BOOL":
-		return 0x00C1
-	case "SINT":
-		return 0x00C2
-	case "INT":
-		return 0x00C3
-	case "DINT":
-		return 0x00C4
-	case "LINT":
-		return 0x00C5
-	case "REAL":
-		return 0x00CA
-	case "LREAL":
-		return 0x00CB
-	default:
-		return 0x00C4
-	}
-}

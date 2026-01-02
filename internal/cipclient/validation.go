@@ -121,12 +121,24 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 			return fmt.Errorf("Set_Attribute_Single requires payload")
 		}
 	case CIPServiceUnconnectedSend:
-		if len(req.Payload) < 4 && v.strict {
-			return fmt.Errorf("Unconnected_Send requires payload")
+		if req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
+			if len(req.Payload) < 4 && v.strict {
+				return fmt.Errorf("Unconnected_Send requires payload")
+			}
+		} else {
+			if len(req.Payload) == 0 && v.strict {
+				return fmt.Errorf("Read_Tag_Fragmented requires payload")
+			}
+			if v.strict && len(req.Payload) < 6 {
+				return fmt.Errorf("Read_Tag_Fragmented requires element count + byte offset")
+			}
 		}
 	case CIPServiceWriteTag, CIPServiceWriteTagFragmented, CIPServiceSetMember, CIPServiceInsertMember, CIPServiceRemoveMember:
 		if len(req.Payload) == 0 && v.strict {
 			return fmt.Errorf("%s requires payload", req.Service)
+		}
+		if req.Service == CIPServiceWriteTagFragmented && v.strict && len(req.Payload) < 8 {
+			return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and byte offset")
 		}
 	}
 

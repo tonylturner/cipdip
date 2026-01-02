@@ -27,10 +27,10 @@
 - [x] Add CIP service/class enums for reference coverage (error_response, member ops, Rockwell tag services, Connection Manager extras).
 - [x] Implement symbolic path segments and tag addressing support.
 - [x] Add Multiple_Service_Packet support (encode/decode).
-- [ ] Add fragmentation support for Read/Write Tag Fragmented.
-- [ ] Add basic CIP data type codec library (BOOL/INT/DINT/REAL/STRING).
+- [x] Add fragmentation support for Read/Write Tag Fragmented.
+- [x] Add basic CIP data type codec library (BOOL/INT/DINT/REAL/STRING).
 - [x] Add Identity Object attribute reads (Class 0x01, attributes 1-7) on server.
-- [ ] Audit legacy code paths for stale assumptions (big-endian, non-CPF, pre-profile logic) and remove/guard them.
+- [x] Audit legacy code paths for stale assumptions (big-endian, non-CPF, pre-profile logic) and remove/guard them.
 
 ### ENIP/CIP encoding fixes
 - [x] Verify/align byte order in ENIP encapsulation and CIP multi-byte fields.

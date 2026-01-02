@@ -4,7 +4,6 @@ package scenario
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -151,7 +150,8 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 			counter++
 			oToTData := make([]byte, connCfg.OToTSizeBytes)
 			if len(oToTData) >= 4 {
-				binary.BigEndian.PutUint32(oToTData, counter)
+				order := cipclient.CurrentProtocolProfile().CIPByteOrder
+				order.PutUint32(oToTData, counter)
 			} else {
 				// For smaller payloads, just use the counter as a byte
 				oToTData[0] = byte(counter)

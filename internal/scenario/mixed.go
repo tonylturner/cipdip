@@ -4,7 +4,6 @@ package scenario
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -214,7 +213,8 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 			// Encode value to bytes (using 32-bit integer for now)
 			valueBytes := make([]byte, 4)
-			binary.BigEndian.PutUint32(valueBytes, uint32(value))
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(valueBytes, uint32(value))
 
 			start := time.Now()
 			resp, err := client.WriteAttribute(ctx, path, valueBytes)

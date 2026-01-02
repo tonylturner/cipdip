@@ -335,6 +335,52 @@ func (c *ENIPClient) WriteTagByName(ctx context.Context, tagName string, typeCod
 	return c.InvokeService(ctx, req)
 }
 
+// ReadTagFragmented reads a Logix-style tag using Read_Tag_Fragmented (0x52).
+func (c *ENIPClient) ReadTagFragmented(ctx context.Context, path CIPPath, elementCount uint16, byteOffset uint32) (CIPResponse, error) {
+	payload := BuildReadTagFragmentedPayload(elementCount, byteOffset)
+	req := CIPRequest{
+		Service: CIPServiceReadTagFragmented,
+		Path:    path,
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// ReadTagFragmentedByName reads a Logix-style tag using a symbolic EPATH.
+func (c *ENIPClient) ReadTagFragmentedByName(ctx context.Context, tagName string, elementCount uint16, byteOffset uint32) (CIPResponse, error) {
+	payload := BuildReadTagFragmentedPayload(elementCount, byteOffset)
+	req := CIPRequest{
+		Service: CIPServiceReadTagFragmented,
+		Path:    CIPPath{Name: tagName},
+		RawPath: BuildSymbolicEPATH(tagName),
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// WriteTagFragmented writes a Logix-style tag using Write_Tag_Fragmented (0x53).
+func (c *ENIPClient) WriteTagFragmented(ctx context.Context, path CIPPath, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (CIPResponse, error) {
+	payload := BuildWriteTagFragmentedPayload(typeCode, elementCount, byteOffset, data)
+	req := CIPRequest{
+		Service: CIPServiceWriteTagFragmented,
+		Path:    path,
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// WriteTagFragmentedByName writes a Logix-style tag using a symbolic EPATH.
+func (c *ENIPClient) WriteTagFragmentedByName(ctx context.Context, tagName string, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (CIPResponse, error) {
+	payload := BuildWriteTagFragmentedPayload(typeCode, elementCount, byteOffset, data)
+	req := CIPRequest{
+		Service: CIPServiceWriteTagFragmented,
+		Path:    CIPPath{Name: tagName},
+		RawPath: BuildSymbolicEPATH(tagName),
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
 func (c *ENIPClient) fileObjectRequest(service CIPServiceCode, instance uint16, payload []byte) (CIPRequest, error) {
 	if instance == 0 {
 		return CIPRequest{}, fmt.Errorf("file object instance must be non-zero")

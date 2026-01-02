@@ -148,6 +148,70 @@ func (m *MockClient) WriteTagByName(ctx context.Context, tag string, typeCode ui
 	return m.WriteTag(ctx, cipclient.CIPPath{Name: tag}, typeCode, elementCount, data)
 }
 
+// ReadTagFragmented simulates a fragmented tag read.
+func (m *MockClient) ReadTagFragmented(ctx context.Context, path cipclient.CIPPath, elementCount uint16, byteOffset uint32) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{
+		Service: cipclient.CIPServiceReadTagFragmented,
+		Status:  0x00,
+		Path:    path,
+		Payload: make([]byte, 4),
+	}, nil
+}
+
+// ReadTagFragmentedByName simulates a fragmented tag read by symbolic name.
+func (m *MockClient) ReadTagFragmentedByName(ctx context.Context, tag string, elementCount uint16, byteOffset uint32) (cipclient.CIPResponse, error) {
+	return m.ReadTagFragmented(ctx, cipclient.CIPPath{Name: tag}, elementCount, byteOffset)
+}
+
+// WriteTagFragmented simulates a fragmented tag write.
+func (m *MockClient) WriteTagFragmented(ctx context.Context, path cipclient.CIPPath, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{
+		Service: cipclient.CIPServiceWriteTagFragmented,
+		Status:  0x00,
+		Path:    path,
+	}, nil
+}
+
+// WriteTagFragmentedByName simulates a fragmented tag write by symbolic name.
+func (m *MockClient) WriteTagFragmentedByName(ctx context.Context, tag string, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (cipclient.CIPResponse, error) {
+	return m.WriteTagFragmented(ctx, cipclient.CIPPath{Name: tag}, typeCode, elementCount, byteOffset, data)
+}
+
+// FileInitiateUpload simulates a File Object initiate upload.
+func (m *MockClient) FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiateUpload, Status: 0x00}, nil
+}
+
+// FileInitiateDownload simulates a File Object initiate download.
+func (m *MockClient) FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiateDownload, Status: 0x00}, nil
+}
+
+// FileInitiatePartialRead simulates a File Object initiate partial read.
+func (m *MockClient) FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiatePartialRead, Status: 0x00}, nil
+}
+
+// FileInitiatePartialWrite simulates a File Object initiate partial write.
+func (m *MockClient) FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiatePartialWrite, Status: 0x00}, nil
+}
+
+// FileUploadTransfer simulates a File Object upload transfer.
+func (m *MockClient) FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceUploadTransfer, Status: 0x00}, nil
+}
+
+// FileDownloadTransfer simulates a File Object download transfer.
+func (m *MockClient) FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceDownloadTransfer, Status: 0x00}, nil
+}
+
+// FileClear simulates a File Object clear file.
+func (m *MockClient) FileClear(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{Service: cipclient.CIPServiceClearFile, Status: 0x00}, nil
+}
+
 // InvokeUnconnectedSend simulates an Unconnected Send with embedded response.
 func (m *MockClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq cipclient.CIPRequest, opts cipclient.UnconnectedSendOptions) (cipclient.CIPResponse, cipclient.CIPResponse, error) {
 	outer := cipclient.CIPResponse{

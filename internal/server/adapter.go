@@ -4,7 +4,6 @@ package server
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -66,7 +65,8 @@ func NewAdapterPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*A
 			ap.rng.Read(asm.Data)
 		case "counter":
 			// Initialize counter in first bytes
-			binary.BigEndian.PutUint32(asm.Data[0:4], 0)
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(asm.Data[0:4], 0)
 		}
 
 		ap.assemblies[asmCfg.Name] = asm
@@ -179,7 +179,8 @@ func (ap *AdapterPersonality) updateAssemblyData(asm *Assembly) {
 	case "counter":
 		asm.Counter++
 		if len(asm.Data) >= 4 {
-			binary.BigEndian.PutUint32(asm.Data[0:4], asm.Counter)
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(asm.Data[0:4], asm.Counter)
 		}
 
 	case "random":
