@@ -1,6 +1,6 @@
 # Packet Capture Analysis Guide
 
-This guide explains how to use the `cipdip pcap`, `cipdip pcap-summary`, `cipdip pcap-report`, and `cipdip pcap-classify` commands to analyze EtherNet/IP packet captures.
+This guide explains how to use the `cipdip pcap`, `cipdip pcap-summary`, `cipdip pcap-report`, `cipdip pcap-coverage`, `cipdip pcap-classify`, and `cipdip pcap-dump` commands to analyze EtherNet/IP packet captures.
 
 ## Overview
 
@@ -11,7 +11,9 @@ The `cipdip pcap` command analyzes raw EtherNet/IP packet data and provides:
 - Hex dump output
 The `cipdip pcap-summary` command summarizes ENIP/CIP traffic across full PCAP files.
 The `cipdip pcap-report` command generates a Markdown report for many PCAPs at once.
+The `cipdip pcap-coverage` command summarizes CIP request coverage (service + class/instance/attribute).
 The `cipdip pcap-classify` command uses `tshark` to classify PCAPs for integrity/noise signals.
+The `cipdip pcap-dump` command extracts sample CIP packets for a specific service code.
 
 ## Basic Usage
 
@@ -232,6 +234,14 @@ Generate a multi-file report (no `tshark` required):
 cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
 ```
 
+## PCAP Coverage
+
+Summarize CIP request coverage across all PCAPs:
+
+```bash
+cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap_coverage.md
+```
+
 ## PCAP Classification
 
 Classify PCAPs using `tshark` filters:
@@ -244,6 +254,14 @@ If `tshark` is not on PATH, provide an explicit path:
 
 ```bash
 cipdip pcap-classify --pcap-dir pcaps --tshark "C:\Program Files\Wireshark\tshark.exe"
+```
+
+## PCAP Dump
+
+Extract sample CIP packets for a specific service code:
+
+```bash
+cipdip pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
 ```
 
 ## See Also

@@ -92,40 +92,74 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.
 	// For now, we'll support Get_Attribute_Single on a generic tag structure
 
 	switch req.Service {
-	case cipclient.CIPServiceGetAttributeSingle:
-		// Find a tag (simplified - use first tag for now)
-		lp.mu.RLock()
-		var tag *Tag
-		for _, t := range lp.tags {
-			tag = t
-			break
+	case cipclient.CIPServiceExecutePCCC:
+		if req.Path.Class != 0 && req.Path.Class != 0x0067 && req.Path.Class != 0x00A1 {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x08, // Service not supported
+			}, fmt.Errorf("Execute_PCCC unsupported for class 0x%04X", req.Path.Class)
 		}
-		lp.mu.RUnlock()
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+		}, nil
 
-		if tag == nil {
+	case cipclient.CIPServiceReadTag:
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x05,
+			}, err
+		}
+		return lp.handleReadTag(tag, req)
+
+	case cipclient.CIPServiceReadTagFragmented:
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x05,
+			}, err
+		}
+		return lp.handleReadTag(tag, req)
+
+	case cipclient.CIPServiceWriteTag:
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x05,
+			}, err
+		}
+		return lp.handleWriteTag(tag, req)
+
+	case cipclient.CIPServiceCode(0x51):
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x08,
+			Path:    req.Path,
+		}, nil
+
+	case cipclient.CIPServiceGetAttributeSingle:
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
 			return cipclient.CIPResponse{
 				Service: req.Service,
 				Status:  0x01, // General error
-			}, fmt.Errorf("no tags configured")
+			}, err
 		}
 
 		return lp.handleGetAttributeSingle(tag, req)
 
 	case cipclient.CIPServiceSetAttributeSingle:
-		// Find a tag
-		lp.mu.RLock()
-		var tag *Tag
-		for _, t := range lp.tags {
-			tag = t
-			break
-		}
-		lp.mu.RUnlock()
-
-		if tag == nil {
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
 			return cipclient.CIPResponse{
 				Service: req.Service,
 				Status:  0x01,
-			}, fmt.Errorf("no tags configured")
+			}, err
 		}
 
 		return lp.handleSetAttributeSingle(tag, req)
@@ -136,6 +170,36 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.
 			Status:  0x08, // Service not supported
 		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), req.Service)
 	}
+}
+
+func (lp *LogixPersonality) firstTag() *Tag {
+	lp.mu.RLock()
+	defer lp.mu.RUnlock()
+	for _, t := range lp.tags {
+		return t
+	}
+	return nil
+}
+
+func (lp *LogixPersonality) findTag(name string) *Tag {
+	lp.mu.RLock()
+	defer lp.mu.RUnlock()
+	return lp.tags[name]
+}
+
+func (lp *LogixPersonality) tagForRequest(req cipclient.CIPRequest) (*Tag, error) {
+	if req.Path.Name != "" {
+		tag := lp.findTag(req.Path.Name)
+		if tag == nil {
+			return nil, fmt.Errorf("tag not found: %s", req.Path.Name)
+		}
+		return tag, nil
+	}
+	tag := lp.firstTag()
+	if tag == nil {
+		return nil, fmt.Errorf("no tags configured")
+	}
+	return tag, nil
 }
 
 // handleGetAttributeSingle handles Get_Attribute_Single
@@ -155,6 +219,81 @@ func (lp *LogixPersonality) handleGetAttributeSingle(tag *Tag, req cipclient.CIP
 		Status:  0x00,
 		Path:    req.Path,
 		Payload: tag.Data,
+	}, nil
+}
+
+// handleReadTag handles Read_Tag (0x4C).
+func (lp *LogixPersonality) handleReadTag(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+	tag.mu.Lock()
+	defer tag.mu.Unlock()
+
+	now := time.Now()
+	if now.Sub(tag.LastUpdate) > 100*time.Millisecond {
+		lp.updateTagData(tag)
+		tag.LastUpdate = now
+	}
+
+	elementSize := getTagTypeSize(tag.Config.Type)
+	maxElements := 1
+	if tag.Config.ArrayLength > 0 {
+		maxElements = int(tag.Config.ArrayLength)
+	}
+
+	elementCount := uint16(1)
+	if len(req.Payload) >= 2 {
+		elementCount = binary.LittleEndian.Uint16(req.Payload[0:2])
+		if elementCount == 0 {
+			elementCount = 1
+		}
+	}
+	if int(elementCount) > maxElements {
+		elementCount = uint16(maxElements)
+	}
+
+	dataLen := int(elementCount) * elementSize
+	if dataLen > len(tag.Data) {
+		dataLen = len(tag.Data)
+	}
+
+	payload := make([]byte, 4+dataLen)
+	binary.LittleEndian.PutUint16(payload[0:2], cipclient.CIPTypeCode(tag.Config.Type))
+	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
+	copy(payload[4:], tag.Data[:dataLen])
+
+	return cipclient.CIPResponse{
+		Service: req.Service,
+		Status:  0x00,
+		Path:    req.Path,
+		Payload: payload,
+	}, nil
+}
+
+// handleWriteTag handles Write_Tag (0x4D).
+func (lp *LogixPersonality) handleWriteTag(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+	tag.mu.Lock()
+	defer tag.mu.Unlock()
+
+	if len(req.Payload) < 4 {
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x13, // Not enough data
+			Path:    req.Path,
+		}, fmt.Errorf("write tag payload too short")
+	}
+
+	data := req.Payload[4:]
+	copyLen := len(data)
+	if copyLen > len(tag.Data) {
+		copyLen = len(tag.Data)
+	}
+	if copyLen > 0 {
+		copy(tag.Data[:copyLen], data[:copyLen])
+	}
+
+	return cipclient.CIPResponse{
+		Service: req.Service,
+		Status:  0x00,
+		Path:    req.Path,
 	}, nil
 }
 

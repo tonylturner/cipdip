@@ -21,14 +21,14 @@
 - [x] Add "vendor_variant" mode family (e.g., "rockwell", "schneider", "siemens") with explicit deviations.
 - [x] Add config validation to prevent incompatible combinations.
 - [x] Add protocol_variants list support for vendor_variants scenario.
-- [ ] Enforce CPF presence for UCMM/connected paths in strict_odva (allow legacy_compat exceptions).
+- [x] Enforce CPF presence for UCMM/connected paths in strict_odva (allow legacy_compat exceptions).
 - [ ] Require CIP path size for UCMM requests in strict_odva (based on PCAP evidence).
 - [x] Add CIP service/class enums for reference coverage (error_response, member ops, Rockwell tag services, Connection Manager extras).
-- [ ] Implement symbolic path segments and tag addressing support.
+- [x] Implement symbolic path segments and tag addressing support.
 - [ ] Add Multiple_Service_Packet support (encode/decode).
 - [ ] Add fragmentation support for Read/Write Tag Fragmented.
 - [ ] Add basic CIP data type codec library (BOOL/INT/DINT/REAL/STRING).
-- [ ] Add Identity Object attribute reads (Class 0x01, attributes 1-7) on server.
+- [x] Add Identity Object attribute reads (Class 0x01, attributes 1-7) on server.
 - [ ] Audit legacy code paths for stale assumptions (big-endian, non-CPF, pre-profile logic) and remove/guard them.
 
 ### ENIP/CIP encoding fixes
@@ -48,10 +48,15 @@
 - [x] Add "vendor_variants" scenario to replay known deviations safely.
 - [x] Add "mixed_state" scenario (UCMM + connected I/O interleaving).
 - [x] Extend metrics: percentiles, jitter, error class, expected/observed outcome.
+- [x] Add "unconnected_send" scenario for UCMM wrapper tests with embedded CIP requests.
+- [x] Add optional force_status override for unconnected_send metrics.
 - [ ] Add Rockwell ENBT replay pack (edge_targets + custom services from PCAP).
 - [ ] Re-run reference extraction to populate response packets using updated PCAP parser.
 - [x] Add optional edge scenarios for Rockwell tag services and Connection Manager extras.
 - [x] Add validation hooks for error_response/restore/save/nop/member ops (strict ODVA checks).
+- [x] Build a PCAP reference coverage matrix (services + class/instance paths) from current `pcaps/` and compare to client/server support.
+- [x] Implement missing client/server handlers for any PCAP-referenced services/objects (track gaps explicitly).
+- [x] Add regression tests that assert PCAP-referenced services/objects are supported by client + server.
 
 ### Docs cleanup
 - [x] Relocate internal/audit docs to `notes/` and update references.
@@ -71,7 +76,7 @@
 ### Cross-platform note
 - [ ] Check path handling and example commands across macOS/Linux/Windows.
 - [ ] Confirm any scripts rely on OS-specific tools and provide alternatives or detection.
-- [ ] Investigate Unknown CIP service 0x51 on class 0x00A1 (pcaps/stress/ENIP.pcap) and update contextual service mapping if evidence supports.
+- [x] Investigate Unknown CIP service 0x51 on class 0x00A1 (pcaps/stress/ENIP.pcap) and update contextual service mapping if evidence supports.
 - [x] Consolidate PCAP analysis into Go CLI (`cipdip pcap-report` and `cipdip pcap-classify`), remove PowerShell scripts.
 
 ## Notes
@@ -85,6 +90,8 @@
 - Re-evaluation run: `go test ./internal/cipclient` and `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` (latest run successful).
 - New PCAP batch summaries generated in `notes/pcap_summary_report.md` and vendor rollup in `notes/pcap_vendor_summary.md`.
 - PCAP classification: `cipdip pcap-classify` (tshark-based) and `cipdip pcap-report` (summary report, no tshark).
+- Unknown CIP service 0x51 appears on class 0x00A1/instance 0x0001 with status 0x08 responses in CL5000EIP firmware-change pcaps and ENIP.pcap; evidence insufficient to map yet.
+- pcap-dump spot checks: 0x4B targets class 0x0067, 0x4E targets class 0x0006/instance 0x0001, 0x55 not observed in ENIP.pcap.
 - PCAP folders: `pcaps/normal` (compliance/regression), `pcaps/stress` (DPI stress), `pcaps/not_cip` (ignored).
 - Reference extraction run: `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`.
 - Reference extraction now filters for little-endian ENIP headers; `RegisterSession_Response` still missing from real-world captures.

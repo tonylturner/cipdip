@@ -6,7 +6,7 @@ CIPDIP is a Go-based command-line tool designed to generate repeatable, controll
 
 ## Features
 
-- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state
+- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state, unconnected_send
 - **Transport Support**: TCP 44818 (explicit messaging), UDP 2222 (I/O), UDP 44818 (discovery)
 - **Config-Driven**: YAML-based configuration for flexible device targeting
 - **Server Mode**: Emulator with adapter and logix-like personalities
@@ -100,8 +100,11 @@ cipdip pcap --input packet1.bin --compare packet2.bin
 # Output in JSON format
 cipdip pcap --input packet.bin --format json
 
-# Summarize ENIP/CIP traffic in a PCAP
-cipdip pcap-summary --input pcaps/stress/ENIP.pcap
+  # Summarize ENIP/CIP traffic in a PCAP
+  cipdip pcap-summary --input pcaps/stress/ENIP.pcap
+
+  # Summarize CIP request coverage across PCAPs
+  cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap_coverage.md
 ```
 
 ### Reference Extraction
@@ -182,6 +185,7 @@ adapter_assemblies:
 - **edge_vendor**: Vendor-specific edge cases (tag/connection manager extras)
 - **vendor_variants**: Replays traffic across protocol variants
 - **mixed_state**: Interleaves UCMM and connected I/O traffic
+- **unconnected_send**: UCMM Unconnected Send wrapper with embedded CIP requests
 
 ## Command Reference
 
@@ -229,7 +233,7 @@ Scanner mode that connects to CIP targets and generates traffic.
 
 **Required flags:**
 - `--ip`: Target CIP adapter IP address
-- `--scenario`: Scenario name (baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state)
+- `--scenario`: Scenario name (baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state|unconnected_send)
 
 **Optional flags:**
 - `--port`: TCP port (default: 44818)
@@ -240,6 +244,7 @@ Scanner mode that connects to CIP targets and generates traffic.
 - `--metrics-file`: Metrics output file path
 - `--verbose`: Enable verbose output
 - `--debug`: Enable debug output
+- `--cip-profile`: CIP application profile(s) (energy|safety|motion|all, comma-separated)
 
 ### `cipdip server`
 
@@ -251,6 +256,7 @@ Server/emulator mode that acts as a CIP endpoint.
 - `--personality`: Server personality (adapter|logix_like, default: adapter)
 - `--server-config`: Server config file path (default: cipdip_server.yaml)
 - `--enable-udp-io`: Enable UDP I/O on port 2222 (default: false)
+- `--cip-profile`: CIP application profile(s) (energy|safety|motion|all, comma-separated)
 
 ### `cipdip discover`
 

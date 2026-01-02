@@ -29,6 +29,22 @@ protocol_variants:
   - mode: "vendor_variant"
     variant: "rockwell_enbt"     # use only when Vendor ID=0x0001 and Product Name=1756-ENBT/A
 
+# Optional CIP application profiles (comma-separated via CLI or list in YAML)
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+  # - "energy"
+  # - "all"
+
+# Optional profile class overrides (use hex class IDs)
+cip_profile_classes:
+  energy:
+    - 0x004E # Base Energy Object
+    - 0x004F # Electrical Energy Object
+    - 0x0050 # Non-Electrical Energy Object
+    - 0x0053 # Power Management Object
+
 # CIP targets to read.
 # Each entry specifies a CIP path (class/instance/attribute) to read.
 read_targets:
@@ -86,6 +102,7 @@ edge_targets:
     instance: 0x0001
     attribute: 0x0001
     expected_outcome: "error"
+    force_status: 0x01          # optional metrics override for unconnected_send (embedded status)
   - name: "PCAP_Class0067_Path"
     service: "get_attribute_single"
     class: 0x0067

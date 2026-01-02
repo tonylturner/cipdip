@@ -82,19 +82,22 @@ type EdgeTarget struct {
 	Attribute         uint16      `yaml:"attribute"`
 	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"`
 	ExpectedOutcome   string      `yaml:"expected_outcome,omitempty"` // "success", "error", "timeout", or "any"
+	ForceStatus       *uint8      `yaml:"force_status,omitempty"`     // optional metrics override in unconnected_send
 }
 
 // Config represents the client configuration
 type Config struct {
-	Adapter          AdapterConfig        `yaml:"adapter"`
-	Protocol         ProtocolConfig       `yaml:"protocol"`
-	ProtocolVariants []ProtocolConfig     `yaml:"protocol_variants"`
-	ReadTargets      []CIPTarget          `yaml:"read_targets"`
-	WriteTargets     []CIPTarget          `yaml:"write_targets"`
-	CustomTargets    []CIPTarget          `yaml:"custom_targets"`
-	EdgeTargets      []EdgeTarget         `yaml:"edge_targets"`
-	IOConnections    []IOConnectionConfig `yaml:"io_connections"`
-	ScenarioJitterMs int                  `yaml:"scenario_jitter_ms"`
+	Adapter           AdapterConfig        `yaml:"adapter"`
+	Protocol          ProtocolConfig       `yaml:"protocol"`
+	ProtocolVariants  []ProtocolConfig     `yaml:"protocol_variants"`
+	CIPProfiles       []string             `yaml:"cip_profiles"`
+	CIPProfileClasses map[string][]uint16  `yaml:"cip_profile_classes,omitempty"`
+	ReadTargets       []CIPTarget          `yaml:"read_targets"`
+	WriteTargets      []CIPTarget          `yaml:"write_targets"`
+	CustomTargets     []CIPTarget          `yaml:"custom_targets"`
+	EdgeTargets       []EdgeTarget         `yaml:"edge_targets"`
+	IOConnections     []IOConnectionConfig `yaml:"io_connections"`
+	ScenarioJitterMs  int                  `yaml:"scenario_jitter_ms"`
 }
 
 // ServerConfigSection represents the server section in server config
@@ -107,6 +110,14 @@ type ServerConfigSection struct {
 	EnableUDPIO         bool   `yaml:"enable_udp_io"`
 	ConnectionTimeoutMs int    `yaml:"connection_timeout_ms"`
 	RNGSeed             int64  `yaml:"rng_seed"`
+	IdentityVendorID    uint16 `yaml:"identity_vendor_id,omitempty"`
+	IdentityDeviceType  uint16 `yaml:"identity_device_type,omitempty"`
+	IdentityProductCode uint16 `yaml:"identity_product_code,omitempty"`
+	IdentityRevMajor    uint8  `yaml:"identity_rev_major,omitempty"`
+	IdentityRevMinor    uint8  `yaml:"identity_rev_minor,omitempty"`
+	IdentityStatus      uint16 `yaml:"identity_status,omitempty"`
+	IdentitySerial      uint32 `yaml:"identity_serial,omitempty"`
+	IdentityProductName string `yaml:"identity_product_name,omitempty"`
 }
 
 // AdapterAssemblyConfig represents an adapter assembly configuration
@@ -132,6 +143,8 @@ type LogixTagConfig struct {
 type ServerConfig struct {
 	Server            ServerConfigSection     `yaml:"server"`
 	Protocol          ProtocolConfig          `yaml:"protocol"`
+	CIPProfiles       []string                `yaml:"cip_profiles"`
+	CIPProfileClasses map[string][]uint16     `yaml:"cip_profile_classes,omitempty"`
 	AdapterAssemblies []AdapterAssemblyConfig `yaml:"adapter_assemblies"`
 	LogixTags         []LogixTagConfig        `yaml:"logix_tags"`
 	TagNamespace      string                  `yaml:"tag_namespace"`
@@ -258,6 +271,9 @@ func ValidateClientConfig(cfg *Config) error {
 		cfg.Protocol.Mode = "strict_odva"
 	}
 	if err := validateProtocolConfig(cfg.Protocol); err != nil {
+		return err
+	}
+	if err := validateCIPProfiles(cfg.CIPProfiles); err != nil {
 		return err
 	}
 	for i := range cfg.ProtocolVariants {
@@ -425,6 +441,13 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 	if cfg.Protocol.Mode == "" {
 		cfg.Protocol.Mode = "strict_odva"
 	}
+	if cfg.Server.IdentityProductName == "" {
+		if cfg.Server.Name != "" {
+			cfg.Server.IdentityProductName = cfg.Server.Name
+		} else {
+			cfg.Server.IdentityProductName = "CIPDIP"
+		}
+	}
 
 	// Validate
 	if err := ValidateServerConfig(&cfg); err != nil {
@@ -437,6 +460,9 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 // ValidateServerConfig validates a server configuration
 func ValidateServerConfig(cfg *ServerConfig) error {
 	if err := validateProtocolConfig(cfg.Protocol); err != nil {
+		return err
+	}
+	if err := validateCIPProfiles(cfg.CIPProfiles); err != nil {
 		return err
 	}
 
@@ -518,6 +544,9 @@ func validateProtocolConfig(cfg ProtocolConfig) error {
 	if cfg.Mode != "vendor_variant" && cfg.Variant != "" {
 		return fmt.Errorf("protocol.variant requires mode 'vendor_variant'")
 	}
+	if cfg.Mode == "strict_odva" && cfg.Overrides.UseCPF != nil && !*cfg.Overrides.UseCPF {
+		return fmt.Errorf("protocol.overrides.use_cpf must be true in strict_odva mode")
+	}
 
 	if cfg.Overrides.ENIPEndianness != "" && cfg.Overrides.ENIPEndianness != "little" && cfg.Overrides.ENIPEndianness != "big" {
 		return fmt.Errorf("protocol.overrides.enip_endianness must be 'little' or 'big'")
@@ -529,6 +558,17 @@ func validateProtocolConfig(cfg ProtocolConfig) error {
 		return fmt.Errorf("protocol.overrides.io_sequence_mode must be 'increment', 'random', or 'omit'")
 	}
 
+	return nil
+}
+
+func validateCIPProfiles(profiles []string) error {
+	for _, profile := range profiles {
+		switch strings.ToLower(profile) {
+		case "", "all", "energy", "safety", "motion":
+		default:
+			return fmt.Errorf("cip_profiles contains unsupported profile '%s'", profile)
+		}
+	}
 	return nil
 }
 

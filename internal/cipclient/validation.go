@@ -111,6 +111,10 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 		if len(req.Payload) == 0 {
 			return fmt.Errorf("Set_Attribute_Single requires payload")
 		}
+	case CIPServiceUnconnectedSend:
+		if len(req.Payload) < 4 && v.strict {
+			return fmt.Errorf("Unconnected_Send requires payload")
+		}
 	case CIPServiceWriteTag, CIPServiceWriteTagFragmented, CIPServiceSetMember, CIPServiceInsertMember, CIPServiceRemoveMember:
 		if len(req.Payload) == 0 && v.strict {
 			return fmt.Errorf("%s requires payload", req.Service)
@@ -257,7 +261,7 @@ func (v *PacketValidator) validateSendUnitData(encap ENIPEncapsulation) error {
 // validateCIPPath validates a CIP path
 func (v *PacketValidator) validateCIPPath(path CIPPath) error {
 	// Class 0 is typically invalid (reserved)
-	if path.Class == 0 && v.strict {
+	if path.Class == 0 && path.Name == "" && v.strict {
 		return fmt.Errorf("CIP class 0 is reserved")
 	}
 
@@ -312,8 +316,12 @@ func isValidCIPService(svc CIPServiceCode) bool {
 		CIPServiceInsertMember,
 		CIPServiceRemoveMember,
 		CIPServiceGroupSync,
+		CIPServiceExecutePCCC,
 		CIPServiceReadTag,
 		CIPServiceWriteTag,
+		CIPServiceUploadTransfer,
+		CIPServiceDownloadTransfer,
+		CIPServiceClearFile,
 		CIPServiceWriteTagFragmented,
 		CIPServiceGetInstanceAttrList,
 		CIPServiceUnconnectedSend,

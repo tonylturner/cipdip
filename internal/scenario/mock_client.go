@@ -119,6 +119,50 @@ func (m *MockClient) WriteAttribute(ctx context.Context, path cipclient.CIPPath,
 	}, nil
 }
 
+// ReadTag simulates reading a tag via Read_Tag
+func (m *MockClient) ReadTag(ctx context.Context, path cipclient.CIPPath, elementCount uint16) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{
+		Service: cipclient.CIPServiceReadTag,
+		Status:  0x00,
+		Path:    path,
+		Payload: make([]byte, 4),
+	}, nil
+}
+
+// ReadTagByName simulates reading a tag by symbolic name.
+func (m *MockClient) ReadTagByName(ctx context.Context, tag string, elementCount uint16) (cipclient.CIPResponse, error) {
+	return m.ReadTag(ctx, cipclient.CIPPath{Name: tag}, elementCount)
+}
+
+// WriteTag simulates writing a tag via Write_Tag
+func (m *MockClient) WriteTag(ctx context.Context, path cipclient.CIPPath, typeCode uint16, elementCount uint16, data []byte) (cipclient.CIPResponse, error) {
+	return cipclient.CIPResponse{
+		Service: cipclient.CIPServiceWriteTag,
+		Status:  0x00,
+		Path:    path,
+	}, nil
+}
+
+// WriteTagByName simulates writing a tag by symbolic name.
+func (m *MockClient) WriteTagByName(ctx context.Context, tag string, typeCode uint16, elementCount uint16, data []byte) (cipclient.CIPResponse, error) {
+	return m.WriteTag(ctx, cipclient.CIPPath{Name: tag}, typeCode, elementCount, data)
+}
+
+// InvokeUnconnectedSend simulates an Unconnected Send with embedded response.
+func (m *MockClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq cipclient.CIPRequest, opts cipclient.UnconnectedSendOptions) (cipclient.CIPResponse, cipclient.CIPResponse, error) {
+	outer := cipclient.CIPResponse{
+		Service: cipclient.CIPServiceUnconnectedSend,
+		Status:  0x00,
+		Path:    cipclient.CIPPath{Class: 0x0006, Instance: 0x0001},
+	}
+	embedded := cipclient.CIPResponse{
+		Service: embeddedReq.Service,
+		Status:  0x00,
+		Path:    embeddedReq.Path,
+	}
+	return outer, embedded, nil
+}
+
 // ForwardOpen simulates opening a connection
 func (m *MockClient) ForwardOpen(ctx context.Context, params cipclient.ConnectionParams) (*cipclient.IOConnection, error) {
 	m.mu.Lock()

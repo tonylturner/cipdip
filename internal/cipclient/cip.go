@@ -34,9 +34,13 @@ const (
 	CIPServiceInsertMember         CIPServiceCode = 0x1A
 	CIPServiceRemoveMember         CIPServiceCode = 0x1B
 	CIPServiceGroupSync            CIPServiceCode = 0x1C
+	CIPServiceExecutePCCC          CIPServiceCode = 0x4B
 	CIPServiceReadTag              CIPServiceCode = 0x4C
 	CIPServiceWriteTag             CIPServiceCode = 0x4D
 	CIPServiceReadModifyWrite      CIPServiceCode = 0x4E
+	CIPServiceUploadTransfer       CIPServiceCode = 0x4F
+	CIPServiceDownloadTransfer     CIPServiceCode = 0x50
+	CIPServiceClearFile            CIPServiceCode = 0x51
 	CIPServiceReadTagFragmented    CIPServiceCode = 0x52
 	CIPServiceWriteTagFragmented   CIPServiceCode = 0x53
 	CIPServiceGetInstanceAttrList  CIPServiceCode = 0x55
@@ -47,6 +51,14 @@ const (
 	CIPServiceLargeForwardOpen     CIPServiceCode = 0x5B
 	CIPServiceForwardOpen          CIPServiceCode = 0x54
 	CIPServiceForwardClose         CIPServiceCode = 0x4E
+)
+
+// File Object service aliases (share values with existing service codes).
+const (
+	CIPServiceInitiateUpload       CIPServiceCode = CIPServiceExecutePCCC
+	CIPServiceInitiateDownload     CIPServiceCode = CIPServiceReadTag
+	CIPServiceInitiatePartialRead  CIPServiceCode = CIPServiceWriteTag
+	CIPServiceInitiatePartialWrite CIPServiceCode = CIPServiceReadModifyWrite
 )
 
 // CIPPath represents a CIP logical path (class/instance/attribute)
@@ -61,6 +73,7 @@ type CIPPath struct {
 type CIPRequest struct {
 	Service CIPServiceCode
 	Path    CIPPath
+	RawPath []byte // Optional raw EPATH override (e.g., symbolic segments)
 	Payload []byte // raw CIP request body (no service/path)
 }
 
@@ -127,7 +140,10 @@ func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	data = append(data, uint8(req.Service))
 
 	// EPATH
-	epath := EncodeEPATH(req.Path)
+	epath := req.RawPath
+	if len(epath) == 0 {
+		epath = EncodeEPATH(req.Path)
+	}
 	if profile.IncludeCIPPathSize {
 		pathSizeWords := len(epath) / 2
 		if len(epath)%2 != 0 {
@@ -169,9 +185,16 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 			return req, fmt.Errorf("incomplete EPATH")
 		}
 		pathBytes := data[offset : offset+pathSizeBytes]
+		req.RawPath = append([]byte(nil), pathBytes...)
 		path, err := DecodeEPATH(pathBytes)
 		if err != nil {
-			return req, err
+			tagName, err := DecodeSymbolicEPATH(pathBytes)
+			if err != nil {
+				return req, err
+			}
+			req.Path = CIPPath{Name: tagName}
+			offset += pathSizeBytes
+			goto payload
 		}
 		req.Path = path
 		offset += pathSizeBytes
@@ -180,14 +203,22 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 			return req, fmt.Errorf("incomplete EPATH")
 		}
 
+		req.RawPath = append([]byte(nil), data[offset:]...)
 		path, err := DecodeEPATH(data[offset:])
 		if err != nil {
-			return req, err
+			tagName, err := DecodeSymbolicEPATH(data[offset:])
+			if err != nil {
+				return req, err
+			}
+			req.Path = CIPPath{Name: tagName}
+			offset = len(data)
+			goto payload
 		}
 		req.Path = path
 		offset = len(data)
 	}
 
+payload:
 	// Remaining data is payload
 	if len(data) > offset {
 		req.Payload = data[offset:]
@@ -365,12 +396,20 @@ func (s CIPServiceCode) String() string {
 		return "Remove_Member"
 	case CIPServiceGroupSync:
 		return "Group_Sync"
+	case CIPServiceExecutePCCC:
+		return "Execute_PCCC"
 	case CIPServiceReadTag:
 		return "Read_Tag"
 	case CIPServiceWriteTag:
 		return "Write_Tag"
 	case CIPServiceReadModifyWrite:
 		return "Forward_Close/Read_Modify_Write"
+	case CIPServiceUploadTransfer:
+		return "Upload_Transfer"
+	case CIPServiceDownloadTransfer:
+		return "Download_Transfer"
+	case CIPServiceClearFile:
+		return "Clear_File"
 	case CIPServiceReadTagFragmented:
 		return "Read_Tag_Fragmented/Unconnected_Send"
 	case CIPServiceWriteTagFragmented:

@@ -776,6 +776,11 @@ func extractCIPFromENIP(pkt ENIPPacket) ([]byte, bool, string) {
 	return payload, true, "raw"
 }
 
+// ExtractCIPFromENIPPacket returns CIP data from an ENIP packet.
+func ExtractCIPFromENIPPacket(pkt ENIPPacket) ([]byte, bool, string) {
+	return extractCIPFromENIP(pkt)
+}
+
 func parseCPFItemsLE(data []byte) ([]CPFItem, error) {
 	if len(data) < 2 {
 		return nil, fmt.Errorf("CPF data too short")

@@ -86,6 +86,40 @@ protocol_variants:
 - Each entry follows the same structure as `protocol`.
 - Missing `mode` defaults to `vendor_variant`.
 
+#### 2.2 `cip_profiles` Section
+
+Optional CIP application profiles to include in coverage and CLI-driven target generation.
+
+```yaml
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+  # - "all"
+```
+
+**Notes:**
+- Supported profiles: `energy`, `safety`, `motion`, or `all`.
+- `all` expands to `energy`, `safety`, and `motion`.
+- Use `--cip-profile` on the CLI to override or add profiles without editing YAML.
+
+#### 2.3 `cip_profile_classes` Section
+
+Optional profile class overrides (use hex class IDs).
+
+```yaml
+cip_profile_classes:
+  energy:
+    - 0x004E # Base Energy Object
+    - 0x004F # Electrical Energy Object
+    - 0x0050 # Non-Electrical Energy Object
+    - 0x0053 # Power Management Object
+```
+
+**Notes:**
+- Overrides take precedence over built-in defaults for a profile.
+- Useful when you need to align vendor profiles to specific application classes.
+
 #### 3. `read_targets` Section
 
 Defines CIP paths to read using Get Attribute Single service.
@@ -252,6 +286,7 @@ edge_targets:
     instance: 0x0001
     attribute: 0x0001
     expected_outcome: "error"
+    force_status: 0x01          # optional metrics override for unconnected_send
   - name: "PCAP_Class0067_Path"
     service: "get_attribute_single"
     class: 0x0067
@@ -357,9 +392,10 @@ edge_targets:
 - `class` / `instance` / `attribute` (hex integer, required): CIP path segments.
 - `request_payload_hex` (string, optional): Hex-encoded payload.
 - `expected_outcome` (string, optional): `success`, `error`, `timeout`, or `any`.
+- `force_status` (hex integer, optional): Override status used for metrics in `unconnected_send` (does not change on-wire response).
 
 **Notes:**
-- Used by the `edge_valid` scenario.
+- Used by the `edge_valid` and `unconnected_send` scenarios.
 - Use 16-bit values to force 16-bit EPATH segments.
 
 #### 7. `scenario_jitter_ms` Section
@@ -521,6 +557,14 @@ server:
   enable_udp_io: false          # Enable UDP I/O server on port 2222
   connection_timeout_ms: 10000  # I/O connection inactivity timeout (ms)
   rng_seed: 0                   # RNG seed (0 = time-based) for deterministic personalities
+  identity_vendor_id: 0x0000        # Identity Object Attribute 1
+  identity_device_type: 0x0000      # Identity Object Attribute 2
+  identity_product_code: 0x0000     # Identity Object Attribute 3
+  identity_rev_major: 1             # Identity Object Attribute 4 (major)
+  identity_rev_minor: 0             # Identity Object Attribute 4 (minor)
+  identity_status: 0x0000           # Identity Object Attribute 5
+  identity_serial: 0x00000000       # Identity Object Attribute 6
+  identity_product_name: "Go CIP Emulator" # Identity Object Attribute 7 (short string)
 ```
 
 **Fields:**
@@ -534,6 +578,14 @@ server:
 - `enable_udp_io` (boolean, optional): Enable UDP I/O server. Default: `false`.
 - `connection_timeout_ms` (integer, optional): I/O connection inactivity timeout in milliseconds. Default: `10000`.
 - `rng_seed` (integer, optional): Seed for deterministic random data patterns. Default: `0` (time-based).
+- `identity_vendor_id` (hex integer, optional): Identity Object attribute 1 (Vendor ID).
+- `identity_device_type` (hex integer, optional): Identity Object attribute 2 (Device Type).
+- `identity_product_code` (hex integer, optional): Identity Object attribute 3 (Product Code).
+- `identity_rev_major` (integer, optional): Identity Object attribute 4 (Major Revision).
+- `identity_rev_minor` (integer, optional): Identity Object attribute 4 (Minor Revision).
+- `identity_status` (hex integer, optional): Identity Object attribute 5 (Status).
+- `identity_serial` (hex integer, optional): Identity Object attribute 6 (Serial Number).
+- `identity_product_name` (string, optional): Identity Object attribute 7 (Product Name, short string).
 
 **Example:**
 ```yaml
@@ -550,6 +602,7 @@ server:
 - `listen_ip` can be set to a specific IP (e.g., `"192.168.1.100"`) to bind to one interface.
 - `enable_udp_io` must be `true` for the `io` scenario to work with UDP 2222.
 - CLI flags (`--listen-ip`, `--listen-port`, `--enable-udp-io`) override config file values.
+- Identity Object attributes apply to Get_Attribute_Single and Get_Attribute_All requests to Class 0x01, Instance 0x01.
 
 #### 2. `protocol` Section
 
@@ -566,6 +619,18 @@ protocol:
     cip_response_reserved: true
     use_cpf: true
     io_sequence_mode: "increment"
+
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+
+cip_profile_classes:
+  energy:
+    - 0x004E # Base Energy Object
+    - 0x004F # Electrical Energy Object
+    - 0x0050 # Non-Electrical Energy Object
+    - 0x0053 # Power Management Object
 ```
 
 #### 3. `adapter_assemblies` Section
@@ -795,7 +860,7 @@ For I/O connections, typical values are:
 
 ## Common Issues
 
-### "at least one of read_targets, write_targets, or custom_targets must be populated"
+### "at least one of read_targets, write_targets, custom_targets, or edge_targets must be populated"
 
 **Solution**: Add at least one target to your client config.
 

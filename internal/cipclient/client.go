@@ -47,6 +47,18 @@ type Client interface {
 	// Convenience helpers for common services
 	ReadAttribute(ctx context.Context, path CIPPath) (CIPResponse, error)
 	WriteAttribute(ctx context.Context, path CIPPath, value []byte) (CIPResponse, error)
+	ReadTag(ctx context.Context, path CIPPath, elementCount uint16) (CIPResponse, error)
+	WriteTag(ctx context.Context, path CIPPath, typeCode uint16, elementCount uint16, data []byte) (CIPResponse, error)
+	ReadTagByName(ctx context.Context, tagName string, elementCount uint16) (CIPResponse, error)
+	WriteTagByName(ctx context.Context, tagName string, typeCode uint16, elementCount uint16, data []byte) (CIPResponse, error)
+	FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	FileClear(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error)
+	InvokeUnconnectedSend(ctx context.Context, embeddedReq CIPRequest, opts UnconnectedSendOptions) (CIPResponse, CIPResponse, error)
 
 	// Connected messaging support
 	ForwardOpen(ctx context.Context, params ConnectionParams) (*IOConnection, error)
@@ -271,6 +283,166 @@ func (c *ENIPClient) WriteAttribute(ctx context.Context, path CIPPath, value []b
 	}
 
 	return c.InvokeService(ctx, req)
+}
+
+// ReadTag reads a Logix-style tag using Read_Tag (0x4C).
+func (c *ENIPClient) ReadTag(ctx context.Context, path CIPPath, elementCount uint16) (CIPResponse, error) {
+	payload := BuildReadTagPayload(elementCount)
+	req := CIPRequest{
+		Service: CIPServiceReadTag,
+		Path:    path,
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// ReadTagByName reads a Logix-style tag using a symbolic EPATH (0x91 segments).
+func (c *ENIPClient) ReadTagByName(ctx context.Context, tagName string, elementCount uint16) (CIPResponse, error) {
+	payload := BuildReadTagPayload(elementCount)
+	req := CIPRequest{
+		Service: CIPServiceReadTag,
+		Path:    CIPPath{Name: tagName},
+		RawPath: BuildSymbolicEPATH(tagName),
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// WriteTag writes a Logix-style tag using Write_Tag (0x4D).
+func (c *ENIPClient) WriteTag(ctx context.Context, path CIPPath, typeCode uint16, elementCount uint16, data []byte) (CIPResponse, error) {
+	payload := BuildWriteTagPayload(typeCode, elementCount, data)
+	req := CIPRequest{
+		Service: CIPServiceWriteTag,
+		Path:    path,
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// WriteTagByName writes a Logix-style tag using a symbolic EPATH (0x91 segments).
+func (c *ENIPClient) WriteTagByName(ctx context.Context, tagName string, typeCode uint16, elementCount uint16, data []byte) (CIPResponse, error) {
+	payload := BuildWriteTagPayload(typeCode, elementCount, data)
+	req := CIPRequest{
+		Service: CIPServiceWriteTag,
+		Path:    CIPPath{Name: tagName},
+		RawPath: BuildSymbolicEPATH(tagName),
+		Payload: payload,
+	}
+	return c.InvokeService(ctx, req)
+}
+
+func (c *ENIPClient) fileObjectRequest(service CIPServiceCode, instance uint16, payload []byte) (CIPRequest, error) {
+	if instance == 0 {
+		return CIPRequest{}, fmt.Errorf("file object instance must be non-zero")
+	}
+	return CIPRequest{
+		Service: service,
+		Path: CIPPath{
+			Class:    CIPClassFileObject,
+			Instance: instance,
+		},
+		Payload: payload,
+	}, nil
+}
+
+// FileInitiateUpload sends Initiate Upload (0x4B) to a File Object instance.
+func (c *ENIPClient) FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceInitiateUpload, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// FileInitiateDownload sends Initiate Download (0x4C) to a File Object instance.
+func (c *ENIPClient) FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceInitiateDownload, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// FileInitiatePartialRead sends Initiate Partial Read (0x4D) to a File Object instance.
+func (c *ENIPClient) FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceInitiatePartialRead, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// FileInitiatePartialWrite sends Initiate Partial Write (0x4E) to a File Object instance.
+func (c *ENIPClient) FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceInitiatePartialWrite, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// FileUploadTransfer sends Upload Transfer (0x4F) to a File Object instance.
+func (c *ENIPClient) FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceUploadTransfer, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// FileDownloadTransfer sends Download Transfer (0x50) to a File Object instance.
+func (c *ENIPClient) FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceDownloadTransfer, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// FileClear sends Clear File (0x51) to a File Object instance.
+func (c *ENIPClient) FileClear(ctx context.Context, instance uint16, payload []byte) (CIPResponse, error) {
+	req, err := c.fileObjectRequest(CIPServiceClearFile, instance, payload)
+	if err != nil {
+		return CIPResponse{}, err
+	}
+	return c.InvokeService(ctx, req)
+}
+
+// InvokeUnconnectedSend wraps an embedded CIP request in an Unconnected Send (0x52).
+func (c *ENIPClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq CIPRequest, opts UnconnectedSendOptions) (CIPResponse, CIPResponse, error) {
+	embeddedData, err := EncodeCIPRequest(embeddedReq)
+	if err != nil {
+		return CIPResponse{}, CIPResponse{}, errors.WrapCIPError(err, "encode embedded request")
+	}
+	payload, err := BuildUnconnectedSendPayload(embeddedData, opts)
+	if err != nil {
+		return CIPResponse{}, CIPResponse{}, errors.WrapCIPError(err, "build unconnected send payload")
+	}
+
+	req := CIPRequest{
+		Service: CIPServiceUnconnectedSend,
+		Path: CIPPath{
+			Class:    0x0006,
+			Instance: 0x0001,
+		},
+		Payload: payload,
+	}
+
+	resp, err := c.InvokeService(ctx, req)
+	if err != nil {
+		return CIPResponse{}, CIPResponse{}, err
+	}
+
+	embeddedRespData, ok := ParseUnconnectedSendResponsePayload(resp.Payload)
+	if !ok {
+		return resp, CIPResponse{}, fmt.Errorf("parse embedded response failed")
+	}
+	embeddedResp, err := DecodeCIPResponse(embeddedRespData, embeddedReq.Path)
+	if err != nil {
+		return resp, CIPResponse{}, errors.WrapCIPError(err, "decode embedded response")
+	}
+	embeddedResp.Service = embeddedReq.Service
+	return resp, embeddedResp, nil
 }
 
 // ForwardOpen establishes a connected I/O-style connection

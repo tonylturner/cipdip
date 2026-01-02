@@ -20,6 +20,14 @@ High-frequency reads to stress DPI:
 cipdip client --ip 10.0.0.50 --scenario stress --interval-ms 10 --duration-seconds 300
 ```
 
+### Unconnected Send (UCMM wrapper)
+
+Embedded CIP requests wrapped in Unconnected Send:
+
+```bash
+cipdip client --ip 10.0.0.50 --scenario unconnected_send --duration-seconds 300
+```
+
 ### I/O Scenario with UDP 2222
 
 Connected Class 1 I/O traffic:
@@ -135,6 +143,22 @@ io_connections:
     instance: 0x65
 ```
 
+### Client Config for Unconnected Send
+
+```yaml
+# cipdip_client.yaml
+edge_targets:
+  - name: "ConnMgr_Unconnected_Send"
+    service: "custom"
+    service_code: 0x52
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    expected_outcome: "any"
+    force_status: 0x01
+```
+
 ### Server Config for Adapter
 
 ```yaml
@@ -226,6 +250,13 @@ cipdip client --ip 10.0.0.50 --scenario baseline --config cipdip_client.yaml
 # Extract packet
 # Analyze
 cipdip pcap --input error_packet.bin --validate
+```
+
+### Investigate Unknown CIP Services
+
+```bash
+# Dump first 5 occurrences of service 0x51
+cipdip pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
 ```
 
 ## See Also
