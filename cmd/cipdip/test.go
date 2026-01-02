@@ -47,12 +47,17 @@ If the test fails, troubleshooting tips are displayed to help diagnose the issue
   # Test before running a scenario
   cipdip test --ip 10.0.0.50 && cipdip client --ip 10.0.0.50 --scenario baseline`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if handleHelpArg(cmd, args) {
+				return nil
+			}
+			if flags.ip == "" {
+				return missingFlagError(cmd, "--ip")
+			}
 			return runTest(flags)
 		},
 	}
 
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
-	cmd.MarkFlagRequired("ip")
 	cmd.Flags().IntVar(&flags.port, "port", 44818, "CIP TCP port (default 44818)")
 
 	return cmd
@@ -80,7 +85,7 @@ func runTest(flags *testFlags) error {
 	}
 
 	// Success
-	fmt.Fprintf(os.Stdout, "✓ Connection successful\n")
+	fmt.Fprintf(os.Stdout, "Connection successful\n")
 	fmt.Fprintf(os.Stdout, "  Session registered successfully\n")
 
 	// Clean disconnect

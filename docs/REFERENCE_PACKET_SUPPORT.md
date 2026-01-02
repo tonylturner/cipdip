@@ -1,143 +1,130 @@
-# Reference Packet Support Analysis
+﻿# Reference Packet Support Analysis
 
-This document analyzes whether CIPDIP supports all reference packets found in PCAP files.
+This document summarizes which reference packets are populated from PCAPs and what the client/server can generate or handle.
 
-## Reference Packets Found
+## Current Reference Packets (Real-World Captures)
 
-From PCAP extraction, we found these reference packets:
-1. ✅ `RegisterSession_Response` (28 bytes)
-2. ✅ `GetAttributeSingle_Request` (37 bytes)
-3. ✅ `SetAttributeSingle_Request` (41 bytes)
-4. ✅ `ForwardOpen_Request` (62 bytes)
-5. ✅ `ForwardClose_Request` (42 bytes)
-6. ✅ `SendUnitData_Request` (36 bytes)
+Reference extraction uses all PCAPs under `pcaps/` and only accepts little-endian ENIP headers for reference data.
+The latest extraction run produced 64 reference packets (duplicates across files collapsed into the reference library).
 
-## Client Support Analysis
+Populated:
+- RegisterSession_Request
+- ListIdentity_Request
+- GetAttributeSingle_Request
+- GetAttributeSingle_Response
+- SetAttributeSingle_Request
+- SetAttributeSingle_Response
+- ForwardOpen_Request
+- ForwardOpen_Response
+- ForwardClose_Request
+- ForwardClose_Response
+- SendUnitData_Request
 
-### ✅ RegisterSession
-- **Generate**: `BuildRegisterSession()` in `internal/cipclient/enip.go`
-- **Usage**: `client.Connect()` automatically sends RegisterSession
-- **Status**: ✅ **FULLY SUPPORTED**
+Missing (real-world reference sample not yet captured):
+- RegisterSession_Response
 
-### ✅ GetAttributeSingle_Request
-- **Generate**: `client.ReadAttribute()` → `InvokeService()` → `EncodeCIPRequest()` with `CIPServiceGetAttributeSingle`
-- **Usage**: Used in all scenarios (baseline, mixed, stress, churn)
-- **Status**: ✅ **FULLY SUPPORTED**
+Baseline captures are used for regression only and are not considered compliance sources of truth.
 
-### ✅ SetAttributeSingle_Request
-- **Generate**: `client.WriteAttribute()` → `InvokeService()` → `EncodeCIPRequest()` with `CIPServiceSetAttributeSingle`
-- **Usage**: Used in mixed scenario
-- **Status**: ✅ **FULLY SUPPORTED**
+## How This Analysis Is Produced
 
-### ✅ ForwardOpen_Request
-- **Generate**: `client.ForwardOpen()` → `BuildForwardOpenRequest()` in `internal/cipclient/forward.go`
-- **Usage**: Used in io scenario
-- **Status**: ✅ **FULLY SUPPORTED**
+- `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` for single-file service/path counts.
+- `cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md` for multi-PCAP summaries.
+- `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go` for reference packet population.
 
-### ✅ ForwardClose_Request
-- **Generate**: `client.ForwardClose()` → `BuildForwardCloseRequest()` in `internal/cipclient/forward.go`
-- **Usage**: Used in io scenario for cleanup
-- **Status**: ✅ **FULLY SUPPORTED**
+## Client Support Summary
 
-### ✅ SendUnitData_Request
-- **Generate**: `client.SendIOData()` → `BuildSendUnitData()` in `internal/cipclient/enip.go`
-- **Usage**: Used in io scenario for I/O data exchange
-- **Transport**: Supports both TCP 44818 and UDP 2222
-- **Status**: ✅ **FULLY SUPPORTED**
+The client can generate all listed request types and uses them across scenarios:
+- RegisterSession (Connect)
+- SendRRData for Get/Set Attribute Single
+- ForwardOpen/ForwardClose for I/O scenarios
+- SendUnitData for I/O data exchange
+- ListIdentity for discovery
 
-## Server Support Analysis
+## Server Support Summary
 
-### ✅ RegisterSession_Response
-- **Handle**: `server.handleRegisterSession()` in `internal/server/server.go`
-- **Response**: Generates RegisterSession response with session ID
-- **Status**: ✅ **FULLY SUPPORTED**
+The server handles and responds to the same request types via its adapter/logix_like personalities.
 
-### ✅ GetAttributeSingle_Request → Response
-- **Handle**: `server.handleSendRRData()` → `DecodeCIPRequest()` → `personality.HandleCIPRequest()`
-- **Adapter Personality**: `adapter.HandleCIPRequest()` supports `CIPServiceGetAttributeSingle`
-- **Logix Personality**: `logix.HandleCIPRequest()` supports `CIPServiceGetAttributeSingle`
-- **Response**: Returns attribute value based on personality
-- **Status**: ✅ **FULLY SUPPORTED**
+## Notes
 
-### ✅ SetAttributeSingle_Request → Response
-- **Handle**: `server.handleSendRRData()` → `DecodeCIPRequest()` → `personality.HandleCIPRequest()`
-- **Adapter Personality**: `adapter.HandleCIPRequest()` supports `CIPServiceSetAttributeSingle`
-- **Logix Personality**: `logix.HandleCIPRequest()` supports `CIPServiceSetAttributeSingle`
-- **Response**: Returns success status
-- **Status**: ✅ **FULLY SUPPORTED**
+- Reference extraction is intentionally strict to avoid polluted samples.
+- Missing references are treated as test coverage gaps, not protocol support limitations.
+- PCAP summary now labels Rockwell tag services (0x4B/0x4C/0x4D) and Unconnected Send (0x52) with class-aware mapping, and reports embedded CIP services.
 
-### ✅ ForwardOpen_Request → Response
-- **Handle**: `server.handleForwardOpen()` in `internal/server/server.go`
-- **Response**: Generates ForwardOpen response with connection IDs
-- **Status**: ✅ **FULLY SUPPORTED**
+## Latest PCAP Summary (pcaps/stress/ENIP.pcap)
 
-### ✅ ForwardClose_Request → Response
-- **Handle**: `server.handleForwardClose()` in `internal/server/server.go`
-- **Response**: Generates ForwardClose response with success status
-- **Status**: ✅ **FULLY SUPPORTED**
+Generated by:
+`cipdip pcap-summary --input pcaps/stress/ENIP.pcap`
+Generated at (UTC): `2026-01-02T02:28:10Z`
 
-### ✅ SendUnitData_Request → Response
-- **Handle**: `server.handleSendUnitData()` in `internal/server/server.go`
-- **Transport**: Supports both TCP 44818 and UDP 2222
-- **Response**: Echoes back I/O data (T->O response)
-- **Status**: ✅ **FULLY SUPPORTED**
+```
+PCAP Summary:
+  Total packets: 400688
+  ENIP packets: 92869
+  Requests: 67647
+  Responses: 25222
+  CPF used: 91479
+  CPF missing: 193
+  CIP requests: 24838
+  CIP responses: 24730
+  CIP payloads (UCMM): 49568
+  I/O payloads (connected): 41911
+  EPATH 16-bit class: 0
+  EPATH 16-bit instance: 0
+  EPATH 16-bit attribute: 0
+  CIP path size used: 24838
+  CIP path size missing: 0
+  Vendor ID: 0x0001
+  Product Name: 1756-ENBT/A
 
-## Summary
+Command Counts:
+  SendRRData: 49667
+  SendUnitData: 42005
+  ListIdentity: 826
+  ListServices: 102
+  RegisterSession: 96
+  ListInterfaces: 93
+  UnregisterSession: 80
 
-| Reference Packet | Client Generate | Server Handle | Server Respond | Status |
-|-----------------|----------------|---------------|----------------|--------|
-| RegisterSession_Response | ✅ | ✅ | ✅ | ✅ **FULLY SUPPORTED** |
-| GetAttributeSingle_Request | ✅ | ✅ | ✅ | ✅ **FULLY SUPPORTED** |
-| SetAttributeSingle_Request | ✅ | ✅ | ✅ | ✅ **FULLY SUPPORTED** |
-| ForwardOpen_Request | ✅ | ✅ | ✅ | ✅ **FULLY SUPPORTED** |
-| ForwardClose_Request | ✅ | ✅ | ✅ | ✅ **FULLY SUPPORTED** |
-| SendUnitData_Request | ✅ | ✅ | ✅ | ✅ **FULLY SUPPORTED** |
+CIP Service Counts:
+  Execute_PCCC: 13992
+  Execute_PCCC_Response: 13895
+  Write_Tag: 10491
+  Write_Tag_Response: 10491
+  Unconnected_Send: 279
+  Get_Attribute_All_Response: 256
+  Forward_Open: 32
+  Forward_Open_Response: 29
+  Forward_Close: 27
+  Read_Modify_Write_Response: 27
+  Get_Attribute_List_Response: 25
+  Get_Attribute_All: 9
+  Get_Attribute_Single: 3
+  Get_Attribute_Single_Response: 3
+  Unknown(0x4B): 2
+  Unknown(0x51): 2
+  Unknown(0x51)_Response: 2
+  Reset: 1
+  Reset_Response: 1
+  Set_Attribute_Single_Response: 1
 
-## Conclusion
+Embedded CIP Service Counts:
+  Get_Attribute_All: 254
+  Get_Attribute_List: 25
 
-✅ **ALL reference packets found in PCAP files are fully supported by both client and server.**
+Unknown CIP Service Details:
+  Unknown(0x51): count=4 responses=2 classes=[0x00A1:2] instances=[0x0001:2] status=[0x08:2]
+  Unknown(0x4B): count=2 responses=0 classes=[0x00A1:2] instances=[0x0001:2]
 
-### Client Capabilities
-- Can generate all 6 reference packet types
-- All packets are used in existing scenarios
-- Proper encoding and validation
+Top Unknown Service+Class Pairs:
+  0x4B/0x00A1 (2)
+  0x51/0x00A1 (2)
 
-### Server Capabilities
-- Can handle all 6 reference packet types
-- Generates appropriate responses for all
-- Supports both adapter and logix_like personalities
-- Supports both TCP and UDP transports where applicable
-
-## Reference Packets Status
-
-### ✅ Populated from PCAPs
-- `RegisterSession_Response` - From baseline captures AND real-world captures
-- `GetAttributeSingle_Request` - From baseline captures
-- `SetAttributeSingle_Request` - From baseline captures
-- `ForwardOpen_Request` - From baseline captures
-- `ForwardClose_Request` - From baseline captures
-- `SendUnitData_Request` - From baseline captures AND real-world captures (82 bytes)
-- `ListIdentity_Request` - From real-world captures
-
-### ⏳ Still Missing
-- `RegisterSession_Request` - Client generates this, but not yet extracted from PCAPs
-- `GetAttributeSingle_Response` - Server generates this, but not yet extracted from PCAPs
-- `ForwardOpen_Response` - Server generates this, but not yet extracted from PCAPs
-
-These are missing from the reference library but are fully supported in the codebase.
-
-### Real-World PCAP Extraction
-
-✅ **Working**: Real-world PCAPs in `pcaps/` are now being extracted:
-- `ENIP.pcap` - Extracts SendUnitData and RegisterSession packets
-- `EthernetIP-CIP.pcap` - Extracts SendUnitData, RegisterSession, and ListIdentity packets
-
-The extraction was fixed to check `ApplicationLayer` first (for reassembled TCP streams) before falling back to `tcp.Payload`.
-
-## Recommendations
-
-1. ✅ **No action needed** - All reference packets are supported
-2. ⏳ **Extract missing packets** - Add RegisterSession_Request, GetAttributeSingle_Response, ForwardOpen_Response to reference library
-3. ⏳ **Add validation tests** - Compare generated packets with reference packets in tests
-4. ⏳ **Add integration tests** - Test client-server round-trips match reference packets
-
+Top Paths:
+  0x0067/0x0001/0x0000 (13992)
+  0x00A1/0x0001/0x0000 (10495)
+  0x0006/0x0001/0x0000 (338)
+  0x0001/0x0001/0x0000 (10)
+  0x0001/0x0001/0x0064 (1)
+  0x0001/0x0001/0x0065 (1)
+  0x0001/0x0001/0x0066 (1)
+```

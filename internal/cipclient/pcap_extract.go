@@ -258,22 +258,10 @@ func generatePacketDescription(command uint16, isRequest bool, data []byte) stri
 
 // getCIPServiceName returns the name of a CIP service code
 func getCIPServiceName(code uint8) string {
-	switch CIPServiceCode(code) {
-	case CIPServiceGetAttributeSingle:
-		return "Get_Attribute_Single"
-	case CIPServiceSetAttributeSingle:
-		return "Set_Attribute_Single"
-	case CIPServiceForwardOpen:
-		return "Forward_Open"
-	case CIPServiceForwardClose:
-		return "Forward_Close"
-	case CIPServiceGetAttributeAll:
-		return "Get_Attribute_All"
-	case CIPServiceSetAttributeAll:
-		return "Set_Attribute_All"
-	default:
-		return ""
+	if name, ok := cipServiceNames[code]; ok {
+		return name
 	}
+	return ""
 }
 
 // FindReferencePackets finds key reference packets from a PCAP file
@@ -453,6 +441,8 @@ type PCAPSummary struct {
 	Responses        int
 	Commands         map[string]int
 	CIPServices      map[string]int
+	EmbeddedServices map[string]int
+	EmbeddedUnknown  map[uint8]*CIPUnknownStats
 	CIPRequests      int
 	CIPResponses     int
 	IOPayloads       int
@@ -465,8 +455,20 @@ type PCAPSummary struct {
 	PathSizeUsed     int
 	PathSizeMissing  int
 	TopPaths         []string
+	UnknownServices  map[uint8]*CIPUnknownStats
+	UnknownPairs     map[string]int
 	VendorID         uint16
 	ProductName      string
+}
+
+// CIPUnknownStats captures metadata for unknown CIP services.
+type CIPUnknownStats struct {
+	Count           int
+	ResponseCount   int
+	StatusCounts    map[uint8]int
+	ClassCounts     map[uint16]int
+	InstanceCounts  map[uint16]int
+	AttributeCounts map[uint16]int
 }
 
 // SummarizeENIPFromPCAP summarizes ENIP/CIP traffic from a PCAP.
@@ -478,8 +480,12 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 	defer handle.Close()
 
 	summary := &PCAPSummary{
-		Commands:    make(map[string]int),
-		CIPServices: make(map[string]int),
+		Commands:         make(map[string]int),
+		CIPServices:      make(map[string]int),
+		EmbeddedServices: make(map[string]int),
+		EmbeddedUnknown:  make(map[uint8]*CIPUnknownStats),
+		UnknownServices:  make(map[uint8]*CIPUnknownStats),
+		UnknownPairs:     make(map[string]int),
 	}
 	pathCounts := make(map[string]int)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
@@ -630,52 +636,118 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 		}
 
 		summary.CIPPayloads++
-		serviceCode := cipData[0]
-		isResponse := serviceCode&0x80 != 0
-		if isResponse {
+		msgInfo, err := parseCIPMessage(cipData)
+		if err != nil {
+			continue
+		}
+		if msgInfo.IsResponse {
 			summary.CIPResponses++
 		} else {
 			summary.CIPRequests++
 		}
-		baseService := serviceCode
-		if isResponse {
-			baseService = serviceCode & 0x7F
-		}
-		serviceName := getCIPServiceName(baseService)
-		if serviceName == "" {
-			serviceName = fmt.Sprintf("Unknown(0x%02X)", baseService)
-		}
-		if isResponse {
-			serviceName = serviceName + "_Response"
-		}
-		summary.CIPServices[serviceName]++
 
-		if isResponse {
+		serviceLabel, _ := labelCIPService(msgInfo.BaseService, msgInfo.PathInfo.Path, msgInfo.IsResponse)
+		summary.CIPServices[serviceLabel]++
+
+		if isUnknownServiceLabel(serviceLabel) {
+			stats := summary.UnknownServices[msgInfo.BaseService]
+			if stats == nil {
+				stats = &CIPUnknownStats{
+					StatusCounts:    make(map[uint8]int),
+					ClassCounts:     make(map[uint16]int),
+					InstanceCounts:  make(map[uint16]int),
+					AttributeCounts: make(map[uint16]int),
+				}
+				summary.UnknownServices[msgInfo.BaseService] = stats
+			}
+			stats.Count++
+			if msgInfo.IsResponse {
+				stats.ResponseCount++
+				if msgInfo.GeneralStatus != nil {
+					stats.StatusCounts[*msgInfo.GeneralStatus]++
+				}
+			}
+			if msgInfo.PathInfo.Path.Class != 0 {
+				stats.ClassCounts[msgInfo.PathInfo.Path.Class]++
+				pairKey := fmt.Sprintf("0x%02X/0x%04X", msgInfo.BaseService, msgInfo.PathInfo.Path.Class)
+				summary.UnknownPairs[pairKey]++
+			}
+			if msgInfo.PathInfo.Path.Instance != 0 {
+				stats.InstanceCounts[msgInfo.PathInfo.Path.Instance]++
+			}
+			if msgInfo.PathInfo.Path.Attribute != 0 {
+				stats.AttributeCounts[msgInfo.PathInfo.Path.Attribute]++
+			}
+		}
+
+		if msgInfo.BaseService == 0x52 && msgInfo.PathInfo.Path.Class == connectionManagerClass && msgInfo.PathInfo.Path.Instance == connectionManagerInst {
+			var embedded []byte
+			if msgInfo.IsResponse {
+				if msgInfo.RequestData != nil {
+					embedded, _ = parseUnconnectedSendResponse(msgInfo.RequestData)
+				}
+			} else {
+				if msgInfo.DataOffset > 0 && msgInfo.DataOffset <= len(cipData) {
+					embedded, _ = parseUnconnectedSendRequest(cipData[msgInfo.DataOffset:])
+				}
+			}
+			if len(embedded) > 0 {
+				embeddedInfo, err := parseCIPMessage(embedded)
+				if err == nil {
+					embeddedLabel, _ := labelCIPService(embeddedInfo.BaseService, embeddedInfo.PathInfo.Path, embeddedInfo.IsResponse)
+					summary.EmbeddedServices[embeddedLabel]++
+					if isUnknownServiceLabel(embeddedLabel) {
+						stats := summary.EmbeddedUnknown[embeddedInfo.BaseService]
+						if stats == nil {
+							stats = &CIPUnknownStats{
+								StatusCounts:    make(map[uint8]int),
+								ClassCounts:     make(map[uint16]int),
+								InstanceCounts:  make(map[uint16]int),
+								AttributeCounts: make(map[uint16]int),
+							}
+							summary.EmbeddedUnknown[embeddedInfo.BaseService] = stats
+						}
+						stats.Count++
+						if embeddedInfo.IsResponse {
+							stats.ResponseCount++
+							if embeddedInfo.GeneralStatus != nil {
+								stats.StatusCounts[*embeddedInfo.GeneralStatus]++
+							}
+						}
+						if embeddedInfo.PathInfo.Path.Class != 0 {
+							stats.ClassCounts[embeddedInfo.PathInfo.Path.Class]++
+						}
+						if embeddedInfo.PathInfo.Path.Instance != 0 {
+							stats.InstanceCounts[embeddedInfo.PathInfo.Path.Instance]++
+						}
+						if embeddedInfo.PathInfo.Path.Attribute != 0 {
+							stats.AttributeCounts[embeddedInfo.PathInfo.Path.Attribute]++
+						}
+					}
+				}
+			}
+		}
+
+		if msgInfo.IsResponse {
 			continue
 		}
-		pathBytes, usedPathSize := extractEPATHFromRequest(cipData)
-		if usedPathSize {
+		if msgInfo.UsedPathSize {
 			summary.PathSizeUsed++
 		} else {
 			summary.PathSizeMissing++
 		}
-		if len(pathBytes) == 0 {
-			continue
-		}
-		path, err := DecodeEPATH(pathBytes)
-		if err != nil {
-			continue
-		}
-		pathKey := fmt.Sprintf("0x%04X/0x%04X/0x%04X", path.Class, path.Instance, path.Attribute)
-		pathCounts[pathKey]++
-		if path.Class > 0xFF {
-			summary.EPATH16Class++
-		}
-		if path.Instance > 0xFF {
-			summary.EPATH16Instance++
-		}
-		if path.Attribute > 0xFF {
-			summary.EPATH16Attribute++
+		if msgInfo.PathInfo.HasClassSegment {
+			pathKey := fmt.Sprintf("0x%04X/0x%04X/0x%04X", msgInfo.PathInfo.Path.Class, msgInfo.PathInfo.Path.Instance, msgInfo.PathInfo.Path.Attribute)
+			pathCounts[pathKey]++
+			if msgInfo.PathInfo.ClassIs16 {
+				summary.EPATH16Class++
+			}
+			if msgInfo.PathInfo.InstanceIs16 {
+				summary.EPATH16Instance++
+			}
+			if msgInfo.PathInfo.AttributeIs16 {
+				summary.EPATH16Attribute++
+			}
 		}
 	}
 }
@@ -760,7 +832,7 @@ func looksLikeEPATH(data []byte) bool {
 	default:
 		return false
 	}
-	_, err := DecodeEPATH(data)
+	_, err := ParseEPATH(data)
 	return err == nil
 }
 

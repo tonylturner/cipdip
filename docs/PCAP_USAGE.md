@@ -1,6 +1,6 @@
 # Packet Capture Analysis Guide
 
-This guide explains how to use the `cipdip pcap` command to analyze EtherNet/IP packet captures.
+This guide explains how to use the `cipdip pcap`, `cipdip pcap-summary`, `cipdip pcap-report`, and `cipdip pcap-classify` commands to analyze EtherNet/IP packet captures.
 
 ## Overview
 
@@ -9,6 +9,9 @@ The `cipdip pcap` command analyzes raw EtherNet/IP packet data and provides:
 - ODVA compliance validation
 - Packet comparison
 - Hex dump output
+The `cipdip pcap-summary` command summarizes ENIP/CIP traffic across full PCAP files.
+The `cipdip pcap-report` command generates a Markdown report for many PCAPs at once.
+The `cipdip pcap-classify` command uses `tshark` to classify PCAPs for integrity/noise signals.
 
 ## Basic Usage
 
@@ -86,14 +89,14 @@ The `--input` file should contain raw binary EtherNet/IP packet data:
 
 1. Capture packets in Wireshark
 2. Filter for EtherNet/IP (port 44818 or 2222)
-3. Right-click packet → "Export Packet Bytes"
+3. Right-click packet -> "Export Packet Bytes"
 4. Save as binary file
 
 #### From tcpdump
 
 ```bash
 # Capture to file
-tcpdump -i eth0 -w capture.pcap port 44818
+tcpdump -i <iface> -w capture.pcap port 44818
 
 # Extract specific packet (requires additional tools)
 # Or use Wireshark to export packet bytes
@@ -147,7 +150,7 @@ Validate that generated packets are ODVA-compliant:
 
 ```bash
 # Generate traffic and capture
-tcpdump -i eth0 -w capture.pcap port 44818 &
+tcpdump -i <iface> -w capture.pcap port 44818 &
 cipdip client --ip 10.0.0.50 --scenario baseline
 
 # Extract and validate a packet
@@ -190,34 +193,14 @@ Generate packet examples for documentation:
 cipdip pcap --input example_packet.bin > packet_documentation.txt
 ```
 
-## Integration with Phase 13 Research
+## Vendor Research
 
-When researching vendor-specific implementations:
-
-1. Capture packets from vendor devices
-2. Analyze with `cipdip pcap`
-3. Document findings in `docs/vendors/`
-4. Compare with ODVA standard packets
-5. Identify deviations
-
-Example workflow:
-
-```bash
-# Capture from Rockwell device
-tcpdump -i eth0 -w rockwell.pcap port 44818
-# ... interact with device ...
-
-# Extract packet from pcap (using Wireshark or tools)
-# Analyze
-cipdip pcap --input rockwell_forwardopen.bin --validate
-
-# Document findings in docs/vendors/rockwell.md
-```
+When researching vendor-specific implementations, capture from real devices, analyze with `cipdip pcap`, and compare against ODVA requirements.
 
 ## Limitations
 
-- Currently supports raw binary packet files only
-- Does not parse PCAP file format directly (use Wireshark to export)
+- `cipdip pcap` supports raw binary packet files only (use Wireshark to export)
+- `cipdip pcap` does not parse PCAP format directly
 - Does not handle fragmented packets
 - Focuses on ENIP layer, not full Ethernet/IP/TCP headers
 
@@ -230,8 +213,40 @@ Potential improvements:
 - Integration with Wireshark dissector
 - Support for reading from network interfaces
 
+## PCAP Summary
+
+Summarize a full capture:
+
+```bash
+cipdip pcap-summary --input pcaps/stress/ENIP.pcap
+```
+
+Note: EPATH 16-bit counters track the segment type used on the wire (0x21/0x25/0x31),
+not the numeric width of the class/instance/attribute shown in Top Paths.
+
+## PCAP Report
+
+Generate a multi-file report (no `tshark` required):
+
+```bash
+cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
+```
+
+## PCAP Classification
+
+Classify PCAPs using `tshark` filters:
+
+```bash
+cipdip pcap-classify --pcap-dir pcaps
+```
+
+If `tshark` is not on PATH, provide an explicit path:
+
+```bash
+cipdip pcap-classify --pcap-dir pcaps --tshark "C:\Program Files\Wireshark\tshark.exe"
+```
+
 ## See Also
 
 - `docs/COMPLIANCE.md` - Protocol compliance documentation
-- `docs/vendors/` - Vendor-specific documentation
 

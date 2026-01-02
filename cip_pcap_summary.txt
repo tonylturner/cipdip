@@ -1,6 +1,6 @@
-﻿CIP/ENIP PCAP Classification Summary
-Generated: 01/01/2026 13:11:49
-PCAP directory: .\pcaps
+CIP/ENIP PCAP Classification Summary
+Generated: 2026-01-01T17:53:26-05:00
+PCAP directory: pcaps
 tshark: C:\Program Files\Wireshark\tshark.exe
 
 Integrity buckets:
@@ -24,7 +24,7 @@ Additional flags:
 
 Flagged sets:
   Deformation: 0
-  Fuzz/Invalid: 0
+  Fuzz/Invalid: 1
   Ops bad: 2
 
-CSV: .\cip_pcap_summary.csv
+CSV: cip_pcap_summary.csv

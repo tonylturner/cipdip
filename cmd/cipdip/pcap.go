@@ -45,7 +45,9 @@ To create packet files:
 
 Use --validate to check if packets conform to ODVA EtherNet/IP specifications.
 Use --compare to find differences between two packets (useful for vendor research).
-Use --hexdump to view raw packet bytes in hex format.`,
+Use --hexdump to view raw packet bytes in hex format.
+
+If --input is omitted, the first positional argument is used.`,
 		Example: `  # Analyze a packet
   cipdip pcap --input packet.bin
 
@@ -61,12 +63,20 @@ Use --hexdump to view raw packet bytes in hex format.`,
   # Output as JSON
   cipdip pcap --input packet.bin --format json`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if handleHelpArg(cmd, args) {
+				return nil
+			}
+			if flags.inputFile == "" && len(args) > 0 {
+				flags.inputFile = args[0]
+			}
+			if flags.inputFile == "" {
+				return missingFlagError(cmd, "--input")
+			}
 			return runPcap(flags)
 		},
 	}
 
 	cmd.Flags().StringVar(&flags.inputFile, "input", "", "Input packet file (raw binary, required)")
-	cmd.MarkFlagRequired("input")
 	cmd.Flags().StringVar(&flags.outputFile, "output", "", "Output analysis file (default: stdout)")
 	cmd.Flags().StringVar(&flags.format, "format", "text", "Output format: text|json (default \"text\")")
 	cmd.Flags().BoolVar(&flags.validate, "validate", false, "Validate ODVA compliance")
