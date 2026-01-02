@@ -4,7 +4,6 @@ package scenario
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"time"
@@ -151,7 +150,8 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			counter++
 			oToTData := make([]byte, connCfg.OToTSizeBytes)
 			if len(oToTData) >= 4 {
-				binary.BigEndian.PutUint32(oToTData[0:4], counter)
+				order := cipclient.CurrentProtocolProfile().CIPByteOrder
+				order.PutUint32(oToTData[0:4], counter)
 			} else {
 				oToTData[0] = byte(counter)
 			}

@@ -4,7 +4,6 @@ package scenario
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"time"
@@ -153,7 +152,8 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 
 				value := s.generateValue(target)
 				valueBytes := make([]byte, 4)
-				binary.BigEndian.PutUint32(valueBytes, uint32(value))
+				order := cipclient.CurrentProtocolProfile().CIPByteOrder
+				order.PutUint32(valueBytes, uint32(value))
 
 				start := time.Now()
 				resp, err := client.WriteAttribute(ctxVariant, path, valueBytes)

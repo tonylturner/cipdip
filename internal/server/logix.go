@@ -68,7 +68,8 @@ func NewLogixPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*Log
 		case "counter":
 			// Initialize counter
 			if elementSize == 4 && tagCfg.ArrayLength > 0 {
-				binary.BigEndian.PutUint32(tag.Data[0:4], 0)
+				order := cipclient.CurrentProtocolProfile().CIPByteOrder
+				order.PutUint32(tag.Data[0:4], 0)
 			}
 		case "random":
 			lp.rng.Read(tag.Data)
@@ -123,7 +124,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.
 				Status:  0x05,
 			}, err
 		}
-		return lp.handleReadTag(tag, req)
+		return lp.handleReadTagFragmented(tag, req)
 
 	case cipclient.CIPServiceWriteTag:
 		tag, err := lp.tagForRequest(req)
@@ -134,6 +135,16 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.
 			}, err
 		}
 		return lp.handleWriteTag(tag, req)
+
+	case cipclient.CIPServiceWriteTagFragmented:
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x05,
+			}, err
+		}
+		return lp.handleWriteTagFragmented(tag, req)
 
 	case cipclient.CIPServiceCode(0x51):
 		return cipclient.CIPResponse{
@@ -256,13 +267,83 @@ func (lp *LogixPersonality) handleReadTag(tag *Tag, req cipclient.CIPRequest) (c
 	}
 
 	payload := make([]byte, 4+dataLen)
-	binary.LittleEndian.PutUint16(payload[0:2], cipclient.CIPTypeCode(tag.Config.Type))
+	binary.LittleEndian.PutUint16(payload[0:2], uint16(cipclient.CIPTypeCode(tag.Config.Type)))
 	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
 	copy(payload[4:], tag.Data[:dataLen])
 
 	return cipclient.CIPResponse{
 		Service: req.Service,
 		Status:  0x00,
+		Path:    req.Path,
+		Payload: payload,
+	}, nil
+}
+
+func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+	tag.mu.Lock()
+	defer tag.mu.Unlock()
+
+	now := time.Now()
+	if now.Sub(tag.LastUpdate) > 100*time.Millisecond {
+		lp.updateTagData(tag)
+		tag.LastUpdate = now
+	}
+
+	elementSize := getTagTypeSize(tag.Config.Type)
+	maxElements := 1
+	if tag.Config.ArrayLength > 0 {
+		maxElements = int(tag.Config.ArrayLength)
+	}
+
+	if len(req.Payload) < 6 {
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x13,
+			Path:    req.Path,
+		}, fmt.Errorf("read tag fragmented payload too short")
+	}
+
+	elementCount := binary.LittleEndian.Uint16(req.Payload[0:2])
+	if elementCount == 0 {
+		elementCount = 1
+	}
+	if int(elementCount) > maxElements {
+		elementCount = uint16(maxElements)
+	}
+	byteOffset := binary.LittleEndian.Uint32(req.Payload[2:6])
+
+	dataLen := int(elementCount) * elementSize
+	if dataLen > len(tag.Data) {
+		dataLen = len(tag.Data)
+	}
+	if int(byteOffset) > dataLen {
+		byteOffset = uint32(dataLen)
+	}
+
+	remaining := dataLen - int(byteOffset)
+	if remaining < 0 {
+		remaining = 0
+	}
+	chunkLen := remaining
+	if chunkLen > 480 {
+		chunkLen = 480
+	}
+
+	payload := make([]byte, 4+chunkLen)
+	binary.LittleEndian.PutUint16(payload[0:2], uint16(cipclient.CIPTypeCode(tag.Config.Type)))
+	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
+	if chunkLen > 0 {
+		copy(payload[4:], tag.Data[int(byteOffset):int(byteOffset)+chunkLen])
+	}
+
+	status := uint8(0x00)
+	if int(byteOffset)+chunkLen < dataLen {
+		status = 0x06 // Reply data too large (more fragments expected)
+	}
+
+	return cipclient.CIPResponse{
+		Service: req.Service,
+		Status:  status,
 		Path:    req.Path,
 		Payload: payload,
 	}, nil
@@ -288,6 +369,51 @@ func (lp *LogixPersonality) handleWriteTag(tag *Tag, req cipclient.CIPRequest) (
 	}
 	if copyLen > 0 {
 		copy(tag.Data[:copyLen], data[:copyLen])
+	}
+
+	return cipclient.CIPResponse{
+		Service: req.Service,
+		Status:  0x00,
+		Path:    req.Path,
+	}, nil
+}
+
+func (lp *LogixPersonality) handleWriteTagFragmented(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+	tag.mu.Lock()
+	defer tag.mu.Unlock()
+
+	if len(req.Payload) < 8 {
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x13,
+			Path:    req.Path,
+		}, fmt.Errorf("write tag fragmented payload too short")
+	}
+
+	byteOffset := binary.LittleEndian.Uint32(req.Payload[4:8])
+	typeCode := binary.LittleEndian.Uint16(req.Payload[0:2])
+	if cipclient.CIPDataType(typeCode) != cipclient.CIPTypeCode(tag.Config.Type) {
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x13,
+			Path:    req.Path,
+		}, fmt.Errorf("write tag fragmented type mismatch: got %s", cipclient.CIPTypeName(cipclient.CIPDataType(typeCode)))
+	}
+	data := req.Payload[8:]
+	if int(byteOffset) >= len(tag.Data) {
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x05,
+			Path:    req.Path,
+		}, fmt.Errorf("write offset out of range")
+	}
+
+	copyLen := len(data)
+	if int(byteOffset)+copyLen > len(tag.Data) {
+		copyLen = len(tag.Data) - int(byteOffset)
+	}
+	if copyLen > 0 {
+		copy(tag.Data[int(byteOffset):int(byteOffset)+copyLen], data[:copyLen])
 	}
 
 	return cipclient.CIPResponse{
@@ -326,7 +452,8 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 	case "counter":
 		tag.Counter++
 		if elementSize == 4 && len(tag.Data) >= 4 {
-			binary.BigEndian.PutUint32(tag.Data[0:4], tag.Counter)
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(tag.Data[0:4], tag.Counter)
 		}
 
 	case "sine":
@@ -336,7 +463,8 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 		}
 		if elementSize == 4 && len(tag.Data) >= 4 {
 			val := math.Sin(tag.SinePhase)
-			binary.BigEndian.PutUint32(tag.Data[0:4], math.Float32bits(float32(val)))
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(tag.Data[0:4], math.Float32bits(float32(val)))
 		}
 
 	case "sawtooth":
@@ -345,7 +473,8 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 			tag.Counter = 0
 		}
 		if elementSize == 4 && len(tag.Data) >= 4 {
-			binary.BigEndian.PutUint32(tag.Data[0:4], tag.Counter)
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(tag.Data[0:4], tag.Counter)
 		}
 
 	case "random":
