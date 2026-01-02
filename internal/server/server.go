@@ -448,6 +448,9 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	if cipReq.Service == cipclient.CIPServiceUnconnectedSend {
 		return s.handleUnconnectedSend(encap, cipReq)
 	}
+	if cipReq.Service == cipclient.CIPServiceMultipleService {
+		return s.handleMultipleService(encap, cipReq)
+	}
 
 	if identityResp, ok := s.handleIdentityRequest(cipReq); ok {
 		cipRespData, err := cipclient.EncodeCIPResponse(identityResp)
@@ -607,15 +610,7 @@ func (s *Server) handleUnconnectedSend(encap cipclient.ENIPEncapsulation, cipReq
 
 	embeddedResp, ok := s.handleIdentityRequest(embeddedReq)
 	if !ok {
-		if genericResp, ok := s.handleGenericRequest(embeddedReq); ok {
-			embeddedResp = genericResp
-		} else {
-			var err error
-			embeddedResp, err = s.personality.HandleCIPRequest(s.ctx, embeddedReq)
-			if err != nil {
-				embeddedResp = cipclient.CIPResponse{Service: embeddedReq.Service, Status: 0x01, Path: embeddedReq.Path}
-			}
-		}
+		embeddedResp = s.handleEmbeddedRequest(embeddedReq)
 	}
 	embeddedRespData, err := cipclient.EncodeCIPResponse(embeddedResp)
 	if err != nil {
@@ -636,6 +631,59 @@ func (s *Server) handleUnconnectedSend(encap cipclient.ENIPEncapsulation, cipReq
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
 	return s.buildCIPResponse(encap, cipRespData)
+}
+
+func (s *Server) handleMultipleService(encap cipclient.ENIPEncapsulation, cipReq cipclient.CIPRequest) []byte {
+	if cipReq.Path.Class != cipclient.CIPClassMessageRouter || cipReq.Path.Instance != 0x0001 {
+		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x05, Path: cipReq.Path}
+		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	embeddedReqs, err := cipclient.ParseMultipleServiceRequestPayload(cipReq.Payload)
+	if err != nil {
+		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x13, Path: cipReq.Path}
+		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	embeddedResps := make([]cipclient.CIPResponse, 0, len(embeddedReqs))
+	for _, embeddedReq := range embeddedReqs {
+		embeddedResps = append(embeddedResps, s.handleEmbeddedRequest(embeddedReq))
+	}
+
+	payload, err := cipclient.BuildMultipleServiceResponsePayload(embeddedResps)
+	if err != nil {
+		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	cipResp := cipclient.CIPResponse{
+		Service: cipReq.Service,
+		Status:  0x00,
+		Path:    cipReq.Path,
+		Payload: payload,
+	}
+	cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+	if err != nil {
+		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+	}
+	return s.buildCIPResponse(encap, cipRespData)
+}
+
+func (s *Server) handleEmbeddedRequest(req cipclient.CIPRequest) cipclient.CIPResponse {
+	if identityResp, ok := s.handleIdentityRequest(req); ok {
+		return identityResp
+	}
+	if genericResp, ok := s.handleGenericRequest(req); ok {
+		return genericResp
+	}
+	resp, err := s.personality.HandleCIPRequest(s.ctx, req)
+	if err != nil {
+		return cipclient.CIPResponse{Service: req.Service, Status: 0x01, Path: req.Path}
+	}
+	return resp
 }
 
 func (s *Server) buildCIPResponse(encap cipclient.ENIPEncapsulation, cipRespData []byte) []byte {

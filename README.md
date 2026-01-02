@@ -11,6 +11,7 @@ CIPDIP is a Go-based command-line tool designed to generate repeatable, controll
 - **Config-Driven**: YAML-based configuration for flexible device targeting
 - **Server Mode**: Emulator with adapter and logix-like personalities
 - **Discovery**: ListIdentity discovery via separate subcommand
+- **Profile-Aware Coverage**: Energy/Safety/Motion profiles plus File/Event Log/Time Sync/Modbus/Symbol/Template classes (public-evidence baseline)
 - **Structured Output**: CSV/JSON metrics and detailed logging
 
 ## Installation
@@ -132,6 +133,11 @@ read_targets:
     instance: 0x65
     attribute: 0x03
 
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+
 write_targets:
   - name: "OutputBlock1"
     service: "set_attribute_single"
@@ -153,6 +159,10 @@ io_connections:
     class: 0x04
     instance: 0x65
 ```
+
+**Notes:**
+- Profile auto-targets use evidence-based defaults for classes with limited public payload layouts.
+- Use `custom_targets` with `request_payload_hex` to drive exact service payloads (e.g., File/Modbus/Safety specifics).
 
 ### Server Config (`cipdip_server.yaml`)
 

@@ -355,6 +355,34 @@ To align with official coverage beyond public docs:
 
 ---
 
+## 15) CIPDIP supported coverage (public-evidence baseline)
+
+This section summarizes what CIPDIP currently supports using public sources (PCAPs + vendor docs) without assuming ODVA volumes.
+
+### Class coverage (profiles + baseline)
+- **Baseline classes:** Identity (0x01), Message Router (0x02), Assembly (0x04), Connection (0x05), Connection Manager (0x06), TCP/IP Interface (0xF5), Ethernet Link (0xF6), Port (0xF4).
+- **Additional coverage:** File Object (0x37), Event Log (0x41), Time Sync (0x43), Modbus (0x44), Symbol (0x6B), Template (0x6C), Program Name / Parameter class (0x64, ambiguous in public docs).
+- **Profiles:** Energy (0x4E/0x4F/0x50/0x53), Safety (0x39/0x3A/0x3B/0x3C/0x3D/0x3E/0x3F), Motion Axis (0x42).
+
+### Service labeling (contextual)
+Service codes in the 0x4B-0x53 range are context-sensitive and are labeled by class:
+- **0x4B:** Execute PCCC (0x67), Energy Start Metering (0x4E), File Initiate Upload (0x37), Modbus Read Discrete Inputs (0x44), Motion Get Axis Attributes List (0x42), Safety Validator Reset Error Counters (0x3A).
+- **0x4C:** Read Tag (Logix), Energy Stop Metering (0x4E), File Initiate Download (0x37), Modbus Read Coils (0x44), Motion Set Axis Attributes List (0x42), Template Read (0x6C).
+- **0x4D:** Write Tag (Logix), File Initiate Partial Read (0x37), Modbus Read Input Registers (0x44).
+- **0x4E:** Forward Close (Connection Manager), Read Modify Write (Logix), File Initiate Partial Write (0x37), Modbus Read Holding Registers (0x44).
+- **0x4F:** File Upload Transfer (0x37), Modbus Write Coils (0x44).
+- **0x50:** File Download Transfer (0x37), Modbus Write Holding Registers (0x44), Motion Get Motor Test Data (0x42).
+- **0x51:** File Clear (0x37), Modbus Passthrough (0x44).
+- **0x52/0x53:** Read/Write Tag Fragmented for Logix (0x6B/0x6C), Unconnected Send for Connection Manager (0x06/0x01), Motion Get Inertia Test Data (0x42).
+- **0x54:** Forward Open (Connection Manager), Motion Get Hookup Test Data (0x42), Safety Reset (0x39).
+
+### Payload handling notes
+- For classes with public payload layouts (Logix Symbol/Template), CIPDIP supports raw payloads and decoding hooks.
+- For classes with no public byte layouts (File Object, Time Sync, Event Log, Modbus, Motion, Safety), CIPDIP sends minimal safe probes or accepts raw payloads supplied via `custom_targets`.
+- Use `custom_targets` with `request_payload_hex` when a specific payload format is required.
+
+---
+
 ## Appendix A — Quick code tables (starter set)
 
 ### Encapsulation commands

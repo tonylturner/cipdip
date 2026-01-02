@@ -82,6 +82,8 @@ func labelCIPService(service uint8, path CIPPath, isResponse bool) (string, bool
 			baseName = "Initiate_Download"
 		} else if path.Class == CIPClassModbus {
 			baseName = "Modbus_Read_Coils"
+		} else if path.Class == CIPClassMotionAxis {
+			baseName = "Motion_Set_Axis_Attributes_List"
 		} else if path.Class == templateObjectClass {
 			baseName = "Template_Read"
 		}
@@ -112,6 +114,8 @@ func labelCIPService(service uint8, path CIPPath, isResponse bool) (string, bool
 			baseName = "Download_Transfer"
 		} else if path.Class == CIPClassModbus {
 			baseName = "Modbus_Write_Holding_Registers"
+		} else if path.Class == CIPClassMotionAxis {
+			baseName = "Motion_Get_Motor_Test_Data"
 		} else {
 			baseName = fmt.Sprintf("Unknown(0x%02X)", service)
 		}
