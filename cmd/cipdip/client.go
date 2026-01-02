@@ -97,6 +97,15 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
   # Capture packets to PCAP file
   cipdip client --ip 10.0.0.50 --scenario baseline --pcap capture.pcap`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if handleHelpArg(cmd, args) {
+				return nil
+			}
+			if flags.ip == "" {
+				return missingFlagError(cmd, "--ip")
+			}
+			if flags.scenario == "" {
+				return missingFlagError(cmd, "--scenario")
+			}
 			err := runClient(flags)
 			if err != nil {
 				// Runtime errors (after CLI validation) should exit with code 2
@@ -109,10 +118,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 
 	// Required flags
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
-	cmd.MarkFlagRequired("ip")
-
-cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state (required)")
-	cmd.MarkFlagRequired("scenario")
+	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state (required)")
 
 	// Optional flags
 	cmd.Flags().IntVar(&flags.port, "port", 44818, "CIP TCP port (default 44818)")

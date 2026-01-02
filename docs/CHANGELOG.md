@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **PCAP Summary Improvements**: Contextual CIP service labeling for Rockwell tag services (0x4B/0x4C/0x4D), Unconnected Send decoding, and embedded service counts.
 - **Progress Indicators**: Added progress bars to all scenario types (baseline, mixed, stress, churn, io) to provide visual feedback during long-running operations. Progress bars show completion percentage, elapsed time, and ETA. Progress bars write to stderr to avoid interfering with stdout logging.
 
 - **Auto-Generate Default Config**: Added `--quick-start` flag to automatically generate a default configuration file if missing. This enables zero-config usage for quick testing. The default config includes common CIP paths (InputBlock1, InputBlock2, OutputBlock1) that work with many devices.

@@ -33,7 +33,7 @@ cipdip client --ip 10.0.0.50 --scenario io --duration-seconds 300
 ### Adapter Personality
 
 ```bash
-
+cipdip server --personality adapter
 ```
 
 ### Logix-like Personality
@@ -53,7 +53,7 @@ cipdip discover
 ### Discovery with Timeout
 
 ```bash
-cipdip discover --timeout 10s --interface eth0
+cipdip discover --timeout 10s --interface <iface>
 ```
 
 ## Packet Analysis
@@ -94,7 +94,7 @@ cipdip client --ip 127.0.0.1 --scenario mixed \
 
 ```bash
 # Terminal 3
-tcpdump -i lo0 -w capture.pcap port 44818
+tcpdump -i <iface> -w capture.pcap port 44818
 ```
 
 ### 4. Analyze Packets
@@ -160,7 +160,7 @@ adapter_assemblies:
 
 ```bash
 cipdip client --ip 10.0.0.50 --scenario baseline \
-  --metrics-file metrics.json \
+  --metrics-file metrics.csv \
   --duration-seconds 300
 ```
 

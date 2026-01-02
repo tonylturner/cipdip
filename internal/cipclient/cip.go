@@ -11,42 +11,42 @@ type CIPServiceCode uint8
 
 // Common CIP service codes
 const (
-	CIPServiceGetAttributeAll    CIPServiceCode = 0x01
-	CIPServiceSetAttributeAll    CIPServiceCode = 0x02
-	CIPServiceGetAttributeList   CIPServiceCode = 0x03
-	CIPServiceSetAttributeList   CIPServiceCode = 0x04
-	CIPServiceReset              CIPServiceCode = 0x05
-	CIPServiceStart              CIPServiceCode = 0x06
-	CIPServiceStop               CIPServiceCode = 0x07
-	CIPServiceCreate             CIPServiceCode = 0x08
-	CIPServiceDelete             CIPServiceCode = 0x09
-	CIPServiceMultipleService    CIPServiceCode = 0x0A
-	CIPServiceApplyAttributes    CIPServiceCode = 0x0D
-	CIPServiceGetAttributeSingle CIPServiceCode = 0x0E
-	CIPServiceSetAttributeSingle CIPServiceCode = 0x10
-	CIPServiceFindNextObjectInst CIPServiceCode = 0x11
-	CIPServiceErrorResponse      CIPServiceCode = 0x14
-	CIPServiceRestore            CIPServiceCode = 0x15
-	CIPServiceSave               CIPServiceCode = 0x16
-	CIPServiceNoOp               CIPServiceCode = 0x17
-	CIPServiceGetMember          CIPServiceCode = 0x18
-	CIPServiceSetMember          CIPServiceCode = 0x19
-	CIPServiceInsertMember       CIPServiceCode = 0x1A
-	CIPServiceRemoveMember       CIPServiceCode = 0x1B
-	CIPServiceGroupSync          CIPServiceCode = 0x1C
-	CIPServiceReadTag            CIPServiceCode = 0x4C
-	CIPServiceWriteTag           CIPServiceCode = 0x4D
-	CIPServiceReadModifyWrite    CIPServiceCode = 0x4E
-	CIPServiceReadTagFragmented  CIPServiceCode = 0x52
-	CIPServiceWriteTagFragmented CIPServiceCode = 0x53
-	CIPServiceGetInstanceAttrList CIPServiceCode = 0x55
-	CIPServiceUnconnectedSend    CIPServiceCode = 0x52
-	CIPServiceGetConnectionData  CIPServiceCode = 0x56
+	CIPServiceGetAttributeAll      CIPServiceCode = 0x01
+	CIPServiceSetAttributeAll      CIPServiceCode = 0x02
+	CIPServiceGetAttributeList     CIPServiceCode = 0x03
+	CIPServiceSetAttributeList     CIPServiceCode = 0x04
+	CIPServiceReset                CIPServiceCode = 0x05
+	CIPServiceStart                CIPServiceCode = 0x06
+	CIPServiceStop                 CIPServiceCode = 0x07
+	CIPServiceCreate               CIPServiceCode = 0x08
+	CIPServiceDelete               CIPServiceCode = 0x09
+	CIPServiceMultipleService      CIPServiceCode = 0x0A
+	CIPServiceApplyAttributes      CIPServiceCode = 0x0D
+	CIPServiceGetAttributeSingle   CIPServiceCode = 0x0E
+	CIPServiceSetAttributeSingle   CIPServiceCode = 0x10
+	CIPServiceFindNextObjectInst   CIPServiceCode = 0x11
+	CIPServiceErrorResponse        CIPServiceCode = 0x14
+	CIPServiceRestore              CIPServiceCode = 0x15
+	CIPServiceSave                 CIPServiceCode = 0x16
+	CIPServiceNoOp                 CIPServiceCode = 0x17
+	CIPServiceGetMember            CIPServiceCode = 0x18
+	CIPServiceSetMember            CIPServiceCode = 0x19
+	CIPServiceInsertMember         CIPServiceCode = 0x1A
+	CIPServiceRemoveMember         CIPServiceCode = 0x1B
+	CIPServiceGroupSync            CIPServiceCode = 0x1C
+	CIPServiceReadTag              CIPServiceCode = 0x4C
+	CIPServiceWriteTag             CIPServiceCode = 0x4D
+	CIPServiceReadModifyWrite      CIPServiceCode = 0x4E
+	CIPServiceReadTagFragmented    CIPServiceCode = 0x52
+	CIPServiceWriteTagFragmented   CIPServiceCode = 0x53
+	CIPServiceGetInstanceAttrList  CIPServiceCode = 0x55
+	CIPServiceUnconnectedSend      CIPServiceCode = 0x52
+	CIPServiceGetConnectionData    CIPServiceCode = 0x56
 	CIPServiceSearchConnectionData CIPServiceCode = 0x57
-	CIPServiceGetConnectionOwner CIPServiceCode = 0x5A
-	CIPServiceLargeForwardOpen   CIPServiceCode = 0x5B
-	CIPServiceForwardOpen        CIPServiceCode = 0x54
-	CIPServiceForwardClose       CIPServiceCode = 0x4E
+	CIPServiceGetConnectionOwner   CIPServiceCode = 0x5A
+	CIPServiceLargeForwardOpen     CIPServiceCode = 0x5B
+	CIPServiceForwardOpen          CIPServiceCode = 0x54
+	CIPServiceForwardClose         CIPServiceCode = 0x4E
 )
 
 // CIPPath represents a CIP logical path (class/instance/attribute)
@@ -309,57 +309,11 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 
 // DecodeEPATH decodes an EPATH into a CIPPath.
 func DecodeEPATH(data []byte) (CIPPath, error) {
-	order := currentCIPByteOrder()
-	path := CIPPath{}
-	offset := 0
-	for offset < len(data) {
-		seg := data[offset]
-		if seg == 0x00 {
-			offset++
-			continue
-		}
-		switch seg {
-		case 0x20: // 8-bit class
-			if len(data) < offset+2 {
-				return path, fmt.Errorf("incomplete class segment")
-			}
-			path.Class = uint16(data[offset+1])
-			offset += 2
-		case 0x21: // 16-bit class
-			if len(data) < offset+3 {
-				return path, fmt.Errorf("incomplete 16-bit class segment")
-			}
-			path.Class = order.Uint16(data[offset+1 : offset+3])
-			offset += 3
-		case 0x24: // 8-bit instance
-			if len(data) < offset+2 {
-				return path, fmt.Errorf("incomplete instance segment")
-			}
-			path.Instance = uint16(data[offset+1])
-			offset += 2
-		case 0x25: // 16-bit instance
-			if len(data) < offset+3 {
-				return path, fmt.Errorf("incomplete 16-bit instance segment")
-			}
-			path.Instance = order.Uint16(data[offset+1 : offset+3])
-			offset += 3
-		case 0x30: // 8-bit attribute
-			if len(data) < offset+2 {
-				return path, fmt.Errorf("incomplete attribute segment")
-			}
-			path.Attribute = uint16(data[offset+1])
-			offset += 2
-		case 0x31: // 16-bit attribute
-			if len(data) < offset+3 {
-				return path, fmt.Errorf("incomplete 16-bit attribute segment")
-			}
-			path.Attribute = order.Uint16(data[offset+1 : offset+3])
-			offset += 3
-		default:
-			return path, fmt.Errorf("invalid EPATH segment: 0x%02X", seg)
-		}
+	info, err := ParseEPATH(data)
+	if err != nil {
+		return CIPPath{}, err
 	}
-	return path, nil
+	return info.Path, nil
 }
 
 // String returns a string representation of the service code

@@ -163,6 +163,19 @@ func getInstallDirectory(customPath string) (string, error) {
 		return "", fmt.Errorf("PATH environment variable not set")
 	}
 
+	// Prefer user-local bin on Windows
+	if runtime.GOOS == "windows" {
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			localBin := filepath.Join(localAppData, "bin")
+			if err := os.MkdirAll(localBin, 0755); err == nil {
+				if err := os.WriteFile(filepath.Join(localBin, ".cipdip-test"), []byte("test"), 0644); err == nil {
+					os.Remove(filepath.Join(localBin, ".cipdip-test"))
+					return localBin, nil
+				}
+			}
+		}
+	}
+
 	// Split PATH and find first writable directory
 	paths := strings.Split(pathEnv, getPathSeparator())
 	for _, p := range paths {
@@ -187,16 +200,30 @@ func getInstallDirectory(customPath string) (string, error) {
 		}
 		os.Remove(testFile)
 
+		if runtime.GOOS == "windows" {
+			if strings.Contains(strings.ToLower(p), `python\launcher`) {
+				continue
+			}
+		}
+
 		return p, nil
 	}
 
 	// Fallback to common directories
 	if runtime.GOOS == "windows" {
 		// Try common Windows locations
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			localBin := filepath.Join(localAppData, "bin")
+			if err := os.MkdirAll(localBin, 0755); err == nil {
+				return localBin, nil
+			}
+		}
 		homeDir, err := os.UserHomeDir()
 		if err == nil {
 			localBin := filepath.Join(homeDir, "AppData", "Local", "bin")
-			return localBin, nil
+			if err := os.MkdirAll(localBin, 0755); err == nil {
+				return localBin, nil
+			}
 		}
 		return "", fmt.Errorf("no writable directory found in PATH")
 	}

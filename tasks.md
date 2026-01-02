@@ -71,6 +71,8 @@
 ### Cross-platform note
 - [ ] Check path handling and example commands across macOS/Linux/Windows.
 - [ ] Confirm any scripts rely on OS-specific tools and provide alternatives or detection.
+- [ ] Investigate Unknown CIP service 0x51 on class 0x00A1 (pcaps/stress/ENIP.pcap) and update contextual service mapping if evidence supports.
+- [x] Consolidate PCAP analysis into Go CLI (`cipdip pcap-report` and `cipdip pcap-classify`), remove PowerShell scripts.
 
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
@@ -82,10 +84,11 @@
 - Vendor identified from PCAP: Rockwell (Vendor ID 0x0001), Product 1756-ENBT/A. Use `rockwell_enbt` profile only when identity matches.
 - Re-evaluation run: `go test ./internal/cipclient` and `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` (latest run successful).
 - New PCAP batch summaries generated in `notes/pcap_summary_report.md` and vendor rollup in `notes/pcap_vendor_summary.md`.
-- PCAP classification script: `analyze-cip-pcaps.ps1` (use for future noise/fuzz classification and folder placement).
+- PCAP classification: `cipdip pcap-classify` (tshark-based) and `cipdip pcap-report` (summary report, no tshark).
 - PCAP folders: `pcaps/normal` (compliance/regression), `pcaps/stress` (DPI stress), `pcaps/not_cip` (ignored).
 - Reference extraction run: `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`.
 - Reference extraction now filters for little-endian ENIP headers; `RegisterSession_Response` still missing from real-world captures.
+- Re-ran PCAP classification and summary reports for current `pcaps/` set (excluding baseline).
 
 ## Audit findings (initial)
 - CIP request encoding omits path size byte and assumes no reserved fields in responses; tests reflect the same.
