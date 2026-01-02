@@ -49,6 +49,8 @@ func GetScenario(name string) (Scenario, error) {
 		return &VendorVariantsScenario{}, nil
 	case "mixed_state":
 		return &MixedStateScenario{}, nil
+	case "unconnected_send":
+		return &UnconnectedSendScenario{}, nil
 	default:
 		return nil, &UnknownScenarioError{Name: name}
 	}

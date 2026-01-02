@@ -1,191 +1,94 @@
-# ODVA Compliance Testing Methodology
+# Compliance Testing Guide
 
-This document explains how CIPDIP's compliance tests validate ODVA protocol requirements.
+This document describes how CIPDIP tests EtherNet/IP and CIP compliance, how to run the tests, and how to interpret results. It replaces older, stale compliance notes.
 
-## Testing Philosophy
+## Scope
 
-Our compliance tests aim to validate **ODVA specification compliance** as expressed by the `strict_odva` profile, not just implementation correctness. However, there are important limitations:
+Compliance testing in CIPDIP targets the **strict_odva** protocol profile and focuses on:
+- ENIP encapsulation structure (header, length, byte order)
+- CIP request/response structure (service codes, status, path handling)
+- EPATH encoding and parsing
+- ForwardOpen/ForwardClose structure and state handling
+- Reference packet comparisons using real-world captures
 
-### What We Test Against
+This is a DPI test harness, not a general CIP client. The goal is to ensure generated traffic is correct, deterministic, and representative of real devices, while clearly labeling any gaps.
 
-1. **ODVA Specification Requirements** (where documented):
-   - Command codes (0x0065, 0x006F, 0x0070, etc.)
-   - Service codes (0x0E, 0x10, 0x54, 0x4E, etc.)
-   - EPATH encoding rules (8-bit vs 16-bit segments)
-   - Packet structure requirements (24-byte header, field order, byte order)
-   - Protocol version requirements (RegisterSession version = 1)
+## Sources of Truth
 
-2. **Known ODVA-Compliant Values**:
-   - Values verified from public documentation
-   - Values verified from reverse engineering compliant devices
-   - Values verified from Wireshark dissector implementations
+We prioritize the following sources for compliance validation:
+1. ODVA specifications (where accessible)
+2. Real-world captures from known devices (`pcaps/normal`, `pcaps/stress`)
+3. Wireshark dissector behavior (when `tshark` is available)
 
-3. **Implementation Validation** (for `strict_odva`):
-   - Our code produces the expected structures
-   - Byte order matches the protocol profile (strict ODVA uses little-endian)
-   - Length fields match actual data
-   - Required fields are present
+Baseline captures in `baseline_captures/` are **regression artifacts** only. They are not considered compliance sources of truth.
 
-### Limitations
+## Test Types
 
-1. **ODVA Spec Access**:
-   - ODVA specifications are member documents, not publicly available
-   - We rely on:
-     - Public documentation snippets
-     - Reverse engineering compliant devices
-     - Wireshark dissector implementations
-     - Community knowledge
+### 1) Unit Tests (Byte-Level)
+Located in `internal/cipclient/*_test.go` and `internal/cipclient/compliance_*_test.go`.
 
-2. **Incomplete Coverage**:
-   - We test what we implement, not the full ODVA specification
-   - Some ODVA requirements may not be tested if not implemented
-   - Edge cases may be missed without full spec access
+Coverage includes:
+- ENIP header structure and length checks
+- CIP service code encoding/decoding
+- EPATH encoding and decoding (8-bit vs 16-bit segments)
+- ForwardOpen/ForwardClose packet structure
+- Response status and additional-status formatting
 
-3. **Assumptions**:
-   - Some test values are based on common practice rather than explicit spec requirements
-   - We assume our understanding of the spec is correct
-4. **Reference Packet Coverage**:
-   - Reference extraction only accepts little-endian ENIP headers (to avoid polluted "known-good" samples).
-   - Some messages may lack a captured reference sample (e.g., RegisterSession_Response).
-   - These gaps are treated as test coverage limitations, not protocol support limitations.
+Run:
+```bash
+go test ./internal/cipclient
+```
 
-## Test Categories
+### 2) Reference Packet Validation
+Reference packets are extracted from PCAPs and stored in `internal/cipclient/reference_packets_gen.go`.
 
-### 1. Structure Validation Tests
+Extraction:
+```bash
+cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go
+```
 
-These tests verify packet structures match ODVA requirements:
+Validation:
+```bash
+go test ./internal/cipclient -run TestReferencePackets
+```
 
-- **ENIP Header**: 24-byte header with correct field order
-- **Byte Order**: All multi-byte fields use little-endian in strict ODVA mode
-- **Length Fields**: Length fields match actual data (ODVA requirement)
-- **Required Fields**: All required fields are present
+If a reference packet is missing (e.g., `RegisterSession_Response`), treat that as **test coverage gap**, not protocol support failure.
 
-**ODVA Reference**: EtherNet/IP Encapsulation Protocol Specification
+### 3) PCAP Summary Checks
+Summarize real-world captures to validate service coverage and path parsing:
+```bash
+cipdip pcap-summary --input pcaps/stress/ENIP.pcap
+cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
+```
 
-### 2. Command Code Validation
+### 4) Optional Wireshark Validation
+If `tshark` is installed, validate captured packets via Wireshark:
+```bash
+go test ./internal/validation
+```
 
-Tests verify command codes match ODVA standard values:
+## Interpreting Results
 
-- RegisterSession: 0x0065
-- UnregisterSession: 0x0066
-- SendRRData: 0x006F
-- SendUnitData: 0x0070
-- ListIdentity: 0x0063
+1. **Strict ODVA framing** is required by default.
+2. **Vendor-variant modes** are allowed only when explicitly enabled and when identity matches.
+3. **Unknown services or missing references** must be labeled and tracked as test gaps.
+4. **Baseline captures** must not be used to claim compliance.
 
-**ODVA Reference**: EtherNet/IP Encapsulation Protocol Specification
+## Known Limitations
 
-### 3. Service Code Validation
+- ODVA specifications may not be fully accessible. We document assumptions and update tests as evidence improves.
+- Some vendor-specific services are context-dependent and need object class to label correctly.
+- Reference coverage depends on available PCAPs; missing samples remain open items.
 
-Tests verify CIP service codes match ODVA standard values:
+## Updating This Guide
 
-- Get_Attribute_Single: 0x0E
-- Set_Attribute_Single: 0x10
-- Forward_Open: 0x54
-- Forward_Close: 0x4E
-- (and 12 more)
-
-**ODVA Reference**: CIP Specification Volume 1, Table 3-5.1
-
-### 4. EPATH Encoding Validation
-
-Tests verify EPATH encoding follows ODVA rules:
-
-- 8-bit segments: 0x20 (class), 0x24 (instance), 0x30 (attribute)
-- 16-bit segments: 0x21 (class), 0x25 (instance)
-- Little-endian encoding for 16-bit values
-- Boundary conditions (0xFF max for 8-bit, 0x0100 min for 16-bit)
-
-**ODVA Reference**: CIP Specification Volume 1, Section 3-5.2
-
-### 5. Protocol-Specific Structure Tests
-
-Tests verify specific protocol structures:
-
-- **RegisterSession**: Protocol version = 1, Option flags = 0
-- **SendRRData**: Interface Handle = 0 for UCMM
-- **ForwardOpen**: Connection Manager path (class 0x06, instance 0x01)
-- **ForwardClose**: Connection Manager path validation
-
-**ODVA Reference**: Various ODVA specification documents
-
-## Improving Compliance Testing
-
-To make our tests more spec-compliant:
-
-1. **Obtain ODVA Specifications** (if possible):
-   - Join ODVA as a member
-   - Access official specification documents
-   - Update tests with exact spec requirements
-
-2. **Hardware Validation**:
-   - Test against real ODVA-compliant devices
-   - Compare our packets with device responses
-   - Validate against multiple vendors
-
-3. **Packet Capture Analysis**:
-   - Capture packets from compliant devices
-   - Compare our packets with known-good packets
-   - Use Wireshark dissector for validation
-   - Treat CIPDIP baseline captures as regression artifacts, not compliance sources of truth
-
-4. **Community Validation**:
-   - Share test results with ODVA community
-   - Get feedback from protocol experts
-   - Contribute improvements back
-
-## Current Test Status
-
-- [x] **Structure Tests**: Validating packet structures against known ODVA requirements
-- [x] **Code Validation**: Command and service codes match ODVA standards
-- [x] **Encoding Tests**: EPATH encoding follows ODVA rules
-- [x] **Audit Tests**: 15+ new audit tests validate implementation against ODVA spec requirements
-- [ ] **Spec Coverage**: Limited by spec access - testing known requirements
-- [ ] **Edge Cases**: May miss edge cases without full spec access
-
-## Audit Test Results
-
-The `compliance_audit_test.go` file contains 15+ tests that audit our implementation against known ODVA specification requirements and reference captures:
-
-1. **ENIP Header Structure**: Validates 24-byte header, field order, byte order, length field semantics
-2. **RegisterSession**: Validates protocol version=1, option flags=0, session ID=0 in request
-3. **SendRRData Structure**: Validates Interface Handle=0 for UCMM, timeout field, length calculation
-4. **SendUnitData Structure**: Validates Connection ID encoding, length calculation
-5. **EPATH Encoding**: Validates 8-bit/16-bit segment types, little-endian encoding, boundary conditions
-6. **ForwardOpen Structure**: Validates service code, Connection Manager path, RPI encoding (microseconds), connection parameters
-7. **ForwardClose Structure**: Validates service code, Connection Manager path, connection path with connection ID
-8. **CIP Response Structure**: Validates service code echo, status byte, payload structure
-9. **ListIdentity**: Validates command code, length=0, session ID=0
-10. **Connection Parameters**: Validates bit encoding for connection type, priority, size
-11. **RPI Encoding**: Validates RPI is in microseconds (not milliseconds)
-12. **ForwardOpen Response**: Validates response structure, connection ID extraction
-13. **Service Code Values**: Validates all service codes match ODVA spec exactly
-14. **Command Code Values**: Validates all command codes match ODVA spec exactly
-15. **EPATH Segment Types**: Validates segment type byte encoding per ODVA spec
-
-These tests are intended to catch issues such as:
-- Path size calculation errors (rounding and padding)
-- Connection parameter encoding mismatches
-
-## Recommendations
-
-1. **For Production Use**:
-   - Test against real hardware before production deployment
-   - Validate with multiple ODVA-compliant devices
-   - Use packet capture analysis to verify compliance
-
-2. **For Development**:
-   - Continue adding tests based on discovered requirements
-   - Document assumptions and their sources
-   - Update tests when new spec information becomes available
-
-3. **For Compliance**:
-   - Consider ODVA membership for spec access
-   - Participate in ODVA compliance programs
-   - Get third-party validation if required
+When compliance tests change:
+1. Update this document with new test commands or coverage.
+2. Add a brief note to `docs/CHANGELOG.md`.
+3. If new references are extracted, update `docs/REFERENCE_PACKETS.md`.
 
 ## See Also
 
-- `docs/COMPLIANCE.md` - Compliance checklist and test results
-- `internal/cipclient/compliance_test.go` - Compliance test implementation
-- `internal/pcap/analyzer.go` - Packet capture analysis for validation
-
+- `docs/COMPLIANCE.md` - Compliance checklist and test coverage
+- `docs/REFERENCE_PACKETS.md` - Current reference packet set
+- `docs/PCAP_USAGE.md` - PCAP summary/report commands

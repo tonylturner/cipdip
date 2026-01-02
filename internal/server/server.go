@@ -4,9 +4,11 @@ package server
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"sync"
 	"time"
 
@@ -17,19 +19,21 @@ import (
 
 // Server represents an EtherNet/IP CIP server
 type Server struct {
-	config        *config.ServerConfig
-	logger        *logging.Logger
-	tcpListener   *net.TCPListener
-	udpListener   *net.UDPConn
-	sessions      map[uint32]*Session
-	sessionsMu    sync.RWMutex
-	connections   map[uint32]*ConnectionState
-	connectionsMu sync.RWMutex
-	nextSessionID uint32
-	personality   Personality
-	ctx           context.Context
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
+	config         *config.ServerConfig
+	logger         *logging.Logger
+	tcpListener    *net.TCPListener
+	udpListener    *net.UDPConn
+	sessions       map[uint32]*Session
+	sessionsMu     sync.RWMutex
+	connections    map[uint32]*ConnectionState
+	connectionsMu  sync.RWMutex
+	nextSessionID  uint32
+	personality    Personality
+	genericStore   *genericAttributeStore
+	profileClasses map[uint16]struct{}
+	ctx            context.Context
+	cancel         context.CancelFunc
+	wg             sync.WaitGroup
 }
 
 // Session represents an active EtherNet/IP session
@@ -80,14 +84,16 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s := &Server{
-		config:        cfg,
-		logger:        logger,
-		sessions:      make(map[uint32]*Session),
-		connections:   make(map[uint32]*ConnectionState),
-		nextSessionID: 1,
-		personality:   personality,
-		ctx:           ctx,
-		cancel:        cancel,
+		config:         cfg,
+		logger:         logger,
+		sessions:       make(map[uint32]*Session),
+		connections:    make(map[uint32]*ConnectionState),
+		nextSessionID:  1,
+		personality:    personality,
+		genericStore:   newGenericAttributeStore(),
+		profileClasses: buildProfileClassSet(cfg.CIPProfiles, cfg.CIPProfileClasses),
+		ctx:            ctx,
+		cancel:         cancel,
 	}
 
 	return s, nil
@@ -439,6 +445,28 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	fmt.Printf("[SERVER] Received CIP request: service=0x%02X class=0x%04X instance=0x%04X attribute=0x%02X\n",
 		uint8(cipReq.Service), cipReq.Path.Class, cipReq.Path.Instance, cipReq.Path.Attribute)
 
+	if cipReq.Service == cipclient.CIPServiceUnconnectedSend {
+		return s.handleUnconnectedSend(encap, cipReq)
+	}
+
+	if identityResp, ok := s.handleIdentityRequest(cipReq); ok {
+		cipRespData, err := cipclient.EncodeCIPResponse(identityResp)
+		if err != nil {
+			s.logger.Error("Encode CIP response error: %v", err)
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		}
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	if genericResp, ok := s.handleGenericRequest(cipReq); ok {
+		cipRespData, err := cipclient.EncodeCIPResponse(genericResp)
+		if err != nil {
+			s.logger.Error("Encode CIP response error: %v", err)
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		}
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
 	// Handle CIP request via personality
 	cipResp, err := s.personality.HandleCIPRequest(s.ctx, cipReq)
 	if err != nil {
@@ -467,19 +495,7 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
 	}
 
-	sendData := cipclient.BuildSendRRDataPayload(cipRespData)
-
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
-		Length:        uint16(len(sendData)),
-		SessionID:     encap.SessionID,
-		Status:        cipclient.ENIPStatusSuccess,
-		SenderContext: encap.SenderContext,
-		Options:       0,
-		Data:          sendData,
-	}
-
-	return cipclient.EncodeENIP(response)
+	return s.buildCIPResponse(encap, cipRespData)
 }
 
 // handleForwardOpen handles a ForwardOpen request (I/O connection establishment)
@@ -572,6 +588,498 @@ func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData [
 	fmt.Printf("[SERVER] ForwardClose response: success\n")
 
 	return cipclient.EncodeENIP(response)
+}
+
+func (s *Server) handleUnconnectedSend(encap cipclient.ENIPEncapsulation, cipReq cipclient.CIPRequest) []byte {
+	embeddedReqData, _, ok := cipclient.ParseUnconnectedSendRequestPayload(cipReq.Payload)
+	if !ok {
+		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x13, Path: cipReq.Path}
+		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	embeddedReq, err := cipclient.DecodeCIPRequest(embeddedReqData)
+	if err != nil {
+		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	embeddedResp, ok := s.handleIdentityRequest(embeddedReq)
+	if !ok {
+		if genericResp, ok := s.handleGenericRequest(embeddedReq); ok {
+			embeddedResp = genericResp
+		} else {
+			var err error
+			embeddedResp, err = s.personality.HandleCIPRequest(s.ctx, embeddedReq)
+			if err != nil {
+				embeddedResp = cipclient.CIPResponse{Service: embeddedReq.Service, Status: 0x01, Path: embeddedReq.Path}
+			}
+		}
+	}
+	embeddedRespData, err := cipclient.EncodeCIPResponse(embeddedResp)
+	if err != nil {
+		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
+	payload := cipclient.BuildUnconnectedSendResponsePayload(embeddedRespData)
+	cipResp := cipclient.CIPResponse{
+		Service: cipReq.Service,
+		Status:  0x00,
+		Path:    cipReq.Path,
+		Payload: payload,
+	}
+	cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+	if err != nil {
+		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+	}
+	return s.buildCIPResponse(encap, cipRespData)
+}
+
+func (s *Server) buildCIPResponse(encap cipclient.ENIPEncapsulation, cipRespData []byte) []byte {
+	sendData := cipclient.BuildSendRRDataPayload(cipRespData)
+	response := cipclient.ENIPEncapsulation{
+		Command:       cipclient.ENIPCommandSendRRData,
+		Length:        uint16(len(sendData)),
+		SessionID:     encap.SessionID,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          sendData,
+	}
+	return cipclient.EncodeENIP(response)
+}
+
+func (s *Server) handleIdentityRequest(req cipclient.CIPRequest) (cipclient.CIPResponse, bool) {
+	if req.Path.Class != 0x0001 {
+		return cipclient.CIPResponse{}, false
+	}
+	if req.Path.Instance != 0x0001 {
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x05, // Path destination unknown
+			Path:    req.Path,
+		}, true
+	}
+
+	switch req.Service {
+	case cipclient.CIPServiceGetAttributeSingle:
+		payload, ok := s.identityAttributePayload(req.Path.Attribute)
+		if !ok {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x14, // Attribute not supported
+				Path:    req.Path,
+			}, true
+		}
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+			Payload: payload,
+		}, true
+	case cipclient.CIPServiceGetAttributeAll:
+		payload := s.identityAllPayload()
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+			Payload: payload,
+		}, true
+	default:
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x08, // Service not supported
+			Path:    req.Path,
+		}, true
+	}
+}
+
+func (s *Server) identityAttributePayload(attribute uint16) ([]byte, bool) {
+	vendorID, deviceType, productCode, revMajor, revMinor, status, serial, productName := s.identityValues()
+	order := cipclient.CurrentProtocolProfile().CIPByteOrder
+
+	switch attribute {
+	case 1:
+		payload := make([]byte, 2)
+		order.PutUint16(payload, vendorID)
+		return payload, true
+	case 2:
+		payload := make([]byte, 2)
+		order.PutUint16(payload, deviceType)
+		return payload, true
+	case 3:
+		payload := make([]byte, 2)
+		order.PutUint16(payload, productCode)
+		return payload, true
+	case 4:
+		return []byte{revMajor, revMinor}, true
+	case 5:
+		payload := make([]byte, 2)
+		order.PutUint16(payload, status)
+		return payload, true
+	case 6:
+		payload := make([]byte, 4)
+		order.PutUint32(payload, serial)
+		return payload, true
+	case 7:
+		return encodeShortString(productName), true
+	default:
+		return nil, false
+	}
+}
+
+func (s *Server) identityAllPayload() []byte {
+	vendorID, deviceType, productCode, revMajor, revMinor, status, serial, productName := s.identityValues()
+	order := cipclient.CurrentProtocolProfile().CIPByteOrder
+
+	payload := make([]byte, 0, 16)
+	buf2 := make([]byte, 2)
+	buf4 := make([]byte, 4)
+
+	order.PutUint16(buf2, vendorID)
+	payload = append(payload, buf2...)
+	order.PutUint16(buf2, deviceType)
+	payload = append(payload, buf2...)
+	order.PutUint16(buf2, productCode)
+	payload = append(payload, buf2...)
+	payload = append(payload, revMajor, revMinor)
+	order.PutUint16(buf2, status)
+	payload = append(payload, buf2...)
+	order.PutUint32(buf4, serial)
+	payload = append(payload, buf4...)
+	payload = append(payload, encodeShortString(productName)...)
+
+	return payload
+}
+
+func (s *Server) identityValues() (uint16, uint16, uint16, uint8, uint8, uint16, uint32, string) {
+	cfg := s.config.Server
+	vendorID := cfg.IdentityVendorID
+	deviceType := cfg.IdentityDeviceType
+	productCode := cfg.IdentityProductCode
+	revMajor := cfg.IdentityRevMajor
+	revMinor := cfg.IdentityRevMinor
+	status := cfg.IdentityStatus
+	serial := cfg.IdentitySerial
+	productName := cfg.IdentityProductName
+	if productName == "" {
+		if cfg.Name != "" {
+			productName = cfg.Name
+		} else {
+			productName = "CIPDIP"
+		}
+	}
+	if revMajor == 0 && revMinor == 0 {
+		revMajor = 1
+	}
+	return vendorID, deviceType, productCode, revMajor, revMinor, status, serial, productName
+}
+
+func encodeShortString(value string) []byte {
+	data := []byte(value)
+	if len(data) > 255 {
+		data = data[:255]
+	}
+	payload := make([]byte, 1+len(data))
+	payload[0] = byte(len(data))
+	copy(payload[1:], data)
+	return payload
+}
+
+type genericAttributeStore struct {
+	mu     sync.RWMutex
+	values map[string][]byte
+}
+
+func newGenericAttributeStore() *genericAttributeStore {
+	return &genericAttributeStore{
+		values: make(map[string][]byte),
+	}
+}
+
+func (s *genericAttributeStore) get(class, instance, attribute uint16) ([]byte, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	key := genericKey(class, instance, attribute)
+	value, ok := s.values[key]
+	if !ok {
+		return nil, false
+	}
+	out := make([]byte, len(value))
+	copy(out, value)
+	return out, true
+}
+
+func (s *genericAttributeStore) set(class, instance, attribute uint16, value []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := genericKey(class, instance, attribute)
+	out := make([]byte, len(value))
+	copy(out, value)
+	s.values[key] = out
+}
+
+func (s *genericAttributeStore) listAttributes(class, instance uint16) map[uint16][]byte {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[uint16][]byte)
+	for key, value := range s.values {
+		parsedClass, parsedInstance, parsedAttr, ok := parseGenericKey(key)
+		if !ok {
+			continue
+		}
+		if parsedClass == class && parsedInstance == instance {
+			copyVal := make([]byte, len(value))
+			copy(copyVal, value)
+			out[parsedAttr] = copyVal
+		}
+	}
+	return out
+}
+
+func (s *genericAttributeStore) clearInstance(class, instance uint16) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key := range s.values {
+		parsedClass, parsedInstance, _, ok := parseGenericKey(key)
+		if !ok {
+			continue
+		}
+		if parsedClass == class && parsedInstance == instance {
+			delete(s.values, key)
+		}
+	}
+}
+
+func genericKey(class, instance, attribute uint16) string {
+	return fmt.Sprintf("%04X:%04X:%04X", class, instance, attribute)
+}
+
+func parseGenericKey(key string) (uint16, uint16, uint16, bool) {
+	var class, instance, attribute uint16
+	_, err := fmt.Sscanf(key, "%04X:%04X:%04X", &class, &instance, &attribute)
+	return class, instance, attribute, err == nil
+}
+
+func (s *Server) handleGenericRequest(req cipclient.CIPRequest) (cipclient.CIPResponse, bool) {
+	if s.personality != nil && s.personality.GetName() == "adapter" && req.Path.Class == cipclient.CIPClassAssembly {
+		return cipclient.CIPResponse{}, false
+	}
+	if !s.isGenericClass(req.Path.Class) {
+		return cipclient.CIPResponse{}, false
+	}
+
+	switch req.Service {
+	case cipclient.CIPServiceExecutePCCC,
+		cipclient.CIPServiceReadTag,
+		cipclient.CIPServiceWriteTag,
+		cipclient.CIPServiceReadModifyWrite,
+		cipclient.CIPServiceUploadTransfer,
+		cipclient.CIPServiceDownloadTransfer,
+		cipclient.CIPServiceClearFile:
+		if isEnergyBaseClass(req.Path.Class) && (req.Service == cipclient.CIPServiceExecutePCCC || req.Service == cipclient.CIPServiceReadTag) {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x00,
+				Path:    req.Path,
+			}, true
+		}
+		if isFileObjectClass(req.Path.Class) || isSymbolicClass(req.Path.Class) || isModbusClass(req.Path.Class) || isMotionAxisClass(req.Path.Class) || isSafetyClass(req.Path.Class) {
+			return cipclient.CIPResponse{
+				Service: req.Service,
+				Status:  0x00,
+				Path:    req.Path,
+			}, true
+		}
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x08,
+			Path:    req.Path,
+		}, true
+
+	case cipclient.CIPServiceGetAttributeSingle:
+		payload, ok := s.genericStore.get(req.Path.Class, req.Path.Instance, req.Path.Attribute)
+		if !ok {
+			payload = []byte{0x00}
+		}
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+			Payload: payload,
+		}, true
+
+	case cipclient.CIPServiceSetAttributeSingle:
+		s.genericStore.set(req.Path.Class, req.Path.Instance, req.Path.Attribute, req.Payload)
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+		}, true
+
+	case cipclient.CIPServiceGetAttributeAll:
+		attrs := s.genericStore.listAttributes(req.Path.Class, req.Path.Instance)
+		payload := flattenAttributes(attrs)
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+			Payload: payload,
+		}, true
+	case cipclient.CIPServiceSetAttributeList:
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+		}, true
+
+	case cipclient.CIPServiceGetAttributeList:
+		payload, ok := buildAttributeListResponse(req, s.genericStore)
+		status := uint8(0x00)
+		if !ok {
+			status = 0x13
+		}
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  status,
+			Path:    req.Path,
+			Payload: payload,
+		}, true
+
+	case cipclient.CIPServiceReset:
+		s.genericStore.clearInstance(req.Path.Class, req.Path.Instance)
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+		}, true
+	case cipclient.CIPServiceStart,
+		cipclient.CIPServiceStop,
+		cipclient.CIPServiceCreate,
+		cipclient.CIPServiceDelete,
+		cipclient.CIPServiceRestore,
+		cipclient.CIPServiceSave,
+		cipclient.CIPServiceGetMember,
+		cipclient.CIPServiceSetMember,
+		cipclient.CIPServiceInsertMember,
+		cipclient.CIPServiceRemoveMember,
+		cipclient.CIPServiceReadTagFragmented,
+		cipclient.CIPServiceForwardOpen:
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x00,
+			Path:    req.Path,
+		}, true
+	default:
+		return cipclient.CIPResponse{
+			Service: req.Service,
+			Status:  0x08,
+			Path:    req.Path,
+		}, true
+	}
+}
+
+func (s *Server) isGenericClass(class uint16) bool {
+	if _, ok := s.profileClasses[class]; ok {
+		return true
+	}
+	switch class {
+	case 0x0066, 0x00F4, 0x00F5, 0x0100, 0x00F6, 0x3700, 0x0002, 0x0064, 0x00AC, 0x008E, 0x1A00, 0x0004, 0x0005, 0x0006:
+		return true
+	case cipclient.CIPClassFileObject,
+		cipclient.CIPClassSymbolObject,
+		cipclient.CIPClassTemplateObject,
+		cipclient.CIPClassEventLog,
+		cipclient.CIPClassTimeSync,
+		cipclient.CIPClassModbus:
+		return true
+	default:
+		return false
+	}
+}
+
+func isEnergyBaseClass(class uint16) bool {
+	return class == cipclient.CIPClassEnergyBase
+}
+
+func isFileObjectClass(class uint16) bool {
+	return class == cipclient.CIPClassFileObject
+}
+
+func isSymbolicClass(class uint16) bool {
+	return class == cipclient.CIPClassSymbolObject || class == cipclient.CIPClassTemplateObject
+}
+
+func isModbusClass(class uint16) bool {
+	return class == cipclient.CIPClassModbus
+}
+
+func isMotionAxisClass(class uint16) bool {
+	return class == cipclient.CIPClassMotionAxis
+}
+
+func isSafetyClass(class uint16) bool {
+	return class == cipclient.CIPClassSafetySupervisor || class == cipclient.CIPClassSafetyValidator
+}
+
+func flattenAttributes(attrs map[uint16][]byte) []byte {
+	if len(attrs) == 0 {
+		return nil
+	}
+	keys := make([]uint16, 0, len(attrs))
+	for key := range attrs {
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+
+	payload := make([]byte, 0)
+	for _, key := range keys {
+		payload = append(payload, attrs[key]...)
+	}
+	return payload
+}
+
+func buildAttributeListResponse(req cipclient.CIPRequest, store *genericAttributeStore) ([]byte, bool) {
+	if len(req.Payload) < 2 {
+		return nil, false
+	}
+	count := int(binary.LittleEndian.Uint16(req.Payload[:2]))
+	offset := 2
+	order := cipclient.CurrentProtocolProfile().CIPByteOrder
+	payload := make([]byte, 0)
+	for i := 0; i < count; i++ {
+		if len(req.Payload) < offset+2 {
+			return payload, false
+		}
+		attrID := order.Uint16(req.Payload[offset : offset+2])
+		offset += 2
+
+		value, ok := store.get(req.Path.Class, req.Path.Instance, attrID)
+		payload = append(payload, 0x00, 0x00)
+		order.PutUint16(payload[len(payload)-2:], attrID)
+
+		status := byte(0x00)
+		if !ok {
+			status = 0x14
+		}
+		payload = append(payload, status, 0x00)
+		if ok {
+			payload = append(payload, value...)
+		}
+	}
+	return payload, true
+}
+
+func buildProfileClassSet(profiles []string, overrides map[string][]uint16) map[uint16]struct{} {
+	classList := cipclient.ResolveCIPProfileClasses(cipclient.NormalizeCIPProfiles(profiles), overrides)
+	out := make(map[uint16]struct{}, len(classList))
+	for _, classID := range classList {
+		out[classID] = struct{}{}
+	}
+	return out
 }
 
 // handleSendUnitData handles a SendUnitData request (connected messaging)

@@ -32,6 +32,7 @@ type clientFlags struct {
 	debug       bool
 	pcapFile    string
 	quickStart  bool
+	cipProfile  string
 }
 
 func newClientCmd() *cobra.Command {
@@ -74,6 +75,9 @@ Available scenarios:
 
   mixed_state - Interleaves UCMM and connected I/O traffic
                 Requires read_targets and io_connections
+
+  unconnected_send - UCMM Unconnected Send wrapper with embedded CIP requests
+                     Uses edge_targets in cipdip_client.yaml
 
 Configuration is loaded from cipdip_client.yaml (or --config). The config file defines
 which CIP paths (class/instance/attribute) to read/write and any I/O connections.
@@ -118,7 +122,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 
 	// Required flags
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
-	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state (required)")
+	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state|unconnected_send (required)")
 
 	// Optional flags
 	cmd.Flags().IntVar(&flags.port, "port", 44818, "CIP TCP port (default 44818)")
@@ -131,6 +135,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().BoolVar(&flags.debug, "debug", false, "Enable debug output")
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., capture.pcap)")
 	cmd.Flags().BoolVar(&flags.quickStart, "quick-start", false, "Auto-generate default config if missing (zero-config usage)")
+	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
 
 	return cmd
 }
@@ -138,18 +143,19 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 func runClient(flags *clientFlags) error {
 	// Validate scenario (CLI error - exit code 1)
 	validScenarios := map[string]bool{
-		"baseline":        true,
-		"mixed":           true,
-		"stress":          true,
-		"churn":           true,
-		"io":              true,
-		"edge_valid":      true,
-		"edge_vendor":     true,
-		"vendor_variants": true,
-		"mixed_state":     true,
+		"baseline":         true,
+		"mixed":            true,
+		"stress":           true,
+		"churn":            true,
+		"io":               true,
+		"edge_valid":       true,
+		"edge_vendor":      true,
+		"vendor_variants":  true,
+		"mixed_state":      true,
+		"unconnected_send": true,
 	}
 	if !validScenarios[flags.scenario] {
-		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state", flags.scenario)
+		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state, unconnected_send", flags.scenario)
 	}
 
 	// Set default interval based on scenario if not provided
@@ -173,6 +179,8 @@ func runClient(flags *clientFlags) error {
 			flags.intervalMs = 100
 		case "mixed_state":
 			flags.intervalMs = 50
+		case "unconnected_send":
+			flags.intervalMs = 100
 		}
 	}
 
@@ -210,6 +218,11 @@ func runClient(flags *clientFlags) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
+	if flags.cipProfile != "" {
+		profiles := cipclient.NormalizeCIPProfiles(parseProfileFlag(flags.cipProfile))
+		cfg.CIPProfiles = mergeProfiles(cfg.CIPProfiles, profiles)
+	}
+
 	profile := cipclient.ResolveProtocolProfile(
 		cfg.Protocol.Mode,
 		cfg.Protocol.Variant,
@@ -221,6 +234,8 @@ func runClient(flags *clientFlags) error {
 		cfg.Protocol.Overrides.IOSequenceMode,
 	)
 	cipclient.SetProtocolProfile(profile)
+
+	applyCIPProfileTargets(cfg)
 
 	// If we auto-created the config, inform the user
 	if autoCreate {
@@ -358,4 +373,63 @@ func determineTargetType(cfg *config.Config, ip string) metrics.TargetType {
 	// - Command-line flag
 	// - Device discovery information
 	return metrics.TargetTypeClick
+}
+
+func applyCIPProfileTargets(cfg *config.Config) {
+	if len(cfg.CIPProfiles) == 0 {
+		return
+	}
+	profiles := cipclient.NormalizeCIPProfiles(cfg.CIPProfiles)
+	classList := cipclient.ResolveCIPProfileClasses(profiles, cfg.CIPProfileClasses)
+	if len(classList) == 0 {
+		return
+	}
+
+	seen := make(map[string]struct{})
+	for _, target := range cfg.CustomTargets {
+		key := fmt.Sprintf("%02X:%04X:%04X:%04X", target.ServiceCode, target.Class, target.Instance, target.Attribute)
+		seen[key] = struct{}{}
+	}
+
+	addTarget := func(target config.CIPTarget) {
+		key := fmt.Sprintf("%02X:%04X:%04X:%04X", target.ServiceCode, target.Class, target.Instance, target.Attribute)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		cfg.CustomTargets = append(cfg.CustomTargets, target)
+		seen[key] = struct{}{}
+	}
+
+	for _, classID := range classList {
+		addTarget(config.CIPTarget{
+			Name:        fmt.Sprintf("Profile_Class_0x%04X", classID),
+			Service:     config.ServiceCustom,
+			ServiceCode: uint8(cipclient.CIPServiceGetAttributeAll),
+			Class:       classID,
+			Instance:    0x0001,
+			Attribute:   0x0000,
+		})
+	}
+
+	for _, profile := range profiles {
+		if profile != "energy" {
+			continue
+		}
+		addTarget(config.CIPTarget{
+			Name:        "Energy_Start_Metering",
+			Service:     config.ServiceCustom,
+			ServiceCode: uint8(cipclient.CIPServiceExecutePCCC),
+			Class:       cipclient.CIPClassEnergyBase,
+			Instance:    0x0001,
+			Attribute:   0x0000,
+		})
+		addTarget(config.CIPTarget{
+			Name:        "Energy_Stop_Metering",
+			Service:     config.ServiceCustom,
+			ServiceCode: uint8(cipclient.CIPServiceReadTag),
+			Class:       cipclient.CIPClassEnergyBase,
+			Instance:    0x0001,
+			Attribute:   0x0000,
+		})
+	}
 }

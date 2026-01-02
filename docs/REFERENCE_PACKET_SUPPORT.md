@@ -49,6 +49,9 @@ The server handles and responds to the same request types via its adapter/logix_
 - Reference extraction is intentionally strict to avoid polluted samples.
 - Missing references are treated as test coverage gaps, not protocol support limitations.
 - PCAP summary now labels Rockwell tag services (0x4B/0x4C/0x4D) and Unconnected Send (0x52) with class-aware mapping, and reports embedded CIP services.
+- Service 0x51 appears on class 0x00A1/instance 0x0001 with general status 0x08 in firmware-change pcaps and ENIP.pcap; evidence is insufficient to map this service yet.
+- `pcap-dump` checks confirm 0x4B requests target class 0x0067 (PCCC object) and 0x4E requests target class 0x0006/instance 0x0001 (Connection Manager), supporting current contextual labeling.
+- No service 0x55 samples were observed in pcaps/stress/ENIP.pcap during spot checks.
 
 ## Latest PCAP Summary (pcaps/stress/ENIP.pcap)
 

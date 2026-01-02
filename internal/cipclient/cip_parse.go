@@ -1,9 +1,6 @@
 package cipclient
 
-import (
-	"encoding/binary"
-	"fmt"
-)
+import "fmt"
 
 type CIPMessageInfo struct {
 	Service       uint8
@@ -46,6 +43,11 @@ func parseCIPMessage(cipData []byte) (CIPMessageInfo, error) {
 		}
 	}
 	return info, nil
+}
+
+// ParseCIPMessage parses a CIP message and returns summary info.
+func ParseCIPMessage(cipData []byte) (CIPMessageInfo, error) {
+	return parseCIPMessage(cipData)
 }
 
 func parseCIPResponsePayload(cipData []byte) (uint8, []byte, bool) {
@@ -94,37 +96,11 @@ func parseCIPRequestPath(cipData []byte) ([]byte, bool, int, EPATHInfo, error) {
 }
 
 func parseUnconnectedSendRequest(data []byte) ([]byte, bool) {
-	if len(data) < 4 {
-		return nil, false
-	}
-	msgSize := binary.LittleEndian.Uint16(data[2:4])
-	offset := 4
-	msgBytes := sizeToBytes(msgSize, len(data)-offset)
-	if msgBytes == 0 || offset+msgBytes > len(data) {
-		return nil, false
-	}
-	return data[offset : offset+msgBytes], true
+	msg, _, ok := ParseUnconnectedSendRequestPayload(data)
+	return msg, ok
 }
 
 func parseUnconnectedSendResponse(payload []byte) ([]byte, bool) {
-	if len(payload) < 2 {
-		return nil, false
-	}
-	msgSize := binary.LittleEndian.Uint16(payload[0:2])
-	offset := 2
-	msgBytes := sizeToBytes(msgSize, len(payload)-offset)
-	if msgBytes == 0 || offset+msgBytes > len(payload) {
-		return nil, false
-	}
-	return payload[offset : offset+msgBytes], true
-}
-
-func sizeToBytes(size uint16, remaining int) int {
-	if int(size) <= remaining {
-		return int(size)
-	}
-	if int(size)*2 <= remaining {
-		return int(size) * 2
-	}
-	return 0
+	msg, ok := ParseUnconnectedSendResponsePayload(payload)
+	return msg, ok
 }

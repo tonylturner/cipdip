@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **PCAP Summary Improvements**: Contextual CIP service labeling for Rockwell tag services (0x4B/0x4C/0x4D), Unconnected Send decoding, and embedded service counts.
+- **PCAP Dump Command**: Added `cipdip pcap-dump` to extract sample CIP packets for a specific service code.
+- **PCAP Coverage Command**: Added `cipdip pcap-coverage` to summarize CIP service/object coverage across PCAPs.
+- **CIP Application Profiles**: Added `--cip-profile` (energy|safety|motion|all) and profile class overrides in config.
 - **Progress Indicators**: Added progress bars to all scenario types (baseline, mixed, stress, churn, io) to provide visual feedback during long-running operations. Progress bars show completion percentage, elapsed time, and ETA. Progress bars write to stderr to avoid interfering with stdout logging.
 
 - **Auto-Generate Default Config**: Added `--quick-start` flag to automatically generate a default configuration file if missing. This enables zero-config usage for quick testing. The default config includes common CIP paths (InputBlock1, InputBlock2, OutputBlock1) that work with many devices.

@@ -20,6 +20,7 @@ type BaselineScenario struct{}
 func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg *config.Config, params ScenarioParams) error {
 	params.Logger.Info("Starting baseline scenario")
 	params.Logger.Verbose("  Read targets: %d", len(cfg.ReadTargets))
+	params.Logger.Verbose("  Custom targets: %d", len(cfg.CustomTargets))
 	params.Logger.Verbose("  Interval: %v", params.Interval)
 	params.Logger.Verbose("  Duration: %v", params.Duration)
 
@@ -132,6 +133,64 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 				"READ",
 				target.Name,
 				fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+				success,
+				rtt,
+				resp.Status,
+				err,
+			)
+		}
+
+		for _, target := range cfg.CustomTargets {
+			serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
+			if err != nil {
+				return err
+			}
+			payload, err := parseHexPayload(target.RequestPayloadHex)
+			if err != nil {
+				return fmt.Errorf("custom target %s payload: %w", target.Name, err)
+			}
+
+			req := cipclient.CIPRequest{
+				Service: serviceCode,
+				Path: cipclient.CIPPath{
+					Class:     target.Class,
+					Instance:  target.Instance,
+					Attribute: target.Attribute,
+					Name:      target.Name,
+				},
+				Payload: payload,
+			}
+
+			start := time.Now()
+			resp, err := client.InvokeService(ctx, req)
+			rtt := time.Since(start).Seconds() * 1000
+
+			success := err == nil && resp.Status == 0
+			var errorMsg string
+			if err != nil {
+				errorMsg = err.Error()
+			} else if resp.Status != 0 {
+				errorMsg = fmt.Sprintf("CIP status: 0x%02X", resp.Status)
+			}
+
+			metric := metrics.Metric{
+				Timestamp:   time.Now(),
+				Scenario:    "baseline",
+				TargetType:  params.TargetType,
+				Operation:   metrics.OperationCustom,
+				TargetName:  target.Name,
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(serviceCode)),
+				Success:     success,
+				RTTMs:       rtt,
+				Status:      resp.Status,
+				Error:       errorMsg,
+			}
+			params.MetricsSink.Record(metric)
+
+			params.Logger.LogOperation(
+				"CUSTOM",
+				target.Name,
+				fmt.Sprintf("0x%02X", uint8(serviceCode)),
 				success,
 				rtt,
 				resp.Status,

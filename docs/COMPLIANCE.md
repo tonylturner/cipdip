@@ -168,7 +168,7 @@ Integration tests validate:
 ### ForwardClose
 - Service code 0x4E
 - Connection Manager path
-- Connection path with connection ID
+- Connection path parameters per spec
 
 ### CIP Service Codes
 - Implemented service codes validated against ODVA spec
@@ -203,7 +203,7 @@ Integration tests validate:
    - Intended to catch issues such as path size calculation errors
    - See `internal/cipclient/compliance_audit_test.go` for full audit test suite
 3. **Integration Tests**: Test against server mode emulator
-4. **Packet Capture**: Compare generated packets with Wireshark dissector (via `cipdip pcap` or `cipdip pcap-summary`)
+4. **Packet Capture**: Compare generated packets with Wireshark dissector (via `cipdip pcap`, `cipdip pcap-summary`, or `cipdip pcap-report`)
 5. **Hardware Testing**: Test against real CIP devices (when available)
 
 **Important**: See `docs/COMPLIANCE_TESTING.md` for details on our testing methodology and limitations.
@@ -216,8 +216,7 @@ Integration tests validate:
 
 ## Future Work
 
-- [ ] Packet capture analysis framework
-- [ ] Wireshark dissector validation
+- [ ] Expand packet capture analysis coverage for additional vendor services
 - [ ] Hardware validation test suite
 - [ ] Extended status code parsing
 - [ ] Additional CIP service support

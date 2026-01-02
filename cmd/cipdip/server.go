@@ -21,6 +21,7 @@ type serverFlags struct {
 	serverConfig string
 	enableUDPIO  bool
 	pcapFile     string
+	cipProfile   string
 }
 
 func newServerCmd() *cobra.Command {
@@ -81,6 +82,7 @@ Press Ctrl+C to stop the server gracefully.`,
 	cmd.Flags().StringVar(&flags.serverConfig, "server-config", "cipdip_server.yaml", "Server config file path (default \"cipdip_server.yaml\")")
 	cmd.Flags().BoolVar(&flags.enableUDPIO, "enable-udp-io", false, "Enable UDP I/O on port 2222 (default false)")
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., server_capture.pcap)")
+	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
 
 	return cmd
 }
@@ -122,6 +124,10 @@ func runServer(flags *serverFlags) error {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Failed to load server config: %v\n", err)
 		return fmt.Errorf("load server config: %w", err)
+	}
+	if flags.cipProfile != "" {
+		profiles := cipclient.NormalizeCIPProfiles(parseProfileFlag(flags.cipProfile))
+		cfg.CIPProfiles = mergeProfiles(cfg.CIPProfiles, profiles)
 	}
 
 	profile := cipclient.ResolveProtocolProfile(

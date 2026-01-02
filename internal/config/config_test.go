@@ -87,6 +87,30 @@ func TestValidateClientConfig(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "strict_odva with cpf disabled",
+			config: &Config{
+				Adapter: AdapterConfig{
+					Name: "Test",
+				},
+				Protocol: ProtocolConfig{
+					Mode: "strict_odva",
+					Overrides: ProtocolOverrides{
+						UseCPF: boolPtr(false),
+					},
+				},
+				ReadTargets: []CIPTarget{
+					{
+						Name:      "TestTarget",
+						Service:   ServiceGetAttributeSingle,
+						Class:     0x04,
+						Instance:  0x65,
+						Attribute: 0x03,
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,6 +121,10 @@ func TestValidateClientConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func TestLoadClientConfig(t *testing.T) {
