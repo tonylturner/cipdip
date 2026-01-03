@@ -56,6 +56,15 @@ type Sink struct {
 	summary *Summary
 }
 
+func newSummary() *Summary {
+	return &Summary{
+		RTTBuckets:     make(map[string]int),
+		JitterBuckets:  make(map[string]int),
+		RTTByOperation: make(map[OperationType]*OperationStats),
+		RTTByScenario:  make(map[string]*ScenarioStats),
+	}
+}
+
 // Summary contains aggregated statistics
 type Summary struct {
 	TotalOperations    int
@@ -111,12 +120,7 @@ type ScenarioStats struct {
 func NewSink() *Sink {
 	return &Sink{
 		metrics: make([]Metric, 0),
-		summary: &Summary{
-			RTTBuckets:     make(map[string]int),
-			JitterBuckets:  make(map[string]int),
-			RTTByOperation: make(map[OperationType]*OperationStats),
-			RTTByScenario:  make(map[string]*ScenarioStats),
-		},
+		summary: newSummary(),
 	}
 }
 
@@ -127,6 +131,24 @@ func (s *Sink) Record(m Metric) {
 
 	s.metrics = append(s.metrics, m)
 	s.updateSummary(m)
+}
+
+// RelabelScenario overwrites scenario names on all metrics and rebuilds summary stats.
+func (s *Sink) RelabelScenario(label string) {
+	if label == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.metrics {
+		s.metrics[i].Scenario = label
+	}
+
+	s.summary = newSummary()
+	for _, m := range s.metrics {
+		s.updateSummary(m)
+	}
 }
 
 // GetMetrics returns a copy of all recorded metrics

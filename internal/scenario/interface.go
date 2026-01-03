@@ -45,12 +45,22 @@ func GetScenario(name string) (Scenario, error) {
 		return &EdgeValidScenario{}, nil
 	case "edge_vendor":
 		return &EdgeVendorScenario{}, nil
+	case "rockwell":
+		return &RockwellScenario{}, nil
 	case "vendor_variants":
 		return &VendorVariantsScenario{}, nil
 	case "mixed_state":
 		return &MixedStateScenario{}, nil
 	case "unconnected_send":
 		return &UnconnectedSendScenario{}, nil
+	case "firewall_hirschmann":
+		return &FirewallScenario{Vendor: "hirschmann"}, nil
+	case "firewall_moxa":
+		return &FirewallScenario{Vendor: "moxa"}, nil
+	case "firewall_dynics":
+		return &FirewallScenario{Vendor: "dynics"}, nil
+	case "firewall_pack":
+		return &FirewallScenario{Vendor: "pack"}, nil
 	default:
 		return nil, &UnknownScenarioError{Name: name}
 	}

@@ -28,6 +28,26 @@ Embedded CIP requests wrapped in Unconnected Send:
 cipdip client --ip 10.0.0.50 --scenario unconnected_send --duration-seconds 300
 ```
 
+### Rockwell Edge Pack
+
+Consolidated Rockwell (Logix + ENBT) edge cases:
+
+```bash
+cipdip client --ip 10.0.0.50 --scenario rockwell --duration-seconds 300
+
+# Firewall DPI packs (vendor-specific scenarios)
+cipdip client --ip 10.0.0.50 --scenario firewall_hirschmann --config configs/firewall_test_pack.yaml.example
+cipdip client --ip 10.0.0.50 --scenario firewall_moxa --config configs/firewall_test_pack.yaml.example
+cipdip client --ip 10.0.0.50 --scenario firewall_dynics --config configs/firewall_test_pack.yaml.example
+cipdip client --ip 10.0.0.50 --scenario firewall_pack --config configs/firewall_test_pack.yaml.example
+
+# Composed run: stress pattern through Moxa firewall targeting Rockwell-tagged targets
+cipdip client --ip 10.0.0.50 --scenario stress --target-tags rockwell --firewall-vendor moxa
+
+# One-off service/class/instance check (no YAML edits)
+cipdip single --ip 10.0.0.50 --service 0x0E --class 0x01 --instance 0x01 --attribute 0x01
+```
+
 ### I/O Scenario with UDP 2222
 
 Connected Class 1 I/O traffic:

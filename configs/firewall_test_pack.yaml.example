@@ -1,0 +1,137 @@
+adapter:
+  name: "CIPDIP Firewall Pack"
+  port: 44818
+
+protocol:
+  mode: "strict_odva"
+
+# This template uses tags to bind targets to firewall test cases.
+# Tags must include the vendor name (hirschmann, moxa, dynics) and test case ID.
+
+read_targets:
+  - name: "Identity_Vendor_ID"
+    service: "get_attribute_single"
+    class: 0x01
+    instance: 0x01
+    attribute: 0x01
+    tags: ["hirschmann", "moxa", "dynics", "tc-enip-001-explicit"]
+
+write_targets:
+  - name: "Identity_Status_Write"
+    service: "set_attribute_single"
+    class: 0x01
+    instance: 0x01
+    attribute: 0x05
+    pattern: "increment"
+    initial_value: 0
+    tags: ["hirschmann", "moxa", "dynics", "tc-enip-001-explicit"]
+
+custom_targets:
+  # PCCC tunneling (Hirschmann embedded PCCC toggle)
+  - name: "Execute_PCCC"
+    service: "custom"
+    service_code: 0x4B
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    tags: ["hirschmann", "tc-hirsch-001-pccc"]
+
+  # Allowlist granularity: multiple services on the same class
+  - name: "Allowlist_Get_Attr_Single"
+    service: "custom"
+    service_code: 0x0E
+    class: 0x0001
+    instance: 0x0001
+    attribute: 0x0007
+    request_payload_hex: ""
+    tags: ["hirschmann", "moxa", "dynics", "tc-enip-004-allowlist"]
+
+  - name: "Allowlist_Set_Attr_Single"
+    service: "custom"
+    service_code: 0x10
+    class: 0x0001
+    instance: 0x0001
+    attribute: 0x0007
+    request_payload_hex: "01"
+    tags: ["hirschmann", "moxa", "dynics", "tc-enip-004-allowlist"]
+
+edge_targets:
+  # Violation/unmatched traffic: valid CIP framing with policy-mismatched service/class
+  - name: "Violation_Custom_Service"
+    service: "custom"
+    service_code: 0x7F
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    expected_outcome: "any"
+    tags: ["hirschmann", "moxa", "dynics", "tc-enip-002-violation"]
+
+  # TCP reset check (single violation after session established)
+  - name: "Reset_Trigger_Custom"
+    service: "custom"
+    service_code: 0x7E
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    expected_outcome: "any"
+    tags: ["hirschmann", "dynics", "tc-enip-003-reset"]
+
+  # Hirschmann wildcard service code checks: multiple services on same class
+  - name: "Wildcard_Read_Tag"
+    service: "custom"
+    service_code: 0x4C
+    class: 0x006B
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    expected_outcome: "any"
+    tags: ["hirschmann", "tc-hirsch-002-wildcard"]
+
+  - name: "Wildcard_Write_Tag"
+    service: "custom"
+    service_code: 0x4D
+    class: 0x006B
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: "00000000"
+    expected_outcome: "any"
+    tags: ["hirschmann", "tc-hirsch-002-wildcard"]
+
+  # Dynics learn-mode baseline and novelty cases
+  - name: "Dynics_Learn_Baseline"
+    service: "custom"
+    service_code: 0x0E
+    class: 0x0001
+    instance: 0x0001
+    attribute: 0x0001
+    request_payload_hex: ""
+    expected_outcome: "any"
+    tags: ["dynics", "tc-dyn-001-learn"]
+
+  - name: "Dynics_Learn_Novel"
+    service: "custom"
+    service_code: 0x55
+    class: 0x006B
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    expected_outcome: "any"
+    tags: ["dynics", "tc-dyn-001-novel"]
+
+io_connections:
+  - name: "Implicit_IO"
+    transport: "udp"
+    o_to_t_rpi_ms: 20
+    t_to_o_rpi_ms: 20
+    o_to_t_size_bytes: 8
+    t_to_o_size_bytes: 8
+    priority: "scheduled"
+    transport_class_trigger: 3
+    class: 0x04
+    instance: 0x65
+    tags: ["hirschmann", "moxa", "dynics", "tc-enip-001-implicit"]
+
+scenario_jitter_ms: 0

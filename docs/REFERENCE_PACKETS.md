@@ -33,6 +33,13 @@ See `docs/COMPLIANCE_TESTING.md` for reference coverage limitations.
 Last extraction run:
 `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`
 
+Last extraction run (UTC): `2026-01-02T22:36:14.3456981Z`
+Results:
+- PCAPs scanned: 39
+- Baseline captures: 0 packets (regression only)
+- Real-world captures: 64 packets
+- Still missing: `RegisterSession_Response`
+
 ## Usage
 
 ### Extracting Reference Packets
