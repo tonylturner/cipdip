@@ -96,15 +96,15 @@ type cipPolicyConfig struct {
 type faultPolicy struct {
 	enabled bool
 
-	latencyBase  time.Duration
+	latencyBase   time.Duration
 	latencyJitter time.Duration
-	spikeEveryN  int
-	spikeDelay   time.Duration
+	spikeEveryN   int
+	spikeDelay    time.Duration
 
-	dropEveryN   int
-	dropPct      float64
-	closeEveryN  int
-	stallEveryN  int
+	dropEveryN  int
+	dropPct     float64
+	closeEveryN int
+	stallEveryN int
 
 	chunkWrites     bool
 	chunkMin        int
@@ -1587,6 +1587,41 @@ func resolveCIPPolicy(cfg *config.ServerConfig) cipPolicyConfig {
 		allowRules:         cfg.CIP.Allow,
 		denyRules:          cfg.CIP.Deny,
 		denyStatusOverride: cfg.CIP.DenyStatusOverrides,
+	}
+}
+
+func resolveFaultPolicy(cfg *config.ServerConfig) faultPolicy {
+	seed := cfg.Server.RNGSeed
+	if seed == 0 {
+		seed = time.Now().UTC().UnixNano()
+	}
+
+	chunkMin := cfg.Faults.TCP.ChunkMin
+	if chunkMin <= 0 {
+		chunkMin = 1
+	}
+	chunkMax := cfg.Faults.TCP.ChunkMax
+	if chunkMax < chunkMin {
+		chunkMax = chunkMin
+	}
+
+	return faultPolicy{
+		enabled:       cfg.Faults.Enable,
+		latencyBase:   time.Duration(cfg.Faults.Latency.BaseDelayMs) * time.Millisecond,
+		latencyJitter: time.Duration(cfg.Faults.Latency.JitterMs) * time.Millisecond,
+		spikeEveryN:   cfg.Faults.Latency.SpikeEveryN,
+		spikeDelay:    time.Duration(cfg.Faults.Latency.SpikeDelayMs) * time.Millisecond,
+		dropEveryN:    cfg.Faults.Reliability.DropResponseEveryN,
+		dropPct:       cfg.Faults.Reliability.DropResponsePct,
+		closeEveryN:   cfg.Faults.Reliability.CloseConnectionEveryN,
+		stallEveryN:   cfg.Faults.Reliability.StallResponseEveryN,
+		chunkWrites:   cfg.Faults.TCP.ChunkWrites,
+		chunkMin:      chunkMin,
+		chunkMax:      chunkMax,
+		interChunkDelay: time.Duration(cfg.Faults.TCP.InterChunkDelayMs) *
+			time.Millisecond,
+		coalesce: cfg.Faults.TCP.CoalesceResponses,
+		rng:      rand.New(rand.NewSource(seed)),
 	}
 }
 
