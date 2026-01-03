@@ -33,6 +33,11 @@ func TestCreateWorkspace(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "catalogs", "core.yaml")); err != nil {
 		t.Fatalf("missing default catalog: %v", err)
 	}
+
+	profilePath := filepath.Join(root, "profiles", "baseline-default.yaml")
+	if _, err := os.Stat(profilePath); err != nil {
+		t.Fatalf("missing default profile: %v", err)
+	}
 }
 
 func TestLoadWorkspace(t *testing.T) {
@@ -91,10 +96,17 @@ func TestListProfiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListProfiles failed: %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 profile entry, got %d", len(entries))
+	if len(entries) < 1 {
+		t.Fatalf("expected at least 1 profile entry, got %d", len(entries))
 	}
-	if entries[0].Name != "baseline-test" {
-		t.Fatalf("profile name mismatch: got %s", entries[0].Name)
+	found := false
+	for _, entry := range entries {
+		if entry.Name == "baseline-test" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected baseline-test profile in list")
 	}
 }
