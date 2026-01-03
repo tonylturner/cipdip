@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/tturner/cipdip/internal/cipclient"
 	"gopkg.in/yaml.v3"
 )
 
@@ -121,12 +123,78 @@ func FilterCatalogEntries(entries []CatalogEntry, query string) []CatalogEntry {
 	}
 	matches := make([]CatalogEntry, 0)
 	for _, entry := range entries {
-		if strings.Contains(strings.ToLower(entry.Key), query) ||
-			strings.Contains(strings.ToLower(entry.Name), query) ||
-			strings.Contains(strings.ToLower(entry.Class), query) ||
-			strings.Contains(strings.ToLower(entry.Service), query) {
+		if catalogEntryMatches(entry, query) {
 			matches = append(matches, entry)
 		}
 	}
 	return matches
+}
+
+func catalogEntryMatches(entry CatalogEntry, query string) bool {
+	if strings.Contains(strings.ToLower(entry.Key), query) ||
+		strings.Contains(strings.ToLower(entry.Name), query) ||
+		strings.Contains(strings.ToLower(entry.Class), query) ||
+		strings.Contains(strings.ToLower(entry.Service), query) {
+		return true
+	}
+
+	if serviceAlias := resolveServiceAlias(entry.Service); serviceAlias != "" {
+		if strings.Contains(serviceAlias, query) {
+			return true
+		}
+	}
+	if classAlias := resolveClassAlias(entry.Class); classAlias != "" {
+		if strings.Contains(classAlias, query) {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveServiceAlias(value string) string {
+	if code, ok := parseServiceValue(value); ok {
+		if alias, ok := cipclient.ServiceAliasName(code); ok {
+			return strings.ToLower(alias)
+		}
+	}
+	if alias, ok := cipclient.ParseServiceAlias(value); ok {
+		if name, ok := cipclient.ServiceAliasName(alias); ok {
+			return strings.ToLower(name)
+		}
+	}
+	return ""
+}
+
+func resolveClassAlias(value string) string {
+	if code, ok := parseClassValue(value); ok {
+		if alias, ok := cipclient.ClassAliasName(code); ok {
+			return strings.ToLower(alias)
+		}
+	}
+	if alias, ok := cipclient.ParseClassAlias(value); ok {
+		if name, ok := cipclient.ClassAliasName(alias); ok {
+			return strings.ToLower(name)
+		}
+	}
+	return ""
+}
+
+func parseServiceValue(value string) (uint8, bool) {
+	if code, err := strconv.ParseUint(strings.TrimSpace(value), 0, 8); err == nil {
+		return uint8(code), true
+	}
+	if code, ok := cipclient.ParseServiceAlias(value); ok {
+		return code, true
+	}
+	return 0, false
+}
+
+func parseClassValue(value string) (uint16, bool) {
+	if code, err := strconv.ParseUint(strings.TrimSpace(value), 0, 16); err == nil {
+		return uint16(code), true
+	}
+	if code, ok := cipclient.ParseClassAlias(value); ok {
+		return code, true
+	}
+	return 0, false
 }
