@@ -20,27 +20,28 @@ import (
 
 // Server represents an EtherNet/IP CIP server
 type Server struct {
-	config         *config.ServerConfig
-	logger         *logging.Logger
-	tcpListener    *net.TCPListener
-	udpListener    *net.UDPConn
-	sessions       map[uint32]*Session
-	sessionsMu     sync.RWMutex
-	connections    map[uint32]*ConnectionState
-	connectionsMu  sync.RWMutex
-	nextSessionID  uint32
-	personality    Personality
-	genericStore   *genericAttributeStore
-	profileClasses map[uint16]struct{}
-	enipSupport    enipSupportConfig
-	sessionPolicy  enipSessionPolicy
-	cipPolicy      cipPolicyConfig
-	faults         faultPolicy
-	coalesceMu     sync.Mutex
-	coalesceQueue  map[*net.TCPConn][]byte
-	ctx            context.Context
-	cancel         context.CancelFunc
-	wg             sync.WaitGroup
+	config          *config.ServerConfig
+	logger          *logging.Logger
+	tcpListener     *net.TCPListener
+	udpListener     *net.UDPConn
+	metricsListener net.Listener
+	sessions        map[uint32]*Session
+	sessionsMu      sync.RWMutex
+	connections     map[uint32]*ConnectionState
+	connectionsMu   sync.RWMutex
+	nextSessionID   uint32
+	personality     Personality
+	genericStore    *genericAttributeStore
+	profileClasses  map[uint16]struct{}
+	enipSupport     enipSupportConfig
+	sessionPolicy   enipSessionPolicy
+	cipPolicy       cipPolicyConfig
+	faults          faultPolicy
+	coalesceMu      sync.Mutex
+	coalesceQueue   map[*net.TCPConn][]byte
+	ctx             context.Context
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
 }
 
 // Session represents an active EtherNet/IP session
@@ -96,15 +97,15 @@ type cipPolicyConfig struct {
 type faultPolicy struct {
 	enabled bool
 
-	latencyBase  time.Duration
+	latencyBase   time.Duration
 	latencyJitter time.Duration
-	spikeEveryN  int
-	spikeDelay   time.Duration
+	spikeEveryN   int
+	spikeDelay    time.Duration
 
-	dropEveryN   int
-	dropPct      float64
-	closeEveryN  int
-	stallEveryN  int
+	dropEveryN  int
+	dropPct     float64
+	closeEveryN int
+	stallEveryN int
 
 	chunkWrites     bool
 	chunkMin        int
@@ -171,6 +172,12 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 
 // Start starts the server
 func (s *Server) Start() error {
+	if s.config.Metrics.Enable {
+		if err := s.startMetricsListener(); err != nil {
+			return err
+		}
+	}
+
 	// Start TCP listener
 	tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", s.config.Server.ListenIP, s.config.Server.TCPPort))
 	if err != nil {
@@ -220,6 +227,10 @@ func (s *Server) Stop() error {
 	// Close TCP listener (this will cause acceptLoop to exit)
 	if s.tcpListener != nil {
 		s.tcpListener.Close()
+	}
+
+	if s.metricsListener != nil {
+		s.metricsListener.Close()
 	}
 
 	// Close UDP listener
@@ -341,8 +352,7 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 			resp := s.handleENIPCommand(encap, remoteAddr)
 
 			if resp != nil {
-				if _, err := conn.Write(resp); err != nil {
-					s.logger.Error("Write response error to %s: %v", remoteAddr, err)
+				if err := s.writeResponse(conn, remoteAddr, resp); err != nil {
 					return
 				}
 			}
@@ -531,6 +541,9 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	// Log incoming request
 	fmt.Printf("[SERVER] Received CIP request: service=0x%02X class=0x%04X instance=0x%04X attribute=0x%02X\n",
 		uint8(cipReq.Service), cipReq.Path.Class, cipReq.Path.Instance, cipReq.Path.Attribute)
+	if s.config.Logging.IncludeHexDump {
+		s.logger.LogHex("CIP Request", cipData)
+	}
 
 	if policyResp, ok := s.applyCIPPolicy(cipReq); ok {
 		cipRespData, err := cipclient.EncodeCIPResponse(policyResp)
@@ -1573,6 +1586,202 @@ func (s *Server) handleListInterfaces(encap cipclient.ENIPEncapsulation) []byte 
 		Data:          nil,
 	}
 	return cipclient.EncodeENIP(resp)
+}
+
+func (s *Server) startMetricsListener() error {
+	addr := fmt.Sprintf("%s:%d", s.config.Metrics.ListenIP, s.config.Metrics.Port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("start metrics listener: %w", err)
+	}
+	s.metricsListener = listener
+	s.wg.Add(1)
+	go s.metricsLoop()
+	return nil
+}
+
+func (s *Server) metricsLoop() {
+	defer s.wg.Done()
+	for {
+		conn, err := s.metricsListener.Accept()
+		if err != nil {
+			if s.ctx.Err() != nil {
+				return
+			}
+			continue
+		}
+		_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		fmt.Fprintf(conn, "cipdip_server_up 1\n")
+		_ = conn.Close()
+	}
+}
+
+func resolveFaultPolicy(cfg *config.ServerConfig) faultPolicy {
+	seed := cfg.Server.RNGSeed
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
+	chunkMin := cfg.Faults.TCP.ChunkMin
+	chunkMax := cfg.Faults.TCP.ChunkMax
+	if chunkMin == 0 {
+		chunkMin = 1
+	}
+	if chunkMax == 0 {
+		chunkMax = 4
+	}
+	if chunkMax < chunkMin {
+		chunkMax = chunkMin
+	}
+
+	return faultPolicy{
+		enabled:         cfg.Faults.Enable,
+		latencyBase:     time.Duration(cfg.Faults.Latency.BaseDelayMs) * time.Millisecond,
+		latencyJitter:   time.Duration(cfg.Faults.Latency.JitterMs) * time.Millisecond,
+		spikeEveryN:     cfg.Faults.Latency.SpikeEveryN,
+		spikeDelay:      time.Duration(cfg.Faults.Latency.SpikeDelayMs) * time.Millisecond,
+		dropEveryN:      cfg.Faults.Reliability.DropResponseEveryN,
+		dropPct:         cfg.Faults.Reliability.DropResponsePct,
+		closeEveryN:     cfg.Faults.Reliability.CloseConnectionEveryN,
+		stallEveryN:     cfg.Faults.Reliability.StallResponseEveryN,
+		chunkWrites:     cfg.Faults.TCP.ChunkWrites,
+		chunkMin:        chunkMin,
+		chunkMax:        chunkMax,
+		interChunkDelay: time.Duration(cfg.Faults.TCP.InterChunkDelayMs) * time.Millisecond,
+		coalesce:        cfg.Faults.TCP.CoalesceResponses,
+		rng:             rand.New(rand.NewSource(seed)),
+	}
+}
+
+func (s *Server) nextResponseFaultAction() responseFaultAction {
+	if !s.faults.enabled {
+		return responseFaultAction{
+			chunked:  s.faults.chunkWrites,
+			coalesce: s.faults.coalesce,
+		}
+	}
+
+	s.faults.mu.Lock()
+	defer s.faults.mu.Unlock()
+
+	s.faults.responseCount++
+	count := s.faults.responseCount
+	delay := s.faults.latencyBase
+
+	if s.faults.latencyJitter > 0 {
+		jitter := time.Duration(s.faults.rng.Int63n(int64(s.faults.latencyJitter) + 1))
+		delay += jitter
+	}
+	if s.faults.spikeEveryN > 0 && count%s.faults.spikeEveryN == 0 {
+		delay += s.faults.spikeDelay
+	}
+	if s.faults.stallEveryN > 0 && count%s.faults.stallEveryN == 0 {
+		stall := s.faults.spikeDelay
+		if stall == 0 {
+			stall = time.Second
+		}
+		delay += stall
+	}
+
+	drop := false
+	if s.faults.dropEveryN > 0 && count%s.faults.dropEveryN == 0 {
+		drop = true
+	}
+	if s.faults.dropPct > 0 && s.faults.rng.Float64() < s.faults.dropPct {
+		drop = true
+	}
+	closeConn := s.faults.closeEveryN > 0 && count%s.faults.closeEveryN == 0
+
+	return responseFaultAction{
+		drop:     drop,
+		delay:    delay,
+		close:    closeConn,
+		chunked:  s.faults.chunkWrites,
+		coalesce: s.faults.coalesce,
+	}
+}
+
+func (s *Server) writeResponse(conn *net.TCPConn, remoteAddr string, resp []byte) error {
+	action := s.nextResponseFaultAction()
+	if action.delay > 0 {
+		time.Sleep(action.delay)
+	}
+
+	if action.coalesce {
+		s.coalesceMu.Lock()
+		if pending, ok := s.coalesceQueue[conn]; ok && len(pending) > 0 {
+			resp = append(pending, resp...)
+			delete(s.coalesceQueue, conn)
+		} else {
+			s.coalesceQueue[conn] = append([]byte(nil), resp...)
+			s.coalesceMu.Unlock()
+			if action.close {
+				conn.Close()
+				return io.EOF
+			}
+			return nil
+		}
+		s.coalesceMu.Unlock()
+	}
+
+	if action.drop {
+		if action.close {
+			conn.Close()
+			return io.EOF
+		}
+		return nil
+	}
+
+	if action.chunked {
+		if err := s.writeChunks(conn, resp); err != nil {
+			s.logger.Error("Write response error to %s: %v", remoteAddr, err)
+			return err
+		}
+	} else {
+		if _, err := conn.Write(resp); err != nil {
+			s.logger.Error("Write response error to %s: %v", remoteAddr, err)
+			return err
+		}
+	}
+
+	if action.close {
+		conn.Close()
+		return io.EOF
+	}
+	return nil
+}
+
+func (s *Server) writeChunks(conn *net.TCPConn, resp []byte) error {
+	if len(resp) == 0 {
+		return nil
+	}
+	s.faults.mu.Lock()
+	chunks := s.faults.chunkMin
+	if s.faults.chunkMax > s.faults.chunkMin {
+		chunks = s.faults.chunkMin + s.faults.rng.Intn(s.faults.chunkMax-s.faults.chunkMin+1)
+	}
+	delay := s.faults.interChunkDelay
+	s.faults.mu.Unlock()
+
+	if chunks <= 1 {
+		_, err := conn.Write(resp)
+		return err
+	}
+	size := (len(resp) + chunks - 1) / chunks
+	offset := 0
+	for offset < len(resp) {
+		end := offset + size
+		if end > len(resp) {
+			end = len(resp)
+		}
+		if _, err := conn.Write(resp[offset:end]); err != nil {
+			return err
+		}
+		offset = end
+		if delay > 0 && offset < len(resp) {
+			time.Sleep(delay)
+		}
+	}
+	return nil
 }
 
 func resolveCIPPolicy(cfg *config.ServerConfig) cipPolicyConfig {
