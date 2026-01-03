@@ -51,13 +51,12 @@
 - [x] Test: Scenario selection (tags, firewall vendor filters, preset selection).
 - [x] Test: Metrics output (CSV/JSON, percentiles, jitter, outcome flags).
 - [x] Test: PCAP extraction (metadata, request/response detection, TCP reassembly).
-- [ ] Test: PCAP summary/report/coverage/dump correctness.
+- [x] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: PCAP replay (app/raw/tcpreplay) preflight + ARP/MAC rewrite paths.
 - [x] Test: PCAP rewrite (IP/port/MAC, checksum updates, onlyENIP filter).
-- [x] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
 - [x] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
-- [ ] Test: Regression tests against reference_packets_gen.go for supported services/paths.
+- [x] Test: Regression tests against reference_packets_gen.go for supported services/paths.
 
 ### Protocol compliance + modes
 - [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
@@ -100,16 +99,16 @@
 - [x] Add server targets to match client presets (rockwell/schneider/siemens/omron/keyence).
 
 #### Phase 3: Fault injection + observability
-- [ ] Add fault injection controls (latency/jitter/spike, drop/close/stall, chunked TCP/coalesce).
-- [ ] Add server logging/metrics config (format/level/log_every_n/hex + metrics listener).
+- [x] Add fault injection controls (latency/jitter/spike, drop/close/stall, chunked TCP/coalesce).
+- [x] Add server logging/metrics config (format/level/log_every_n/hex + metrics listener).
 
 #### Phase 4: CLI + modes + tests
-- [ ] Add server CLI subcommands: start, targets, modes, validate-config, print-default-config.
-- [ ] Implement easy server modes (baseline/realistic/dpi-torture/perf) with precedence rules.
-- [ ] Add CLI tests (help no bind, targets list, validate-config, print-default-config).
-- [ ] Add unit tests: ENIP stream parsing, CPF strict/permissive, EPATH errors, fault injection (seeded).
-- [ ] Add integration tests: start ephemeral server, minimal client session, baseline/realistic/dpi-torture.
-- [ ] Add optional golden PCAP capture regression plan.
+- [x] Add server CLI subcommands: start, targets, modes, validate-config, print-default-config.
+- [x] Implement easy server modes (baseline/realistic/dpi-torture/perf) with precedence rules.
+- [x] Add CLI tests (help no bind, targets list, validate-config, print-default-config).
+- [x] Add unit tests: ENIP stream parsing, CPF strict/permissive, EPATH errors, fault injection (seeded).
+- [x] Add integration tests: start ephemeral server, minimal client session, baseline/realistic/dpi-torture.
+- [x] Add optional golden PCAP capture regression plan.
 
 ### Scenarios + metrics
 - [x] Add "edge_valid" scenario for spec-compliant edge cases.
