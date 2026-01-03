@@ -12,6 +12,14 @@ func buildWizardForm(workspaceRoot string) *huh.Form {
 }
 
 func buildWizardFormWithDefault(defaultKind, workspaceRoot string) *huh.Form {
+	return buildWizardFormWithDefaults(workspaceRoot, CatalogEntry{})
+}
+
+func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.Form {
+	defaultKind := "pcap-replay"
+	if entry.Key != "" {
+		defaultKind = "single"
+	}
 	kind := defaultKind
 	input := findFirstPcap(workspaceRoot)
 	preset := ""
@@ -28,6 +36,13 @@ func buildWizardFormWithDefault(defaultKind, workspaceRoot string) *huh.Form {
 	singleInstance := ""
 	singleAttribute := ""
 	catalogKey := ""
+	if entry.Key != "" {
+		catalogKey = entry.Key
+		singleService = entry.Service
+		singleClass = entry.Class
+		singleInstance = entry.Instance
+		singleAttribute = entry.Attribute
+	}
 
 	kindGroup := huh.NewGroup(
 		huh.NewSelect[string]().

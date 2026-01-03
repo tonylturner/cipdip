@@ -48,6 +48,13 @@ func describeBehavior(profile Profile) []string {
 		}
 		return items
 	default:
+		if strings.ToLower(profile.Kind) == "single" {
+			items := []string{}
+			if name := strings.TrimSpace(profile.Name); name != "" && name != "single" {
+				items = append(items, fmt.Sprintf("- Catalog: %s", name))
+			}
+			return items
+		}
 		return nil
 	}
 }

@@ -48,29 +48,6 @@ func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 		}
 		lines = append(lines, fmt.Sprintf("%s%s", prefix, action))
 	}
-	lines = append(lines,
-		"",
-		sectionStyle.Render("Configs:"),
-	)
-	if len(profiles) == 0 {
-		lines = append(lines, "  (none)")
-	} else {
-		for _, profile := range profiles {
-			lines = append(lines, fmt.Sprintf("  - %s", profile.Name))
-		}
-	}
-	lines = append(lines, "", sectionStyle.Render("Recent Runs:"))
-	if len(runs) == 0 {
-		lines = append(lines, "  (none)")
-	} else {
-		for _, run := range runs {
-			lines = append(lines, fmt.Sprintf("  - %s", run))
-		}
-	}
-	lines = append(lines, "", sectionStyle.Render("Palette:"))
-	for _, item := range palette {
-		lines = append(lines, fmt.Sprintf("  %s", item.String()))
-	}
 	return frameStyle.Render(strings.Join(lines, "\n"))
 }
 

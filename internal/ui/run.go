@@ -21,6 +21,16 @@ type RunSummary struct {
 	ExitCode   int      `json:"exit_code"`
 }
 
+// RunArtifacts captures the run metadata and log payloads for display.
+type RunArtifacts struct {
+	RunDir    string
+	Command   string
+	Summary   *RunSummary
+	Stdout    string
+	Resolved  string
+	HasOutput bool
+}
+
 // ListRuns returns run directory names ordered by descending name.
 func ListRuns(workspaceRoot string, limit int) ([]string, error) {
 	runsDir := filepath.Join(workspaceRoot, "runs")
@@ -75,6 +85,31 @@ func WriteRunArtifacts(runDir string, resolved interface{}, command []string, st
 		return err
 	}
 	return nil
+}
+
+// LoadRunArtifacts reads the core run artifacts from a run directory.
+func LoadRunArtifacts(runDir string) (*RunArtifacts, error) {
+	artifacts := &RunArtifacts{RunDir: runDir}
+	if data, err := os.ReadFile(filepath.Join(runDir, "command.txt")); err == nil {
+		artifacts.Command = strings.TrimSpace(string(data))
+	}
+	if data, err := os.ReadFile(filepath.Join(runDir, "stdout.log")); err == nil {
+		artifacts.Stdout = strings.TrimSpace(string(data))
+	}
+	if data, err := os.ReadFile(filepath.Join(runDir, "resolved.yaml")); err == nil {
+		artifacts.Resolved = strings.TrimSpace(string(data))
+	}
+	if data, err := os.ReadFile(filepath.Join(runDir, "summary.json")); err == nil {
+		var summary RunSummary
+		if err := json.Unmarshal(data, &summary); err == nil {
+			artifacts.Summary = &summary
+		}
+	}
+	artifacts.HasOutput = artifacts.Command != "" || artifacts.Stdout != "" || artifacts.Resolved != "" || artifacts.Summary != nil
+	if !artifacts.HasOutput {
+		return nil, fmt.Errorf("no artifacts found in %s", runDir)
+	}
+	return artifacts, nil
 }
 
 func writeYAML(path string, data interface{}) error {

@@ -19,6 +19,9 @@ type CatalogEntry struct {
 	Class      string `yaml:"class"`
 	Instance   string `yaml:"instance"`
 	Attribute  string `yaml:"attribute"`
+	Scope      string `yaml:"scope,omitempty"`
+	Vendor     string `yaml:"vendor,omitempty"`
+	Notes      string `yaml:"notes,omitempty"`
 	PayloadHex string `yaml:"payload_hex,omitempty"`
 }
 
@@ -67,6 +70,7 @@ func DefaultCatalog() CatalogFile {
 				Class:     "0x01",
 				Instance:  "0x01",
 				Attribute: "0x01",
+				Scope:     "core",
 			},
 			{
 				Key:       "identity.product_name",
@@ -75,6 +79,7 @@ func DefaultCatalog() CatalogFile {
 				Class:     "0x01",
 				Instance:  "0x01",
 				Attribute: "0x07",
+				Scope:     "core",
 			},
 		},
 	}
@@ -133,6 +138,9 @@ func FilterCatalogEntries(entries []CatalogEntry, query string) []CatalogEntry {
 func catalogEntryMatches(entry CatalogEntry, query string) bool {
 	if strings.Contains(strings.ToLower(entry.Key), query) ||
 		strings.Contains(strings.ToLower(entry.Name), query) ||
+		strings.Contains(strings.ToLower(entry.Scope), query) ||
+		strings.Contains(strings.ToLower(entry.Vendor), query) ||
+		strings.Contains(strings.ToLower(entry.Notes), query) ||
 		strings.Contains(strings.ToLower(entry.Class), query) ||
 		strings.Contains(strings.ToLower(entry.Service), query) {
 		return true
