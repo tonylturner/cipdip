@@ -46,6 +46,9 @@ cipdip client --ip 10.0.0.50 --scenario stress --target-tags rockwell --firewall
 
 # One-off service/class/instance check (no YAML edits)
 cipdip single --ip 10.0.0.50 --service 0x0E --class 0x01 --instance 0x01 --attribute 0x01
+
+# ARP probe before raw/tcpreplay replays
+cipdip arp --iface eth0 --target-ip 10.0.0.10
 ```
 
 ### I/O Scenario with UDP 2222
