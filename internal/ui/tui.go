@@ -8,12 +8,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tturner/cipdip/internal/cipclient"
 )
 
 type viewMode int
@@ -23,6 +26,7 @@ const (
 	viewPalette
 	viewCatalog
 	viewReview
+	viewWizard
 )
 
 type tuiModel struct {
@@ -44,6 +48,7 @@ type tuiModel struct {
 	running       bool
 	showStatus    bool
 	cancelRun     func()
+	wizardForm    *huh.Form
 	err           error
 }
 
@@ -65,6 +70,34 @@ func (m tuiModel) Init() tea.Cmd {
 }
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.mode == viewWizard && m.wizardForm != nil {
+		formModel, cmd := m.wizardForm.Update(msg)
+		m.wizardForm = formModel.(*huh.Form)
+		switch m.wizardForm.State {
+		case huh.StateCompleted:
+			profile, err := buildWizardProfileFromForm(m.wizardForm, m.workspaceRoot)
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
+			command, err := BuildCommand(profile)
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
+			m.reviewText = RenderReviewScreen(profile, command)
+			m.reviewProfile = &profile
+			m.reviewCommand = command
+			m.reviewStatus = ""
+			m.wizardForm = nil
+			m.mode = viewReview
+		case huh.StateAborted:
+			m.wizardForm = nil
+			m.mode = viewHome
+		}
+		return m, cmd
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -79,6 +112,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "h":
 			m.mode = viewHome
+			m.cursor = 0
 		case "p":
 			m.mode = viewPalette
 			m.cursor = 0
@@ -92,6 +126,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reviewCommand = CommandSpec{}
 			m.reviewStatus = ""
 			m.cancelRun = nil
+			m.wizardForm = nil
 		default:
 			if m.searchFocus {
 				switch msg.Type {
@@ -114,6 +149,9 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.cursor++
 				case "enter":
 					m.selected = m.currentSelection()
+					if m.mode == viewHome {
+						m = m.handleHomeSelection()
+					}
 					if m.mode == viewPalette {
 						m = m.handlePaletteSelection()
 					}
@@ -224,15 +262,30 @@ func (m tuiModel) View() string {
 				status += "\n\nRunning..."
 			}
 		}
+		frameStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("12")).
+			Padding(1, 2)
 		reviewFooter := footerStyle.Render("\n\nKeys: r=run s=save c=copy x=cancel space=status b=back q=quit")
-		return header + m.reviewText + status + reviewFooter
+		return header + frameStyle.Render(m.reviewText+status) + reviewFooter
+	case viewWizard:
+		if m.wizardForm == nil {
+			return header + "Wizard not initialized.\n"
+		}
+		frameStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("12")).
+			Padding(1, 2)
+		return header + frameStyle.Render(m.wizardForm.View())
 	default:
-		return header + RenderHomeScreen(m.workspaceName, m.profiles, m.runs, m.palette) + footer
+		return header + RenderHomeScreenWithCursor(m.workspaceName, m.profiles, m.runs, m.palette, m.cursor) + footer
 	}
 }
 
 func (m tuiModel) currentListLen() int {
 	switch m.mode {
+	case viewHome:
+		return len(HomeActions())
 	case viewPalette:
 		return len(FilterPalette(m.palette, m.search))
 	case viewCatalog:
@@ -244,6 +297,11 @@ func (m tuiModel) currentListLen() int {
 
 func (m tuiModel) currentSelection() string {
 	switch m.mode {
+	case viewHome:
+		actions := HomeActions()
+		if m.cursor >= 0 && m.cursor < len(actions) {
+			return actions[m.cursor]
+		}
 	case viewPalette:
 		items := FilterPalette(m.palette, m.search)
 		if m.cursor >= 0 && m.cursor < len(items) {
@@ -267,6 +325,14 @@ func (m tuiModel) currentCatalogEntry() *CatalogEntry {
 		return &items[m.cursor]
 	}
 	return nil
+}
+
+func (m tuiModel) handleHomeSelection() tuiModel {
+	actions := HomeActions()
+	if m.cursor < 0 || m.cursor >= len(actions) {
+		return m
+	}
+	return m.applyTaskAction(actions[m.cursor])
 }
 
 func (m tuiModel) handlePaletteSelection() tuiModel {
@@ -299,29 +365,63 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 			m.mode = viewReview
 		}
 	case "Task":
-		if item.Title == "Explore CIP Catalog" {
-			m.mode = viewCatalog
-			m.search = ""
-		} else if item.Title == "Baseline (Guided)" {
-			profile := Profile{
-				Version: 1,
-				Kind:    "baseline",
-				Name:    "baseline",
-				Spec:    map[string]interface{}{},
-			}
-			cmd, err := BuildCommand(profile)
-			if err != nil {
-				m.err = err
-				return m
-			}
-			m.reviewText = RenderReviewScreen(profile, cmd)
-			m.reviewProfile = &profile
-			m.reviewCommand = cmd
-			m.reviewStatus = ""
-			m.mode = viewReview
-		}
+		return m.applyTaskAction(item.Title)
 	default:
 		m.selected = item.Title
+	}
+	return m
+}
+
+func (m tuiModel) applyTaskAction(title string) tuiModel {
+	switch title {
+	case "Explore CIP Catalog":
+		m.mode = viewCatalog
+		m.search = ""
+	case "Baseline (Guided)":
+		profile := Profile{
+			Version: 1,
+			Kind:    "baseline",
+			Name:    "baseline",
+			Spec:    map[string]interface{}{},
+		}
+		cmd, err := BuildCommand(profile)
+		if err != nil {
+			m.err = err
+			return m
+		}
+		m.reviewText = RenderReviewScreen(profile, cmd)
+		m.reviewProfile = &profile
+		m.reviewCommand = cmd
+		m.reviewStatus = ""
+		m.mode = viewReview
+	case "Start Server Emulator":
+		profile := Profile{
+			Version: 1,
+			Kind:    "server",
+			Name:    "server",
+			Spec:    map[string]interface{}{},
+		}
+		cmd, err := BuildCommand(profile)
+		if err != nil {
+			m.err = err
+			return m
+		}
+		m.reviewText = RenderReviewScreen(profile, cmd)
+		m.reviewProfile = &profile
+		m.reviewCommand = cmd
+		m.reviewStatus = ""
+		m.mode = viewReview
+	case "Run Existing Config":
+		m.mode = viewPalette
+		m.search = "config"
+		m.searchFocus = false
+		m.cursor = 0
+	case "New Run (Wizard)":
+		m.wizardForm = buildWizardForm(m.workspaceRoot)
+		m.mode = viewWizard
+	case "Single Request":
+		m.wizardForm = buildWizardFormWithDefault("single", m.workspaceRoot)
+		m.mode = viewWizard
 	}
 	return m
 }
@@ -333,6 +433,26 @@ func findProfileByName(profiles []ProfileInfo, name string) *ProfileInfo {
 		}
 	}
 	return nil
+}
+
+func findFirstPcap(workspaceRoot string) string {
+	pcapsDir := filepath.Join(workspaceRoot, "pcaps")
+	var found string
+	stop := errors.New("stop")
+	if err := filepath.WalkDir(pcapsDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		lower := strings.ToLower(d.Name())
+		if strings.HasSuffix(lower, ".pcap") || strings.HasSuffix(lower, ".pcapng") {
+			found = path
+			return stop
+		}
+		return nil
+	}); err != nil && !errors.Is(err, stop) {
+		return ""
+	}
+	return found
 }
 
 type runResult struct {
@@ -531,6 +651,7 @@ func clampCursor(cursor, length int) int {
 
 func renderPaletteWithCursor(items []PaletteItem, cursor int) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
+	kindStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	frameStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("12")).
@@ -540,7 +661,12 @@ func renderPaletteWithCursor(items []PaletteItem, cursor int) string {
 		lines = append(lines, "(no items)")
 		return frameStyle.Render(strings.Join(lines, "\n"))
 	}
+	currentKind := ""
 	for i, item := range items {
+		if item.Kind != currentKind {
+			currentKind = item.Kind
+			lines = append(lines, "", kindStyle.Render(fmt.Sprintf("[%s]", currentKind)))
+		}
 		prefix := "  "
 		if i == cursor {
 			prefix = "> "
@@ -566,10 +692,42 @@ func renderCatalogWithCursor(entries []CatalogEntry, cursor int) string {
 		if i == cursor {
 			prefix = "> "
 		}
+		serviceLabel := entry.Service
+		if code, ok := parseServiceForDisplay(entry.Service); ok {
+			if alias, ok := cipclient.ServiceAliasName(code); ok {
+				serviceLabel = fmt.Sprintf("%s (%s)", entry.Service, alias)
+			}
+		}
+		classLabel := entry.Class
+		if code, ok := parseClassForDisplay(entry.Class); ok {
+			if alias, ok := cipclient.ClassAliasName(code); ok {
+				classLabel = fmt.Sprintf("%s (%s)", entry.Class, alias)
+			}
+		}
 		lines = append(lines, fmt.Sprintf("%s%s (%s)", prefix, entry.Name, entry.Key))
-		lines = append(lines, fmt.Sprintf("  Service: %s  Class: %s  Instance: %s  Attribute: %s", entry.Service, entry.Class, entry.Instance, entry.Attribute))
+		lines = append(lines, fmt.Sprintf("  Service: %s  Class: %s  Instance: %s  Attribute: %s", serviceLabel, classLabel, entry.Instance, entry.Attribute))
 	}
 	return frameStyle.Render(strings.Join(lines, "\n"))
+}
+
+func parseServiceForDisplay(input string) (uint8, bool) {
+	if value, err := strconv.ParseUint(strings.TrimSpace(input), 0, 8); err == nil {
+		return uint8(value), true
+	}
+	if code, ok := cipclient.ParseServiceAlias(input); ok {
+		return code, true
+	}
+	return 0, false
+}
+
+func parseClassForDisplay(input string) (uint16, bool) {
+	if value, err := strconv.ParseUint(strings.TrimSpace(input), 0, 16); err == nil {
+		return uint16(value), true
+	}
+	if code, ok := cipclient.ParseClassAlias(input); ok {
+		return code, true
+	}
+	return 0, false
 }
 
 // RunTUI starts the Bubble Tea UI.

@@ -58,8 +58,8 @@ Use this for quick firewall/DPI checks on a specific service/class/instance/attr
 
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
 	cmd.Flags().IntVar(&flags.port, "port", 44818, "CIP TCP port (default 44818)")
-	cmd.Flags().StringVar(&flags.service, "service", "", "CIP service code (hex or decimal, required)")
-	cmd.Flags().StringVar(&flags.classID, "class", "", "CIP class ID (hex or decimal, required)")
+	cmd.Flags().StringVar(&flags.service, "service", "", "CIP service code (hex/decimal) or alias (required)")
+	cmd.Flags().StringVar(&flags.classID, "class", "", "CIP class ID (hex/decimal) or alias (required)")
 	cmd.Flags().StringVar(&flags.instanceID, "instance", "", "CIP instance ID (hex or decimal, required)")
 	cmd.Flags().StringVar(&flags.attributeID, "attribute", "0x0000", "CIP attribute ID (hex or decimal, default 0)")
 	cmd.Flags().StringVar(&flags.payloadHex, "payload-hex", "", "Optional hex payload for the request body")
@@ -68,11 +68,11 @@ Use this for quick firewall/DPI checks on a specific service/class/instance/attr
 }
 
 func runSingle(flags *singleFlags) error {
-	serviceCode, err := parseUint(flags.service, 8)
+	serviceCode, err := parseServiceInput(flags.service)
 	if err != nil {
 		return fmt.Errorf("parse service: %w", err)
 	}
-	classID, err := parseUint(flags.classID, 16)
+	classID, err := parseClassInput(flags.classID)
 	if err != nil {
 		return fmt.Errorf("parse class: %w", err)
 	}
@@ -119,6 +119,26 @@ func runSingle(flags *singleFlags) error {
 
 	fmt.Fprintf(os.Stdout, "CIP Response: status=0x%02X payload=%d bytes RTT=%.2fms\n", resp.Status, len(resp.Payload), rtt)
 	return nil
+}
+
+func parseServiceInput(input string) (uint64, error) {
+	if value, err := parseUint(input, 8); err == nil {
+		return value, nil
+	}
+	if code, ok := cipclient.ParseServiceAlias(input); ok {
+		return uint64(code), nil
+	}
+	return 0, fmt.Errorf("unknown service alias '%s'", input)
+}
+
+func parseClassInput(input string) (uint64, error) {
+	if value, err := parseUint(input, 16); err == nil {
+		return value, nil
+	}
+	if code, ok := cipclient.ParseClassAlias(input); ok {
+		return uint64(code), nil
+	}
+	return 0, fmt.Errorf("unknown class alias '%s'", input)
 }
 
 func parseUint(input string, bits int) (uint64, error) {

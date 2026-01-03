@@ -7,8 +7,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// HomeActions lists the selectable quick actions.
+func HomeActions() []string {
+	return []string{
+		"New Run (Wizard)",
+		"Run Existing Config",
+		"Baseline (Guided)",
+		"Start Server Emulator",
+		"Single Request",
+		"Explore CIP Catalog",
+	}
+}
+
 // RenderHomeScreen builds a simple home screen view for non-interactive runs.
 func RenderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem) string {
+	return renderHomeScreen(workspaceName, profiles, runs, palette, -1)
+}
+
+// RenderHomeScreenWithCursor renders the home screen with a highlighted quick action.
+func RenderHomeScreenWithCursor(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int) string {
+	return renderHomeScreen(workspaceName, profiles, runs, palette, cursor)
+}
+
+func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	sectionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
 	frameStyle := lipgloss.NewStyle().
@@ -19,14 +40,18 @@ func RenderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 		titleStyle.Render(fmt.Sprintf("cipdip UI | Workspace: %s", workspaceName)),
 		"",
 		sectionStyle.Render("Quick Actions:"),
-		"  - New Run (Wizard)",
-		"  - Run Existing Config",
-		"  - Baseline (Guided)",
-		"  - Start Server Emulator",
-		"  - Explore CIP Catalog",
+	}
+	for i, action := range HomeActions() {
+		prefix := "  - "
+		if cursor >= 0 && i == cursor {
+			prefix = "> "
+		}
+		lines = append(lines, fmt.Sprintf("%s%s", prefix, action))
+	}
+	lines = append(lines,
 		"",
 		sectionStyle.Render("Configs:"),
-	}
+	)
 	if len(profiles) == 0 {
 		lines = append(lines, "  (none)")
 	} else {
