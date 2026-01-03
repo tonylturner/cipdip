@@ -16,6 +16,48 @@
 - [ ] 6) Windows sanity pass: paths, file permissions, build/test commands.
 
 ## Work Items
+### Test coverage plan (exhaustive)
+#### Phase 1: Protocol primitives + strictness (highest value)
+- [x] Test: ENIP encode/decode (headers, length, status, session, sender context).
+- [x] Test: ENIP CPF parsing/encoding (items, alignment, errors).
+- [x] Test: CIP EPATH encoding/decoding (8/16-bit segments, symbolic, padding).
+- [x] Test: CIP service request/response framing (path size, status, extended status).
+- [x] Test: Error response handling + status code mapping.
+- [x] Test: Strict ODVA vs vendor_variant behavioral deltas (encoding + accept/reject).
+- [x] Test: CPF enforcement and CIP path size rules (strict mode).
+
+#### Phase 2: Client/server behavior (runtime correctness)
+- [x] Test: Client scenario execution (baseline/edge/mixed/vendor/IO) validates expected outcomes.
+- [x] Test: Server request handling for all supported services and classes.
+- [x] Test: Forward Open/Close request/response encode/decode.
+- [x] Test: Forward Open state machine + timeout handling.
+- [x] Test: Connected SendUnitData framing + sequence count.
+- [x] Test: I/O path enforcement (connected-only, invalid connection IDs).
+- [x] Test: Unconnected Send wrapper encode/decode (embedded CIP).
+- [x] Test: Multiple Service Packet encode/decode + error aggregation.
+
+#### Phase 3: Object/service coverage (CIP catalog)
+- [ ] Test: RegisterSession/ListIdentity/ListServices/ListInterfaces parsing.
+- [x] Test: Identity Object attributes 1-7 read responses.
+- [x] Test: Connection Manager services (0x54/0x4E/0x56/0x57/0x5A/0x5B).
+- [x] Test: Vendor services (Rockwell 0x4B/0x4C/0x4D/0x52/0x53) with contextual class mapping.
+- [x] Test: Symbol/Template services (0x52/0x53/0x4C) with fragmentation.
+- [x] Test: File Object services (0x4B-0x51) behavior + error codes (when enabled).
+- [x] Test: Event Log/Time Sync/Modbus/Motion/Safety class basic read/write flows (where supported).
+- [x] Test: CIP data type codec (BOOL/INT/DINT/REAL/STRING primitives).
+
+#### Phase 4: Tooling + CLI + PCAP pipeline
+- [x] Test: Config parsing/validation (all flags + new profiles + tags).
+- [x] Test: Scenario selection (tags, firewall vendor filters, preset selection).
+- [x] Test: Metrics output (CSV/JSON, percentiles, jitter, outcome flags).
+- [x] Test: PCAP extraction (metadata, request/response detection, TCP reassembly).
+- [ ] Test: PCAP summary/report/coverage/dump correctness.
+- [x] Test: PCAP replay (app/raw/tcpreplay) preflight + ARP/MAC rewrite paths.
+- [x] Test: PCAP rewrite (IP/port/MAC, checksum updates, onlyENIP filter).
+- [ ] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
+- [ ] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
+- [ ] Test: Regression tests against reference_packets_gen.go for supported services/paths.
+
 ### Protocol compliance + modes
 - [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
 - [x] Add "vendor_variant" mode family (e.g., "rockwell", "schneider", "siemens") with explicit deviations.
@@ -69,7 +111,8 @@
 - [x] Add `pcap-rewrite` MAC rewrite options for L2 fidelity (src/dst MAC).
 - [x] Add `pcap-rewrite` summary report (counts of packets rewritten, skipped, errors).
 - [x] Add strict stateful preflight check (per-flow SYN/SYN-ACK/ACK validation) for replay modes.
-- [ ] Expand PCAP replay plan coverage: document and track options (app/raw/tcpreplay) and when to use each.
+- [x] Add `pcap-replay` preflight-only mode with summary + ARP validation (no traffic sent).
+- [x] Expand PCAP replay plan coverage: document and track options (app/raw/tcpreplay) and when to use each.
 - [x] Add L2 replay guidance + safeguards: ARP priming, optional DNS lookup, and route checks to ensure replays reach target.
 - [x] Add self-healing replay behavior: retry ARP and re-resolve MACs if target changes mid-run; warn on MAC drift.
 - [x] Add L2/L3 replay modes validation: confirm MAC rewrite + ARP flow works for routed vs bridged firewall paths.

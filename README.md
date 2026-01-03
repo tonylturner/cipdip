@@ -323,6 +323,11 @@ Replay ENIP/CIP traffic from a PCAP using app-layer, raw, or tcpreplay modes.
 cipdip pcap-replay --input pcaps/stress/ENIP.pcap --server-ip 10.0.0.10
 ```
 
+Preflight example (no packets sent):
+```bash
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode raw --iface eth0 --preflight-only
+```
+
 Preset example:
 ```bash
 cipdip pcap-replay --preset cl5000eip:firmware-change --server-ip 10.0.0.10
@@ -334,6 +339,10 @@ Key flags:
 - `--client-ip`: bind a specific local source for app replay
 - `--rewrite-src-ip`, `--rewrite-dst-ip`, `--rewrite-src-port`, `--rewrite-dst-port`: rewrite endpoints (raw/tcpreplay)
 - `--rewrite-src-mac`, `--rewrite-dst-mac`: rewrite L2 MACs (raw/tcpreplay)
+- `--arp-target`: send ARP requests before raw/tcpreplay (auto-fills rewrite MACs if enabled)
+- `--arp-refresh-ms`: refresh ARP during raw replay to detect MAC drift
+- `--arp-drift-fail`: fail replay if ARP MAC changes during replay
+- `--preflight-only`: run replay checks and exit
 - `--realtime`: replay with original PCAP timing
 - `--interval-ms`: fixed delay between packets when not using realtime
 - `--include-responses`: include response packets (default requests only)

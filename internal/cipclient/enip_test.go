@@ -75,6 +75,12 @@ func TestDecodeENIP(t *testing.T) {
 	}
 }
 
+func TestDecodeENIPTooShort(t *testing.T) {
+	if _, err := DecodeENIP([]byte{0x01, 0x02, 0x03}); err == nil {
+		t.Fatalf("expected error for short ENIP packet")
+	}
+}
+
 func TestBuildRegisterSession(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
 	SetProtocolProfile(StrictODVAProfile)
@@ -99,6 +105,10 @@ func TestBuildRegisterSession(t *testing.T) {
 
 	if len(encap.Data) != 4 {
 		t.Errorf("data length: got %d, want 4", len(encap.Data))
+	}
+
+	if encap.SenderContext != senderContext {
+		t.Errorf("sender context: got %v, want %v", encap.SenderContext, senderContext)
 	}
 }
 

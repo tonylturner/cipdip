@@ -54,6 +54,7 @@ type pcapReplayFlags struct {
 	tcpreplayArgs   []string
 	tcprewriteArgs  []string
 	report          bool
+	preflightOnly   bool
 }
 
 func newPcapReplayCmd() *cobra.Command {
@@ -124,6 +125,7 @@ func newPcapReplayCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&flags.tcpreplayArgs, "tcpreplay-arg", nil, "Pass-through arg to tcpreplay (repeatable)")
 	cmd.Flags().StringArrayVar(&flags.tcprewriteArgs, "tcprewrite-arg", nil, "Pass-through arg to tcprewrite (repeatable)")
 	cmd.Flags().BoolVar(&flags.report, "report", true, "Print a replay summary report")
+	cmd.Flags().BoolVar(&flags.preflightOnly, "preflight-only", false, "Run replay preflight checks and exit")
 
 	return cmd
 }
@@ -149,6 +151,9 @@ func runPcapReplay(flags *pcapReplayFlags) error {
 func runReplayForFile(flags *pcapReplayFlags) error {
 	if err := warnIfMissingHandshake(flags); err != nil {
 		return err
+	}
+	if flags.preflightOnly {
+		return runPcapPreflight(flags)
 	}
 	switch strings.ToLower(flags.mode) {
 	case "app":
@@ -262,8 +267,22 @@ func runAppReplay(flags *pcapReplayFlags) error {
 
 	fmt.Fprintf(os.Stdout, "Replayed %d packet(s) via app mode\n", sent)
 	if flags.report {
-		fmt.Fprintf(os.Stdout, "Replay summary: enip=%d requests=%d responses=%d sent=%d tcp=%d udp=%d skipped_responses=%d\n",
-			len(packets), requests, responses, sent, tcpSent, udpSent, skippedResponses)
+		missing := 0
+		if requests > responses {
+			missing = requests - responses
+		}
+		printReplaySummary("app", &replaySummary{
+			mode:            "app",
+			total:           len(packets),
+			enip:            len(packets),
+			requests:        requests,
+			responses:       responses,
+			missingResponse: missing,
+			sent:            sent,
+			tcpSent:         tcpSent,
+			udpSent:         udpSent,
+			skippedResponse: skippedResponses,
+		})
 	}
 	return nil
 }
@@ -370,8 +389,18 @@ func runRawReplay(flags *pcapReplayFlags) error {
 
 	fmt.Fprintf(os.Stdout, "Replayed %d packet(s) via raw mode on %s\n", sent, flags.iface)
 	if flags.report {
-		fmt.Fprintf(os.Stdout, "Replay summary: total=%d sent=%d enip=%d enip_tcp=%d enip_udp=%d rewrite_candidates=%d rewrite_skipped=%d rewritten=%d rewrite_errors=%d\n",
-			total, sent, enip, enipTCP, enipUDP, rewriteCandidates, rewriteSkipped, rewritten, rewriteErrors)
+		printReplaySummary("raw", &replaySummary{
+			mode:              "raw",
+			total:             total,
+			sent:              sent,
+			enip:              enip,
+			enipTCP:           enipTCP,
+			enipUDP:           enipUDP,
+			rewriteCandidates: rewriteCandidates,
+			rewriteSkipped:    rewriteSkipped,
+			rewritten:         rewritten,
+			rewriteErrors:     rewriteErrors,
+		})
 	}
 	return nil
 }
@@ -539,7 +568,7 @@ func warnIfMissingHandshake(flags *pcapReplayFlags) error {
 	if !ok {
 		fmt.Fprintln(os.Stdout, "Warning: PCAP does not include a full TCP handshake for 44818; stateful firewalls may drop replay.")
 	}
-	ok, err = hasPerFlowTCPHandshake(flags.input)
+	ok, _, err = hasPerFlowTCPHandshake(flags.input)
 	if err != nil {
 		return err
 	}
@@ -901,10 +930,15 @@ type handshakeState struct {
 	complete bool
 }
 
-func hasPerFlowTCPHandshake(pcapFile string) (bool, error) {
+type flowHandshakeStats struct {
+	total    int
+	complete int
+}
+
+func hasPerFlowTCPHandshake(pcapFile string) (bool, *flowHandshakeStats, error) {
 	handle, err := pcap.OpenOffline(pcapFile)
 	if err != nil {
-		return false, fmt.Errorf("open pcap: %w", err)
+		return false, nil, fmt.Errorf("open pcap: %w", err)
 	}
 	defer handle.Close()
 
@@ -928,7 +962,7 @@ func hasPerFlowTCPHandshake(pcapFile string) (bool, error) {
 			continue
 		}
 		src, dst := netLayer.NetworkFlow().Endpoints()
-		key := fmt.Sprintf("%s:%d->%s:%d", src, tcp.SrcPort, dst, tcp.DstPort)
+		key := canonicalFlowKey(src.String(), uint16(tcp.SrcPort), dst.String(), uint16(tcp.DstPort))
 		state := flows[key]
 		if state == nil {
 			state = &handshakeState{}
@@ -947,27 +981,51 @@ func hasPerFlowTCPHandshake(pcapFile string) (bool, error) {
 	}
 
 	if len(flows) == 0 {
-		return false, nil
+		return false, &flowHandshakeStats{}, nil
 	}
+	stats := &flowHandshakeStats{total: len(flows)}
 	for _, state := range flows {
-		if !state.complete {
-			return false, nil
+		if state.complete {
+			stats.complete++
 		}
 	}
-	return true, nil
+	if stats.complete != stats.total {
+		return false, stats, nil
+	}
+	return true, stats, nil
+}
+
+func canonicalFlowKey(srcIP string, srcPort uint16, dstIP string, dstPort uint16) string {
+	leftIP, rightIP := srcIP, dstIP
+	leftPort, rightPort := srcPort, dstPort
+	if leftIP > rightIP || (leftIP == rightIP && leftPort > rightPort) {
+		leftIP, rightIP = rightIP, leftIP
+		leftPort, rightPort = rightPort, leftPort
+	}
+	return fmt.Sprintf("%s:%d<->%s:%d", leftIP, leftPort, rightIP, rightPort)
 }
 
 type replaySummary struct {
-	mode            string
-	total           int
-	enip            int
-	enipTCP         int
-	enipUDP         int
-	requests        int
-	responses       int
-	missingResponse int
-	handshakeAny    bool
-	handshakeFlows  bool
+	mode              string
+	total             int
+	enip              int
+	enipTCP           int
+	enipUDP           int
+	requests          int
+	responses         int
+	missingResponse   int
+	handshakeAny      bool
+	handshakeFlows    bool
+	flowsTotal        int
+	flowsComplete     int
+	sent              int
+	tcpSent           int
+	udpSent           int
+	skippedResponse   int
+	rewriteCandidates int
+	rewriteSkipped    int
+	rewritten         int
+	rewriteErrors     int
 }
 
 func summarizePcapForReplay(path string) (*replaySummary, error) {
@@ -1008,9 +1066,13 @@ func summarizePcapForReplay(path string) (*replaySummary, error) {
 		summary.missingResponse = summary.requests - summary.responses
 	}
 	handshakeAny, _ := hasTCPHandshake(path)
-	handshakeFlows, _ := hasPerFlowTCPHandshake(path)
+	handshakeFlows, flowStats, _ := hasPerFlowTCPHandshake(path)
 	summary.handshakeAny = handshakeAny
 	summary.handshakeFlows = handshakeFlows
+	if flowStats != nil {
+		summary.flowsTotal = flowStats.total
+		summary.flowsComplete = flowStats.complete
+	}
 	return summary, nil
 }
 
@@ -1032,8 +1094,43 @@ func printReplaySummary(mode string, summary *replaySummary) {
 	if summary == nil {
 		return
 	}
-	fmt.Fprintf(os.Stdout, "Replay summary (%s): total=%d enip=%d enip_tcp=%d enip_udp=%d requests=%d responses=%d missing_responses=%d handshake_any=%t handshake_per_flow=%t\n",
-		mode, summary.total, summary.enip, summary.enipTCP, summary.enipUDP, summary.requests, summary.responses, summary.missingResponse, summary.handshakeAny, summary.handshakeFlows)
+	fmt.Fprintf(os.Stdout, "Replay summary (%s): total=%d enip=%d enip_tcp=%d enip_udp=%d requests=%d responses=%d missing_responses=%d handshake_any=%t handshake_per_flow=%t flows=%d flows_complete=%d sent=%d tcp_sent=%d udp_sent=%d skipped_responses=%d rewrite_candidates=%d rewrite_skipped=%d rewritten=%d rewrite_errors=%d\n",
+		mode, summary.total, summary.enip, summary.enipTCP, summary.enipUDP, summary.requests, summary.responses, summary.missingResponse, summary.handshakeAny, summary.handshakeFlows, summary.flowsTotal, summary.flowsComplete, summary.sent, summary.tcpSent, summary.udpSent, summary.skippedResponse, summary.rewriteCandidates, summary.rewriteSkipped, summary.rewritten, summary.rewriteErrors)
+}
+
+func runPcapPreflight(flags *pcapReplayFlags) error {
+	mode := strings.ToLower(flags.mode)
+	switch mode {
+	case "app":
+		if flags.serverIP == "" {
+			return fmt.Errorf("server-ip is required for app replay preflight")
+		}
+	case "raw", "tcpreplay":
+		if flags.iface == "" {
+			return fmt.Errorf("iface is required for %s replay preflight", mode)
+		}
+	default:
+		return fmt.Errorf("unknown replay mode '%s'; use app, raw, or tcpreplay", mode)
+	}
+
+	if flags.report {
+		if summary, err := summarizePcapForReplay(flags.input); err == nil {
+			printReplaySummary("preflight", summary)
+		} else {
+			return err
+		}
+	}
+
+	if mode == "raw" || mode == "tcpreplay" {
+		if flags.arpRefreshMs > 0 && mode == "tcpreplay" {
+			fmt.Fprintln(os.Stdout, "Warning: arp-refresh-ms is not supported in tcpreplay mode; ignoring.")
+		}
+		if err := primeARP(flags); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func isENIPPacket(packet gopacket.Packet) bool {
