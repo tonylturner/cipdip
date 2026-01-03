@@ -102,3 +102,50 @@ func TestEnergyMeteringServices(t *testing.T) {
 		t.Fatalf("expected stop metering success, ok=%v status=0x%02X", ok, resp.Status)
 	}
 }
+
+func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
+	classes := []uint16{
+		cipclient.CIPClassEventLog,
+		cipclient.CIPClassTimeSync,
+		cipclient.CIPClassModbus,
+		cipclient.CIPClassMotionAxis,
+		cipclient.CIPClassSafetySupervisor,
+		cipclient.CIPClassSafetyValidator,
+	}
+
+	for _, classID := range classes {
+		s := &Server{
+			config:       &config.ServerConfig{},
+			genericStore: newGenericAttributeStore(),
+			profileClasses: map[uint16]struct{}{
+				classID: {},
+			},
+		}
+
+		setReq := cipclient.CIPRequest{
+			Service: cipclient.CIPServiceSetAttributeSingle,
+			Path: cipclient.CIPPath{
+				Class:     classID,
+				Instance:  0x0001,
+				Attribute: 0x0001,
+			},
+			Payload: []byte{0xAA},
+		}
+		resp, ok := s.handleGenericRequest(setReq)
+		if !ok || resp.Status != 0x00 {
+			t.Fatalf("class 0x%04X set failed: ok=%v status=0x%02X", classID, ok, resp.Status)
+		}
+
+		getReq := cipclient.CIPRequest{
+			Service: cipclient.CIPServiceGetAttributeSingle,
+			Path:    setReq.Path,
+		}
+		resp, ok = s.handleGenericRequest(getReq)
+		if !ok || resp.Status != 0x00 {
+			t.Fatalf("class 0x%04X get failed: ok=%v status=0x%02X", classID, ok, resp.Status)
+		}
+		if len(resp.Payload) == 0 || resp.Payload[0] != 0xAA {
+			t.Fatalf("class 0x%04X payload mismatch: %v", classID, resp.Payload)
+		}
+	}
+}

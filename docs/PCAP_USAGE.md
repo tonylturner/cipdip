@@ -280,6 +280,9 @@ Replay ENIP/CIP traffic from a PCAP. Three modes are supported:
 # App-layer replay to a target server (TCP/UDP from this host)
 cipdip pcap-replay --input pcaps/stress/ENIP.pcap --server-ip 10.0.0.10
 
+# Preflight only (no packets sent)
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode raw --iface eth0 --preflight-only
+
 # Raw injection (requires interface)
 cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode raw --iface eth0
 
@@ -301,6 +304,7 @@ Key flags:
 - `--arp-refresh-ms`: refresh ARP during raw replay to detect MAC drift (warns on change)
 - `--arp-drift-fail`: fail replay if ARP MAC changes mid-run
 - `--report`: print replay summary (counts, request/response balance, handshake status)
+- `--preflight-only`: run replay checks (summary + ARP) and exit without sending packets
 - `--realtime`: replay with original PCAP timing
 - `--interval-ms`: fixed delay between packets when not using realtime
 - `--include-responses`: include response packets (default requests only)
@@ -320,6 +324,15 @@ cipdip pcap-replay --preset cl5000eip --server-ip 10.0.0.10
 Notes:
 - App replay sends ENIP payloads over TCP/UDP but does not preserve original TCP sequence state.
 - For stateful firewalls, prefer `tcpreplay` mode or validate flows with a full TCP handshake.
+
+### Choosing a Replay Mode
+
+Use the mode that matches your DPI objective and firewall behavior:
+- `app`: quick DPI functional checks, low friction, does not preserve TCP state.
+- `raw`: L2 fidelity (MAC rewrite, exact frames), requires interface access and privileges.
+- `tcpreplay`: best for stateful enforcement and full TCP session realism; depends on external tools.
+
+For routed firewall paths, use `--arp-target` to resolve the gateway MAC or set `--rewrite-dst-mac` explicitly.
 
 ### Stateful Firewall Replay Guidance
 
