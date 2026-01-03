@@ -37,7 +37,7 @@
 - [x] Test: Multiple Service Packet encode/decode + error aggregation.
 
 #### Phase 3: Object/service coverage (CIP catalog)
-- [ ] Test: RegisterSession/ListIdentity/ListServices/ListInterfaces parsing.
+- [x] Test: RegisterSession/ListIdentity/ListServices/ListInterfaces parsing.
 - [x] Test: Identity Object attributes 1-7 read responses.
 - [x] Test: Connection Manager services (0x54/0x4E/0x56/0x57/0x5A/0x5B).
 - [x] Test: Vendor services (Rockwell 0x4B/0x4C/0x4D/0x52/0x53) with contextual class mapping.
@@ -54,8 +54,9 @@
 - [ ] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: PCAP replay (app/raw/tcpreplay) preflight + ARP/MAC rewrite paths.
 - [x] Test: PCAP rewrite (IP/port/MAC, checksum updates, onlyENIP filter).
-- [ ] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
-- [ ] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
+- [x] Test: PCAP summary/report/coverage/dump correctness.
+- [x] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
+- [x] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
 - [ ] Test: Regression tests against reference_packets_gen.go for supported services/paths.
 
 ### Protocol compliance + modes
@@ -85,6 +86,30 @@
 - [x] Require active connection for SendUnitData; reject or drop when invalid.
 - [x] Implement CPF items and sequence counters for class 1 I/O.
 - [x] Add I/O jitter/burst options for DPI stress.
+
+### Server vNext emulator framework (new requirements)
+#### Phase 1: ENIP/CPF/session correctness (core)
+- [x] Add ENIP support toggles (ListIdentity/ListServices/ListInterfaces/RegisterSession/SendRRData/SendUnitData) with config gating.
+- [x] Add session policy controls (require_register_session, max sessions, per-IP limit, idle timeout).
+- [x] Implement TCP stream handling in server (split/coalesced ENIP frames).
+- [x] Harden malformed ENIP/CPF handling (no panics; configurable strict/permissive CPF).
+- [x] Add CPF policy controls (allow reorder/extra/missing items).
+
+#### Phase 2: CIP policy + deterministic behavior
+- [x] Add CIP policy allow/deny lists with default status + per-service/class overrides.
+- [x] Add server targets to match client presets (rockwell/schneider/siemens/omron/keyence).
+
+#### Phase 3: Fault injection + observability
+- [ ] Add fault injection controls (latency/jitter/spike, drop/close/stall, chunked TCP/coalesce).
+- [ ] Add server logging/metrics config (format/level/log_every_n/hex + metrics listener).
+
+#### Phase 4: CLI + modes + tests
+- [ ] Add server CLI subcommands: start, targets, modes, validate-config, print-default-config.
+- [ ] Implement easy server modes (baseline/realistic/dpi-torture/perf) with precedence rules.
+- [ ] Add CLI tests (help no bind, targets list, validate-config, print-default-config).
+- [ ] Add unit tests: ENIP stream parsing, CPF strict/permissive, EPATH errors, fault injection (seeded).
+- [ ] Add integration tests: start ephemeral server, minimal client session, baseline/realistic/dpi-torture.
+- [ ] Add optional golden PCAP capture regression plan.
 
 ### Scenarios + metrics
 - [x] Add "edge_valid" scenario for spec-compliant edge cases.

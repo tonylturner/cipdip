@@ -9,12 +9,13 @@ func TestValidateSendRRDataStrictCPF(t *testing.T) {
 
 	validator := NewPacketValidator(true)
 	encap := ENIPEncapsulation{
-		Command:   ENIPCommandSendRRData,
-		Length:    6,
-		SessionID: 0x12345678,
-		Status:    0,
-		Options:   0,
-		Data:      make([]byte, 6),
+		Command:       ENIPCommandSendRRData,
+		Length:        6,
+		SessionID:     0x12345678,
+		Status:        0,
+		SenderContext: [8]byte{0x01},
+		Options:       0,
+		Data:          make([]byte, 6),
 	}
 	if err := validator.ValidateENIP(encap); err == nil {
 		t.Fatalf("expected CPF validation error for SendRRData")
@@ -28,12 +29,13 @@ func TestValidateSendUnitDataStrictCPF(t *testing.T) {
 
 	validator := NewPacketValidator(true)
 	encap := ENIPEncapsulation{
-		Command:   ENIPCommandSendUnitData,
-		Length:    6,
-		SessionID: 0x12345678,
-		Status:    0,
-		Options:   0,
-		Data:      make([]byte, 6),
+		Command:       ENIPCommandSendUnitData,
+		Length:        6,
+		SessionID:     0x12345678,
+		Status:        0,
+		SenderContext: [8]byte{0x01},
+		Options:       0,
+		Data:          make([]byte, 6),
 	}
 	if err := validator.ValidateENIP(encap); err == nil {
 		t.Fatalf("expected CPF validation error for SendUnitData")
@@ -70,12 +72,13 @@ func TestValidateSendRRDataStrictWithCPF(t *testing.T) {
 	cipPayload := []byte{0x0E, 0x00, 0x20, 0x04, 0x24, 0x01, 0x30, 0x01}
 	sendData := BuildSendRRDataPayload(cipPayload)
 	encap := ENIPEncapsulation{
-		Command:   ENIPCommandSendRRData,
-		Length:    uint16(len(sendData)),
-		SessionID: 0x12345678,
-		Status:    0,
-		Options:   0,
-		Data:      sendData,
+		Command:       ENIPCommandSendRRData,
+		Length:        uint16(len(sendData)),
+		SessionID:     0x12345678,
+		Status:        0,
+		SenderContext: [8]byte{0x01},
+		Options:       0,
+		Data:          sendData,
 	}
 	if err := validator.ValidateENIP(encap); err != nil {
 		t.Fatalf("unexpected validation error with CPF: %v", err)

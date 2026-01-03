@@ -34,7 +34,7 @@ func TestRegisterSessionODVACompliance(t *testing.T) {
 		Data:          registerData,
 	}
 
-	resp := server.handleRegisterSession(encap)
+	resp := server.handleRegisterSession(encap, "127.0.0.1:1234")
 	respEncap, err := cipclient.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
@@ -102,7 +102,7 @@ func TestUnregisterSessionODVACompliance(t *testing.T) {
 		Data:          registerData,
 	}
 
-	registerResp := server.handleRegisterSession(registerEncap)
+	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
 	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
@@ -175,7 +175,7 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 		Data:          registerData,
 	}
 
-	registerResp := server.handleRegisterSession(registerEncap)
+	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
 	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
@@ -301,7 +301,7 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 		Data:          registerData,
 	}
 
-	registerResp := server.handleRegisterSession(registerEncap)
+	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
 	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
@@ -395,7 +395,7 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 		Data:          registerData,
 	}
 
-	registerResp := server.handleRegisterSession(registerEncap)
+	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
 	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 

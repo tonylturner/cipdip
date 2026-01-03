@@ -4,23 +4,19 @@ import (
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
-	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
 
 func TestHandleUnconnectedSendSuccess(t *testing.T) {
-	cfg := &config.ServerConfig{
-		Server: config.ServerConfigSection{
-			IdentityVendorID:    0x1234,
-			IdentityDeviceType:  0x000C,
-			IdentityProductCode: 0x0042,
-			IdentityRevMajor:    2,
-			IdentityRevMinor:    1,
-			IdentityStatus:      0x00A0,
-			IdentitySerial:      0x01020304,
-			IdentityProductName: "CIPDIP",
-		},
-	}
+	cfg := createTestServerConfig()
+	cfg.Server.IdentityVendorID = 0x1234
+	cfg.Server.IdentityDeviceType = 0x000C
+	cfg.Server.IdentityProductCode = 0x0042
+	cfg.Server.IdentityRevMajor = 2
+	cfg.Server.IdentityRevMinor = 1
+	cfg.Server.IdentityStatus = 0x00A0
+	cfg.Server.IdentitySerial = 0x01020304
+	cfg.Server.IdentityProductName = "CIPDIP"
 	logger, _ := logging.NewLogger(logging.LogLevelError, "")
 	srv, err := NewServer(cfg, logger)
 	if err != nil {
@@ -96,7 +92,7 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 }
 
 func TestHandleUnconnectedSendInvalidPayload(t *testing.T) {
-	cfg := &config.ServerConfig{}
+	cfg := createTestServerConfig()
 	logger, _ := logging.NewLogger(logging.LogLevelError, "")
 	srv, err := NewServer(cfg, logger)
 	if err != nil {

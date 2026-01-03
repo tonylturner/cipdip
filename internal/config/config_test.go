@@ -270,6 +270,9 @@ func TestValidateServerConfig(t *testing.T) {
 			Personality: "adapter",
 			TCPPort:     44818,
 		},
+		Protocol: ProtocolConfig{
+			Mode: "strict_odva",
+		},
 		AdapterAssemblies: []AdapterAssemblyConfig{
 			{
 				Name:          "Input",
