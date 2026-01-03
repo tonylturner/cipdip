@@ -51,13 +51,12 @@
 - [x] Test: Scenario selection (tags, firewall vendor filters, preset selection).
 - [x] Test: Metrics output (CSV/JSON, percentiles, jitter, outcome flags).
 - [x] Test: PCAP extraction (metadata, request/response detection, TCP reassembly).
-- [ ] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: PCAP replay (app/raw/tcpreplay) preflight + ARP/MAC rewrite paths.
 - [x] Test: PCAP rewrite (IP/port/MAC, checksum updates, onlyENIP filter).
 - [x] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
 - [x] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
-- [ ] Test: Regression tests against reference_packets_gen.go for supported services/paths.
+- [x] Test: Regression tests against reference_packets_gen.go for supported services/paths.
 
 ### Protocol compliance + modes
 - [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
@@ -65,7 +64,6 @@
 - [x] Add config validation to prevent incompatible combinations.
 - [x] Add protocol_variants list support for vendor_variants scenario.
 - [x] Enforce CPF presence for UCMM/connected paths in strict_odva (allow legacy_compat exceptions).
-- [ ] Require CIP path size for UCMM requests in strict_odva (based on PCAP evidence).
 - [x] Require CIP path size for UCMM requests in strict_odva (based on PCAP evidence).
 - [x] Add CIP service/class enums for reference coverage (error_response, member ops, Rockwell tag services, Connection Manager extras).
 - [x] Implement symbolic path segments and tag addressing support.
@@ -100,16 +98,16 @@
 - [x] Add server targets to match client presets (rockwell/schneider/siemens/omron/keyence).
 
 #### Phase 3: Fault injection + observability
-- [ ] Add fault injection controls (latency/jitter/spike, drop/close/stall, chunked TCP/coalesce).
-- [ ] Add server logging/metrics config (format/level/log_every_n/hex + metrics listener).
+- [x] Add fault injection controls (latency/jitter/spike, drop/close/stall, chunked TCP/coalesce).
+- [x] Add server logging/metrics config (format/level/log_every_n/hex + metrics listener).
 
 #### Phase 4: CLI + modes + tests
-- [ ] Add server CLI subcommands: start, targets, modes, validate-config, print-default-config.
-- [ ] Implement easy server modes (baseline/realistic/dpi-torture/perf) with precedence rules.
-- [ ] Add CLI tests (help no bind, targets list, validate-config, print-default-config).
-- [ ] Add unit tests: ENIP stream parsing, CPF strict/permissive, EPATH errors, fault injection (seeded).
-- [ ] Add integration tests: start ephemeral server, minimal client session, baseline/realistic/dpi-torture.
-- [ ] Add optional golden PCAP capture regression plan.
+- [x] Add server CLI subcommands: start, targets, modes, validate-config, print-default-config.
+- [x] Implement easy server modes (baseline/realistic/dpi-torture/perf) with precedence rules.
+- [x] Add CLI tests (help no bind, targets list, validate-config, print-default-config).
+- [x] Add unit tests: ENIP stream parsing, CPF strict/permissive, EPATH errors, fault injection (seeded).
+- [x] Add integration tests: start ephemeral server, minimal client session, baseline/realistic/dpi-torture.
+- [x] Add optional golden PCAP capture regression plan.
 
 ### Scenarios + metrics
 - [x] Add "edge_valid" scenario for spec-compliant edge cases.
@@ -164,6 +162,38 @@
 - [x] Improve tshark discovery (TSHARK env + OS default locations) for PCAP tooling and validation.
 - [x] Investigate Unknown CIP service 0x51 on class 0x00A1 (pcaps/stress/ENIP.pcap) and update contextual service mapping if evidence supports.
 - [x] Consolidate PCAP analysis into Go CLI (`cipdip pcap-report` and `cipdip pcap-classify`), remove PowerShell scripts.
+
+### TUI + UX (new)
+#### Phase 0: Spec + design guardrails
+- [x] Capture authoritative TUI spec and UX contracts in `notes/TUI_SPEC.md`.
+- [x] Note assumptions/unknowns to validate against current CLI flags and configs.
+
+#### Phase 1: CLI entry + workspace model (MVP)
+- [x] Add `cipdip ui` command (Cobra) with flags: --workspace, --new-workspace, --no-run, --print-command.
+- [x] Implement workspace layout creation and discovery (workspace.yaml, profiles/, catalogs/, pcaps/, runs/, reports/, tmp/).
+- [x] Implement run artifact emission (resolved.yaml, command.txt, stdout.log, summary.json) for all TUI-triggered runs.
+- [x] Implement command generation layer (spec+advanced+overrides -> CLI invocation).
+
+#### Phase 1: Core UX flows
+- [x] Command palette: search tasks, profiles, runs, catalog entries (grouped results).
+- [x] Wizard flows: PCAP replay, baseline, server (review screen required).
+- [x] Home screen: quick actions, configs list, recent runs list.
+- [x] Catalog explorer UI: identity/browse/search, hex always visible.
+- [x] Single-request flow (TUI) wired to `cipdip single <catalog-key>`.
+
+#### Phase 1: Supporting models
+- [x] Palette data model and search (tasks, profiles, runs, catalogs).
+- [x] Review screen renderer for wizard summary output.
+- [x] Catalog model loader (catalogs/*.yaml) and palette integration.
+
+#### Phase 1: Tests
+- [x] Unit tests: workspace creation, profile resolution, command generation.
+- [x] Integration tests: `cipdip ui --no-run` starts without panic; workspace selection works.
+- [x] Snapshot tests (text) for wizard review screen command output.
+
+#### Phase 2: Optional features
+- [ ] Test plan builder (multi-step runner).
+- [ ] Run comparison view (resolved.yaml + summary.json diff).
 
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
