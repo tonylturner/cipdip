@@ -328,6 +328,40 @@ Preset example:
 cipdip pcap-replay --preset cl5000eip:firmware-change --server-ip 10.0.0.10
 ```
 
+Key flags:
+- `--mode`: `app` (default), `raw`, or `tcpreplay`
+- `--server-ip`, `--server-port`, `--udp-port`: destination for app replay
+- `--client-ip`: bind a specific local source for app replay
+- `--rewrite-src-ip`, `--rewrite-dst-ip`, `--rewrite-src-port`, `--rewrite-dst-port`: rewrite endpoints (raw/tcpreplay)
+- `--rewrite-src-mac`, `--rewrite-dst-mac`: rewrite L2 MACs (raw/tcpreplay)
+- `--realtime`: replay with original PCAP timing
+- `--interval-ms`: fixed delay between packets when not using realtime
+- `--include-responses`: include response packets (default requests only)
+- `--limit`: cap number of packets
+- `--iface`: interface for raw/tcpreplay
+
+### `cipdip pcap-rewrite`
+
+Rewrite IP/port fields in a PCAP before replay.
+
+```bash
+cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap --src-ip 10.0.0.20 --dst-ip 10.0.0.10
+```
+
+MAC rewrite example:
+```bash
+cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap \
+  --src-mac 00:11:22:33:44:55 --dst-mac 66:77:88:99:AA:BB
+```
+
+### `cipdip arp`
+
+Resolve a target MAC via ARP (useful before raw/tcpreplay replays).
+
+```bash
+cipdip arp --iface eth0 --target-ip 10.0.0.10
+```
+
 Print version information.
 
 ## Exit Codes

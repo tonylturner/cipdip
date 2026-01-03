@@ -64,6 +64,16 @@
 - [x] Add PCAP replay scenario (app/raw/tcpreplay) with optional timing and rewrite hooks.
 - [x] Add PCAP-derived scenario presets for CL5000EIP actions (firmware change, reboot, etc.).
 - [x] Document stateful firewall replay guidance for pcap-replay modes.
+- [x] Add pcap-rewrite command for offline IP/port rewriting.
+- [x] Add ARP probe helper command for L2 reachability before replays.
+- [x] Add `pcap-rewrite` MAC rewrite options for L2 fidelity (src/dst MAC).
+- [x] Add `pcap-rewrite` summary report (counts of packets rewritten, skipped, errors).
+- [x] Add strict stateful preflight check (per-flow SYN/SYN-ACK/ACK validation) for replay modes.
+- [ ] Expand PCAP replay plan coverage: document and track options (app/raw/tcpreplay) and when to use each.
+- [x] Add L2 replay guidance + safeguards: ARP priming, optional DNS lookup, and route checks to ensure replays reach target.
+- [x] Add self-healing replay behavior: retry ARP and re-resolve MACs if target changes mid-run; warn on MAC drift.
+- [x] Add L2/L3 replay modes validation: confirm MAC rewrite + ARP flow works for routed vs bridged firewall paths.
+- [x] Add pcap-replay verification step: optional post-run sanity report (flows sent, dropped, missing responses).
 
 ### Docs cleanup
 - [x] Relocate internal/audit docs to `notes/` and update references.

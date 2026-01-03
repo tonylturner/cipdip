@@ -15,6 +15,7 @@ The `cipdip pcap-coverage` command summarizes CIP request coverage (service + cl
 The `cipdip pcap-classify` command uses `tshark` to classify PCAPs for integrity/noise signals.
 The `cipdip pcap-dump` command extracts sample CIP packets for a specific service code.
 The `cipdip pcap-replay` command replays PCAP traffic using app-layer, raw injection, or tcpreplay.
+The `cipdip pcap-rewrite` command rewrites IP/port fields in a PCAP before replay.
 
 ## Basic Usage
 
@@ -288,6 +289,24 @@ cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode tcpreplay --iface eth0 
   --tcpreplay-arg "--topspeed"
 ```
 
+Key flags:
+- `--mode`: `app` (default), `raw`, or `tcpreplay`
+- `--server-ip`, `--server-port`, `--udp-port`: destination for app replay
+- `--client-ip`: bind a specific local source for app replay
+- `--rewrite-src-ip`, `--rewrite-dst-ip`, `--rewrite-src-port`, `--rewrite-dst-port`: rewrite endpoints (raw/tcpreplay)
+- `--rewrite-src-mac`, `--rewrite-dst-mac`: rewrite L2 MACs (raw/tcpreplay)
+- `--arp-target`: send ARP requests before raw/tcpreplay (auto-fills rewrite MACs if enabled)
+- If `--arp-target` is omitted and `--rewrite-dst-ip` is set, replay will auto-ARP that destination.
+- `--arp-required`: fail replay if ARP resolution fails
+- `--arp-refresh-ms`: refresh ARP during raw replay to detect MAC drift (warns on change)
+- `--arp-drift-fail`: fail replay if ARP MAC changes mid-run
+- `--report`: print replay summary (counts, request/response balance, handshake status)
+- `--realtime`: replay with original PCAP timing
+- `--interval-ms`: fixed delay between packets when not using realtime
+- `--include-responses`: include response packets (default requests only)
+- `--limit`: cap number of packets
+- `--iface`: interface for raw/tcpreplay
+
 Preset replays (CL5000EIP action captures):
 
 ```bash
@@ -312,6 +331,9 @@ Use these steps when you need DPI + stateful validation:
 3. Use `tcpreplay` with the correct interface and verify ARP resolution on the replay host.
 4. Capture ingress/egress PCAPs around the firewall to confirm state establishment.
 
+L2/L3 routing note:
+- `--arp-target` accepts hostnames or IPs. If the target IP is not in the local subnet, ARP must resolve the gateway MAC (set `--arp-target` accordingly) or explicitly use `--rewrite-dst-mac`.
+
 Example workflow:
 
 ```bash
@@ -326,6 +348,21 @@ Vendor-focused guidance:
 - **Hirschmann EAGLE40**: Use `tcpreplay` for explicit TCP DPI checks; UDP 2222 is commonly dropped. App replay can be used for DPI-only checks but may not satisfy stateful enforcement.
 - **Moxa MX-ROS**: Start with app replay for policy evaluation, then confirm with `tcpreplay` if Reset behavior depends on full TCP state.
 - **Dynics ICS-Defender**: Prefer `tcpreplay` when validating learn-mode whitelisting against strict stateful enforcement; app replay is useful for quick DPI functional checks.
+
+## PCAP Rewrite
+
+Rewrite source/destination IPs and ports in a capture (offline).
+
+```bash
+cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap --src-ip 10.0.0.20 --dst-ip 10.0.0.10
+```
+
+You can also rewrite MAC addresses:
+
+```bash
+cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap \
+  --src-mac 00:11:22:33:44:55 --dst-mac 66:77:88:99:AA:BB
+```
 
 ## See Also
 
