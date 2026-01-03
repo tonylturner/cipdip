@@ -118,6 +118,16 @@ Integration tests validate:
 
 ## Protocol Compliance Coverage (strict_odva)
 
+### Strict ODVA Profile Settings
+
+The `strict_odva` profile enforces explicit framing choices across ENIP, CIP, and I/O:
+- **ENIP**: little-endian for all multi-byte fields; 24-byte header; valid command set only.
+- **CIP**: little-endian for multi-byte fields; path size byte included in all requests; reserved/extended status size fields included in responses.
+- **CPF**: required for SendRRData and SendUnitData in strict mode (UCMM and connected messaging use CPF items).
+- **I/O sequencing**: connection sequence count enabled (`increment`).
+
+These settings are enforced by default unless `protocol.mode` is changed to `vendor_variant` or `legacy_compat`.
+
 ### ENIP Encapsulation
 - 24-byte header structure (strictly enforced in strict_odva)
 - Little-endian byte order (all multi-byte fields validated)

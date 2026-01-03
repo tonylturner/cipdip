@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,6 +34,8 @@ type clientFlags struct {
 	pcapFile    string
 	quickStart  bool
 	cipProfile  string
+	targetTags  string
+	firewall    string
 }
 
 func newClientCmd() *cobra.Command {
@@ -68,7 +71,10 @@ Available scenarios:
                Uses edge_targets in cipdip_client.yaml
 
   edge_vendor - Vendor-specific edge cases (tag and connection manager extras)
-                Uses edge_targets with vendor service codes
+               Uses edge_targets with vendor service codes
+
+  rockwell - Consolidated Rockwell (Logix + ENBT) edge pack
+             Uses rockwell-specific edge targets or built-in defaults
 
   vendor_variants - Replay traffic across protocol profile variants
                     Uses protocol_variants in cipdip_client.yaml
@@ -78,6 +84,11 @@ Available scenarios:
 
   unconnected_send - UCMM Unconnected Send wrapper with embedded CIP requests
                      Uses edge_targets in cipdip_client.yaml
+
+  firewall_hirschmann - Hirschmann ENIP Enforcer DPI test pack
+  firewall_moxa       - Moxa MX-ROS DPI test pack
+  firewall_dynics     - Dynics ICS-Defender DPI test pack
+  firewall_pack       - Run all firewall vendor packs (hirschmann, moxa, dynics)
 
 Configuration is loaded from cipdip_client.yaml (or --config). The config file defines
 which CIP paths (class/instance/attribute) to read/write and any I/O connections.
@@ -122,7 +133,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 
 	// Required flags
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
-	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state|unconnected_send (required)")
+	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|rockwell|vendor_variants|mixed_state|unconnected_send|firewall_hirschmann|firewall_moxa|firewall_dynics|firewall_pack (required)")
 
 	// Optional flags
 	cmd.Flags().IntVar(&flags.port, "port", 44818, "CIP TCP port (default 44818)")
@@ -136,6 +147,8 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., capture.pcap)")
 	cmd.Flags().BoolVar(&flags.quickStart, "quick-start", false, "Auto-generate default config if missing (zero-config usage)")
 	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
+	cmd.Flags().StringVar(&flags.targetTags, "target-tags", "", "Filter targets by comma-separated tags (e.g., rockwell,tc-enip-001-explicit)")
+	cmd.Flags().StringVar(&flags.firewall, "firewall-vendor", "", "Annotate metrics with firewall vendor (hirschmann|moxa|dynics)")
 
 	return cmd
 }
@@ -143,19 +156,24 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 func runClient(flags *clientFlags) error {
 	// Validate scenario (CLI error - exit code 1)
 	validScenarios := map[string]bool{
-		"baseline":         true,
-		"mixed":            true,
-		"stress":           true,
-		"churn":            true,
-		"io":               true,
-		"edge_valid":       true,
-		"edge_vendor":      true,
-		"vendor_variants":  true,
-		"mixed_state":      true,
-		"unconnected_send": true,
+		"baseline":            true,
+		"mixed":               true,
+		"stress":              true,
+		"churn":               true,
+		"io":                  true,
+		"edge_valid":          true,
+		"edge_vendor":         true,
+		"rockwell":            true,
+		"vendor_variants":     true,
+		"mixed_state":         true,
+		"unconnected_send":    true,
+		"firewall_hirschmann": true,
+		"firewall_moxa":       true,
+		"firewall_dynics":     true,
+		"firewall_pack":       true,
 	}
 	if !validScenarios[flags.scenario] {
-		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state, unconnected_send", flags.scenario)
+		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack", flags.scenario)
 	}
 
 	// Set default interval based on scenario if not provided
@@ -175,11 +193,15 @@ func runClient(flags *clientFlags) error {
 			flags.intervalMs = 100
 		case "edge_vendor":
 			flags.intervalMs = 100
+		case "rockwell":
+			flags.intervalMs = 100
 		case "vendor_variants":
 			flags.intervalMs = 100
 		case "mixed_state":
 			flags.intervalMs = 50
 		case "unconnected_send":
+			flags.intervalMs = 100
+		case "firewall_hirschmann", "firewall_moxa", "firewall_dynics", "firewall_pack":
 			flags.intervalMs = 100
 		}
 	}
@@ -236,6 +258,14 @@ func runClient(flags *clientFlags) error {
 	cipclient.SetProtocolProfile(profile)
 
 	applyCIPProfileTargets(cfg)
+	if flags.targetTags != "" {
+		tags := parseTags(flags.targetTags)
+		cfg.ReadTargets = filterTargetsByTags(cfg.ReadTargets, tags)
+		cfg.WriteTargets = filterTargetsByTags(cfg.WriteTargets, tags)
+		cfg.CustomTargets = filterTargetsByTags(cfg.CustomTargets, tags)
+		cfg.EdgeTargets = filterEdgeTargetsByTags(cfg.EdgeTargets, tags)
+		cfg.IOConnections = filterIOByTags(cfg.IOConnections, tags)
+	}
 
 	// If we auto-created the config, inform the user
 	if autoCreate {
@@ -324,6 +354,10 @@ func runClient(flags *clientFlags) error {
 	err = scenarioImpl.Run(ctx, client, cfg, params)
 	elapsed := time.Since(startTime)
 
+	if label := buildScenarioLabel(flags.scenario, flags.firewall, parseTags(flags.targetTags)); label != "" {
+		metricsSink.RelabelScenario(label)
+	}
+
 	// Get summary before writing metrics
 	summary := metricsSink.GetSummary()
 
@@ -356,6 +390,94 @@ func runClient(flags *clientFlags) error {
 	}
 
 	return nil
+}
+
+func parseTags(input string) []string {
+	if input == "" {
+		return nil
+	}
+	parts := strings.Split(input, ",")
+	tags := make([]string, 0, len(parts))
+	for _, part := range parts {
+		tag := strings.TrimSpace(part)
+		if tag == "" {
+			continue
+		}
+		tags = append(tags, strings.ToLower(tag))
+	}
+	return tags
+}
+
+func buildScenarioLabel(base, firewall string, tags []string) string {
+	if firewall == "" && len(tags) == 0 {
+		return ""
+	}
+	parts := []string{base}
+	if firewall != "" {
+		parts = append(parts, fmt.Sprintf("fw=%s", strings.ToLower(strings.TrimSpace(firewall))))
+	}
+	if len(tags) > 0 {
+		parts = append(parts, fmt.Sprintf("tags=%s", strings.Join(tags, "+")))
+	}
+	return strings.Join(parts, "|")
+}
+
+func filterTargetsByTags(targets []config.CIPTarget, tags []string) []config.CIPTarget {
+	if len(tags) == 0 {
+		return targets
+	}
+	filtered := make([]config.CIPTarget, 0, len(targets))
+	for _, target := range targets {
+		if hasAllTags(target.Tags, tags) {
+			filtered = append(filtered, target)
+		}
+	}
+	return filtered
+}
+
+func filterEdgeTargetsByTags(targets []config.EdgeTarget, tags []string) []config.EdgeTarget {
+	if len(tags) == 0 {
+		return targets
+	}
+	filtered := make([]config.EdgeTarget, 0, len(targets))
+	for _, target := range targets {
+		if hasAllTags(target.Tags, tags) {
+			filtered = append(filtered, target)
+		}
+	}
+	return filtered
+}
+
+func filterIOByTags(conns []config.IOConnectionConfig, tags []string) []config.IOConnectionConfig {
+	if len(tags) == 0 {
+		return conns
+	}
+	filtered := make([]config.IOConnectionConfig, 0, len(conns))
+	for _, conn := range conns {
+		if hasAllTags(conn.Tags, tags) {
+			filtered = append(filtered, conn)
+		}
+	}
+	return filtered
+}
+
+func hasAllTags(targetTags []string, required []string) bool {
+	if len(required) == 0 {
+		return true
+	}
+	if len(targetTags) == 0 {
+		return false
+	}
+	set := make(map[string]struct{}, len(targetTags))
+	for _, tag := range targetTags {
+		set[strings.ToLower(tag)] = struct{}{}
+	}
+	for _, tag := range required {
+		if _, ok := set[tag]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // determineTargetType determines the target type based on config and IP

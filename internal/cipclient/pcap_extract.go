@@ -6,6 +6,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -25,6 +26,7 @@ func ExtractENIPFromPCAP(pcapFile string) ([]ENIPPacket, error) {
 	streams := make(map[string][]byte)
 
 	for packet := range packetSource.Packets() {
+		meta := extractPacketMeta(packet)
 		tcpLayer := packet.Layer(layers.LayerTypeTCP)
 		if tcpLayer != nil {
 			tcp, _ := tcpLayer.(*layers.TCP)
@@ -38,7 +40,10 @@ func ExtractENIPFromPCAP(pcapFile string) ([]ENIPPacket, error) {
 			key := streamKey(netLayer, tcp)
 			streams[key] = append(streams[key], tcp.Payload...)
 			streamBuf := streams[key]
-			parsed, remaining := extractENIPFrames(streamBuf, tcp.DstPort == 44818 || tcp.DstPort == 2222)
+			meta.Transport = "tcp"
+			meta.SrcPort = uint16(tcp.SrcPort)
+			meta.DstPort = uint16(tcp.DstPort)
+			parsed, remaining := extractENIPFrames(streamBuf, tcp.DstPort == 44818 || tcp.DstPort == 2222, meta)
 			if len(parsed) > 0 {
 				packets = append(packets, parsed...)
 			}
@@ -55,7 +60,10 @@ func ExtractENIPFromPCAP(pcapFile string) ([]ENIPPacket, error) {
 			if len(udp.Payload) == 0 {
 				continue
 			}
-			parsed, _ := extractENIPFrames(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222)
+			meta.Transport = "udp"
+			meta.SrcPort = uint16(udp.SrcPort)
+			meta.DstPort = uint16(udp.DstPort)
+			parsed, _ := extractENIPFrames(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222, meta)
 			if len(parsed) > 0 {
 				packets = append(packets, parsed...)
 			}
@@ -73,6 +81,12 @@ type ENIPPacket struct {
 	FullPacket  []byte // Full ENIP packet (24-byte header + data)
 	IsRequest   bool   // true if request, false if response
 	Description string // Description of the packet
+	Timestamp   time.Time
+	Transport   string
+	SrcIP       string
+	DstIP       string
+	SrcPort     uint16
+	DstPort     uint16
 }
 
 // extractENIPFromPacket extracts ENIP data from a gopacket.Packet
@@ -87,14 +101,22 @@ func extractENIPFromPacket(packet gopacket.Packet) *ENIPPacket {
 			if appLayer := packet.ApplicationLayer(); appLayer != nil {
 				payload := appLayer.Payload()
 				if len(payload) > 0 {
-					if result := extractENIPFromPayload(payload, tcp.DstPort == 44818); result != nil {
+					meta := extractPacketMeta(packet)
+					meta.Transport = "tcp"
+					meta.SrcPort = uint16(tcp.SrcPort)
+					meta.DstPort = uint16(tcp.DstPort)
+					if result := extractENIPFromPayload(payload, tcp.DstPort == 44818, meta); result != nil {
 						return result
 					}
 				}
 			}
 			// Fall back to TCP payload (for non-reassembled packets)
 			if len(tcp.Payload) > 0 {
-				return extractENIPFromPayload(tcp.Payload, tcp.DstPort == 44818)
+				meta := extractPacketMeta(packet)
+				meta.Transport = "tcp"
+				meta.SrcPort = uint16(tcp.SrcPort)
+				meta.DstPort = uint16(tcp.DstPort)
+				return extractENIPFromPayload(tcp.Payload, tcp.DstPort == 44818, meta)
 			}
 			// If still nothing, this might be an ACK/SYN packet without data
 			return nil
@@ -108,7 +130,11 @@ func extractENIPFromPacket(packet gopacket.Packet) *ENIPPacket {
 		// Check if it's port 44818 or 2222
 		if udp.DstPort == 44818 || udp.SrcPort == 44818 || udp.DstPort == 2222 || udp.SrcPort == 2222 {
 			if len(udp.Payload) > 0 {
-				return extractENIPFromPayload(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222)
+				meta := extractPacketMeta(packet)
+				meta.Transport = "udp"
+				meta.SrcPort = uint16(udp.SrcPort)
+				meta.DstPort = uint16(udp.DstPort)
+				return extractENIPFromPayload(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222, meta)
 			}
 		}
 	}
@@ -117,15 +143,24 @@ func extractENIPFromPacket(packet gopacket.Packet) *ENIPPacket {
 }
 
 // extractENIPFromPayload extracts ENIP data from a payload
-func extractENIPFromPayload(payload []byte, isToServer bool) *ENIPPacket {
-	packets, _ := extractENIPFrames(payload, isToServer)
+func extractENIPFromPayload(payload []byte, isToServer bool, meta *ENIPMetadata) *ENIPPacket {
+	packets, _ := extractENIPFrames(payload, isToServer, meta)
 	if len(packets) == 0 {
 		return nil
 	}
 	return &packets[0]
 }
 
-func extractENIPFrames(payload []byte, isToServer bool) ([]ENIPPacket, []byte) {
+type ENIPMetadata struct {
+	Timestamp time.Time
+	Transport string
+	SrcIP     string
+	DstIP     string
+	SrcPort   uint16
+	DstPort   uint16
+}
+
+func extractENIPFrames(payload []byte, isToServer bool, meta *ENIPMetadata) ([]ENIPPacket, []byte) {
 	var packets []ENIPPacket
 	offset := 0
 	for offset+24 <= len(payload) {
@@ -174,6 +209,12 @@ func extractENIPFrames(payload []byte, isToServer bool) ([]ENIPPacket, []byte) {
 			FullPacket:  fullPacket,
 			IsRequest:   isRequest,
 			Description: description,
+			Timestamp:   metadataValue(meta, func(m *ENIPMetadata) time.Time { return m.Timestamp }),
+			Transport:   metadataValue(meta, func(m *ENIPMetadata) string { return m.Transport }),
+			SrcIP:       metadataValue(meta, func(m *ENIPMetadata) string { return m.SrcIP }),
+			DstIP:       metadataValue(meta, func(m *ENIPMetadata) string { return m.DstIP }),
+			SrcPort:     metadataValue(meta, func(m *ENIPMetadata) uint16 { return m.SrcPort }),
+			DstPort:     metadataValue(meta, func(m *ENIPMetadata) uint16 { return m.DstPort }),
 		})
 
 		offset += total
@@ -216,6 +257,29 @@ func streamKey(netLayer gopacket.NetworkLayer, tcp *layers.TCP) string {
 		return fmt.Sprintf("%s:%d->%s:%d", src, tcp.SrcPort, dst, tcp.DstPort)
 	}
 	return fmt.Sprintf("unknown:%d->unknown:%d", tcp.SrcPort, tcp.DstPort)
+}
+
+func extractPacketMeta(packet gopacket.Packet) *ENIPMetadata {
+	meta := &ENIPMetadata{}
+	if packet.Metadata() != nil {
+		meta.Timestamp = packet.Metadata().Timestamp
+	}
+	netLayer := packet.NetworkLayer()
+	if netLayer == nil {
+		return meta
+	}
+	src, dst := netLayer.NetworkFlow().Endpoints()
+	meta.SrcIP = src.String()
+	meta.DstIP = dst.String()
+	return meta
+}
+
+func metadataValue[T any](meta *ENIPMetadata, getter func(*ENIPMetadata) T) T {
+	if meta == nil {
+		var zero T
+		return zero
+	}
+	return getter(meta)
 }
 
 // generatePacketDescription generates a human-readable description of the packet
@@ -505,7 +569,11 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 			netLayer := packet.NetworkLayer()
 			key := streamKey(netLayer, tcp)
 			streams[key] = append(streams[key], tcp.Payload...)
-			parsed, remaining := extractENIPFrames(streams[key], tcp.DstPort == 44818 || tcp.DstPort == 2222)
+			meta := extractPacketMeta(packet)
+			meta.Transport = "tcp"
+			meta.SrcPort = uint16(tcp.SrcPort)
+			meta.DstPort = uint16(tcp.DstPort)
+			parsed, remaining := extractENIPFrames(streams[key], tcp.DstPort == 44818 || tcp.DstPort == 2222, meta)
 			streams[key] = remaining
 			summarizePackets(parsed, summary, pathCounts)
 			if summary.ProductName == "" {
@@ -523,7 +591,11 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 			if len(udp.Payload) == 0 {
 				continue
 			}
-			parsed, _ := extractENIPFrames(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222)
+			meta := extractPacketMeta(packet)
+			meta.Transport = "udp"
+			meta.SrcPort = uint16(udp.SrcPort)
+			meta.DstPort = uint16(udp.DstPort)
+			parsed, _ := extractENIPFrames(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222, meta)
 			summarizePackets(parsed, summary, pathCounts)
 			if summary.ProductName == "" {
 				updateVendorInfo(parsed, summary)

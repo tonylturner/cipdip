@@ -6,6 +6,7 @@ This document summarizes which reference packets are populated from PCAPs and wh
 
 Reference extraction uses all PCAPs under `pcaps/` and only accepts little-endian ENIP headers for reference data.
 The latest extraction run produced 64 reference packets (duplicates across files collapsed into the reference library).
+Latest extraction run (UTC): `2026-01-02T22:36:14.3456981Z`
 
 Populated:
 - RegisterSession_Request

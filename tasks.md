@@ -17,7 +17,7 @@
 
 ## Work Items
 ### Protocol compliance + modes
-- [ ] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
+- [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
 - [x] Add "vendor_variant" mode family (e.g., "rockwell", "schneider", "siemens") with explicit deviations.
 - [x] Add config validation to prevent incompatible combinations.
 - [x] Add protocol_variants list support for vendor_variants scenario.
@@ -42,7 +42,7 @@
 - [x] Track Forward Open state (connection IDs, owner, inactivity timeout).
 - [x] Require active connection for SendUnitData; reject or drop when invalid.
 - [x] Implement CPF items and sequence counters for class 1 I/O.
-- [ ] Add I/O jitter/burst options for DPI stress.
+- [x] Add I/O jitter/burst options for DPI stress.
 
 ### Scenarios + metrics
 - [x] Add "edge_valid" scenario for spec-compliant edge cases.
@@ -51,13 +51,19 @@
 - [x] Extend metrics: percentiles, jitter, error class, expected/observed outcome.
 - [x] Add "unconnected_send" scenario for UCMM wrapper tests with embedded CIP requests.
 - [x] Add optional force_status override for unconnected_send metrics.
-- [ ] Add Rockwell ENBT replay pack (edge_targets + custom services from PCAP).
-- [ ] Re-run reference extraction to populate response packets using updated PCAP parser.
+- [x] Add Rockwell ENBT replay pack (edge_targets + custom services from PCAP).
+- [x] Re-run reference extraction to populate response packets using updated PCAP parser.
 - [x] Add optional edge scenarios for Rockwell tag services and Connection Manager extras.
 - [x] Add validation hooks for error_response/restore/save/nop/member ops (strict ODVA checks).
 - [x] Build a PCAP reference coverage matrix (services + class/instance paths) from current `pcaps/` and compare to client/server support.
 - [x] Implement missing client/server handlers for any PCAP-referenced services/objects (track gaps explicitly).
 - [x] Add regression tests that assert PCAP-referenced services/objects are supported by client + server.
+- [x] Add firewall vendor scenarios (hirschmann/moxa/dynics) with a pack runner and tagged target selection.
+- [x] Add composable scenario model (pattern + target set + firewall pack) to avoid N^3 scenario explosion.
+- [x] Add one-off service/class/instance CLI helper for single checks (no YAML edits).
+- [x] Add PCAP replay scenario (app/raw/tcpreplay) with optional timing and rewrite hooks.
+- [x] Add PCAP-derived scenario presets for CL5000EIP actions (firmware change, reboot, etc.).
+- [x] Document stateful firewall replay guidance for pcap-replay modes.
 
 ### Docs cleanup
 - [x] Relocate internal/audit docs to `notes/` and update references.
@@ -75,8 +81,9 @@
 - [ ] Remove or archive stale docs only after approval.
 
 ### Cross-platform note
-- [ ] Check path handling and example commands across macOS/Linux/Windows.
-- [ ] Confirm any scripts rely on OS-specific tools and provide alternatives or detection.
+- [x] Check path handling and example commands across macOS/Linux/Windows.
+- [x] Confirm any scripts rely on OS-specific tools and provide alternatives or detection.
+- [x] Improve tshark discovery (TSHARK env + OS default locations) for PCAP tooling and validation.
 - [x] Investigate Unknown CIP service 0x51 on class 0x00A1 (pcaps/stress/ENIP.pcap) and update contextual service mapping if evidence supports.
 - [x] Consolidate PCAP analysis into Go CLI (`cipdip pcap-report` and `cipdip pcap-classify`), remove PowerShell scripts.
 

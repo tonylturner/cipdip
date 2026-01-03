@@ -55,21 +55,23 @@ type CIPTarget struct {
 	Pattern           string      `yaml:"pattern,omitempty"` // "increment", "toggle", "constant"
 	InitialValue      int64       `yaml:"initial_value,omitempty"`
 	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
+	Tags              []string    `yaml:"tags,omitempty"`
 }
 
 // IOConnectionConfig represents configuration for a connected I/O connection
 type IOConnectionConfig struct {
-	Name                  string `yaml:"name"`
-	Transport             string `yaml:"transport"` // "udp" (default) or "tcp"
-	OToTRPIMs             int    `yaml:"o_to_t_rpi_ms"`
-	TToORPIMs             int    `yaml:"t_to_o_rpi_ms"`
-	OToTSizeBytes         int    `yaml:"o_to_t_size_bytes"`
-	TToOSizeBytes         int    `yaml:"t_to_o_size_bytes"`
-	Priority              string `yaml:"priority"`
-	TransportClassTrigger int    `yaml:"transport_class_trigger"`
-	Class                 uint16 `yaml:"class"`
-	Instance              uint16 `yaml:"instance"`
-	ConnectionPathHex     string `yaml:"connection_path_hex,omitempty"`
+	Name                  string   `yaml:"name"`
+	Transport             string   `yaml:"transport"` // "udp" (default) or "tcp"
+	OToTRPIMs             int      `yaml:"o_to_t_rpi_ms"`
+	TToORPIMs             int      `yaml:"t_to_o_rpi_ms"`
+	OToTSizeBytes         int      `yaml:"o_to_t_size_bytes"`
+	TToOSizeBytes         int      `yaml:"t_to_o_size_bytes"`
+	Priority              string   `yaml:"priority"`
+	TransportClassTrigger int      `yaml:"transport_class_trigger"`
+	Class                 uint16   `yaml:"class"`
+	Instance              uint16   `yaml:"instance"`
+	ConnectionPathHex     string   `yaml:"connection_path_hex,omitempty"`
+	Tags                  []string `yaml:"tags,omitempty"`
 }
 
 // EdgeTarget represents a protocol-valid edge case target.
@@ -83,6 +85,7 @@ type EdgeTarget struct {
 	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"`
 	ExpectedOutcome   string      `yaml:"expected_outcome,omitempty"` // "success", "error", "timeout", or "any"
 	ForceStatus       *uint8      `yaml:"force_status,omitempty"`     // optional metrics override in unconnected_send
+	Tags              []string    `yaml:"tags,omitempty"`
 }
 
 // Config represents the client configuration
@@ -98,6 +101,10 @@ type Config struct {
 	EdgeTargets       []EdgeTarget         `yaml:"edge_targets"`
 	IOConnections     []IOConnectionConfig `yaml:"io_connections"`
 	ScenarioJitterMs  int                  `yaml:"scenario_jitter_ms"`
+	IOJitterMs        int                  `yaml:"io_jitter_ms"`
+	IOBurstEveryMs    int                  `yaml:"io_burst_every_ms"`
+	IOBurstDurationMs int                  `yaml:"io_burst_duration_ms"`
+	IOBurstIntervalMs int                  `yaml:"io_burst_interval_ms"`
 }
 
 // ServerConfigSection represents the server section in server config
@@ -327,6 +334,15 @@ func ValidateClientConfig(cfg *Config) error {
 	}
 	if cfg.ScenarioJitterMs < 0 {
 		return fmt.Errorf("scenario_jitter_ms must be >= 0")
+	}
+	if cfg.IOJitterMs < 0 {
+		return fmt.Errorf("io_jitter_ms must be >= 0")
+	}
+	if cfg.IOBurstEveryMs < 0 || cfg.IOBurstDurationMs < 0 || cfg.IOBurstIntervalMs < 0 {
+		return fmt.Errorf("io_burst_* values must be >= 0")
+	}
+	if cfg.IOBurstEveryMs > 0 && cfg.IOBurstDurationMs == 0 {
+		return fmt.Errorf("io_burst_duration_ms must be > 0 when io_burst_every_ms is set")
 	}
 
 	return nil

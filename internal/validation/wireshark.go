@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -45,9 +47,11 @@ type ValidateResult struct {
 // The packet should be the raw ENIP packet bytes (24-byte header + data)
 func (v *WiresharkValidator) ValidatePacket(packet []byte) (*ValidateResult, error) {
 	// Check if tshark is available
-	if _, err := exec.LookPath(v.tsharkPath); err != nil {
-		return nil, fmt.Errorf("tshark not found in PATH: %w", err)
+	tsharkPath, err := resolveTsharkPath(v.tsharkPath)
+	if err != nil {
+		return nil, err
 	}
+	v.tsharkPath = tsharkPath
 
 	// Create temporary PCAP file
 	tmpFile, err := os.CreateTemp("", "cipdip_wireshark_*.pcap")
@@ -70,6 +74,71 @@ func (v *WiresharkValidator) ValidatePacket(packet []byte) (*ValidateResult, err
 	}
 
 	return result, nil
+}
+
+func resolveTsharkPath(explicit string) (string, error) {
+	if explicit == "" {
+		explicit = os.Getenv("TSHARK")
+	}
+	if explicit == "" {
+		explicit = "tshark"
+	}
+	if filepath.Base(explicit) == explicit {
+		path, err := exec.LookPath(explicit)
+		if err == nil {
+			return path, nil
+		}
+	} else if _, err := os.Stat(explicit); err == nil {
+		return explicit, nil
+	}
+
+	if runtime.GOOS == "windows" {
+		if path := defaultTsharkWindows(); path != "" {
+			return path, nil
+		}
+	}
+	if runtime.GOOS == "darwin" {
+		if path := defaultTsharkDarwin(); path != "" {
+			return path, nil
+		}
+	}
+
+	return "", tsharkNotFoundError()
+}
+
+func defaultTsharkWindows() string {
+	paths := []string{
+		filepath.Join(os.Getenv("ProgramFiles"), "Wireshark", "tshark.exe"),
+		filepath.Join(os.Getenv("ProgramFiles(x86)"), "Wireshark", "tshark.exe"),
+	}
+	for _, candidate := range paths {
+		if candidate == "Wireshark\\tshark.exe" {
+			continue
+		}
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func defaultTsharkDarwin() string {
+	candidate := "/Applications/Wireshark.app/Contents/MacOS/tshark"
+	if _, err := os.Stat(candidate); err == nil {
+		return candidate
+	}
+	return ""
+}
+
+func tsharkNotFoundError() error {
+	switch runtime.GOOS {
+	case "windows":
+		return fmt.Errorf("tshark not found in PATH or default locations; install Wireshark or set TSHARK")
+	case "darwin":
+		return fmt.Errorf("tshark not found in PATH or /Applications/Wireshark.app/Contents/MacOS/tshark; install Wireshark or set TSHARK")
+	default:
+		return fmt.Errorf("tshark not found in PATH; install wireshark/tshark or set TSHARK")
+	}
 }
 
 // writePacketToPCAP writes a single ENIP packet to a PCAP file

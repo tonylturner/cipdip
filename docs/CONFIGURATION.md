@@ -157,6 +157,7 @@ read_targets:
 - `class` (hex integer, required): CIP class ID (e.g., `0x04` for Assembly class).
 - `instance` (hex integer, required): CIP instance ID within the class.
 - `attribute` (hex integer, required): CIP attribute ID to read.
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -205,6 +206,7 @@ write_targets:
   - `"toggle"`: Value alternates between 0 and 1
   - `"constant"`: Value remains at `initial_value`
 - `initial_value` (integer, optional): Starting value for the pattern. Default: `0`.
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -254,6 +256,7 @@ custom_targets:
 - `instance` (hex integer, required): CIP instance ID.
 - `attribute` (hex integer, optional): CIP attribute ID (may be unused depending on service).
 - `request_payload_hex` (string, optional): Raw hexadecimal string for additional request payload. Leave empty if not needed.
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -411,6 +414,7 @@ edge_targets:
 - `request_payload_hex` (string, optional): Hex-encoded payload.
 - `expected_outcome` (string, optional): `success`, `error`, `timeout`, or `any`.
 - `force_status` (hex integer, optional): Override status used for metrics in `unconnected_send` (does not change on-wire response).
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Notes:**
 - Used by the `edge_valid` and `unconnected_send` scenarios.
@@ -464,6 +468,7 @@ io_connections:
 - `class` (hex integer, required): CIP class ID for the target assembly/object.
 - `instance` (hex integer, required): CIP instance ID for the target assembly/object.
 - `connection_path_hex` (string, optional): Raw hexadecimal connection path for complex routing. Leave empty for simple paths.
+- `tags` (list of strings, optional): Labels used to select connections for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml

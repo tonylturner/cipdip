@@ -14,6 +14,7 @@ The `cipdip pcap-report` command generates a Markdown report for many PCAPs at o
 The `cipdip pcap-coverage` command summarizes CIP request coverage (service + class/instance/attribute).
 The `cipdip pcap-classify` command uses `tshark` to classify PCAPs for integrity/noise signals.
 The `cipdip pcap-dump` command extracts sample CIP packets for a specific service code.
+The `cipdip pcap-replay` command replays PCAP traffic using app-layer, raw injection, or tcpreplay.
 
 ## Basic Usage
 
@@ -256,6 +257,9 @@ If `tshark` is not on PATH, provide an explicit path:
 cipdip pcap-classify --pcap-dir pcaps --tshark "C:\Program Files\Wireshark\tshark.exe"
 ```
 
+You can also set the `TSHARK` environment variable or use the macOS default path:
+- `TSHARK=/Applications/Wireshark.app/Contents/MacOS/tshark`
+
 ## PCAP Dump
 
 Extract sample CIP packets for a specific service code:
@@ -263,6 +267,65 @@ Extract sample CIP packets for a specific service code:
 ```bash
 cipdip pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
 ```
+
+## PCAP Replay
+
+Replay ENIP/CIP traffic from a PCAP. Three modes are supported:
+- `app` (default): Application-layer replay; cross-platform but not L2 accurate.
+- `raw`: Raw packet injection (requires OS/NIC support and elevated privileges).
+- `tcpreplay`: External tcpreplay/tcprewrite integration for stateful-friendly replay.
+
+```bash
+# App-layer replay to a target server (TCP/UDP from this host)
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --server-ip 10.0.0.10
+
+# Raw injection (requires interface)
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode raw --iface eth0
+
+# tcprewrite + tcpreplay integration
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode tcpreplay --iface eth0 \
+  --tcprewrite-arg "--dstipmap=192.168.1.50:10.0.0.10" \
+  --tcpreplay-arg "--topspeed"
+```
+
+Preset replays (CL5000EIP action captures):
+
+```bash
+# Replay a specific CL5000EIP action
+cipdip pcap-replay --preset cl5000eip:firmware-change --server-ip 10.0.0.10
+
+# Replay all CL5000EIP pcaps
+cipdip pcap-replay --preset cl5000eip --server-ip 10.0.0.10
+```
+
+Notes:
+- App replay sends ENIP payloads over TCP/UDP but does not preserve original TCP sequence state.
+- For stateful firewalls, prefer `tcpreplay` mode or validate flows with a full TCP handshake.
+
+### Stateful Firewall Replay Guidance
+
+Stateful firewalls may drop replays if the TCP stream does not match an expected handshake.
+Use these steps when you need DPI + stateful validation:
+
+1. Ensure the source PCAP includes a full TCP handshake (SYN/SYN-ACK/ACK) for 44818.
+2. Use `tcprewrite` to map source/destination IPs to your lab endpoints.
+3. Use `tcpreplay` with the correct interface and verify ARP resolution on the replay host.
+4. Capture ingress/egress PCAPs around the firewall to confirm state establishment.
+
+Example workflow:
+
+```bash
+# Rewrite source/destination IPs before replay
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode tcpreplay --iface eth0 \
+  --tcprewrite-arg "--srcipmap=192.168.1.50:10.0.0.20" \
+  --tcprewrite-arg "--dstipmap=192.168.1.60:10.0.0.10" \
+  --tcpreplay-arg "--topspeed"
+```
+
+Vendor-focused guidance:
+- **Hirschmann EAGLE40**: Use `tcpreplay` for explicit TCP DPI checks; UDP 2222 is commonly dropped. App replay can be used for DPI-only checks but may not satisfy stateful enforcement.
+- **Moxa MX-ROS**: Start with app replay for policy evaluation, then confirm with `tcpreplay` if Reset behavior depends on full TCP state.
+- **Dynics ICS-Defender**: Prefer `tcpreplay` when validating learn-mode whitelisting against strict stateful enforcement; app replay is useful for quick DPI functional checks.
 
 ## See Also
 

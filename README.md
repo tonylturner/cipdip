@@ -6,7 +6,7 @@ CIPDIP is a Go-based command-line tool designed to generate repeatable, controll
 
 ## Features
 
-- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, vendor_variants, mixed_state, unconnected_send
+- **Multiple Traffic Scenarios**: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack
 - **Transport Support**: TCP 44818 (explicit messaging), UDP 2222 (I/O), UDP 44818 (discovery)
 - **Config-Driven**: YAML-based configuration for flexible device targeting
 - **Server Mode**: Emulator with adapter and logix-like personalities
@@ -30,14 +30,16 @@ After building, you can install the binary to your PATH and set up shell complet
 
 ```bash
 # Install to PATH and set up completion for your shell
-./cipdip install
+cipdip install
 
 # Or specify a custom install directory
-./cipdip install --binary-path /usr/local/bin
+cipdip install --binary-path /usr/local/bin
 
 # Force overwrite existing installation
-./cipdip install --force
+cipdip install --force
 ```
+
+On Windows PowerShell, use `.\cipdip.exe` if the binary is not installed in PATH.
 
 The install command will:
 - Detect your shell (zsh, bash, fish, PowerShell)
@@ -118,6 +120,7 @@ cipdip extract-reference --baseline-dir pcaps --output internal/cipclient/refere
 ## Configuration
 
 For detailed configuration documentation, see [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+For firewall DPI test packs, start from `configs/firewall_test_pack.yaml.example` and tag targets per vendor/test case.
 
 ### Client Config (`cipdip_client.yaml`)
 
@@ -193,9 +196,14 @@ adapter_assemblies:
 - **io**: Connected Class 1 I/O-style behavior (10ms default, UDP 2222)
 - **edge_valid**: Protocol-valid edge cases for DPI falsification
 - **edge_vendor**: Vendor-specific edge cases (tag/connection manager extras)
+- **rockwell**: Consolidated Rockwell (Logix + ENBT) edge-case pack
 - **vendor_variants**: Replays traffic across protocol variants
 - **mixed_state**: Interleaves UCMM and connected I/O traffic
 - **unconnected_send**: UCMM Unconnected Send wrapper with embedded CIP requests
+- **firewall_hirschmann**: Hirschmann ENIP Enforcer DPI test pack
+- **firewall_moxa**: Moxa MX-ROS DPI test pack
+- **firewall_dynics**: Dynics ICS-Defender DPI test pack
+- **firewall_pack**: Run all firewall vendor packs in sequence
 
 ## Command Reference
 
@@ -244,6 +252,7 @@ Scanner mode that connects to CIP targets and generates traffic.
 **Required flags:**
 - `--ip`: Target CIP adapter IP address
 - `--scenario`: Scenario name (baseline|mixed|stress|churn|io|edge_valid|edge_vendor|vendor_variants|mixed_state|unconnected_send)
+  - add firewall packs: firewall_hirschmann|firewall_moxa|firewall_dynics|firewall_pack
 
 **Optional flags:**
 - `--port`: TCP port (default: 44818)
@@ -255,6 +264,8 @@ Scanner mode that connects to CIP targets and generates traffic.
 - `--verbose`: Enable verbose output
 - `--debug`: Enable debug output
 - `--cip-profile`: CIP application profile(s) (energy|safety|motion|all, comma-separated)
+- `--target-tags`: Filter targets by tags (comma-separated)
+- `--firewall-vendor`: Annotate metrics with firewall vendor label
 
 ### `cipdip server`
 
@@ -282,6 +293,40 @@ Discover CIP devices on the network using ListIdentity.
 Show help information for commands.
 
 ### `cipdip version`
+
+### `cipdip single`
+
+Send a single CIP service request without editing YAML configs.
+
+**Required flags:**
+- `--ip`: Target CIP adapter IP address
+- `--service`: CIP service code (hex or decimal)
+- `--class`: CIP class ID
+- `--instance`: CIP instance ID
+
+**Optional flags:**
+- `--attribute`: CIP attribute ID (default: 0)
+- `--payload-hex`: Optional request payload hex
+- `--port`: TCP port (default: 44818)
+
+**Example:**
+```bash
+cipdip single --ip 10.0.0.50 --service 0x0E --class 0x01 --instance 0x01 --attribute 0x01
+```
+
+### `cipdip pcap-replay`
+
+Replay ENIP/CIP traffic from a PCAP using app-layer, raw, or tcpreplay modes.
+
+**Example:**
+```bash
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --server-ip 10.0.0.10
+```
+
+Preset example:
+```bash
+cipdip pcap-replay --preset cl5000eip:firmware-change --server-ip 10.0.0.10
+```
 
 Print version information.
 
