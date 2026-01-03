@@ -49,6 +49,7 @@ type tuiModel struct {
 	showStatus    bool
 	cancelRun     func()
 	wizardForm    *huh.Form
+	compareRuns   []string
 	err           error
 }
 
@@ -127,6 +128,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reviewStatus = ""
 			m.cancelRun = nil
 			m.wizardForm = nil
+			m.compareRuns = nil
 		default:
 			if m.searchFocus {
 				switch msg.Type {
@@ -157,17 +159,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					if m.mode == viewCatalog {
 						if entry := m.currentCatalogEntry(); entry != nil {
-							profile := profileFromCatalogEntry(*entry)
-							cmd, err := BuildCommand(profile)
-							if err != nil {
-								m.err = err
-								return m, nil
-							}
-							m.reviewText = RenderReviewScreen(profile, cmd)
-							m.reviewProfile = &profile
-							m.reviewCommand = cmd
-							m.reviewStatus = ""
-							m.mode = viewReview
+							m.wizardForm = buildWizardFormWithDefaults(m.workspaceRoot, *entry)
+							m.mode = viewWizard
 						}
 					}
 				case "r":
@@ -192,6 +185,24 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case " ":
 					if m.mode == viewReview {
 						m.showStatus = !m.showStatus
+					}
+				case "d":
+					if m.mode == viewReview && m.reviewStatus != "" {
+						if runName := strings.TrimPrefix(m.reviewStatus, "Run: "); runName != "" {
+							m.compareRuns = append(m.compareRuns, runName)
+							if len(m.compareRuns) > 2 {
+								m.compareRuns = m.compareRuns[len(m.compareRuns)-2:]
+							}
+							if len(m.compareRuns) == 2 {
+								left := filepath.Join(m.workspaceRoot, "runs", m.compareRuns[0])
+								right := filepath.Join(m.workspaceRoot, "runs", m.compareRuns[1])
+								m.reviewText = renderRunComparison(left, right)
+								m.reviewStatus = fmt.Sprintf("Compare: %s vs %s", m.compareRuns[0], m.compareRuns[1])
+								m.mode = viewReview
+							} else {
+								m.reviewStatus = fmt.Sprintf("Compare: selected %s (pick another run)", runName)
+							}
+						}
 					}
 				}
 			}
@@ -261,12 +272,15 @@ func (m tuiModel) View() string {
 			if m.running {
 				status += "\n\nRunning..."
 			}
+			if len(m.compareRuns) == 1 {
+				status += fmt.Sprintf("\n\nCompare: %s (pick another run)", m.compareRuns[0])
+			}
 		}
 		frameStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("12")).
 			Padding(1, 2)
-		reviewFooter := footerStyle.Render("\n\nKeys: r=run s=save c=copy x=cancel space=status b=back q=quit")
+		reviewFooter := footerStyle.Render("\n\nKeys: r=run s=save c=copy x=cancel d=compare space=status b=back q=quit")
 		return header + frameStyle.Render(m.reviewText+status) + reviewFooter
 	case viewWizard:
 		if m.wizardForm == nil {
@@ -364,6 +378,22 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 			m.reviewStatus = ""
 			m.mode = viewReview
 		}
+	case "Run":
+		runDir := filepath.Join(m.workspaceRoot, "runs", item.Title)
+		artifacts, err := LoadRunArtifacts(runDir)
+		if err != nil {
+			m.reviewText = "Run details"
+			m.reviewProfile = nil
+			m.reviewCommand = CommandSpec{}
+			m.reviewStatus = fmt.Sprintf("Run: %s (failed to load artifacts)", item.Title)
+			m.mode = viewReview
+			return m
+		}
+		m.reviewText = renderRunDetails(*artifacts)
+		m.reviewProfile = nil
+		m.reviewCommand = CommandSpec{}
+		m.reviewStatus = fmt.Sprintf("Run: %s", item.Title)
+		m.mode = viewReview
 	case "Task":
 		return m.applyTaskAction(item.Title)
 	default:
@@ -704,10 +734,108 @@ func renderCatalogWithCursor(entries []CatalogEntry, cursor int) string {
 				classLabel = fmt.Sprintf("%s (%s)", entry.Class, alias)
 			}
 		}
+		scopeLabel := entry.Scope
+		if scopeLabel == "" {
+			scopeLabel = "core"
+		}
+		scopeSuffix := scopeLabel
+		if entry.Vendor != "" {
+			scopeSuffix = fmt.Sprintf("%s/%s", scopeLabel, entry.Vendor)
+		}
 		lines = append(lines, fmt.Sprintf("%s%s (%s)", prefix, entry.Name, entry.Key))
+		lines = append(lines, fmt.Sprintf("  Scope: %s", scopeSuffix))
 		lines = append(lines, fmt.Sprintf("  Service: %s  Class: %s  Instance: %s  Attribute: %s", serviceLabel, classLabel, entry.Instance, entry.Attribute))
+		if entry.Notes != "" {
+			lines = append(lines, fmt.Sprintf("  Notes: %s", entry.Notes))
+		}
 	}
 	return frameStyle.Render(strings.Join(lines, "\n"))
+}
+
+func renderRunDetails(artifacts RunArtifacts) string {
+	lines := []string{
+		"Run Details",
+		fmt.Sprintf("Run: %s", artifacts.RunDir),
+	}
+	if artifacts.Summary != nil {
+		lines = append(lines, fmt.Sprintf("Status: %s", artifacts.Summary.Status))
+		lines = append(lines, fmt.Sprintf("Started: %s", artifacts.Summary.StartedAt))
+		lines = append(lines, fmt.Sprintf("Finished: %s", artifacts.Summary.FinishedAt))
+		lines = append(lines, fmt.Sprintf("Exit: %d", artifacts.Summary.ExitCode))
+	}
+	if artifacts.Command != "" {
+		lines = append(lines, "", "Command:", artifacts.Command)
+	}
+	if artifacts.Stdout != "" {
+		lines = append(lines, "", "Stdout:", truncateText(artifacts.Stdout, 12))
+	}
+	if artifacts.Resolved != "" {
+		lines = append(lines, "", "Resolved:", truncateText(artifacts.Resolved, 12))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func renderRunComparison(leftDir, rightDir string) string {
+	left, leftErr := LoadRunArtifacts(leftDir)
+	right, rightErr := LoadRunArtifacts(rightDir)
+	lines := []string{
+		"Run Comparison",
+		fmt.Sprintf("Left: %s", leftDir),
+		fmt.Sprintf("Right: %s", rightDir),
+	}
+	if leftErr != nil || rightErr != nil {
+		lines = append(lines, "", "Unable to load artifacts for one or both runs.")
+		if leftErr != nil {
+			lines = append(lines, fmt.Sprintf("Left error: %v", leftErr))
+		}
+		if rightErr != nil {
+			lines = append(lines, fmt.Sprintf("Right error: %v", rightErr))
+		}
+		return strings.Join(lines, "\n")
+	}
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("Left status: %s", summaryStatus(left.Summary)))
+	lines = append(lines, fmt.Sprintf("Right status: %s", summaryStatus(right.Summary)))
+	lines = append(lines, fmt.Sprintf("Left exit: %d", summaryExit(left.Summary)))
+	lines = append(lines, fmt.Sprintf("Right exit: %d", summaryExit(right.Summary)))
+	if left.Command != right.Command {
+		lines = append(lines, "", "Command differs.")
+		lines = append(lines, "Left:", left.Command)
+		lines = append(lines, "Right:", right.Command)
+	} else {
+		lines = append(lines, "", "Command: identical")
+	}
+	if left.Resolved != right.Resolved {
+		lines = append(lines, "", "Resolved config differs.")
+	} else {
+		lines = append(lines, "Resolved config: identical")
+	}
+	return strings.Join(lines, "\n")
+}
+
+func summaryStatus(summary *RunSummary) string {
+	if summary == nil {
+		return "unknown"
+	}
+	return summary.Status
+}
+
+func summaryExit(summary *RunSummary) int {
+	if summary == nil {
+		return -1
+	}
+	return summary.ExitCode
+}
+
+func truncateText(input string, maxLines int) string {
+	if maxLines <= 0 {
+		return ""
+	}
+	lines := strings.Split(input, "\n")
+	if len(lines) <= maxLines {
+		return input
+	}
+	return strings.Join(lines[:maxLines], "\n") + "\n..."
 }
 
 func parseServiceForDisplay(input string) (uint8, bool) {

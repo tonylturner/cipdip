@@ -1,0 +1,135 @@
+version: 1
+name: extended
+entries:
+  - key: identity.vendor_id
+    name: Vendor ID
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x01
+    scope: core
+  - key: identity.device_type
+    name: Device Type
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x02
+    scope: core
+  - key: identity.product_code
+    name: Product Code
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x03
+    scope: core
+  - key: identity.revision
+    name: Revision
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x04
+    scope: core
+  - key: identity.status
+    name: Status
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x05
+    scope: core
+  - key: identity.serial_number
+    name: Serial Number
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x06
+    scope: core
+  - key: identity.product_name
+    name: Product Name
+    service: 0x0E
+    class: 0x01
+    instance: 0x01
+    attribute: 0x07
+    scope: core
+  - key: identity.class_revision
+    name: Identity Class Revision
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x01
+    scope: core
+    notes: Common class attribute
+  - key: identity.max_instance
+    name: Identity Max Instance
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x02
+    scope: core
+    notes: Common class attribute
+  - key: identity.number_of_instances
+    name: Identity Number of Instances
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x03
+    scope: core
+    notes: Common class attribute
+  - key: identity.optional_attribute_list
+    name: Identity Optional Attribute List
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x04
+    scope: core
+    notes: Common class attribute
+  - key: identity.optional_service_list
+    name: Identity Optional Service List
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x05
+    scope: core
+    notes: Common class attribute
+  - key: identity.max_id_number_class_attributes
+    name: Identity Max Class Attribute ID
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x06
+    scope: core
+    notes: Common class attribute
+  - key: identity.max_id_number_instance_attributes
+    name: Identity Max Instance Attribute ID
+    service: 0x0E
+    class: 0x01
+    instance: 0x00
+    attribute: 0x07
+    scope: core
+    notes: Common class attribute
+  - key: rockwell.execute_pccc
+    name: Execute PCCC
+    service: 0x4B
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    scope: vendor
+    vendor: rockwell
+    notes: Requires PCCC payload
+  - key: rockwell.read_tag
+    name: Read Tag
+    service: 0x4C
+    class: 0x006B
+    instance: 0x0001
+    attribute: 0x0000
+    scope: vendor
+    vendor: rockwell
+    notes: Requires tag payload and symbolic path support
+  - key: rockwell.write_tag
+    name: Write Tag
+    service: 0x4D
+    class: 0x006B
+    instance: 0x0001
+    attribute: 0x0000
+    scope: vendor
+    vendor: rockwell
+    notes: Requires tag payload and symbolic path support
