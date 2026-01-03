@@ -1,0 +1,7 @@
+version: 1
+kind: baseline
+name: baseline-default
+spec:
+    duration: 5
+    output_dir: baseline_captures
+advanced: {}

@@ -8,11 +8,11 @@ import (
 // RenderReviewScreen formats a review screen for the given profile and command.
 func RenderReviewScreen(profile Profile, command CommandSpec) string {
 	lines := []string{
-		"+---------------- Review & Execute -------------------+",
-		"| Command:",
-		fmt.Sprintf("| %s", FormatCommand(command.Args)),
-		"|",
-		"| Effective Behavior:",
+		"Review & Execute",
+		"Command:",
+		FormatCommand(command.Args),
+		"",
+		"Effective Behavior:",
 	}
 
 	behavior := describeBehavior(profile)
@@ -20,10 +20,10 @@ func RenderReviewScreen(profile Profile, command CommandSpec) string {
 		behavior = []string{"- No additional behavior details"}
 	}
 	for _, item := range behavior {
-		lines = append(lines, fmt.Sprintf("| %s", item))
+		lines = append(lines, item)
 	}
 
-	lines = append(lines, "|", "| Actions:", "| [Run] [Save Config] [Copy Command] [Back]", "+----------------------------------------------------+")
+	lines = append(lines, "", "Actions:", "[Run] [Save Config] [Copy Command] [Back]")
 	return strings.Join(lines, "\n")
 }
 

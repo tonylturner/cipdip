@@ -185,6 +185,8 @@
 - [x] Palette data model and search (tasks, profiles, runs, catalogs).
 - [x] Review screen renderer for wizard summary output.
 - [x] Catalog model loader (catalogs/*.yaml) and palette integration.
+- [x] Bubble Tea shell for home/palette/catalog navigation.
+- [x] In-TUI search overlay ("/" to search, Esc to clear).
 
 #### Phase 1: Tests
 - [x] Unit tests: workspace creation, profile resolution, command generation.

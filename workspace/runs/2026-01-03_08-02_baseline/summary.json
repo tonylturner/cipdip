@@ -1,0 +1,10 @@
+{
+  "status": "success",
+  "command": [
+    "cipdip",
+    "baseline"
+  ],
+  "started_at": "2026-01-03T08:02:31Z",
+  "finished_at": "2026-01-03T08:04:16Z",
+  "exit_code": 0
+}

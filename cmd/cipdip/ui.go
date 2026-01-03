@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,6 +37,11 @@ type uiFlags struct {
 	wizardPayloadHex  string
 	catalogQuery      string
 	showCatalog       bool
+	paletteQuery      string
+	showPalette       bool
+	showHome          bool
+	startTUI          bool
+	cliMode           bool
 	noRun             bool
 	printCommand      bool
 }
@@ -78,6 +84,11 @@ workspace artifacts for every execution.`,
 	cmd.Flags().StringVar(&flags.wizardPayloadHex, "wizard-payload-hex", "", "Wizard payload hex for single requests")
 	cmd.Flags().BoolVar(&flags.showCatalog, "catalog", false, "Show catalog entries and exit")
 	cmd.Flags().StringVar(&flags.catalogQuery, "catalog-query", "", "Filter catalog entries by search term")
+	cmd.Flags().BoolVar(&flags.showPalette, "palette", false, "Show command palette results and exit")
+	cmd.Flags().StringVar(&flags.paletteQuery, "palette-query", "", "Filter palette results by search term")
+	cmd.Flags().BoolVar(&flags.showHome, "home", false, "Show the home screen preview and exit")
+	cmd.Flags().BoolVar(&flags.startTUI, "tui", false, "Start the interactive TUI (Bubble Tea)")
+	cmd.Flags().BoolVar(&flags.cliMode, "cli", false, "Force non-interactive output (no TUI)")
 	cmd.Flags().BoolVar(&flags.noRun, "no-run", false, "Do not execute commands, only prepare workspace")
 	cmd.Flags().BoolVar(&flags.printCommand, "print-command", false, "Print generated command and exit")
 
@@ -87,6 +98,9 @@ workspace artifacts for every execution.`,
 func runUI(flags *uiFlags) error {
 	if flags.newWorkspace != "" && flags.workspace != "" {
 		return fmt.Errorf("use either --workspace or --new-workspace, not both")
+	}
+	if flags.workspace == "" && flags.newWorkspace == "" {
+		flags.workspace = "workspace"
 	}
 	if flags.newWorkspace != "" {
 		_, err := ui.CreateWorkspace(flags.newWorkspace, "")
@@ -102,10 +116,22 @@ func runUI(flags *uiFlags) error {
 	}
 	ws, err := ui.EnsureWorkspace(flags.workspace)
 	if err != nil {
-		return err
+		if errors.Is(err, os.ErrNotExist) {
+			ws, err = ui.CreateWorkspace(flags.workspace, "")
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "Workspace created: %s\n", ws.Root)
+		} else {
+			return err
+		}
 	}
 
 	fmt.Fprintf(os.Stdout, "Workspace loaded: %s\n", ws.Root)
+	if flags.startTUI {
+		return ui.RunTUI(ws.Root)
+	}
+	previewOnly := flags.cliMode || flags.noRun || flags.printCommand || flags.showCatalog || flags.showPalette || flags.showHome || flags.wizard != ""
 	if flags.showCatalog {
 		entries, err := ui.ListCatalogEntries(ws.Root)
 		if err != nil {
@@ -113,6 +139,34 @@ func runUI(flags *uiFlags) error {
 		}
 		fmt.Fprintln(os.Stdout, ui.RenderCatalogExplorer(entries, flags.catalogQuery))
 		return nil
+	}
+	if flags.showPalette {
+		items, err := ui.BuildPaletteIndex(ws.Root)
+		if err != nil {
+			return err
+		}
+		filtered := ui.FilterPalette(items, flags.paletteQuery)
+		for _, item := range filtered {
+			fmt.Fprintln(os.Stdout, item.String())
+		}
+		return nil
+	}
+	if flags.showHome {
+		profiles, _ := ui.ListProfiles(ws.Root)
+		items, _ := ui.BuildPaletteIndex(ws.Root)
+		runs, _ := ui.ListRuns(ws.Root, 5)
+		fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, items))
+		return nil
+	}
+	if flags.cliMode && !flags.showCatalog && !flags.showPalette && !flags.showHome && flags.wizard == "" && !flags.noRun && !flags.printCommand {
+		profiles, _ := ui.ListProfiles(ws.Root)
+		items, _ := ui.BuildPaletteIndex(ws.Root)
+		runs, _ := ui.ListRuns(ws.Root, 5)
+		fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, items))
+		return nil
+	}
+	if flags.startTUI || !previewOnly {
+		return ui.RunTUI(ws.Root)
 	}
 	var profiles []ui.ProfileInfo
 	if flags.wizard == "" {

@@ -56,6 +56,11 @@ func CreateWorkspace(root string, name string) (*Workspace, error) {
 		}
 	}
 
+	profilesDir := filepath.Join(root, "profiles")
+	if err := ensureDefaultProfile(profilesDir); err != nil {
+		return nil, err
+	}
+
 	cfg := WorkspaceConfig{
 		Version:   1,
 		Name:      name,
@@ -112,4 +117,30 @@ func writeWorkspaceConfig(root string, cfg WorkspaceConfig) error {
 		return fmt.Errorf("write workspace.yaml: %w", err)
 	}
 	return nil
+}
+
+func ensureDefaultProfile(profilesDir string) error {
+	entries, err := os.ReadDir(profilesDir)
+	if err != nil {
+		return fmt.Errorf("read profiles dir: %w", err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) == ".yaml" {
+			return nil
+		}
+	}
+	defaultProfile := Profile{
+		Version: 1,
+		Kind:    "baseline",
+		Name:    "baseline-default",
+		Spec: map[string]interface{}{
+			"output_dir": "baseline_captures",
+			"duration":   5,
+		},
+	}
+	path := filepath.Join(profilesDir, "baseline-default.yaml")
+	return SaveProfile(path, defaultProfile)
 }
