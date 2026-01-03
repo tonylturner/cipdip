@@ -127,6 +127,99 @@ type ServerConfigSection struct {
 	IdentityProductName string `yaml:"identity_product_name,omitempty"`
 }
 
+// ServerENIPSupportConfig controls which ENIP commands the server accepts.
+type ServerENIPSupportConfig struct {
+	ListIdentity    *bool `yaml:"list_identity,omitempty"`
+	ListServices    *bool `yaml:"list_services,omitempty"`
+	ListInterfaces  *bool `yaml:"list_interfaces,omitempty"`
+	RegisterSession *bool `yaml:"register_session,omitempty"`
+	SendRRData      *bool `yaml:"send_rr_data,omitempty"`
+	SendUnitData    *bool `yaml:"send_unit_data,omitempty"`
+}
+
+// ServerENIPSessionConfig controls ENIP session policy.
+type ServerENIPSessionConfig struct {
+	RequireRegisterSession *bool `yaml:"require_register_session,omitempty"`
+	MaxSessions            int   `yaml:"max_sessions,omitempty"`
+	MaxSessionsPerIP       int   `yaml:"max_sessions_per_ip,omitempty"`
+	IdleTimeoutMs          int   `yaml:"idle_timeout_ms,omitempty"`
+}
+
+// ServerENIPCPFConfig controls CPF parsing policy.
+type ServerENIPCPFConfig struct {
+	Strict            *bool `yaml:"strict,omitempty"`
+	AllowItemReorder  *bool `yaml:"allow_item_reorder,omitempty"`
+	AllowExtraItems   *bool `yaml:"allow_extra_items,omitempty"`
+	AllowMissingItems *bool `yaml:"allow_missing_items,omitempty"`
+}
+
+// ServerENIPConfig groups ENIP-specific server controls.
+type ServerENIPConfig struct {
+	Support ServerENIPSupportConfig `yaml:"support,omitempty"`
+	Session ServerENIPSessionConfig `yaml:"session,omitempty"`
+	CPF     ServerENIPCPFConfig     `yaml:"cpf,omitempty"`
+}
+
+// ServerFaultLatencyConfig controls response latency injection.
+type ServerFaultLatencyConfig struct {
+	BaseDelayMs  int `yaml:"base_delay_ms,omitempty"`
+	JitterMs     int `yaml:"jitter_ms,omitempty"`
+	SpikeEveryN  int `yaml:"spike_every_n,omitempty"`
+	SpikeDelayMs int `yaml:"spike_delay_ms,omitempty"`
+}
+
+// ServerFaultReliabilityConfig controls drop/close/stall behavior.
+type ServerFaultReliabilityConfig struct {
+	DropResponseEveryN  int     `yaml:"drop_response_every_n,omitempty"`
+	DropResponsePct     float64 `yaml:"drop_response_pct,omitempty"`
+	CloseConnectionEveryN int   `yaml:"close_connection_every_n,omitempty"`
+	StallResponseEveryN int     `yaml:"stall_response_every_n,omitempty"`
+}
+
+// ServerFaultTCPConfig controls TCP-level behavior.
+type ServerFaultTCPConfig struct {
+	ChunkWrites       bool `yaml:"chunk_writes,omitempty"`
+	ChunkMin          int  `yaml:"chunk_min,omitempty"`
+	ChunkMax          int  `yaml:"chunk_max,omitempty"`
+	InterChunkDelayMs int  `yaml:"inter_chunk_delay_ms,omitempty"`
+	CoalesceResponses bool `yaml:"coalesce_responses,omitempty"`
+}
+
+// ServerFaultConfig controls fault injection for the server.
+type ServerFaultConfig struct {
+	Enable      bool                    `yaml:"enable,omitempty"`
+	Latency     ServerFaultLatencyConfig `yaml:"latency,omitempty"`
+	Reliability ServerFaultReliabilityConfig `yaml:"reliability,omitempty"`
+	TCP         ServerFaultTCPConfig    `yaml:"tcp,omitempty"`
+}
+
+// ServerCIPRule matches a CIP service/path combination for allow/deny policy.
+type ServerCIPRule struct {
+	Service   uint8  `yaml:"service"`
+	Class     uint16 `yaml:"class,omitempty"`
+	Instance  uint16 `yaml:"instance,omitempty"`
+	Attribute uint16 `yaml:"attribute,omitempty"`
+}
+
+// ServerCIPStatusOverride overrides the status for a matching service/path.
+type ServerCIPStatusOverride struct {
+	Service   uint8  `yaml:"service"`
+	Class     uint16 `yaml:"class,omitempty"`
+	Instance  uint16 `yaml:"instance,omitempty"`
+	Attribute uint16 `yaml:"attribute,omitempty"`
+	Status    uint8  `yaml:"status"`
+}
+
+// ServerCIPPolicyConfig controls CIP routing behavior on the server.
+type ServerCIPPolicyConfig struct {
+	StrictPaths              *bool                     `yaml:"strict_paths,omitempty"`
+	DefaultUnsupportedStatus uint8                     `yaml:"default_unsupported_status,omitempty"`
+	DefaultErrorExtStatus    uint16                    `yaml:"default_error_ext_status,omitempty"`
+	Allow                    []ServerCIPRule           `yaml:"allow,omitempty"`
+	Deny                     []ServerCIPRule           `yaml:"deny,omitempty"`
+	DenyStatusOverrides      []ServerCIPStatusOverride `yaml:"deny_status_overrides,omitempty"`
+}
+
 // AdapterAssemblyConfig represents an adapter assembly configuration
 type AdapterAssemblyConfig struct {
 	Name          string `yaml:"name"`
@@ -152,6 +245,9 @@ type ServerConfig struct {
 	Protocol          ProtocolConfig          `yaml:"protocol"`
 	CIPProfiles       []string                `yaml:"cip_profiles"`
 	CIPProfileClasses map[string][]uint16     `yaml:"cip_profile_classes,omitempty"`
+	ENIP              ServerENIPConfig        `yaml:"enip,omitempty"`
+	CIP               ServerCIPPolicyConfig   `yaml:"cip,omitempty"`
+	Faults            ServerFaultConfig       `yaml:"faults,omitempty"`
 	AdapterAssemblies []AdapterAssemblyConfig `yaml:"adapter_assemblies"`
 	LogixTags         []LogixTagConfig        `yaml:"logix_tags"`
 	TagNamespace      string                  `yaml:"tag_namespace"`
@@ -464,6 +560,8 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 			cfg.Server.IdentityProductName = "CIPDIP"
 		}
 	}
+	applyServerENIPDefaults(&cfg)
+	applyServerCIPDefaults(&cfg)
 
 	// Validate
 	if err := ValidateServerConfig(&cfg); err != nil {
@@ -480,6 +578,30 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 	}
 	if err := validateCIPProfiles(cfg.CIPProfiles); err != nil {
 		return err
+	}
+	if cfg.ENIP.Session.MaxSessions < 0 {
+		return fmt.Errorf("enip.session.max_sessions must be >= 0")
+	}
+	if cfg.ENIP.Session.MaxSessionsPerIP < 0 {
+		return fmt.Errorf("enip.session.max_sessions_per_ip must be >= 0")
+	}
+	if cfg.ENIP.Session.IdleTimeoutMs < 0 {
+		return fmt.Errorf("enip.session.idle_timeout_ms must be >= 0")
+	}
+	if cfg.Faults.Latency.BaseDelayMs < 0 || cfg.Faults.Latency.JitterMs < 0 || cfg.Faults.Latency.SpikeDelayMs < 0 {
+		return fmt.Errorf("faults.latency values must be >= 0")
+	}
+	if cfg.Faults.Reliability.DropResponseEveryN < 0 || cfg.Faults.Reliability.CloseConnectionEveryN < 0 || cfg.Faults.Reliability.StallResponseEveryN < 0 {
+		return fmt.Errorf("faults.reliability values must be >= 0")
+	}
+	if cfg.Faults.Reliability.DropResponsePct < 0 || cfg.Faults.Reliability.DropResponsePct > 1 {
+		return fmt.Errorf("faults.reliability.drop_response_pct must be between 0 and 1")
+	}
+	if cfg.Faults.TCP.ChunkMin < 0 || cfg.Faults.TCP.ChunkMax < 0 || cfg.Faults.TCP.InterChunkDelayMs < 0 {
+		return fmt.Errorf("faults.tcp values must be >= 0")
+	}
+	if cfg.CIP.DefaultUnsupportedStatus == 0 {
+		// allow defaulting during load, but if explicitly set to 0 it's not useful
 	}
 
 	// Validate personality
@@ -513,6 +635,46 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 	}
 
 	return nil
+}
+
+func applyServerENIPDefaults(cfg *ServerConfig) {
+	cfg.ENIP.Support.ListIdentity = boolPtrDefault(cfg.ENIP.Support.ListIdentity, true)
+	cfg.ENIP.Support.ListServices = boolPtrDefault(cfg.ENIP.Support.ListServices, true)
+	cfg.ENIP.Support.ListInterfaces = boolPtrDefault(cfg.ENIP.Support.ListInterfaces, true)
+	cfg.ENIP.Support.RegisterSession = boolPtrDefault(cfg.ENIP.Support.RegisterSession, true)
+	cfg.ENIP.Support.SendRRData = boolPtrDefault(cfg.ENIP.Support.SendRRData, true)
+	cfg.ENIP.Support.SendUnitData = boolPtrDefault(cfg.ENIP.Support.SendUnitData, true)
+
+	cfg.ENIP.Session.RequireRegisterSession = boolPtrDefault(cfg.ENIP.Session.RequireRegisterSession, true)
+	if cfg.ENIP.Session.MaxSessions == 0 {
+		cfg.ENIP.Session.MaxSessions = 256
+	}
+	if cfg.ENIP.Session.MaxSessionsPerIP == 0 {
+		cfg.ENIP.Session.MaxSessionsPerIP = 64
+	}
+	if cfg.ENIP.Session.IdleTimeoutMs == 0 {
+		cfg.ENIP.Session.IdleTimeoutMs = 60000
+	}
+
+	cfg.ENIP.CPF.Strict = boolPtrDefault(cfg.ENIP.CPF.Strict, true)
+	cfg.ENIP.CPF.AllowItemReorder = boolPtrDefault(cfg.ENIP.CPF.AllowItemReorder, true)
+	cfg.ENIP.CPF.AllowExtraItems = boolPtrDefault(cfg.ENIP.CPF.AllowExtraItems, false)
+	cfg.ENIP.CPF.AllowMissingItems = boolPtrDefault(cfg.ENIP.CPF.AllowMissingItems, false)
+}
+
+func boolPtrDefault(value *bool, def bool) *bool {
+	if value != nil {
+		return value
+	}
+	v := def
+	return &v
+}
+
+func applyServerCIPDefaults(cfg *ServerConfig) {
+	cfg.CIP.StrictPaths = boolPtrDefault(cfg.CIP.StrictPaths, true)
+	if cfg.CIP.DefaultUnsupportedStatus == 0 {
+		cfg.CIP.DefaultUnsupportedStatus = 0x08
+	}
 }
 
 func validateEdgeTarget(target EdgeTarget, index int) error {

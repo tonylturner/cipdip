@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"sort"
 	"sync"
@@ -31,6 +32,12 @@ type Server struct {
 	personality    Personality
 	genericStore   *genericAttributeStore
 	profileClasses map[uint16]struct{}
+	enipSupport    enipSupportConfig
+	sessionPolicy  enipSessionPolicy
+	cipPolicy      cipPolicyConfig
+	faults         faultPolicy
+	coalesceMu     sync.Mutex
+	coalesceQueue  map[*net.TCPConn][]byte
 	ctx            context.Context
 	cancel         context.CancelFunc
 	wg             sync.WaitGroup
@@ -40,6 +47,7 @@ type Server struct {
 type Session struct {
 	ID           uint32
 	Conn         *net.TCPConn
+	RemoteIP     string
 	CreatedAt    time.Time
 	LastActivity time.Time
 	mu           sync.Mutex
@@ -58,6 +66,63 @@ type ConnectionState struct {
 type Personality interface {
 	HandleCIPRequest(ctx context.Context, req cipclient.CIPRequest) (cipclient.CIPResponse, error)
 	GetName() string
+}
+
+type enipSupportConfig struct {
+	listIdentity    bool
+	listServices    bool
+	listInterfaces  bool
+	registerSession bool
+	sendRRData      bool
+	sendUnitData    bool
+}
+
+type enipSessionPolicy struct {
+	requireRegister  bool
+	maxSessions      int
+	maxSessionsPerIP int
+	idleTimeout      time.Duration
+}
+
+type cipPolicyConfig struct {
+	strictPaths        bool
+	defaultStatus      uint8
+	defaultExtStatus   uint16
+	allowRules         []config.ServerCIPRule
+	denyRules          []config.ServerCIPRule
+	denyStatusOverride []config.ServerCIPStatusOverride
+}
+
+type faultPolicy struct {
+	enabled bool
+
+	latencyBase  time.Duration
+	latencyJitter time.Duration
+	spikeEveryN  int
+	spikeDelay   time.Duration
+
+	dropEveryN   int
+	dropPct      float64
+	closeEveryN  int
+	stallEveryN  int
+
+	chunkWrites     bool
+	chunkMin        int
+	chunkMax        int
+	interChunkDelay time.Duration
+	coalesce        bool
+
+	mu            sync.Mutex
+	responseCount int
+	rng           *rand.Rand
+}
+
+type responseFaultAction struct {
+	drop     bool
+	delay    time.Duration
+	close    bool
+	chunked  bool
+	coalesce bool
 }
 
 // NewServer creates a new CIP server
@@ -92,6 +157,11 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 		personality:    personality,
 		genericStore:   newGenericAttributeStore(),
 		profileClasses: buildProfileClassSet(cfg.CIPProfiles, cfg.CIPProfileClasses),
+		enipSupport:    resolveENIPSupport(cfg),
+		sessionPolicy:  resolveSessionPolicy(cfg),
+		cipPolicy:      resolveCIPPolicy(cfg),
+		faults:         resolveFaultPolicy(cfg),
+		coalesceQueue:  make(map[*net.TCPConn][]byte),
 		ctx:            ctx,
 		cancel:         cancel,
 	}
@@ -231,6 +301,9 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 	s.logger.Info("New connection from %s", remoteAddr)
 	fmt.Printf("[SERVER] New connection from %s\n", remoteAddr)
 
+	buffer := make([]byte, 0, 8192)
+	readBuf := make([]byte, 4096)
+
 	// Read packets until connection closes
 	for {
 		select {
@@ -242,9 +315,8 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 		// Set read deadline
 		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 
-		// Read ENIP header (24 bytes)
-		header := make([]byte, 24)
-		if _, err := io.ReadFull(conn, header); err != nil {
+		n, err := conn.Read(readBuf)
+		if err != nil {
 			if err == io.EOF {
 				s.logger.Info("Connection closed by client: %s", remoteAddr)
 				fmt.Printf("[SERVER] Connection closed by client: %s\n", remoteAddr)
@@ -253,52 +325,41 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 				continue
 			}
-			s.logger.Error("Read header error from %s: %v", remoteAddr, err)
+			s.logger.Error("Read error from %s: %v", remoteAddr, err)
 			return
 		}
-
-		// Decode header
-		encap, err := cipclient.DecodeENIP(header)
-		if err != nil {
-			s.logger.Error("Decode header error from %s: %v", remoteAddr, err)
+		if n == 0 {
 			continue
 		}
 
-		// Read data if present
-		if encap.Length > 0 {
-			data := make([]byte, encap.Length)
-			if _, err := io.ReadFull(conn, data); err != nil {
-				s.logger.Error("Read data error from %s: %v", remoteAddr, err)
-				continue
-			}
-			encap.Data = data
-		}
+		buffer = append(buffer, readBuf[:n]...)
 
-		// Handle ENIP command
-		resp := s.handleENIPCommand(encap, remoteAddr)
+		frames, remaining := parseENIPStream(buffer, s.logger)
+		buffer = remaining
 
-		// Send response
-		if resp != nil {
-			if _, err := conn.Write(resp); err != nil {
-				s.logger.Error("Write response error to %s: %v", remoteAddr, err)
-				return
-			}
-		}
+		for _, encap := range frames {
+			resp := s.handleENIPCommand(encap, remoteAddr)
 
-		// Update session activity and associate connection with session
-		if encap.SessionID != 0 {
-			s.sessionsMu.Lock()
-			session, ok := s.sessions[encap.SessionID]
-			if ok && session != nil {
-				// Associate connection with session if not already set
-				if session.Conn == nil {
-					session.Conn = conn
+			if resp != nil {
+				if _, err := conn.Write(resp); err != nil {
+					s.logger.Error("Write response error to %s: %v", remoteAddr, err)
+					return
 				}
-				session.mu.Lock()
-				session.LastActivity = time.Now()
-				session.mu.Unlock()
 			}
-			s.sessionsMu.Unlock()
+
+			if encap.SessionID != 0 {
+				s.sessionsMu.Lock()
+				session, ok := s.sessions[encap.SessionID]
+				if ok && session != nil {
+					if session.Conn == nil {
+						session.Conn = conn
+					}
+					session.mu.Lock()
+					session.LastActivity = time.Now()
+					session.mu.Unlock()
+				}
+				s.sessionsMu.Unlock()
+			}
 		}
 	}
 }
@@ -307,16 +368,46 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 func (s *Server) handleENIPCommand(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
 	switch encap.Command {
 	case cipclient.ENIPCommandRegisterSession:
-		return s.handleRegisterSession(encap)
+		if !s.enipSupport.registerSession {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
+		return s.handleRegisterSession(encap, remoteAddr)
 
 	case cipclient.ENIPCommandUnregisterSession:
+		if !s.enipSupport.registerSession {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
 		return s.handleUnregisterSession(encap)
 
 	case cipclient.ENIPCommandSendRRData:
+		if !s.enipSupport.sendRRData {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
 		return s.handleSendRRData(encap, remoteAddr)
 
 	case cipclient.ENIPCommandSendUnitData:
+		if !s.enipSupport.sendUnitData {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
 		return s.handleSendUnitData(encap, remoteAddr)
+
+	case cipclient.ENIPCommandListIdentity:
+		if !s.enipSupport.listIdentity {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
+		return s.handleListIdentity(encap, remoteAddr)
+
+	case cipclient.ENIPCommandListServices:
+		if !s.enipSupport.listServices {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
+		return s.handleListServices(encap)
+
+	case cipclient.ENIPCommandListInterfaces:
+		if !s.enipSupport.listInterfaces {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		}
+		return s.handleListInterfaces(encap)
 
 	default:
 		s.logger.Error("Unsupported ENIP command 0x%04X from %s", encap.Command, remoteAddr)
@@ -325,10 +416,15 @@ func (s *Server) handleENIPCommand(encap cipclient.ENIPEncapsulation, remoteAddr
 }
 
 // handleRegisterSession handles a RegisterSession request
-func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation) []byte {
+func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
 	// Validate request
 	if len(encap.Data) < 4 {
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+	}
+
+	if err := s.enforceSessionLimits(remoteAddr); err != nil {
+		s.logger.Error("RegisterSession rejected from %s: %v", remoteAddr, err)
+		return s.buildErrorResponse(encap, cipclient.ENIPStatusInsufficientMemory)
 	}
 
 	// Generate session ID
@@ -342,6 +438,7 @@ func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation) []byte
 	// For now, we'll store sessions without Conn, and handle connection cleanup separately
 	session := &Session{
 		ID:           sessionID,
+		RemoteIP:     remoteIP(remoteAddr),
 		CreatedAt:    time.Now(),
 		LastActivity: time.Now(),
 		// Conn will be set when we handle the connection
@@ -394,13 +491,8 @@ func (s *Server) handleUnregisterSession(encap cipclient.ENIPEncapsulation) []by
 
 // handleSendRRData handles a SendRRData request (UCMM)
 func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
-	// Verify session exists
-	s.sessionsMu.RLock()
-	session, ok := s.sessions[encap.SessionID]
-	s.sessionsMu.RUnlock()
-
+	session, ok := s.requireSession(encap.SessionID, remoteAddr)
 	if !ok {
-		s.logger.Error("SendRRData with invalid session %d from %s", encap.SessionID, remoteAddr)
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
 	}
 
@@ -411,12 +503,7 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 		session.mu.Unlock()
 	}
 
-	// Parse SendRRData structure
-	if len(encap.Data) < 6 {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
-	}
-
-	cipData, err := cipclient.ParseSendRRDataRequest(encap.Data)
+	cipData, err := s.parseSendRRData(encap.Data)
 	if err != nil {
 		s.logger.Error("Parse SendRRData error: %v", err)
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
@@ -444,6 +531,15 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	// Log incoming request
 	fmt.Printf("[SERVER] Received CIP request: service=0x%02X class=0x%04X instance=0x%04X attribute=0x%02X\n",
 		uint8(cipReq.Service), cipReq.Path.Class, cipReq.Path.Instance, cipReq.Path.Attribute)
+
+	if policyResp, ok := s.applyCIPPolicy(cipReq); ok {
+		cipRespData, err := cipclient.EncodeCIPResponse(policyResp)
+		if err != nil {
+			s.logger.Error("Encode CIP response error: %v", err)
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		}
+		return s.buildCIPResponse(encap, cipRespData)
+	}
 
 	if cipReq.Service == cipclient.CIPServiceUnconnectedSend {
 		return s.handleUnconnectedSend(encap, cipReq)
@@ -608,6 +704,27 @@ func (s *Server) handleUnconnectedSend(encap cipclient.ENIPEncapsulation, cipReq
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
+	if policyResp, ok := s.applyCIPPolicy(embeddedReq); ok {
+		embeddedRespData, err := cipclient.EncodeCIPResponse(policyResp)
+		if err != nil {
+			cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+			cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+			return s.buildCIPResponse(encap, cipRespData)
+		}
+		payload := cipclient.BuildUnconnectedSendResponsePayload(embeddedRespData)
+		cipResp := cipclient.CIPResponse{
+			Service: cipReq.Service,
+			Status:  0x00,
+			Path:    cipReq.Path,
+			Payload: payload,
+		}
+		cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+		if err != nil {
+			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		}
+		return s.buildCIPResponse(encap, cipRespData)
+	}
+
 	embeddedResp, ok := s.handleIdentityRequest(embeddedReq)
 	if !ok {
 		embeddedResp = s.handleEmbeddedRequest(embeddedReq)
@@ -649,6 +766,10 @@ func (s *Server) handleMultipleService(encap cipclient.ENIPEncapsulation, cipReq
 
 	embeddedResps := make([]cipclient.CIPResponse, 0, len(embeddedReqs))
 	for _, embeddedReq := range embeddedReqs {
+		if policyResp, ok := s.applyCIPPolicy(embeddedReq); ok {
+			embeddedResps = append(embeddedResps, policyResp)
+			continue
+		}
 		embeddedResps = append(embeddedResps, s.handleEmbeddedRequest(embeddedReq))
 	}
 
@@ -1132,22 +1253,11 @@ func buildProfileClassSet(profiles []string, overrides map[string][]uint16) map[
 
 // handleSendUnitData handles a SendUnitData request (connected messaging)
 func (s *Server) handleSendUnitData(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
-	// Verify session exists
-	s.sessionsMu.RLock()
-	_, ok := s.sessions[encap.SessionID]
-	s.sessionsMu.RUnlock()
-
-	if !ok {
-		s.logger.Error("SendUnitData with invalid session %d from %s", encap.SessionID, remoteAddr)
+	if _, ok := s.requireSession(encap.SessionID, remoteAddr); !ok {
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
 	}
 
-	// Parse SendUnitData structure
-	if len(encap.Data) < 4 {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
-	}
-
-	connectionID, cipData, err := cipclient.ParseSendUnitDataRequest(encap.Data)
+	connectionID, cipData, err := s.parseSendUnitData(encap.Data)
 	if err != nil {
 		s.logger.Error("Parse SendUnitData error: %v", err)
 		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
@@ -1216,7 +1326,7 @@ func (s *Server) handleUDP() {
 		}
 
 		// Handle SendUnitData on UDP (I/O data)
-		if encap.Command == cipclient.ENIPCommandSendUnitData {
+		if encap.Command == cipclient.ENIPCommandSendUnitData && s.enipSupport.sendUnitData {
 			resp := s.handleSendUnitData(encap, addr.String())
 			if resp != nil {
 				// Send response back to client
@@ -1226,8 +1336,15 @@ func (s *Server) handleUDP() {
 					s.logger.Debug("UDP I/O response sent to %s: %d bytes", addr.String(), len(resp))
 				}
 			}
+		} else if encap.Command == cipclient.ENIPCommandListIdentity && s.enipSupport.listIdentity {
+			resp := s.handleListIdentity(encap, addr.String())
+			if resp != nil {
+				if _, err := s.udpListener.WriteToUDP(resp, addr); err != nil {
+					s.logger.Error("UDP write error to %s: %v", addr.String(), err)
+				}
+			}
 		} else {
-			s.logger.Debug("UDP I/O packet from %s: unsupported command 0x%04X", addr.String(), encap.Command)
+			s.logger.Debug("UDP packet from %s: unsupported command 0x%04X", addr.String(), encap.Command)
 		}
 	}
 }
@@ -1292,6 +1409,418 @@ func (s *Server) isConnectionActive(connID uint32, sessionID uint32) bool {
 	return true
 }
 
+func (s *Server) requireSession(sessionID uint32, remoteAddr string) (*Session, bool) {
+	if !s.sessionPolicy.requireRegister && sessionID == 0 {
+		return nil, true
+	}
+
+	s.sessionsMu.RLock()
+	session, ok := s.sessions[sessionID]
+	s.sessionsMu.RUnlock()
+
+	if !ok || session == nil {
+		s.logger.Error("SendRRData with invalid session %d from %s", sessionID, remoteAddr)
+		return nil, false
+	}
+	if session.LastActivity.IsZero() {
+		session.LastActivity = time.Now()
+	}
+	if s.sessionPolicy.idleTimeout > 0 && time.Since(session.LastActivity) > s.sessionPolicy.idleTimeout {
+		s.sessionsMu.Lock()
+		delete(s.sessions, sessionID)
+		s.sessionsMu.Unlock()
+		return nil, false
+	}
+	return session, true
+}
+
+func (s *Server) enforceSessionLimits(remoteAddr string) error {
+	maxSessions := s.sessionPolicy.maxSessions
+	maxSessionsPerIP := s.sessionPolicy.maxSessionsPerIP
+	if maxSessions <= 0 && maxSessionsPerIP <= 0 {
+		return nil
+	}
+
+	targetIP := remoteIP(remoteAddr)
+	s.sessionsMu.RLock()
+	defer s.sessionsMu.RUnlock()
+
+	if maxSessions > 0 && len(s.sessions) >= maxSessions {
+		return fmt.Errorf("max sessions reached")
+	}
+	if maxSessionsPerIP > 0 && targetIP != "" {
+		count := 0
+		for _, session := range s.sessions {
+			if session != nil && session.RemoteIP == targetIP {
+				count++
+			}
+		}
+		if count >= maxSessionsPerIP {
+			return fmt.Errorf("max sessions per IP reached")
+		}
+	}
+	return nil
+}
+
+func remoteIP(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return remoteAddr
+	}
+	return host
+}
+
+func resolveENIPSupport(cfg *config.ServerConfig) enipSupportConfig {
+	return enipSupportConfig{
+		listIdentity:    boolValue(cfg.ENIP.Support.ListIdentity, true),
+		listServices:    boolValue(cfg.ENIP.Support.ListServices, true),
+		listInterfaces:  boolValue(cfg.ENIP.Support.ListInterfaces, true),
+		registerSession: boolValue(cfg.ENIP.Support.RegisterSession, true),
+		sendRRData:      boolValue(cfg.ENIP.Support.SendRRData, true),
+		sendUnitData:    boolValue(cfg.ENIP.Support.SendUnitData, true),
+	}
+}
+
+func resolveSessionPolicy(cfg *config.ServerConfig) enipSessionPolicy {
+	idleMs := cfg.ENIP.Session.IdleTimeoutMs
+	maxSessions := cfg.ENIP.Session.MaxSessions
+	maxSessionsPerIP := cfg.ENIP.Session.MaxSessionsPerIP
+	if maxSessions == 0 {
+		maxSessions = 256
+	}
+	if maxSessionsPerIP == 0 {
+		maxSessionsPerIP = 64
+	}
+	if idleMs == 0 {
+		idleMs = 60000
+	}
+	return enipSessionPolicy{
+		requireRegister:  boolValue(cfg.ENIP.Session.RequireRegisterSession, true),
+		maxSessions:      maxSessions,
+		maxSessionsPerIP: maxSessionsPerIP,
+		idleTimeout:      time.Duration(idleMs) * time.Millisecond,
+	}
+}
+
+func boolValue(value *bool, def bool) bool {
+	if value == nil {
+		return def
+	}
+	return *value
+}
+
+func (s *Server) handleListIdentity(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
+	vendorID, deviceType, productCode, revMajor, revMinor, status, serial, productName := s.identityValues()
+	order := cipclient.CurrentProtocolProfile().ENIPByteOrder
+
+	data := make([]byte, 0, 34+len(productName))
+	socket := make([]byte, 16)
+	order.PutUint16(socket[0:2], 0x0002)
+	order.PutUint16(socket[2:4], uint16(s.config.Server.TCPPort))
+	copy(socket[4:8], net.ParseIP(s.config.Server.ListenIP).To4())
+	data = append(data, socket...)
+
+	buf2 := make([]byte, 2)
+	buf4 := make([]byte, 4)
+	order.PutUint16(buf2, vendorID)
+	data = append(data, buf2...)
+	order.PutUint16(buf2, deviceType)
+	data = append(data, buf2...)
+	order.PutUint16(buf2, productCode)
+	data = append(data, buf2...)
+	data = append(data, revMajor, revMinor)
+	order.PutUint16(buf2, status)
+	data = append(data, buf2...)
+	order.PutUint32(buf4, serial)
+	data = append(data, buf4...)
+	data = append(data, byte(len(productName)))
+	data = append(data, []byte(productName)...)
+	data = append(data, 0x03)
+
+	resp := cipclient.ENIPEncapsulation{
+		Command:       cipclient.ENIPCommandListIdentity,
+		Length:        uint16(len(data)),
+		SessionID:     0,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          data,
+	}
+	return cipclient.EncodeENIP(resp)
+}
+
+func (s *Server) handleListServices(encap cipclient.ENIPEncapsulation) []byte {
+	resp := cipclient.ENIPEncapsulation{
+		Command:       cipclient.ENIPCommandListServices,
+		Length:        0,
+		SessionID:     0,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          nil,
+	}
+	return cipclient.EncodeENIP(resp)
+}
+
+func (s *Server) handleListInterfaces(encap cipclient.ENIPEncapsulation) []byte {
+	resp := cipclient.ENIPEncapsulation{
+		Command:       cipclient.ENIPCommandListInterfaces,
+		Length:        0,
+		SessionID:     0,
+		Status:        cipclient.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          nil,
+	}
+	return cipclient.EncodeENIP(resp)
+}
+
+func resolveCIPPolicy(cfg *config.ServerConfig) cipPolicyConfig {
+	defaultStatus := cfg.CIP.DefaultUnsupportedStatus
+	if defaultStatus == 0 {
+		defaultStatus = 0x08
+	}
+	return cipPolicyConfig{
+		strictPaths:        boolValue(cfg.CIP.StrictPaths, true),
+		defaultStatus:      defaultStatus,
+		defaultExtStatus:   cfg.CIP.DefaultErrorExtStatus,
+		allowRules:         cfg.CIP.Allow,
+		denyRules:          cfg.CIP.Deny,
+		denyStatusOverride: cfg.CIP.DenyStatusOverrides,
+	}
+}
+
+func (s *Server) applyCIPPolicy(req cipclient.CIPRequest) (cipclient.CIPResponse, bool) {
+	if s.cipPolicy.strictPaths && req.Path.Class == 0 && req.Path.Name == "" {
+		return s.policyReject(req), true
+	}
+
+	for _, rule := range s.cipPolicy.denyRules {
+		if ruleMatches(rule, req) {
+			return s.policyReject(req), true
+		}
+	}
+
+	if len(s.cipPolicy.allowRules) > 0 {
+		for _, rule := range s.cipPolicy.allowRules {
+			if ruleMatches(rule, req) {
+				return cipclient.CIPResponse{}, false
+			}
+		}
+		return s.policyReject(req), true
+	}
+
+	return cipclient.CIPResponse{}, false
+}
+
+func (s *Server) policyReject(req cipclient.CIPRequest) cipclient.CIPResponse {
+	status := s.cipPolicy.defaultStatus
+	for _, override := range s.cipPolicy.denyStatusOverride {
+		if overrideMatches(override, req) {
+			status = override.Status
+			break
+		}
+	}
+	resp := cipclient.CIPResponse{
+		Service: req.Service,
+		Status:  status,
+		Path:    req.Path,
+	}
+	if s.cipPolicy.defaultExtStatus != 0 {
+		resp.ExtStatus = []byte{
+			byte(s.cipPolicy.defaultExtStatus & 0xFF),
+			byte(s.cipPolicy.defaultExtStatus >> 8),
+		}
+	}
+	return resp
+}
+
+func ruleMatches(rule config.ServerCIPRule, req cipclient.CIPRequest) bool {
+	if rule.Service != 0 && rule.Service != uint8(req.Service) {
+		return false
+	}
+	if rule.Class != 0 && rule.Class != req.Path.Class {
+		return false
+	}
+	if rule.Instance != 0 && rule.Instance != req.Path.Instance {
+		return false
+	}
+	if rule.Attribute != 0 && rule.Attribute != req.Path.Attribute {
+		return false
+	}
+	return true
+}
+
+func overrideMatches(rule config.ServerCIPStatusOverride, req cipclient.CIPRequest) bool {
+	if rule.Service != 0 && rule.Service != uint8(req.Service) {
+		return false
+	}
+	if rule.Class != 0 && rule.Class != req.Path.Class {
+		return false
+	}
+	if rule.Instance != 0 && rule.Instance != req.Path.Instance {
+		return false
+	}
+	if rule.Attribute != 0 && rule.Attribute != req.Path.Attribute {
+		return false
+	}
+	return true
+}
+
+func parseENIPStream(buffer []byte, logger *logging.Logger) ([]cipclient.ENIPEncapsulation, []byte) {
+	const headerSize = 24
+	order := cipclient.CurrentProtocolProfile().ENIPByteOrder
+	frames := make([]cipclient.ENIPEncapsulation, 0)
+	offset := 0
+
+	for len(buffer[offset:]) >= headerSize {
+		command := order.Uint16(buffer[offset : offset+2])
+		if !isValidENIPCommand(command) {
+			offset++
+			continue
+		}
+		length := int(order.Uint16(buffer[offset+2 : offset+4]))
+		total := headerSize + length
+		if len(buffer[offset:]) < total {
+			break
+		}
+
+		frame := buffer[offset : offset+total]
+		encap, err := cipclient.DecodeENIP(frame)
+		if err != nil {
+			logger.Debug("Decode ENIP error: %v", err)
+			offset++
+			continue
+		}
+		frames = append(frames, encap)
+		offset += total
+	}
+
+	if offset == 0 {
+		return frames, buffer
+	}
+	remaining := make([]byte, len(buffer)-offset)
+	copy(remaining, buffer[offset:])
+	return frames, remaining
+}
+
+func isValidENIPCommand(cmd uint16) bool {
+	switch cmd {
+	case cipclient.ENIPCommandRegisterSession,
+		cipclient.ENIPCommandUnregisterSession,
+		cipclient.ENIPCommandSendRRData,
+		cipclient.ENIPCommandSendUnitData,
+		cipclient.ENIPCommandListIdentity,
+		cipclient.ENIPCommandListServices,
+		cipclient.ENIPCommandListInterfaces:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *Server) parseSendRRData(data []byte) ([]byte, error) {
+	if len(data) < 6 {
+		return nil, fmt.Errorf("SendRRData data too short: %d bytes", len(data))
+	}
+	payload := data[6:]
+	cpfStrict := boolValue(s.config.ENIP.CPF.Strict, true)
+	allowMissing := boolValue(s.config.ENIP.CPF.AllowMissingItems, false)
+	allowExtra := boolValue(s.config.ENIP.CPF.AllowExtraItems, false)
+	allowReorder := boolValue(s.config.ENIP.CPF.AllowItemReorder, true)
+
+	items, err := cipclient.ParseCPFItems(payload)
+	if err != nil {
+		if !cpfStrict && allowMissing {
+			return payload, nil
+		}
+		return nil, err
+	}
+	if len(items) == 0 {
+		if allowMissing {
+			return payload, nil
+		}
+		return nil, fmt.Errorf("missing CPF items")
+	}
+	if !allowExtra && len(items) != 2 {
+		return nil, fmt.Errorf("unexpected CPF item count: %d", len(items))
+	}
+	if !allowReorder {
+		if len(items) < 2 || items[0].TypeID != cipclient.CPFItemNullAddress || items[1].TypeID != cipclient.CPFItemUnconnectedData {
+			return nil, fmt.Errorf("CPF items out of order")
+		}
+	}
+	for _, item := range items {
+		if item.TypeID == cipclient.CPFItemUnconnectedData {
+			return item.Data, nil
+		}
+	}
+	if allowMissing {
+		return payload, nil
+	}
+	return nil, fmt.Errorf("missing unconnected data item")
+}
+
+func (s *Server) parseSendUnitData(data []byte) (uint32, []byte, error) {
+	if len(data) < 4 {
+		return 0, nil, fmt.Errorf("SendUnitData data too short: %d bytes", len(data))
+	}
+	payload := data
+	cpfStrict := boolValue(s.config.ENIP.CPF.Strict, true)
+	allowMissing := boolValue(s.config.ENIP.CPF.AllowMissingItems, false)
+	allowExtra := boolValue(s.config.ENIP.CPF.AllowExtraItems, false)
+	allowReorder := boolValue(s.config.ENIP.CPF.AllowItemReorder, true)
+
+	if len(data) >= 6 {
+		payload = data[6:]
+	}
+	items, err := cipclient.ParseCPFItems(payload)
+	if err != nil {
+		if !cpfStrict && allowMissing {
+			connID := cipclient.CurrentProtocolProfile().ENIPByteOrder.Uint32(data[:4])
+			return connID, data[4:], nil
+		}
+		return 0, nil, err
+	}
+	if len(items) == 0 {
+		if allowMissing {
+			connID := cipclient.CurrentProtocolProfile().ENIPByteOrder.Uint32(data[:4])
+			return connID, data[4:], nil
+		}
+		return 0, nil, fmt.Errorf("missing CPF items")
+	}
+	if !allowExtra && len(items) != 2 {
+		return 0, nil, fmt.Errorf("unexpected CPF item count: %d", len(items))
+	}
+	if !allowReorder {
+		if len(items) < 2 || items[0].TypeID != cipclient.CPFItemConnectedAddress || items[1].TypeID != cipclient.CPFItemConnectedData {
+			return 0, nil, fmt.Errorf("CPF items out of order")
+		}
+	}
+
+	var connID uint32
+	var cipData []byte
+	order := cipclient.CurrentProtocolProfile().ENIPByteOrder
+	for _, item := range items {
+		switch item.TypeID {
+		case cipclient.CPFItemConnectedAddress:
+			if len(item.Data) < 4 {
+				return 0, nil, fmt.Errorf("connected address item too short")
+			}
+			connID = order.Uint32(item.Data[:4])
+		case cipclient.CPFItemConnectedData:
+			cipData = item.Data
+		}
+	}
+	if connID == 0 || cipData == nil {
+		if allowMissing {
+			connID = order.Uint32(data[:4])
+			return connID, data[4:], nil
+		}
+		return 0, nil, fmt.Errorf("missing connected items")
+	}
+	return connID, cipData, nil
+}
 func parseForwardCloseConnectionID(cipData []byte) uint32 {
 	order := cipclient.CurrentProtocolProfile().CIPByteOrder
 	for i := 0; i+5 <= len(cipData); i++ {

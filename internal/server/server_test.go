@@ -216,7 +216,7 @@ func TestServerSessionManagement(t *testing.T) {
 	}
 
 	// Handle RegisterSession
-	resp := server.handleRegisterSession(encap)
+	resp := server.handleRegisterSession(encap, "127.0.0.1:1234")
 	if resp == nil {
 		t.Fatal("handleRegisterSession returned nil")
 	}

@@ -104,7 +104,7 @@ func TestHandleSendUnitDataActiveConnection(t *testing.T) {
 	if decoded.Status != cipclient.ENIPStatusSuccess {
 		t.Fatalf("expected success status, got 0x%08X", decoded.Status)
 	}
-	_, payload, err := cipclient.ParseSendUnitDataResponse(decoded.Data)
+	payload, err := cipclient.ParseSendUnitDataResponse(decoded.Data)
 	if err != nil {
 		t.Fatalf("ParseSendUnitDataResponse failed: %v", err)
 	}
