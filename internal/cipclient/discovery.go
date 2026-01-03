@@ -4,7 +4,6 @@ package cipclient
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"time"
@@ -12,12 +11,12 @@ import (
 
 // DiscoveredDevice represents a device discovered via ListIdentity
 type DiscoveredDevice struct {
-	IP         string
-	VendorID   uint16
-	ProductID  uint16
-	ProductName string
+	IP           string
+	VendorID     uint16
+	ProductID    uint16
+	ProductName  string
 	SerialNumber uint32
-	State      uint8
+	State        uint8
 }
 
 // DiscoverDevices sends ListIdentity requests via UDP broadcast and collects responses
@@ -25,19 +24,19 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 	// Resolve broadcast address
 	var broadcastAddr *net.UDPAddr
 	var err error
-	
+
 	if iface != "" {
 		// Use specific interface
 		ief, err := net.InterfaceByName(iface)
 		if err != nil {
 			return nil, fmt.Errorf("interface %s: %w", iface, err)
 		}
-		
+
 		addrs, err := ief.Addrs()
 		if err != nil {
 			return nil, fmt.Errorf("get interface addresses: %w", err)
 		}
-		
+
 		// Find IPv4 address and calculate broadcast
 		for _, addr := range addrs {
 			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
@@ -57,7 +56,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 				}
 			}
 		}
-		
+
 		if broadcastAddr == nil {
 			return nil, fmt.Errorf("no IPv4 address found on interface %s", iface)
 		}
@@ -93,7 +92,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 	// Collect responses
 	var devices []DiscoveredDevice
 	seenIPs := make(map[string]bool)
-	
+
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		// Update read deadline
@@ -179,14 +178,14 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 	offset += 16
 
 	// Vendor ID (2 bytes, big-endian)
-	device.VendorID = binary.BigEndian.Uint16(encap.Data[offset : offset+2])
+	device.VendorID = currentENIPByteOrder().Uint16(encap.Data[offset : offset+2])
 	offset += 2
 
 	// Product Type (2 bytes) - skip
 	offset += 2
 
 	// Product Code (2 bytes, big-endian)
-	device.ProductID = binary.BigEndian.Uint16(encap.Data[offset : offset+2])
+	device.ProductID = currentENIPByteOrder().Uint16(encap.Data[offset : offset+2])
 	offset += 2
 
 	// Revision (2 bytes) - skip
@@ -196,7 +195,7 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 	offset += 2
 
 	// Serial Number (4 bytes, big-endian)
-	device.SerialNumber = binary.BigEndian.Uint32(encap.Data[offset : offset+4])
+	device.SerialNumber = currentENIPByteOrder().Uint32(encap.Data[offset : offset+4])
 	offset += 4
 
 	// Product Name Length (1 byte)
@@ -223,4 +222,3 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 
 	return device, nil
 }
-

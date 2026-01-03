@@ -11,7 +11,7 @@ import (
 // TestTCPTransportConnect tests TCP transport connection
 func TestTCPTransportConnect(t *testing.T) {
 	transport := NewTCPTransport()
-	
+
 	// Test connecting to invalid address (should fail)
 	ctx := context.Background()
 	err := transport.Connect(ctx, "invalid:99999")
@@ -28,9 +28,9 @@ func TestTCPTransportConnect(t *testing.T) {
 // TestUDPTransportConnect tests UDP transport connection
 func TestUDPTransportConnect(t *testing.T) {
 	transport := NewUDPTransport()
-	
+
 	ctx := context.Background()
-	
+
 	// Test connecting to a valid address format
 	// Note: This won't actually connect to a real server, but should resolve the address
 	err := transport.Connect(ctx, "127.0.0.1:2222")
@@ -61,7 +61,7 @@ func TestUDPTransportDoubleConnect(t *testing.T) {
 
 	// First connect (may succeed or fail depending on system)
 	err1 := transport.Connect(ctx, "127.0.0.1:2222")
-	
+
 	// Second connect should fail with "already connected"
 	err2 := transport.Connect(ctx, "127.0.0.1:2222")
 	if err1 == nil && err2 == nil {
@@ -96,7 +96,7 @@ func TestTransportSendReceiveNotConnected(t *testing.T) {
 	// Test TCP
 	tcpTransport := NewTCPTransport()
 	ctx := context.Background()
-	
+
 	err := tcpTransport.Send(ctx, []byte{0x01, 0x02})
 	if err == nil {
 		t.Error("TCP Send should fail when not connected")
@@ -109,7 +109,7 @@ func TestTransportSendReceiveNotConnected(t *testing.T) {
 
 	// Test UDP
 	udpTransport := NewUDPTransport()
-	
+
 	err = udpTransport.Send(ctx, []byte{0x01, 0x02})
 	if err == nil {
 		t.Error("UDP Send should fail when not connected")
@@ -161,4 +161,3 @@ func TestTransportDisconnectIdempotent(t *testing.T) {
 		t.Errorf("Second UDP Disconnect should succeed: %v", err)
 	}
 }
-

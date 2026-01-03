@@ -3,7 +3,6 @@ package cipclient
 // CIP (Common Industrial Protocol) encoding and decoding
 
 import (
-	"encoding/binary"
 	"fmt"
 )
 
@@ -12,29 +11,61 @@ type CIPServiceCode uint8
 
 // Common CIP service codes
 const (
-	CIPServiceGetAttributeAll    CIPServiceCode = 0x01
-	CIPServiceSetAttributeAll    CIPServiceCode = 0x02
-	CIPServiceGetAttributeList   CIPServiceCode = 0x03
-	CIPServiceSetAttributeList   CIPServiceCode = 0x04
-	CIPServiceReset              CIPServiceCode = 0x05
-	CIPServiceStart              CIPServiceCode = 0x06
-	CIPServiceStop               CIPServiceCode = 0x07
-	CIPServiceCreate             CIPServiceCode = 0x08
-	CIPServiceDelete             CIPServiceCode = 0x09
-	CIPServiceMultipleService    CIPServiceCode = 0x0A
-	CIPServiceApplyAttributes    CIPServiceCode = 0x0D
-	CIPServiceGetAttributeSingle CIPServiceCode = 0x0E
-	CIPServiceSetAttributeSingle CIPServiceCode = 0x10
-	CIPServiceFindNextObjectInst CIPServiceCode = 0x11
-	CIPServiceForwardOpen        CIPServiceCode = 0x54
-	CIPServiceForwardClose       CIPServiceCode = 0x4E
+	CIPServiceGetAttributeAll      CIPServiceCode = 0x01
+	CIPServiceSetAttributeAll      CIPServiceCode = 0x02
+	CIPServiceGetAttributeList     CIPServiceCode = 0x03
+	CIPServiceSetAttributeList     CIPServiceCode = 0x04
+	CIPServiceReset                CIPServiceCode = 0x05
+	CIPServiceStart                CIPServiceCode = 0x06
+	CIPServiceStop                 CIPServiceCode = 0x07
+	CIPServiceCreate               CIPServiceCode = 0x08
+	CIPServiceDelete               CIPServiceCode = 0x09
+	CIPServiceMultipleService      CIPServiceCode = 0x0A
+	CIPServiceApplyAttributes      CIPServiceCode = 0x0D
+	CIPServiceGetAttributeSingle   CIPServiceCode = 0x0E
+	CIPServiceSetAttributeSingle   CIPServiceCode = 0x10
+	CIPServiceFindNextObjectInst   CIPServiceCode = 0x11
+	CIPServiceErrorResponse        CIPServiceCode = 0x14
+	CIPServiceRestore              CIPServiceCode = 0x15
+	CIPServiceSave                 CIPServiceCode = 0x16
+	CIPServiceNoOp                 CIPServiceCode = 0x17
+	CIPServiceGetMember            CIPServiceCode = 0x18
+	CIPServiceSetMember            CIPServiceCode = 0x19
+	CIPServiceInsertMember         CIPServiceCode = 0x1A
+	CIPServiceRemoveMember         CIPServiceCode = 0x1B
+	CIPServiceGroupSync            CIPServiceCode = 0x1C
+	CIPServiceExecutePCCC          CIPServiceCode = 0x4B
+	CIPServiceReadTag              CIPServiceCode = 0x4C
+	CIPServiceWriteTag             CIPServiceCode = 0x4D
+	CIPServiceReadModifyWrite      CIPServiceCode = 0x4E
+	CIPServiceUploadTransfer       CIPServiceCode = 0x4F
+	CIPServiceDownloadTransfer     CIPServiceCode = 0x50
+	CIPServiceClearFile            CIPServiceCode = 0x51
+	CIPServiceReadTagFragmented    CIPServiceCode = 0x52
+	CIPServiceWriteTagFragmented   CIPServiceCode = 0x53
+	CIPServiceGetInstanceAttrList  CIPServiceCode = 0x55
+	CIPServiceUnconnectedSend      CIPServiceCode = 0x52
+	CIPServiceGetConnectionData    CIPServiceCode = 0x56
+	CIPServiceSearchConnectionData CIPServiceCode = 0x57
+	CIPServiceGetConnectionOwner   CIPServiceCode = 0x5A
+	CIPServiceLargeForwardOpen     CIPServiceCode = 0x5B
+	CIPServiceForwardOpen          CIPServiceCode = 0x54
+	CIPServiceForwardClose         CIPServiceCode = 0x4E
+)
+
+// File Object service aliases (share values with existing service codes).
+const (
+	CIPServiceInitiateUpload       CIPServiceCode = CIPServiceExecutePCCC
+	CIPServiceInitiateDownload     CIPServiceCode = CIPServiceReadTag
+	CIPServiceInitiatePartialRead  CIPServiceCode = CIPServiceWriteTag
+	CIPServiceInitiatePartialWrite CIPServiceCode = CIPServiceReadModifyWrite
 )
 
 // CIPPath represents a CIP logical path (class/instance/attribute)
 type CIPPath struct {
 	Class     uint16
 	Instance  uint16
-	Attribute uint8
+	Attribute uint16
 	Name      string // from config, for logging
 }
 
@@ -42,6 +73,7 @@ type CIPPath struct {
 type CIPRequest struct {
 	Service CIPServiceCode
 	Path    CIPPath
+	RawPath []byte // Optional raw EPATH override (e.g., symbolic segments)
 	Payload []byte // raw CIP request body (no service/path)
 }
 
@@ -65,6 +97,7 @@ const (
 // EPATH format: segment type (1 byte) + segment data (variable length)
 func EncodeEPATH(path CIPPath) []byte {
 	var epath []byte
+	order := currentCIPByteOrder()
 
 	// Class segment (8-bit class ID)
 	if path.Class <= 0xFF {
@@ -73,7 +106,7 @@ func EncodeEPATH(path CIPPath) []byte {
 	} else {
 		// 16-bit class ID
 		epath = append(epath, EPathSegmentClassID|0x01) // 16-bit format
-		epath = binary.BigEndian.AppendUint16(epath, path.Class)
+		epath = appendUint16(order, epath, path.Class)
 	}
 
 	// Instance segment (8-bit instance ID)
@@ -83,12 +116,17 @@ func EncodeEPATH(path CIPPath) []byte {
 	} else {
 		// 16-bit instance ID
 		epath = append(epath, EPathSegmentInstanceID|0x01) // 16-bit format
-		epath = binary.BigEndian.AppendUint16(epath, path.Instance)
+		epath = appendUint16(order, epath, path.Instance)
 	}
 
-	// Attribute segment (8-bit attribute ID)
-	epath = append(epath, EPathSegmentAttributeID|0x00) // 8-bit format
-	epath = append(epath, path.Attribute)
+	// Attribute segment (8-bit or 16-bit attribute ID)
+	if path.Attribute <= 0xFF {
+		epath = append(epath, EPathSegmentAttributeID|0x00) // 8-bit format
+		epath = append(epath, uint8(path.Attribute))
+	} else {
+		epath = append(epath, EPathSegmentAttributeID|0x01) // 16-bit format
+		epath = appendUint16(order, epath, path.Attribute)
+	}
 
 	return epath
 }
@@ -96,12 +134,24 @@ func EncodeEPATH(path CIPPath) []byte {
 // EncodeCIPRequest encodes a CIP request into bytes
 func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	var data []byte
+	profile := CurrentProtocolProfile()
 
 	// Service code
 	data = append(data, uint8(req.Service))
 
 	// EPATH
-	epath := EncodeEPATH(req.Path)
+	epath := req.RawPath
+	if len(epath) == 0 {
+		epath = EncodeEPATH(req.Path)
+	}
+	if profile.IncludeCIPPathSize {
+		pathSizeWords := len(epath) / 2
+		if len(epath)%2 != 0 {
+			epath = append(epath, 0x00)
+			pathSizeWords++
+		}
+		data = append(data, uint8(pathSizeWords))
+	}
 	data = append(data, epath...)
 
 	// Payload
@@ -122,79 +172,53 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 		Service: CIPServiceCode(data[0]),
 	}
 
-	// Decode EPATH (simplified - assumes standard 8-bit class/instance/attribute)
+	profile := CurrentProtocolProfile()
 	offset := 1
-	if len(data) < offset+6 {
-		return req, fmt.Errorf("incomplete EPATH")
-	}
-
-	// Decode EPATH segments
-	// EPATH segment format: segment type byte + data bytes
-	// Segment type byte encoding:
-	//   - Bits 4-7: Segment type (0x2=class/instance, 0x3=attribute)
-	//   - Bits 0-3: Format (0x0=8-bit, 0x1=16-bit, 0x4=instance marker)
-	// Constants: 0x20 (class), 0x24 (instance), 0x30 (attribute)
-	// For 16-bit: 0x21 (class), 0x25 (instance), 0x31 (attribute)
-
-	// Class segment
-	if data[offset] == 0x20 {
-		// 8-bit class
-		if len(data) < offset+2 {
-			return req, fmt.Errorf("incomplete class segment")
+	if profile.IncludeCIPPathSize {
+		if len(data) < 2 {
+			return req, fmt.Errorf("missing path size")
 		}
-		req.Path.Class = uint16(data[offset+1])
-		offset += 2
-	} else if data[offset] == 0x21 {
-		// 16-bit class
-		if len(data) < offset+3 {
-			return req, fmt.Errorf("incomplete 16-bit class segment")
+		pathSizeWords := int(data[1])
+		offset++
+		pathSizeBytes := pathSizeWords * 2
+		if len(data) < offset+pathSizeBytes {
+			return req, fmt.Errorf("incomplete EPATH")
 		}
-		req.Path.Class = binary.BigEndian.Uint16(data[offset+1 : offset+3])
-		offset += 3
-	} else {
-		return req, fmt.Errorf("invalid class segment: got 0x%02X, expected 0x20 or 0x21", data[offset])
-	}
-
-	// Instance segment
-	if data[offset] == 0x24 {
-		// 8-bit instance
-		if len(data) < offset+2 {
-			return req, fmt.Errorf("incomplete instance segment")
-		}
-		req.Path.Instance = uint16(data[offset+1])
-		offset += 2
-	} else if data[offset] == 0x25 {
-		// 16-bit instance
-		if len(data) < offset+3 {
-			return req, fmt.Errorf("incomplete 16-bit instance segment")
-		}
-		req.Path.Instance = binary.BigEndian.Uint16(data[offset+1 : offset+3])
-		offset += 3
-	} else {
-		return req, fmt.Errorf("invalid instance segment: got 0x%02X, expected 0x24 or 0x25", data[offset])
-	}
-
-	// Attribute segment (optional - some services like ForwardOpen don't have attributes)
-	if offset < len(data) {
-		if data[offset] == 0x30 {
-			// 8-bit attribute
-			if len(data) < offset+2 {
-				return req, fmt.Errorf("incomplete attribute segment")
+		pathBytes := data[offset : offset+pathSizeBytes]
+		req.RawPath = append([]byte(nil), pathBytes...)
+		path, err := DecodeEPATH(pathBytes)
+		if err != nil {
+			tagName, err := DecodeSymbolicEPATH(pathBytes)
+			if err != nil {
+				return req, err
 			}
-			req.Path.Attribute = data[offset+1]
-			offset += 2
-		} else if data[offset] == 0x31 {
-			// 16-bit attribute (rare, but supported)
-			if len(data) < offset+3 {
-				return req, fmt.Errorf("incomplete 16-bit attribute segment")
-			}
-			req.Path.Attribute = data[offset+1] // For now, just take first byte
-			offset += 3
+			req.Path = CIPPath{Name: tagName}
+			offset += pathSizeBytes
+			goto payload
 		}
-		// If not 0x30 or 0x31, assume no attribute segment (e.g., ForwardOpen)
-		// Don't return error - just leave attribute as 0
+		req.Path = path
+		offset += pathSizeBytes
+	} else {
+		if len(data) < offset+6 {
+			return req, fmt.Errorf("incomplete EPATH")
+		}
+
+		req.RawPath = append([]byte(nil), data[offset:]...)
+		path, err := DecodeEPATH(data[offset:])
+		if err != nil {
+			tagName, err := DecodeSymbolicEPATH(data[offset:])
+			if err != nil {
+				return req, err
+			}
+			req.Path = CIPPath{Name: tagName}
+			offset = len(data)
+			goto payload
+		}
+		req.Path = path
+		offset = len(data)
 	}
 
+payload:
 	// Remaining data is payload
 	if len(data) > offset {
 		req.Payload = data[offset:]
@@ -206,16 +230,34 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 // EncodeCIPResponse encodes a CIP response into bytes
 func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 	var data []byte
+	profile := CurrentProtocolProfile()
 
 	// Service code (echoed from request)
 	data = append(data, uint8(resp.Service))
 
-	// Status
-	data = append(data, resp.Status)
+	if profile.IncludeCIPRespReserved {
+		// Reserved (1 byte) + status (1 byte) + ext status size (1 byte)
+		data = append(data, 0x00)
+		data = append(data, resp.Status)
+		extSizeWords := uint8(0)
+		if len(resp.ExtStatus) > 0 {
+			extSizeWords = uint8((len(resp.ExtStatus) + 1) / 2)
+		}
+		data = append(data, extSizeWords)
+		if len(resp.ExtStatus) > 0 {
+			data = append(data, resp.ExtStatus...)
+			if len(resp.ExtStatus)%2 != 0 {
+				data = append(data, 0x00)
+			}
+		}
+	} else {
+		// Status
+		data = append(data, resp.Status)
 
-	// Extended status (if present)
-	if len(resp.ExtStatus) > 0 {
-		data = append(data, resp.ExtStatus...)
+		// Extended status (if present)
+		if len(resp.ExtStatus) > 0 {
+			data = append(data, resp.ExtStatus...)
+		}
 	}
 
 	// Payload
@@ -233,7 +275,12 @@ func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 // - Bytes 2+: Extended status (if status != 0x00) + Additional status size byte
 // - Bytes N+: Response data (if status == 0x00)
 func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
-	if len(data) < 2 {
+	profile := CurrentProtocolProfile()
+	if profile.IncludeCIPRespReserved {
+		if len(data) < 4 {
+			return CIPResponse{}, fmt.Errorf("response too short: %d bytes (minimum 4: service + reserved + status + ext size)", len(data))
+		}
+	} else if len(data) < 2 {
 		return CIPResponse{}, fmt.Errorf("response too short: %d bytes (minimum 2: service + status)", len(data))
 	}
 
@@ -245,19 +292,37 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 	serviceCode := CIPServiceCode(data[0])
 	resp.Service = serviceCode
 
-	// Byte 1: General status
-	resp.Status = data[1]
-	offset := 2
+	offset := 1
+	if profile.IncludeCIPRespReserved {
+		// Byte 1: Reserved
+		offset++
+		// Byte 2: General status
+		resp.Status = data[2]
+		// Byte 3: Additional status size (in 16-bit words)
+		extSizeWords := int(data[3])
+		offset = 4
+		extLen := extSizeWords * 2
+		if extLen > 0 {
+			if len(data) < offset+extLen {
+				return resp, fmt.Errorf("extended status too short")
+			}
+			resp.ExtStatus = data[offset : offset+extLen]
+			offset += extLen
+		}
+	} else {
+		// Byte 1: General status
+		resp.Status = data[1]
+		offset = 2
 
-	// Extended status (if status != 0x00)
-	// Extended status format: size byte (1 byte) + status bytes
-	if resp.Status != 0x00 {
-		if len(data) > offset {
-			extStatusSize := int(data[offset])
-			offset++
-			if len(data) >= offset+extStatusSize {
-				resp.ExtStatus = data[offset : offset+extStatusSize]
-				offset += extStatusSize
+		// Extended status (if status != 0x00)
+		if resp.Status != 0x00 {
+			if len(data) > offset {
+				extStatusSize := int(data[offset])
+				offset++
+				if len(data) >= offset+extStatusSize {
+					resp.ExtStatus = data[offset : offset+extStatusSize]
+					offset += extStatusSize
+				}
 			}
 		}
 	}
@@ -271,6 +336,15 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 	}
 
 	return resp, nil
+}
+
+// DecodeEPATH decodes an EPATH into a CIPPath.
+func DecodeEPATH(data []byte) (CIPPath, error) {
+	info, err := ParseEPATH(data)
+	if err != nil {
+		return CIPPath{}, err
+	}
+	return info.Path, nil
 }
 
 // String returns a string representation of the service code
@@ -304,10 +378,54 @@ func (s CIPServiceCode) String() string {
 		return "Set_Attribute_Single"
 	case CIPServiceFindNextObjectInst:
 		return "Find_Next_Object_Instance"
+	case CIPServiceErrorResponse:
+		return "Error_Response"
+	case CIPServiceRestore:
+		return "Restore"
+	case CIPServiceSave:
+		return "Save"
+	case CIPServiceNoOp:
+		return "No_Op"
+	case CIPServiceGetMember:
+		return "Get_Member"
+	case CIPServiceSetMember:
+		return "Set_Member"
+	case CIPServiceInsertMember:
+		return "Insert_Member"
+	case CIPServiceRemoveMember:
+		return "Remove_Member"
+	case CIPServiceGroupSync:
+		return "Group_Sync"
+	case CIPServiceExecutePCCC:
+		return "Execute_PCCC"
+	case CIPServiceReadTag:
+		return "Read_Tag"
+	case CIPServiceWriteTag:
+		return "Write_Tag"
+	case CIPServiceReadModifyWrite:
+		return "Forward_Close/Read_Modify_Write"
+	case CIPServiceUploadTransfer:
+		return "Upload_Transfer"
+	case CIPServiceDownloadTransfer:
+		return "Download_Transfer"
+	case CIPServiceClearFile:
+		return "Clear_File"
+	case CIPServiceReadTagFragmented:
+		return "Read_Tag_Fragmented/Unconnected_Send"
+	case CIPServiceWriteTagFragmented:
+		return "Write_Tag_Fragmented"
+	case CIPServiceGetInstanceAttrList:
+		return "Get_Instance_Attribute_List"
+	case CIPServiceGetConnectionData:
+		return "Get_Connection_Data"
+	case CIPServiceSearchConnectionData:
+		return "Search_Connection_Data"
+	case CIPServiceGetConnectionOwner:
+		return "Get_Connection_Owner"
+	case CIPServiceLargeForwardOpen:
+		return "Large_Forward_Open"
 	case CIPServiceForwardOpen:
 		return "Forward_Open"
-	case CIPServiceForwardClose:
-		return "Forward_Close"
 	default:
 		return fmt.Sprintf("Unknown(0x%02X)", uint8(s))
 	}

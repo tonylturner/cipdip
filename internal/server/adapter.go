@@ -4,7 +4,6 @@ package server
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -17,27 +16,33 @@ import (
 
 // AdapterPersonality implements adapter-style behavior
 type AdapterPersonality struct {
-	config  *config.ServerConfig
-	logger  *logging.Logger
+	config     *config.ServerConfig
+	logger     *logging.Logger
 	assemblies map[string]*Assembly
-	mu       sync.RWMutex
+	rng        *rand.Rand
+	mu         sync.RWMutex
 }
 
 // Assembly represents an adapter assembly
 type Assembly struct {
-	Config      config.AdapterAssemblyConfig
-	Data        []byte
-	Counter     uint32
-	LastUpdate  time.Time
-	mu          sync.RWMutex
+	Config     config.AdapterAssemblyConfig
+	Data       []byte
+	Counter    uint32
+	LastUpdate time.Time
+	mu         sync.RWMutex
 }
 
 // NewAdapterPersonality creates a new adapter personality
 func NewAdapterPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*AdapterPersonality, error) {
+	seed := cfg.Server.RNGSeed
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
 	ap := &AdapterPersonality{
 		config:     cfg,
 		logger:     logger,
 		assemblies: make(map[string]*Assembly),
+		rng:        rand.New(rand.NewSource(seed)),
 	}
 
 	// Initialize assemblies
@@ -57,11 +62,11 @@ func NewAdapterPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*A
 				asm.Data[i] = 0x00
 			}
 		case "random":
-			rand.Seed(time.Now().UnixNano())
-			rand.Read(asm.Data)
+			ap.rng.Read(asm.Data)
 		case "counter":
 			// Initialize counter in first bytes
-			binary.BigEndian.PutUint32(asm.Data[0:4], 0)
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(asm.Data[0:4], 0)
 		}
 
 		ap.assemblies[asmCfg.Name] = asm
@@ -92,10 +97,10 @@ func (ap *AdapterPersonality) HandleCIPRequest(ctx context.Context, req cipclien
 
 	if assembly == nil {
 		return cipclient.CIPResponse{
-			Service: req.Service,
-			Status:  0x01, // General error
-		}, fmt.Errorf("assembly not found: class=0x%04X instance=0x%04X attribute=0x%02X",
-			req.Path.Class, req.Path.Instance, req.Path.Attribute)
+				Service: req.Service,
+				Status:  0x01, // General error
+			}, fmt.Errorf("assembly not found: class=0x%04X instance=0x%04X attribute=0x%02X",
+				req.Path.Class, req.Path.Instance, req.Path.Attribute)
 	}
 
 	// Handle service
@@ -174,11 +179,12 @@ func (ap *AdapterPersonality) updateAssemblyData(asm *Assembly) {
 	case "counter":
 		asm.Counter++
 		if len(asm.Data) >= 4 {
-			binary.BigEndian.PutUint32(asm.Data[0:4], asm.Counter)
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(asm.Data[0:4], asm.Counter)
 		}
 
 	case "random":
-		rand.Read(asm.Data)
+		ap.rng.Read(asm.Data)
 
 	case "static":
 		// No update needed

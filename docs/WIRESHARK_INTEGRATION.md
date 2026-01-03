@@ -204,7 +204,5 @@ This is one of the highest-impact improvements for ODVA compliance confidence be
 
 ## See Also
 
-- `docs/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations
-- `docs/NEXT_STEPS.md` - Implementation roadmap
 - `internal/cipclient/validation.go` - Current validation implementation
 

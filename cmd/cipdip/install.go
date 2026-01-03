@@ -133,7 +133,7 @@ func runInstall(flags *installFlags) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "Installation complete!\n")
-	
+
 	// Provide instructions for enabling completion
 	sourceFile := getCompletionSourceFile(shell)
 	if sourceFile != "" {
@@ -163,6 +163,19 @@ func getInstallDirectory(customPath string) (string, error) {
 		return "", fmt.Errorf("PATH environment variable not set")
 	}
 
+	// Prefer user-local bin on Windows
+	if runtime.GOOS == "windows" {
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			localBin := filepath.Join(localAppData, "bin")
+			if err := os.MkdirAll(localBin, 0755); err == nil {
+				if err := os.WriteFile(filepath.Join(localBin, ".cipdip-test"), []byte("test"), 0644); err == nil {
+					os.Remove(filepath.Join(localBin, ".cipdip-test"))
+					return localBin, nil
+				}
+			}
+		}
+	}
+
 	// Split PATH and find first writable directory
 	paths := strings.Split(pathEnv, getPathSeparator())
 	for _, p := range paths {
@@ -187,16 +200,30 @@ func getInstallDirectory(customPath string) (string, error) {
 		}
 		os.Remove(testFile)
 
+		if runtime.GOOS == "windows" {
+			if strings.Contains(strings.ToLower(p), `python\launcher`) {
+				continue
+			}
+		}
+
 		return p, nil
 	}
 
 	// Fallback to common directories
 	if runtime.GOOS == "windows" {
 		// Try common Windows locations
+		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
+			localBin := filepath.Join(localAppData, "bin")
+			if err := os.MkdirAll(localBin, 0755); err == nil {
+				return localBin, nil
+			}
+		}
 		homeDir, err := os.UserHomeDir()
 		if err == nil {
 			localBin := filepath.Join(homeDir, "AppData", "Local", "bin")
-			return localBin, nil
+			if err := os.MkdirAll(localBin, 0755); err == nil {
+				return localBin, nil
+			}
 		}
 		return "", fmt.Errorf("no writable directory found in PATH")
 	}
@@ -252,17 +279,17 @@ func detectShell() string {
 		if psModulePath != "" {
 			return "powershell"
 		}
-		
+
 		comspec := os.Getenv("COMSPEC")
 		if strings.Contains(strings.ToLower(comspec), "powershell") {
 			return "powershell"
 		}
-		
+
 		// Check for Git Bash or other bash on Windows
 		if shell != "" && strings.Contains(strings.ToLower(shell), "bash") {
 			return "bash"
 		}
-		
+
 		// Default to cmd.exe (though completion may not work well)
 		return "cmd"
 	}
@@ -489,4 +516,3 @@ func copyFile(src, dst string) error {
 	// Write destination file
 	return os.WriteFile(dst, data, 0644)
 }
-

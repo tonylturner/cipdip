@@ -179,4 +179,3 @@ func hasIntegrationTag() bool {
 	// Users can enable them by setting an environment variable or using build tags
 	return false // Change to true or check env var to enable
 }
-

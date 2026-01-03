@@ -9,11 +9,11 @@ func TestAnalyzeENIPPacket(t *testing.T) {
 	// Create a minimal valid ENIP packet (RegisterSession)
 	packet := make([]byte, 24)
 	// Command: RegisterSession (0x0065)
-	packet[0] = 0x00
-	packet[1] = 0x65
+	packet[0] = 0x65
+	packet[1] = 0x00
 	// Length: 4 (protocol version + option flags)
-	packet[2] = 0x00
-	packet[3] = 0x04
+	packet[2] = 0x04
+	packet[3] = 0x00
 	// Session ID: 0 (request)
 	packet[4] = 0x00
 	packet[5] = 0x00
@@ -51,10 +51,10 @@ func TestAnalyzeENIPPacket(t *testing.T) {
 func TestValidateODVACompliance(t *testing.T) {
 	// Create a valid ENIP packet
 	packet := make([]byte, 24)
-	packet[0] = 0x00
-	packet[1] = 0x65 // RegisterSession
-	packet[2] = 0x00
-	packet[3] = 0x04 // Length
+	packet[0] = 0x65 // RegisterSession
+	packet[1] = 0x00
+	packet[2] = 0x04 // Length
+	packet[3] = 0x00
 	// Sender context: non-zero
 	packet[12] = 0x01
 	packet[13] = 0x02
@@ -84,10 +84,10 @@ func TestValidateODVACompliance(t *testing.T) {
 func TestExtractCIPData(t *testing.T) {
 	// Create SendRRData packet with CIP data
 	packet := make([]byte, 24)
-	packet[0] = 0x00
-	packet[1] = 0x6F // SendRRData
-	packet[2] = 0x00
-	packet[3] = 0x0A // Length: 10 (interface handle + timeout + CIP data)
+	packet[0] = 0x6F // SendRRData
+	packet[1] = 0x00
+	packet[2] = 0x0A // Length: 10 (interface handle + timeout + CIP data)
+	packet[3] = 0x00
 	// Sender context
 	packet[12] = 0x01
 	// Data: interface handle (4 bytes) + timeout (2 bytes) + CIP data (4 bytes)
@@ -116,18 +116,18 @@ func TestExtractCIPData(t *testing.T) {
 func TestComparePackets(t *testing.T) {
 	// Create two similar packets
 	packet1 := make([]byte, 24)
-	packet1[0] = 0x00
-	packet1[1] = 0x65
-	packet1[2] = 0x00
-	packet1[3] = 0x04
+	packet1[0] = 0x65
+	packet1[1] = 0x00
+	packet1[2] = 0x04
+	packet1[3] = 0x00
 	packet1[12] = 0x01
 	packet1 = append(packet1, 0x00, 0x01, 0x00, 0x00)
 
 	packet2 := make([]byte, 24)
-	packet2[0] = 0x00
-	packet2[1] = 0x65
-	packet2[2] = 0x00
-	packet2[3] = 0x04
+	packet2[0] = 0x65
+	packet2[1] = 0x00
+	packet2[2] = 0x04
+	packet2[3] = 0x00
 	packet2[12] = 0x02 // Different sender context
 	packet2 = append(packet2, 0x00, 0x01, 0x00, 0x00)
 
@@ -145,4 +145,3 @@ func TestComparePackets(t *testing.T) {
 	// Test passes if no error - differences may or may not be detected
 	// depending on implementation details
 }
-

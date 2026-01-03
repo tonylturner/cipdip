@@ -5,14 +5,17 @@ import (
 )
 
 func TestEncodeENIP(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	encap := ENIPEncapsulation{
-		Command:     ENIPCommandRegisterSession,
-		Length:      4,
-		SessionID:   0x12345678,
-		Status:      0,
+		Command:       ENIPCommandRegisterSession,
+		Length:        4,
+		SessionID:     0x12345678,
+		Status:        0,
 		SenderContext: [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
-		Options:     0,
-		Data:        []byte{0x01, 0x00, 0x00, 0x00},
+		Options:       0,
+		Data:          []byte{0x01, 0x00, 0x00, 0x00},
 	}
 
 	packet := EncodeENIP(encap)
@@ -22,26 +25,31 @@ func TestEncodeENIP(t *testing.T) {
 		t.Errorf("packet length: got %d, want 28", len(packet))
 	}
 
-	// Verify header fields
-	if packet[0] != 0x00 || packet[1] != 0x65 {
-		t.Errorf("command: got 0x%02X%02X, want 0x0065", packet[0], packet[1])
+	order := currentENIPByteOrder()
+	cmd := order.Uint16(packet[0:2])
+	if cmd != 0x0065 {
+		t.Errorf("command: got 0x%04X, want 0x0065", cmd)
 	}
 
-	if packet[2] != 0x00 || packet[3] != 0x04 {
-		t.Errorf("length: got 0x%02X%02X, want 0x0004", packet[2], packet[3])
+	length := order.Uint16(packet[2:4])
+	if length != 0x0004 {
+		t.Errorf("length: got 0x%04X, want 0x0004", length)
 	}
 }
 
 func TestDecodeENIP(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	// Create a test packet
 	encap := ENIPEncapsulation{
-		Command:     ENIPCommandRegisterSession,
-		Length:      4,
-		SessionID:   0x12345678,
-		Status:      0,
+		Command:       ENIPCommandRegisterSession,
+		Length:        4,
+		SessionID:     0x12345678,
+		Status:        0,
 		SenderContext: [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08},
-		Options:     0,
-		Data:        []byte{0x01, 0x00, 0x00, 0x00},
+		Options:       0,
+		Data:          []byte{0x01, 0x00, 0x00, 0x00},
 	}
 
 	packet := EncodeENIP(encap)
@@ -67,7 +75,16 @@ func TestDecodeENIP(t *testing.T) {
 	}
 }
 
+func TestDecodeENIPTooShort(t *testing.T) {
+	if _, err := DecodeENIP([]byte{0x01, 0x02, 0x03}); err == nil {
+		t.Fatalf("expected error for short ENIP packet")
+	}
+}
+
 func TestBuildRegisterSession(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	packet := BuildRegisterSession(senderContext)
 
@@ -89,9 +106,16 @@ func TestBuildRegisterSession(t *testing.T) {
 	if len(encap.Data) != 4 {
 		t.Errorf("data length: got %d, want 4", len(encap.Data))
 	}
+
+	if encap.SenderContext != senderContext {
+		t.Errorf("sender context: got %v, want %v", encap.SenderContext, senderContext)
+	}
 }
 
 func TestBuildSendRRData(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03} // Get_Attribute_Single example
@@ -123,4 +147,3 @@ func TestBuildSendRRData(t *testing.T) {
 		t.Errorf("CIP data length: got %d, want %d", len(cipRespData), len(cipData))
 	}
 }
-

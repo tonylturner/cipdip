@@ -6,55 +6,55 @@ This document describes the protocol compliance testing and validation for CIPDI
 
 CIPDIP implements a custom EtherNet/IP and CIP client following ODVA specifications. This document tracks compliance testing and validation efforts.
 
-**Important**: See `docs/ODVA_COMPLIANCE_REALITY.md` for a critical assessment of what we know vs. what we assume about ODVA compliance.
+**Important**: Validate any compliance assumptions against current ODVA specs and device captures before relying on them for test conclusions.
 
 ## Compliance Test Results
 
 ### Packet Structure Validation
 
-All packet structure tests pass, validating:
+Packet structure tests cover:
 
-- ✅ **ENIP Encapsulation Headers**: 24-byte header structure with correct field order and big-endian encoding
+- **ENIP Encapsulation Headers**: 24-byte header structure with correct field order and little-endian encoding
   - Length field consistency validation
-  - Byte order (big-endian) verification for all fields
+  - Byte order (little-endian) verification for all fields
   - Session ID range validation (full uint32 range)
   - Sender context preservation
-- ✅ **RegisterSession**: Protocol version and option flags correctly formatted
+- **RegisterSession**: Protocol version and option flags correctly formatted
   - Protocol version = 1 (per ODVA spec)
   - Option flags = 0 (per ODVA spec)
   - Session ID = 0 in request
-- ✅ **UnregisterSession**: Session ID correctly included, no data field
-- ✅ **SendRRData**: Interface Handle (0 for UCMM), Timeout, and CIP data structure
+- **UnregisterSession**: Session ID correctly included, no data field
+- **SendRRData**: Interface Handle (0 for UCMM), Timeout, and CIP data structure
   - Interface Handle = 0 validation (required for UCMM)
   - Length field matches data
   - Session ID preservation
-- ✅ **SendUnitData**: Connection ID and CIP data structure
-  - Connection ID big-endian encoding
+- **SendUnitData**: Connection ID and CIP data structure
+  - Connection ID little-endian encoding
   - Length field consistency
-- ✅ **ListIdentity**: No data field, no session required
-- ✅ **ForwardOpen**: Connection parameters, RPIs, priorities, and connection path
+- **ListIdentity**: No data field, no session required
+- **ForwardOpen**: Connection parameters, RPIs, priorities, and connection path
   - Service code 0x54 validation
   - Connection Manager path (class 0x06, instance 0x01)
   - Connection path encoding validation
-- ✅ **ForwardClose**: Connection path structure
+- **ForwardClose**: Connection path structure
   - Service code 0x4E validation
   - Connection Manager path validation
 
 ### EPATH Encoding Validation
 
-- ✅ **8-bit segments**: Class, Instance, Attribute segments correctly encoded
+- **8-bit segments**: Class, Instance, Attribute segments correctly encoded
   - Segment type 0x20 (8-bit class), 0x24 (8-bit instance), 0x30 (8-bit attribute)
   - Boundary testing (0xFF max for 8-bit)
-- ✅ **16-bit segments**: Large class/instance IDs correctly encoded with proper segment type
+- **16-bit segments**: Large class/instance IDs encoded with proper segment type
   - Segment type 0x21 (16-bit class), 0x25 (16-bit instance)
   - Boundary testing (0x0100 min for 16-bit)
-  - Big-endian encoding of 16-bit values
-- ✅ **Connection paths**: ForwardOpen connection paths correctly formatted
-- ✅ **Path length validation**: EPATH length matches expected structure
+  - Little-endian encoding of 16-bit values
+- **Connection paths**: ForwardOpen connection paths correctly formatted
+- **Path length validation**: EPATH length matches expected structure
 
 ### CIP Service Code Validation
 
-- ✅ **Service codes**: All service codes match ODVA specification values (Volume 1, Table 3-5.1)
+- **Service codes**: Service codes are validated against ODVA specification values (Volume 1, Table 3-5.1)
   - Get_Attribute_All: 0x01
   - Set_Attribute_All: 0x02
   - Get_Attribute_List: 0x03
@@ -74,16 +74,16 @@ All packet structure tests pass, validating:
 
 ### Response Structure Validation
 
-- ✅ **Success responses**: Status 0x00 with payload correctly parsed
-- ✅ **Error responses**: Error status codes and extended status correctly handled
-- ✅ **ForwardOpen responses**: Connection IDs correctly extracted
-- ✅ **ForwardClose responses**: Status correctly validated
+- **Success responses**: Status 0x00 parsing and payload handling
+- **Error responses**: Error status codes and extended status handling
+- **ForwardOpen responses**: Connection ID extraction
+- **ForwardClose responses**: Status handling
 
 ## Test Coverage
 
 ### Unit Tests
 
-- `compliance_test.go`: Comprehensive ODVA protocol compliance tests (20+ test cases)
+- `compliance_test.go`: ODVA protocol compliance tests
   - ENIP header structure and byte order validation
   - Length field consistency checks
   - Command and status code validation
@@ -97,6 +97,7 @@ All packet structure tests pass, validating:
   - Session ID range validation
   - Sender context preservation
   - CIP request encoding validation
+- `compliance_audit_test.go`: ODVA compliance audit tests (byte-level structure and encoding)
 - `response_test.go`: Response structure validation
 - `cip_test.go`: CIP encoding/decoding
 - `enip_test.go`: ENIP encapsulation
@@ -115,76 +116,86 @@ Integration tests validate:
 - ForwardOpen/ForwardClose against server
 - I/O data exchange
 
-## Protocol Compliance Checklist
+## Protocol Compliance Coverage (strict_odva)
+
+### Strict ODVA Profile Settings
+
+The `strict_odva` profile enforces explicit framing choices across ENIP, CIP, and I/O:
+- **ENIP**: little-endian for all multi-byte fields; 24-byte header; valid command set only.
+- **CIP**: little-endian for multi-byte fields; path size byte included in all requests; reserved/extended status size fields included in responses.
+- **CPF**: required for SendRRData and SendUnitData in strict mode (UCMM and connected messaging use CPF items).
+- **I/O sequencing**: connection sequence count enabled (`increment`).
+
+These settings are enforced by default unless `protocol.mode` is changed to `vendor_variant` or `legacy_compat`.
 
 ### ENIP Encapsulation
-- [x] 24-byte header structure (strictly enforced)
-- [x] Big-endian byte order (all multi-byte fields validated)
-- [x] Correct field order (Command, Length, SessionID, Status, SenderContext, Options)
-- [x] Data field follows header
-- [x] Length field consistency (matches actual data length)
-- [x] Session ID range validation (full uint32 range)
-- [x] Sender context preservation (8 bytes)
-- [x] Error handling for invalid/short packets
+- 24-byte header structure (strictly enforced in strict_odva)
+- Little-endian byte order (all multi-byte fields validated)
+- Correct field order (Command, Length, SessionID, Status, SenderContext, Options)
+- Data field follows header
+- Length field consistency (matches actual data length)
+- Session ID range validation (full uint32 range)
+- Sender context preservation (8 bytes)
+- Error handling for invalid/short packets
 
 ### RegisterSession/UnregisterSession
-- [x] RegisterSession: Protocol version (1) and option flags (0)
-- [x] RegisterSession: Length field = 4 bytes
-- [x] RegisterSession: Session ID = 0 in request
-- [x] UnregisterSession: Session ID in request
-- [x] UnregisterSession: Length field = 0 (no data)
+- RegisterSession: Protocol version (1) and option flags (0)
+- RegisterSession: Length field = 4 bytes
+- RegisterSession: Session ID = 0 in request
+- UnregisterSession: Session ID in request
+- UnregisterSession: Length field = 0 (no data)
 
 ### SendRRData (UCMM)
-- [x] Interface Handle = 0 (for UCMM, strictly validated)
-- [x] Timeout field present (2 bytes)
-- [x] CIP data follows timeout
-- [x] Length field matches data (6 + CIP data length)
-- [x] Session ID preservation
+- Interface Handle = 0 (for UCMM, strictly validated)
+- Timeout field present (2 bytes)
+- CIP data follows timeout
+- Length field matches data (6 + CIP data length)
+- Session ID preservation
 
 ### SendUnitData (Connected Messaging)
-- [x] Connection ID (4 bytes, big-endian, validated)
-- [x] CIP data follows connection ID
-- [x] Length field matches data (4 + CIP data length)
-- [x] Session ID preservation
+- Connection ID (4 bytes, little-endian, validated)
+- CIP data follows connection ID
+- Length field matches data (4 + CIP data length)
+- Session ID preservation
 
 ### EPATH Encoding
-- [x] 8-bit segment format (0x20, 0x24, 0x30)
-- [x] 16-bit segment format (0x21, 0x25, 0x31)
-- [x] Segment data in correct byte order (big-endian for 16-bit)
-- [x] Boundary conditions (0xFF max for 8-bit, 0x0100 min for 16-bit)
-- [x] Path length validation
+- 8-bit segment format (0x20, 0x24, 0x30)
+- 16-bit segment format (0x21, 0x25, 0x31)
+- Segment data in correct byte order (little-endian for 16-bit)
+- Boundary conditions (0xFF max for 8-bit, 0x0100 min for 16-bit)
+- Path length validation
 
 ### ForwardOpen
-- [x] Service code 0x54
-- [x] Connection Manager path (class 0x06, instance 0x01)
-- [x] Priority and tick time
-- [x] Connection timeout
-- [x] O->T and T->O RPIs (in microseconds)
-- [x] Connection parameters
-- [x] Transport class and trigger
-- [x] Connection path size and path
+- Service code 0x54
+- Connection Manager path (class 0x06, instance 0x01)
+- Priority and tick time
+- Connection timeout
+- O->T and T->O RPIs (in microseconds)
+- Connection parameters
+- Transport class and trigger
+- Connection path size and path
 
 ### ForwardClose
-- [x] Service code 0x4E
-- [x] Connection Manager path
-- [x] Connection path with connection ID
+- Service code 0x4E
+- Connection Manager path
+- Connection path parameters per spec
 
 ### CIP Service Codes
-- [x] All 16 implemented service codes validated against ODVA spec
-- [x] Get_Attribute_Single: 0x0E
-- [x] Set_Attribute_Single: 0x10
-- [x] Forward_Open: 0x54
-- [x] Forward_Close: 0x4E
-- [x] Additional services: Get/Set Attribute All/List, Reset, Start, Stop, Create, Delete, etc.
+- Implemented service codes validated against ODVA spec
+- Get_Attribute_Single: 0x0E
+- Set_Attribute_Single: 0x10
+- Forward_Open: 0x54
+- Forward_Close: 0x4E
+- Additional services: Get/Set Attribute All/List, Reset, Start, Stop, Create, Delete, etc.
 
 ### Status Codes
-- [x] Success: 0x00
-- [x] General error: 0x01
-- [x] Error status handling
+- Success: 0x00
+- General error: 0x01
+- Error status handling
 
 ## Known Limitations
 
-1. **UDP 2222 Transport**: ✅ **IMPLEMENTED** - UDP 2222 transport support for I/O connections is now available. The `io` scenario defaults to UDP 2222, and can be configured via `transport: "udp"` or `transport: "tcp"` in the config.
+1. **UDP 2222 Transport**: Supported for I/O connections. The `io` scenario defaults to UDP 2222 and can be set via `transport: "udp"` or `transport: "tcp"` in config.
 2. **Extended Status Parsing**: Basic extended status support; full parsing may need enhancement.
 3. **Connection Path Hex Parsing**: Implemented but may need additional validation.
 
@@ -196,13 +207,13 @@ Integration tests validate:
    - Error handling validation
    - Byte order verification
    - Field range validation
-2. **ODVA Specification Audit Tests**: 15+ tests that validate implementation against actual ODVA specification requirements
+2. **ODVA Specification Audit Tests**: 15+ tests that validate implementation against known ODVA specification requirements
    - Tests are written based on ODVA spec requirements, not just our implementation
    - Validates byte-level structure, field encoding, and protocol semantics
-   - Found and fixed bugs in path size calculation
+   - Intended to catch issues such as path size calculation errors
    - See `internal/cipclient/compliance_audit_test.go` for full audit test suite
 3. **Integration Tests**: Test against server mode emulator
-4. **Packet Capture**: Compare generated packets with Wireshark dissector (via `cipdip pcap`)
+4. **Packet Capture**: Compare generated packets with Wireshark dissector (via `cipdip pcap`, `cipdip pcap-summary`, or `cipdip pcap-report`)
 5. **Hardware Testing**: Test against real CIP devices (when available)
 
 **Important**: See `docs/COMPLIANCE_TESTING.md` for details on our testing methodology and limitations.
@@ -215,8 +226,7 @@ Integration tests validate:
 
 ## Future Work
 
-- [ ] Packet capture analysis framework
-- [ ] Wireshark dissector validation
+- [ ] Expand packet capture analysis coverage for additional vendor services
 - [ ] Hardware validation test suite
 - [ ] Extended status code parsing
 - [ ] Additional CIP service support

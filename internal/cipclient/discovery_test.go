@@ -1,10 +1,11 @@
 package cipclient
 
 import (
-	"encoding/binary"
 	"net"
 	"testing"
 )
+
+var enipOrderDiscovery = currentENIPByteOrder()
 
 // TestBuildListIdentityODVACompliance validates ListIdentity request against ODVA spec
 // ODVA EtherNet/IP Encapsulation Protocol Specification:
@@ -72,19 +73,19 @@ func TestParseListIdentityResponseODVACompliance(t *testing.T) {
 	response := make([]byte, 24+34+10) // ENIP header + minimum data + product name
 
 	// ENIP Header (24 bytes)
-	binary.BigEndian.PutUint16(response[0:2], ENIPCommandListIdentity) // Command
-	binary.BigEndian.PutUint16(response[2:4], 34+10)                   // Length (data only)
-	binary.BigEndian.PutUint32(response[4:8], 0)                        // Session ID (0 for ListIdentity)
-	binary.BigEndian.PutUint32(response[8:12], ENIPStatusSuccess)        // Status
+	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity) // Command
+	enipOrderDiscovery.PutUint16(response[2:4], 34+10)                   // Length (data only)
+	enipOrderDiscovery.PutUint32(response[4:8], 0)                       // Session ID (0 for ListIdentity)
+	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)      // Status
 	// Sender Context (8 bytes) - skip, not critical for parsing
-	binary.BigEndian.PutUint32(response[20:24], 0) // Options
+	enipOrderDiscovery.PutUint32(response[20:24], 0) // Options
 
 	// ListIdentity Data (starting at offset 24)
 	offset := 24
 
 	// Socket Address (16 bytes) - IPv4 address + port + zero padding
 	// IPv4: 192.168.1.100, Port: 44818
-	response[offset] = 0x02 // Address family: IPv4 = 2
+	response[offset] = 0x02   // Address family: IPv4 = 2
 	response[offset+2] = 0xAF // Port high byte (44818 = 0xAF12)
 	response[offset+3] = 0x12 // Port low byte
 	response[offset+4] = 192  // IP: 192.168.1.100
@@ -94,7 +95,7 @@ func TestParseListIdentityResponseODVACompliance(t *testing.T) {
 	offset += 16
 
 	// Vendor ID (2 bytes, big-endian) - e.g., 1 (Rockwell)
-	binary.BigEndian.PutUint16(response[offset:offset+2], 1)
+	enipOrderDiscovery.PutUint16(response[offset:offset+2], 1)
 	vendorID := uint16(1)
 	offset += 2
 
@@ -102,7 +103,7 @@ func TestParseListIdentityResponseODVACompliance(t *testing.T) {
 	offset += 2
 
 	// Product Code (2 bytes, big-endian) - e.g., 100
-	binary.BigEndian.PutUint16(response[offset:offset+2], 100)
+	enipOrderDiscovery.PutUint16(response[offset:offset+2], 100)
 	productID := uint16(100)
 	offset += 2
 
@@ -113,7 +114,7 @@ func TestParseListIdentityResponseODVACompliance(t *testing.T) {
 	offset += 2
 
 	// Serial Number (4 bytes, big-endian) - e.g., 12345
-	binary.BigEndian.PutUint32(response[offset:offset+4], 12345)
+	enipOrderDiscovery.PutUint32(response[offset:offset+4], 12345)
 	serialNumber := uint32(12345)
 	offset += 4
 
@@ -166,22 +167,22 @@ func TestParseListIdentityResponseMinimalODVA(t *testing.T) {
 	response := make([]byte, 58)
 
 	// ENIP Header
-	binary.BigEndian.PutUint16(response[0:2], ENIPCommandListIdentity)
-	binary.BigEndian.PutUint16(response[2:4], 34) // Minimum data length
-	binary.BigEndian.PutUint32(response[4:8], 0)
-	binary.BigEndian.PutUint32(response[8:12], ENIPStatusSuccess)
+	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity)
+	enipOrderDiscovery.PutUint16(response[2:4], 34) // Minimum data length
+	enipOrderDiscovery.PutUint32(response[4:8], 0)
+	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)
 
 	// ListIdentity Data (34 bytes minimum)
 	offset := 24
-	offset += 16 // Socket Address
-	binary.BigEndian.PutUint16(response[offset:offset+2], 1) // Vendor ID
+	offset += 16                                               // Socket Address
+	enipOrderDiscovery.PutUint16(response[offset:offset+2], 1) // Vendor ID
 	offset += 2
-	offset += 2 // Product Type
-	binary.BigEndian.PutUint16(response[offset:offset+2], 100) // Product Code
+	offset += 2                                                  // Product Type
+	enipOrderDiscovery.PutUint16(response[offset:offset+2], 100) // Product Code
 	offset += 2
-	offset += 2 // Revision
-	offset += 2 // Status
-	binary.BigEndian.PutUint32(response[offset:offset+4], 12345) // Serial Number
+	offset += 2                                                    // Revision
+	offset += 2                                                    // Status
+	enipOrderDiscovery.PutUint32(response[offset:offset+4], 12345) // Serial Number
 	offset += 4
 	response[offset] = 0 // Product Name Length (0 = no name)
 	offset++
@@ -233,18 +234,18 @@ func TestParseListIdentityResponseInvalidCommandODVA(t *testing.T) {
 	response := make([]byte, 58)
 
 	// Set wrong command code
-	binary.BigEndian.PutUint16(response[0:2], ENIPCommandRegisterSession) // Wrong command
-	binary.BigEndian.PutUint16(response[2:4], 34)
-	binary.BigEndian.PutUint32(response[4:8], 0)
-	binary.BigEndian.PutUint32(response[8:12], ENIPStatusSuccess)
+	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandRegisterSession) // Wrong command
+	enipOrderDiscovery.PutUint16(response[2:4], 34)
+	enipOrderDiscovery.PutUint32(response[4:8], 0)
+	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)
 
 	// Fill minimum data
 	offset := 24
 	offset += 16 // Socket Address
-	binary.BigEndian.PutUint16(response[offset:offset+2], 1)
+	enipOrderDiscovery.PutUint16(response[offset:offset+2], 1)
 	offset += 2
 	offset += 2
-	binary.BigEndian.PutUint32(response[offset:offset+4], 12345)
+	enipOrderDiscovery.PutUint32(response[offset:offset+4], 12345)
 	offset += 4
 	response[offset] = 0
 	offset++
@@ -261,18 +262,18 @@ func TestParseListIdentityResponseErrorStatusODVA(t *testing.T) {
 	response := make([]byte, 58)
 
 	// Set error status
-	binary.BigEndian.PutUint16(response[0:2], ENIPCommandListIdentity)
-	binary.BigEndian.PutUint16(response[2:4], 34)
-	binary.BigEndian.PutUint32(response[4:8], 0)
-	binary.BigEndian.PutUint32(response[8:12], ENIPStatusInvalidCommand) // Error status
+	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity)
+	enipOrderDiscovery.PutUint16(response[2:4], 34)
+	enipOrderDiscovery.PutUint32(response[4:8], 0)
+	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusInvalidCommand) // Error status
 
 	// Fill minimum data
 	offset := 24
 	offset += 16
-	binary.BigEndian.PutUint16(response[offset:offset+2], 1)
+	enipOrderDiscovery.PutUint16(response[offset:offset+2], 1)
 	offset += 2
 	offset += 2
-	binary.BigEndian.PutUint32(response[offset:offset+4], 12345)
+	enipOrderDiscovery.PutUint32(response[offset:offset+4], 12345)
 	offset += 4
 	response[offset] = 0
 	offset++
@@ -305,22 +306,22 @@ func TestParseListIdentityResponseProductNameLengthODVA(t *testing.T) {
 			response := make([]byte, totalLen)
 
 			// ENIP Header
-			binary.BigEndian.PutUint16(response[0:2], ENIPCommandListIdentity)
-			binary.BigEndian.PutUint16(response[2:4], uint16(34+tt.nameLen))
-			binary.BigEndian.PutUint32(response[4:8], 0)
-			binary.BigEndian.PutUint32(response[8:12], ENIPStatusSuccess)
+			enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity)
+			enipOrderDiscovery.PutUint16(response[2:4], uint16(34+tt.nameLen))
+			enipOrderDiscovery.PutUint32(response[4:8], 0)
+			enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)
 
 			// ListIdentity Data
 			offset := 24
 			offset += 16 // Socket Address
-			binary.BigEndian.PutUint16(response[offset:offset+2], 1)
+			enipOrderDiscovery.PutUint16(response[offset:offset+2], 1)
 			offset += 2
 			offset += 2
-			binary.BigEndian.PutUint16(response[offset:offset+2], 100)
+			enipOrderDiscovery.PutUint16(response[offset:offset+2], 100)
 			offset += 2
 			offset += 2
 			offset += 2
-			binary.BigEndian.PutUint32(response[offset:offset+4], 12345)
+			enipOrderDiscovery.PutUint32(response[offset:offset+4], 12345)
 			offset += 4
 			response[offset] = byte(tt.nameLen)
 			offset++
@@ -374,4 +375,3 @@ func TestBroadcastAddressCalculation(t *testing.T) {
 		})
 	}
 }
-

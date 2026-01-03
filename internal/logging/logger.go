@@ -23,12 +23,12 @@ const (
 
 // Logger provides structured logging
 type Logger struct {
-	mu       sync.Mutex
-	level    LogLevel
-	file     *os.File
-	fileLog  *log.Logger
-	stdout   *log.Logger
-	stderr   *log.Logger
+	mu      sync.Mutex
+	level   LogLevel
+	file    *os.File
+	fileLog *log.Logger
+	stdout  *log.Logger
+	stderr  *log.Logger
 }
 
 // NewLogger creates a new logger
@@ -203,4 +203,3 @@ func (m *MultiWriter) Write(p []byte) (n int, err error) {
 	}
 	return len(p), nil
 }
-

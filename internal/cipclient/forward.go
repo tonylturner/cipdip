@@ -3,7 +3,6 @@ package cipclient
 // ForwardOpen/ForwardClose implementation for connected I/O messaging
 
 import (
-	"encoding/binary"
 	"fmt"
 	"strings"
 )
@@ -12,12 +11,17 @@ import (
 // ForwardOpen is service 0x54 on Connection Manager (class 0x06)
 func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	var data []byte
+	order := currentCIPByteOrder()
+	profile := CurrentProtocolProfile()
 
 	// Service code (0x54 = Forward_Open)
 	data = append(data, uint8(CIPServiceForwardOpen))
 
 	// Connection Manager path (class 0x06, instance 0x01)
 	// EPATH: 0x20 (8-bit class) + 0x06, 0x24 (8-bit instance) + 0x01
+	if profile.IncludeCIPPathSize {
+		data = append(data, 0x02) // 2 words (4 bytes)
+	}
 	data = append(data, 0x20, 0x06) // Class 0x06
 	data = append(data, 0x24, 0x01) // Instance 0x01
 
@@ -41,11 +45,11 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 
 	// Connection timeout (2 bytes, in seconds, typically 30)
 	timeout := uint16(30)
-	data = binary.BigEndian.AppendUint16(data, timeout)
+	data = appendUint16(order, data, timeout)
 
 	// O->T RPI (4 bytes, in microseconds)
 	rpiOToT := uint32(params.OToTRPIMs * 1000) // Convert ms to microseconds
-	data = binary.BigEndian.AppendUint32(data, rpiOToT)
+	data = appendUint32(order, data, rpiOToT)
 
 	// O->T connection parameters (4 bytes)
 	// Bit 0: Connection type (0=explicit, 1=IO)
@@ -64,11 +68,11 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	} else {
 		oToTParams |= 0x03 << 2 // Variable
 	}
-	data = binary.BigEndian.AppendUint32(data, oToTParams)
+	data = appendUint32(order, data, oToTParams)
 
 	// T->O RPI (4 bytes, in microseconds)
 	rpiTToO := uint32(params.TToORPIMs * 1000) // Convert ms to microseconds
-	data = binary.BigEndian.AppendUint32(data, rpiTToO)
+	data = appendUint32(order, data, rpiTToO)
 
 	// T->O connection parameters (4 bytes, similar to O->T)
 	tToOParams := uint32(0x00000001) // IO connection
@@ -82,7 +86,7 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	} else {
 		tToOParams |= 0x03 << 2 // Variable
 	}
-	data = binary.BigEndian.AppendUint32(data, tToOParams)
+	data = appendUint32(order, data, tToOParams)
 
 	// Transport class and trigger (1 byte)
 	// Bits 0-3: Transport class (typically 1 for cyclic)
@@ -118,7 +122,7 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 			Instance: params.Instance,
 		})
 	}
-	
+
 	// Path size in 16-bit words (round up)
 	// ODVA spec: Path size is in 16-bit words, round up if odd number of bytes
 	pathSizeWords := len(connPath) / 2
@@ -177,9 +181,10 @@ func ParseForwardOpenResponse(data []byte) (connectionID uint32, oToTConnID uint
 		return 0, 0, 0, fmt.Errorf("response too short for connection IDs")
 	}
 
-	oToTConnID = binary.BigEndian.Uint32(data[offset : offset+4])
+	order := currentCIPByteOrder()
+	oToTConnID = order.Uint32(data[offset : offset+4])
 	offset += 4
-	tToOConnID = binary.BigEndian.Uint32(data[offset : offset+4])
+	tToOConnID = order.Uint32(data[offset : offset+4])
 	offset += 4
 
 	// Use O->T connection ID as the primary connection ID
@@ -192,11 +197,16 @@ func ParseForwardOpenResponse(data []byte) (connectionID uint32, oToTConnID uint
 // ForwardClose is service 0x4E on Connection Manager (class 0x06)
 func BuildForwardCloseRequest(connectionID uint32) ([]byte, error) {
 	var data []byte
+	order := currentCIPByteOrder()
+	profile := CurrentProtocolProfile()
 
 	// Service code (0x4E = Forward_Close)
 	data = append(data, uint8(CIPServiceForwardClose))
 
 	// Connection Manager path (class 0x06, instance 0x01)
+	if profile.IncludeCIPPathSize {
+		data = append(data, 0x02) // 2 words (4 bytes)
+	}
 	data = append(data, 0x20, 0x06) // Class 0x06
 	data = append(data, 0x24, 0x01) // Instance 0x01
 
@@ -204,8 +214,8 @@ func BuildForwardCloseRequest(connectionID uint32) ([]byte, error) {
 	// ForwardClose uses connection path with connection ID
 	// Path: 0x34 (connection segment) + connection ID (4 bytes) = 5 bytes = 3 words (rounded up)
 	pathBytes := []byte{0x34} // Connection segment
-	pathBytes = binary.BigEndian.AppendUint32(pathBytes, connectionID)
-	
+	pathBytes = appendUint32(order, pathBytes, connectionID)
+
 	// Path size in 16-bit words (round up)
 	// ODVA spec: Path size is in 16-bit words, round up if odd number of bytes
 	pathSizeWords := len(pathBytes) / 2
@@ -236,4 +246,3 @@ func ParseForwardCloseResponse(data []byte) error {
 
 	return nil
 }
-
