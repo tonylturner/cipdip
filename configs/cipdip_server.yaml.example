@@ -8,6 +8,44 @@ server:
   tcp_port: 44818               # TCP port for explicit messaging
   udp_io_port: 2222             # UDP port for I/O (optional, used if enable_udp_io is true)
   enable_udp_io: false          # Enable UDP I/O server on port 2222 (default: false)
+  connection_timeout_ms: 10000  # I/O connection inactivity timeout (ms)
+  rng_seed: 0                   # RNG seed (0 = time-based) for deterministic personalities
+  identity_vendor_id: 0x0000        # Identity Object Attribute 1
+  identity_device_type: 0x0000      # Identity Object Attribute 2
+  identity_product_code: 0x0000     # Identity Object Attribute 3
+  identity_rev_major: 1             # Identity Object Attribute 4 (major)
+  identity_rev_minor: 0             # Identity Object Attribute 4 (minor)
+  identity_status: 0x0000           # Identity Object Attribute 5
+  identity_serial: 0x00000000       # Identity Object Attribute 6
+  identity_product_name: "Go CIP Emulator" # Identity Object Attribute 7 (short string)
+
+# Protocol behavior (strict ODVA by default)
+protocol:
+  mode: "strict_odva"        # "strict_odva", "vendor_variant", or "legacy_compat"
+  variant: ""                # vendor preset name when mode=vendor_variant
+  overrides:
+    enip_endianness: "little"        # "little" or "big"
+    cip_endianness: "little"         # "little" or "big"
+    cip_path_size: true              # include path size byte in CIP requests
+    cip_response_reserved: true      # include reserved/status-size fields in CIP responses
+    use_cpf: true                    # encode CPF items for SendRRData/SendUnitData
+    io_sequence_mode: "increment"    # "increment", "random", or "omit"
+
+# Optional CIP application profiles
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+  # - "energy"
+  # - "all"
+
+# Optional profile class overrides (use hex class IDs)
+cip_profile_classes:
+  energy:
+    - 0x004E # Base Energy Object
+    - 0x004F # Electrical Energy Object
+    - 0x0050 # Non-Electrical Energy Object
+    - 0x0053 # Power Management Object
 
 # For adapter-style behavior (CLICK-like assemblies)
 # Used when personality is "adapter"

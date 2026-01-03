@@ -41,7 +41,7 @@ func WrapNetworkError(err error, ip string, port int) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	return UserFriendlyError{
 		Message: fmt.Sprintf("Failed to communicate with device at %s:%d", ip, port),
 		Reason:  extractNetworkReason(err),
@@ -56,7 +56,7 @@ func WrapCIPError(err error, operation string) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	return UserFriendlyError{
 		Message: fmt.Sprintf("CIP operation failed: %s", operation),
 		Reason:  extractCIPReason(err),
@@ -71,7 +71,7 @@ func WrapConfigError(err error, configPath string) error {
 	if err == nil {
 		return nil
 	}
-	
+
 	return UserFriendlyError{
 		Message: fmt.Sprintf("Configuration error in %s", configPath),
 		Reason:  err.Error(),
@@ -83,7 +83,7 @@ func WrapConfigError(err error, configPath string) error {
 
 func extractNetworkReason(err error) string {
 	errStr := err.Error()
-	
+
 	// Common network error patterns
 	if strings.Contains(errStr, "timeout") || strings.Contains(errStr, "deadline exceeded") {
 		return "Connection timeout - device may be offline or unreachable"
@@ -97,13 +97,13 @@ func extractNetworkReason(err error) string {
 	if strings.Contains(errStr, "connection reset") {
 		return "Connection reset - device closed the connection unexpectedly"
 	}
-	
+
 	return "Network communication failed"
 }
 
 func extractCIPReason(err error) string {
 	errStr := err.Error()
-	
+
 	// Common CIP error patterns
 	if strings.Contains(errStr, "status 0x") {
 		return "Device returned a CIP error status code"
@@ -114,7 +114,6 @@ func extractCIPReason(err error) string {
 	if strings.Contains(errStr, "timeout") {
 		return "Device did not respond within timeout period"
 	}
-	
+
 	return "CIP protocol error occurred"
 }
-

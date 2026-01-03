@@ -1,6 +1,6 @@
 # Packet Capture Analysis Guide
 
-This guide explains how to use the `cipdip pcap` command to analyze EtherNet/IP packet captures.
+This guide explains how to use the `cipdip pcap`, `cipdip pcap-summary`, `cipdip pcap-report`, `cipdip pcap-coverage`, `cipdip pcap-classify`, and `cipdip pcap-dump` commands to analyze EtherNet/IP packet captures.
 
 ## Overview
 
@@ -9,6 +9,13 @@ The `cipdip pcap` command analyzes raw EtherNet/IP packet data and provides:
 - ODVA compliance validation
 - Packet comparison
 - Hex dump output
+The `cipdip pcap-summary` command summarizes ENIP/CIP traffic across full PCAP files.
+The `cipdip pcap-report` command generates a Markdown report for many PCAPs at once.
+The `cipdip pcap-coverage` command summarizes CIP request coverage (service + class/instance/attribute).
+The `cipdip pcap-classify` command uses `tshark` to classify PCAPs for integrity/noise signals.
+The `cipdip pcap-dump` command extracts sample CIP packets for a specific service code.
+The `cipdip pcap-replay` command replays PCAP traffic using app-layer, raw injection, or tcpreplay.
+The `cipdip pcap-rewrite` command rewrites IP/port fields in a PCAP before replay.
 
 ## Basic Usage
 
@@ -86,14 +93,14 @@ The `--input` file should contain raw binary EtherNet/IP packet data:
 
 1. Capture packets in Wireshark
 2. Filter for EtherNet/IP (port 44818 or 2222)
-3. Right-click packet → "Export Packet Bytes"
+3. Right-click packet -> "Export Packet Bytes"
 4. Save as binary file
 
 #### From tcpdump
 
 ```bash
 # Capture to file
-tcpdump -i eth0 -w capture.pcap port 44818
+tcpdump -i <iface> -w capture.pcap port 44818
 
 # Extract specific packet (requires additional tools)
 # Or use Wireshark to export packet bytes
@@ -147,7 +154,7 @@ Validate that generated packets are ODVA-compliant:
 
 ```bash
 # Generate traffic and capture
-tcpdump -i eth0 -w capture.pcap port 44818 &
+tcpdump -i <iface> -w capture.pcap port 44818 &
 cipdip client --ip 10.0.0.50 --scenario baseline
 
 # Extract and validate a packet
@@ -190,34 +197,14 @@ Generate packet examples for documentation:
 cipdip pcap --input example_packet.bin > packet_documentation.txt
 ```
 
-## Integration with Phase 13 Research
+## Vendor Research
 
-When researching vendor-specific implementations:
-
-1. Capture packets from vendor devices
-2. Analyze with `cipdip pcap`
-3. Document findings in `docs/vendors/`
-4. Compare with ODVA standard packets
-5. Identify deviations
-
-Example workflow:
-
-```bash
-# Capture from Rockwell device
-tcpdump -i eth0 -w rockwell.pcap port 44818
-# ... interact with device ...
-
-# Extract packet from pcap (using Wireshark or tools)
-# Analyze
-cipdip pcap --input rockwell_forwardopen.bin --validate
-
-# Document findings in docs/vendors/rockwell.md
-```
+When researching vendor-specific implementations, capture from real devices, analyze with `cipdip pcap`, and compare against ODVA requirements.
 
 ## Limitations
 
-- Currently supports raw binary packet files only
-- Does not parse PCAP file format directly (use Wireshark to export)
+- `cipdip pcap` supports raw binary packet files only (use Wireshark to export)
+- `cipdip pcap` does not parse PCAP format directly
 - Does not handle fragmented packets
 - Focuses on ENIP layer, not full Ethernet/IP/TCP headers
 
@@ -230,9 +217,167 @@ Potential improvements:
 - Integration with Wireshark dissector
 - Support for reading from network interfaces
 
+## PCAP Summary
+
+Summarize a full capture:
+
+```bash
+cipdip pcap-summary --input pcaps/stress/ENIP.pcap
+```
+
+Note: EPATH 16-bit counters track the segment type used on the wire (0x21/0x25/0x31),
+not the numeric width of the class/instance/attribute shown in Top Paths.
+
+## PCAP Report
+
+Generate a multi-file report (no `tshark` required):
+
+```bash
+cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
+```
+
+## PCAP Coverage
+
+Summarize CIP request coverage across all PCAPs:
+
+```bash
+cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap_coverage.md
+```
+
+## PCAP Classification
+
+Classify PCAPs using `tshark` filters:
+
+```bash
+cipdip pcap-classify --pcap-dir pcaps
+```
+
+If `tshark` is not on PATH, provide an explicit path:
+
+```bash
+cipdip pcap-classify --pcap-dir pcaps --tshark "C:\Program Files\Wireshark\tshark.exe"
+```
+
+You can also set the `TSHARK` environment variable or use the macOS default path:
+- `TSHARK=/Applications/Wireshark.app/Contents/MacOS/tshark`
+
+## PCAP Dump
+
+Extract sample CIP packets for a specific service code:
+
+```bash
+cipdip pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
+```
+
+## PCAP Replay
+
+Replay ENIP/CIP traffic from a PCAP. Three modes are supported:
+- `app` (default): Application-layer replay; cross-platform but not L2 accurate.
+- `raw`: Raw packet injection (requires OS/NIC support and elevated privileges).
+- `tcpreplay`: External tcpreplay/tcprewrite integration for stateful-friendly replay.
+
+```bash
+# App-layer replay to a target server (TCP/UDP from this host)
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --server-ip 10.0.0.10
+
+# Preflight only (no packets sent)
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode raw --iface eth0 --preflight-only
+
+# Raw injection (requires interface)
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode raw --iface eth0
+
+# tcprewrite + tcpreplay integration
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode tcpreplay --iface eth0 \
+  --tcprewrite-arg "--dstipmap=192.168.1.50:10.0.0.10" \
+  --tcpreplay-arg "--topspeed"
+```
+
+Key flags:
+- `--mode`: `app` (default), `raw`, or `tcpreplay`
+- `--server-ip`, `--server-port`, `--udp-port`: destination for app replay
+- `--client-ip`: bind a specific local source for app replay
+- `--rewrite-src-ip`, `--rewrite-dst-ip`, `--rewrite-src-port`, `--rewrite-dst-port`: rewrite endpoints (raw/tcpreplay)
+- `--rewrite-src-mac`, `--rewrite-dst-mac`: rewrite L2 MACs (raw/tcpreplay)
+- `--arp-target`: send ARP requests before raw/tcpreplay (auto-fills rewrite MACs if enabled)
+- If `--arp-target` is omitted and `--rewrite-dst-ip` is set, replay will auto-ARP that destination.
+- `--arp-required`: fail replay if ARP resolution fails
+- `--arp-refresh-ms`: refresh ARP during raw replay to detect MAC drift (warns on change)
+- `--arp-drift-fail`: fail replay if ARP MAC changes mid-run
+- `--report`: print replay summary (counts, request/response balance, handshake status)
+- `--preflight-only`: run replay checks (summary + ARP) and exit without sending packets
+- `--realtime`: replay with original PCAP timing
+- `--interval-ms`: fixed delay between packets when not using realtime
+- `--include-responses`: include response packets (default requests only)
+- `--limit`: cap number of packets
+- `--iface`: interface for raw/tcpreplay
+
+Preset replays (CL5000EIP action captures):
+
+```bash
+# Replay a specific CL5000EIP action
+cipdip pcap-replay --preset cl5000eip:firmware-change --server-ip 10.0.0.10
+
+# Replay all CL5000EIP pcaps
+cipdip pcap-replay --preset cl5000eip --server-ip 10.0.0.10
+```
+
+Notes:
+- App replay sends ENIP payloads over TCP/UDP but does not preserve original TCP sequence state.
+- For stateful firewalls, prefer `tcpreplay` mode or validate flows with a full TCP handshake.
+
+### Choosing a Replay Mode
+
+Use the mode that matches your DPI objective and firewall behavior:
+- `app`: quick DPI functional checks, low friction, does not preserve TCP state.
+- `raw`: L2 fidelity (MAC rewrite, exact frames), requires interface access and privileges.
+- `tcpreplay`: best for stateful enforcement and full TCP session realism; depends on external tools.
+
+For routed firewall paths, use `--arp-target` to resolve the gateway MAC or set `--rewrite-dst-mac` explicitly.
+
+### Stateful Firewall Replay Guidance
+
+Stateful firewalls may drop replays if the TCP stream does not match an expected handshake.
+Use these steps when you need DPI + stateful validation:
+
+1. Ensure the source PCAP includes a full TCP handshake (SYN/SYN-ACK/ACK) for 44818.
+2. Use `tcprewrite` to map source/destination IPs to your lab endpoints.
+3. Use `tcpreplay` with the correct interface and verify ARP resolution on the replay host.
+4. Capture ingress/egress PCAPs around the firewall to confirm state establishment.
+
+L2/L3 routing note:
+- `--arp-target` accepts hostnames or IPs. If the target IP is not in the local subnet, ARP must resolve the gateway MAC (set `--arp-target` accordingly) or explicitly use `--rewrite-dst-mac`.
+
+Example workflow:
+
+```bash
+# Rewrite source/destination IPs before replay
+cipdip pcap-replay --input pcaps/stress/ENIP.pcap --mode tcpreplay --iface eth0 \
+  --tcprewrite-arg "--srcipmap=192.168.1.50:10.0.0.20" \
+  --tcprewrite-arg "--dstipmap=192.168.1.60:10.0.0.10" \
+  --tcpreplay-arg "--topspeed"
+```
+
+Vendor-focused guidance:
+- **Hirschmann EAGLE40**: Use `tcpreplay` for explicit TCP DPI checks; UDP 2222 is commonly dropped. App replay can be used for DPI-only checks but may not satisfy stateful enforcement.
+- **Moxa MX-ROS**: Start with app replay for policy evaluation, then confirm with `tcpreplay` if Reset behavior depends on full TCP state.
+- **Dynics ICS-Defender**: Prefer `tcpreplay` when validating learn-mode whitelisting against strict stateful enforcement; app replay is useful for quick DPI functional checks.
+
+## PCAP Rewrite
+
+Rewrite source/destination IPs and ports in a capture (offline).
+
+```bash
+cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap --src-ip 10.0.0.20 --dst-ip 10.0.0.10
+```
+
+You can also rewrite MAC addresses:
+
+```bash
+cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap \
+  --src-mac 00:11:22:33:44:55 --dst-mac 66:77:88:99:AA:BB
+```
+
 ## See Also
 
 - `docs/COMPLIANCE.md` - Protocol compliance documentation
-- `docs/VENDOR_RESEARCH.md` - Vendor research guide
-- `docs/vendors/` - Vendor-specific documentation
 

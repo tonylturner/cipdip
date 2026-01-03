@@ -18,7 +18,7 @@ type ReferencePacket struct {
 // ReferencePackets is a library of known-good ODVA-compliant packets
 // Populated from:
 // - CIPDIP baseline captures (baseline_captures/*.pcap)
-// - Real-world device captures (.cursorrules/pcaps/*.pcap)
+// - Real-world device captures (pcaps/*.pcap)
 // - Wireshark captures of compliant devices
 //
 // Reference packets are automatically populated from reference_packets_gen.go
@@ -66,6 +66,14 @@ var ReferencePackets = map[string]ReferencePacket{
 	},
 }
 
+// ResetReferencePackets clears populated reference data so extractions don't retain stale packets.
+func ResetReferencePackets() {
+	for key, ref := range ReferencePackets {
+		ref.Data = nil
+		ReferencePackets[key] = ref
+	}
+}
+
 // CompareWithReference compares a generated packet with a reference packet
 func CompareWithReference(name string, generated []byte) (bool, error) {
 	ref, ok := ReferencePackets[name]
@@ -77,14 +85,14 @@ func CompareWithReference(name string, generated []byte) (bool, error) {
 		return false, fmt.Errorf("reference packet %s has no data (not yet populated)", name)
 	}
 
-	// Compare byte-by-byte
+	// Compare byte-by-byte; mismatch is a non-error result.
 	if len(generated) != len(ref.Data) {
-		return false, fmt.Errorf("length mismatch: generated %d bytes, reference %d bytes", len(generated), len(ref.Data))
+		return false, nil
 	}
 
 	for i := 0; i < len(generated); i++ {
 		if generated[i] != ref.Data[i] {
-			return false, fmt.Errorf("byte mismatch at offset %d: generated 0x%02X, reference 0x%02X", i, generated[i], ref.Data[i])
+			return false, nil
 		}
 	}
 
@@ -131,6 +139,13 @@ func ValidatePacketStructure(packet []byte, expectedStructure string) error {
 			return fmt.Errorf("expected 4 bytes of data, got %d", len(encap.Data))
 		}
 		// Additional validation can be added here
+	case "RegisterSession_Response":
+		if encap.Command != ENIPCommandRegisterSession {
+			return fmt.Errorf("expected RegisterSession command, got 0x%04X", encap.Command)
+		}
+		if len(encap.Data) != 4 {
+			return fmt.Errorf("expected 4 bytes of data, got %d", len(encap.Data))
+		}
 
 	case "GetAttributeSingle_Request":
 		if encap.Command != ENIPCommandSendRRData {
@@ -154,4 +169,3 @@ func ValidatePacketStructure(packet []byte, expectedStructure string) error {
 
 	return nil
 }
-

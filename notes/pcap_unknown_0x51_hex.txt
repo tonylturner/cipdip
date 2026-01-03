@@ -1,0 +1,25 @@
+pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
+
+Entry 1 (packet index 2137):
+  Service: 0x51
+  Response: false
+  Path: class=0x00A1 instance=0x0001 attribute=0x0000
+  CIP Payload: 510220a1240116ff1b000000000001000100c3ae5100
+
+Entry 2 (packet index 2141):
+  Service: 0x51
+  Response: true
+  General Status: 0x08
+  CIP Payload: d1000800
+
+Entry 3 (packet index 23421):
+  Service: 0x51
+  Response: false
+  Path: class=0x00A1 instance=0x0001 attribute=0x0000
+  CIP Payload: 510220a1240116ff1b000000000001000100c3ae5100
+
+Entry 4 (packet index 23422):
+  Service: 0x51
+  Response: true
+  General Status: 0x08
+  CIP Payload: d1000800

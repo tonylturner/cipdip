@@ -4,8 +4,8 @@ package scenario
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -118,6 +118,9 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 	loopCount := 0
 	startTime := time.Now()
 	counter := uint32(0)
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	burstNext := time.Time{}
+	burstUntil := time.Time{}
 	fmt.Printf("[CLIENT] Starting I/O scenario (%d connections, interval: %dms)\n", len(ioConns), loopInterval.Milliseconds())
 	fmt.Printf("[CLIENT] Will run for %d seconds or until interrupted\n\n", int(params.Duration.Seconds()))
 
@@ -151,7 +154,8 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 			counter++
 			oToTData := make([]byte, connCfg.OToTSizeBytes)
 			if len(oToTData) >= 4 {
-				binary.BigEndian.PutUint32(oToTData, counter)
+				order := cipclient.CurrentProtocolProfile().CIPByteOrder
+				order.PutUint32(oToTData, counter)
 			} else {
 				// For smaller payloads, just use the counter as a byte
 				oToTData[0] = byte(counter)
@@ -234,11 +238,37 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		loopCount++
 		progressBar.Increment()
 
+		sleepInterval := loopInterval
+		if cfg.IOBurstEveryMs > 0 {
+			now := time.Now()
+			if burstNext.IsZero() {
+				burstNext = now.Add(time.Duration(cfg.IOBurstEveryMs) * time.Millisecond)
+			}
+			if now.After(burstNext) {
+				burstUntil = now.Add(time.Duration(cfg.IOBurstDurationMs) * time.Millisecond)
+				burstNext = now.Add(time.Duration(cfg.IOBurstEveryMs) * time.Millisecond)
+			}
+			if !burstUntil.IsZero() && now.Before(burstUntil) {
+				if cfg.IOBurstIntervalMs > 0 {
+					sleepInterval = time.Duration(cfg.IOBurstIntervalMs) * time.Millisecond
+				} else {
+					sleepInterval = loopInterval / 4
+					if sleepInterval < time.Millisecond {
+						sleepInterval = time.Millisecond
+					}
+				}
+			}
+		}
+		if cfg.IOJitterMs > 0 {
+			jitterDelay := time.Duration(rng.Intn(cfg.IOJitterMs+1)) * time.Millisecond
+			sleepInterval += jitterDelay
+		}
+
 		// Sleep for loop interval
 		select {
 		case <-ctx.Done():
 			break
-		case <-time.After(loopInterval):
+		case <-time.After(sleepInterval):
 		}
 	}
 

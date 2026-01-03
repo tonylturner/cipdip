@@ -5,6 +5,9 @@ import (
 )
 
 func TestEncodeEPATH(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	tests := []struct {
 		name     string
 		path     CIPPath
@@ -31,9 +34,9 @@ func TestEncodeEPATH(t *testing.T) {
 				Attribute: 0x03,
 			},
 			expected: []byte{
-				0x21, 0x01, 0x00, // Class (16-bit, big-endian)
-				0x24, 0x65,       // Instance (8-bit)
-				0x30, 0x03,       // Attribute (8-bit)
+				0x21, 0x00, 0x01, // Class (16-bit, little-endian)
+				0x24, 0x65, // Instance (8-bit)
+				0x30, 0x03, // Attribute (8-bit)
 			},
 		},
 	}
@@ -55,6 +58,9 @@ func TestEncodeEPATH(t *testing.T) {
 }
 
 func TestEncodeCIPRequest(t *testing.T) {
+	prevProfile := CurrentProtocolProfile()
+	SetProtocolProfile(StrictODVAProfile)
+	defer SetProtocolProfile(prevProfile)
 	req := CIPRequest{
 		Service: CIPServiceGetAttributeSingle,
 		Path: CIPPath{
@@ -70,8 +76,11 @@ func TestEncodeCIPRequest(t *testing.T) {
 		t.Fatalf("EncodeCIPRequest failed: %v", err)
 	}
 
-	// Should have: service code (1) + EPATH (6 bytes for 8-bit class/instance)
-	if len(data) < 7 {
+	minLen := 7
+	if CurrentProtocolProfile().IncludeCIPPathSize {
+		minLen = 8
+	}
+	if len(data) < minLen {
 		t.Errorf("encoded data too short: %d bytes", len(data))
 	}
 
@@ -101,4 +110,3 @@ func TestCIPServiceCodeString(t *testing.T) {
 		})
 	}
 }
-

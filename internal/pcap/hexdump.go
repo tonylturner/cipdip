@@ -73,4 +73,3 @@ func FormatPacketHex(data []byte, annotate bool) string {
 
 	return sb.String()
 }
-

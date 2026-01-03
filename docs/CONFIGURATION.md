@@ -42,7 +42,103 @@ adapter:
   port: 44818
 ```
 
-#### 2. `read_targets` Section
+#### 2. `protocol` Section
+
+Controls strict ODVA compliance and optional vendor-variant behavior.
+
+```yaml
+protocol:
+  mode: "strict_odva"        # "strict_odva", "vendor_variant", or "legacy_compat"
+  variant: ""                # vendor preset name when mode=vendor_variant
+  overrides:
+    enip_endianness: "little"        # "little" or "big"
+    cip_endianness: "little"         # "little" or "big"
+    cip_path_size: true              # include path size byte in CIP requests
+    cip_response_reserved: true      # include reserved/status-size fields in CIP responses
+    use_cpf: true                    # encode CPF items for SendRRData/SendUnitData
+    io_sequence_mode: "increment"    # "increment", "random", or "omit"
+```
+
+**Notes:**
+- `mode: strict_odva` is the default and enforces ODVA-compliant framing.
+- `vendor_variant` should be used with captured, validated deviations.
+- `legacy_compat` preserves historical behavior for regression comparisons.
+- Known vendor presets (if available): `rockwell_v32`, `schneider_m580`, `siemens_s7_1200`.
+
+#### 2.1 `protocol_variants` Section
+
+Optional list of protocol profiles used by the `vendor_variants` scenario.
+
+```yaml
+protocol_variants:
+  - mode: "strict_odva"
+  - mode: "vendor_variant"
+    variant: "rockwell_v32"
+  - mode: "vendor_variant"
+    variant: "schneider_m580"
+  - mode: "vendor_variant"
+    variant: "pcap_capture"
+  - mode: "vendor_variant"
+    variant: "rockwell_enbt"     # use only when Vendor ID=0x0001 and Product Name=1756-ENBT/A
+```
+
+**Notes:**
+- Each entry follows the same structure as `protocol`.
+- Missing `mode` defaults to `vendor_variant`.
+
+#### 2.2 `cip_profiles` Section
+
+Optional CIP application profiles to include in coverage and CLI-driven target generation.
+
+```yaml
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+  # - "all"
+```
+
+**Notes:**
+- Supported profiles: `energy`, `safety`, `motion`, or `all`.
+- `all` expands to `energy`, `safety`, and `motion`.
+- Use `--cip-profile` on the CLI to override or add profiles without editing YAML.
+- CIPDIP also includes a broader baseline class set when profiles are enabled, covering File Object, Event Log, Time Sync, Modbus, and Symbol/Template classes.
+- For classes with limited public payload layouts, CIPDIP uses conservative `Get_Attribute_Single` probes or minimal request payloads. Use `custom_targets` for explicit payload control.
+
+#### 2.3 `cip_profile_classes` Section
+
+Optional profile class overrides (use hex class IDs).
+
+```yaml
+cip_profile_classes:
+  energy:
+    - 0x004E # Base Energy Object
+    - 0x004F # Electrical Energy Object
+    - 0x0050 # Non-Electrical Energy Object
+    - 0x0053 # Power Management Object
+```
+
+**Notes:**
+- Overrides take precedence over built-in defaults for a profile.
+- Useful when you need to align vendor profiles to specific application classes.
+- Profile auto-targets are adjusted for some classes based on public evidence. You can override or disable by providing your own `custom_targets`.
+
+#### 2.4 Profile Auto-Targets (evidence-based defaults)
+
+When `cip_profiles` is enabled, CIPDIP creates additional `custom_targets` for classes where public sources limit safe defaults. These are intended to confirm DPI behavior without relying on unpublished ODVA layouts.
+
+Current defaults:
+- **File Object (0x37):** `Get_Attribute_Single` instance 0 attr 0x02 (Max Instance)
+- **Event Log (0x41):** `Get_Attribute_Single` instance 0 attr 0x20 (Time Format)
+- **Time Sync (0x43):** `Get_Attribute_Single` instance 1 attr 0x01 (PTP Enable)
+- **Modbus (0x44):** `Read Holding Registers` (service 0x4E) instance 1 payload `00000100` (start=0x0000, qty=0x0001)
+- **Motion Axis (0x42):** `Get Axis Attributes List` (service 0x4B) instance 1
+- **Safety Supervisor (0x39):** `Get_Attribute_Single` instance 1 attr 0x0B (Device Status)
+- **Safety Validator (0x3A):** `Get_Attribute_Single` instance 1 attr 0x01 (Validator State)
+
+If you need vendor-specific payloads (e.g., File Transfer, Modbus writes, Safety Reset), add `custom_targets` with `request_payload_hex`.
+
+#### 3. `read_targets` Section
 
 Defines CIP paths to read using Get Attribute Single service.
 
@@ -61,6 +157,7 @@ read_targets:
 - `class` (hex integer, required): CIP class ID (e.g., `0x04` for Assembly class).
 - `instance` (hex integer, required): CIP instance ID within the class.
 - `attribute` (hex integer, required): CIP attribute ID to read.
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -83,7 +180,7 @@ read_targets:
 - Values are read periodically based on scenario interval.
 - Results are logged and included in metrics.
 
-#### 3. `write_targets` Section
+#### 4. `write_targets` Section
 
 Defines CIP paths to write using Set Attribute Single service.
 
@@ -109,6 +206,7 @@ write_targets:
   - `"toggle"`: Value alternates between 0 and 1
   - `"constant"`: Value remains at `initial_value`
 - `initial_value` (integer, optional): Starting value for the pattern. Default: `0`.
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -135,7 +233,7 @@ write_targets:
 - Write patterns help generate predictable, repeatable traffic.
 - Ensure target device supports writes to these paths.
 
-#### 4. `custom_targets` Section
+#### 5. `custom_targets` Section
 
 Defines custom CIP services with arbitrary service codes and payloads.
 
@@ -153,11 +251,12 @@ custom_targets:
 **Fields (per target):**
 - `name` (string, required): Unique identifier for this target.
 - `service` (string, required): Must be `"custom"` for custom targets.
-- `service_code` (hex integer, required): CIP service code (e.g., `0x01` for Get_Attribute_All, `0x0E` for Get_Attribute_List).
+- `service_code` (hex integer, required): CIP service code (e.g., `0x01` for Get_Attribute_All, `0x03` for Get_Attribute_List).
 - `class` (hex integer, required): CIP class ID.
 - `instance` (hex integer, required): CIP instance ID.
 - `attribute` (hex integer, optional): CIP attribute ID (may be unused depending on service).
 - `request_payload_hex` (string, optional): Raw hexadecimal string for additional request payload. Leave empty if not needed.
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -172,7 +271,7 @@ custom_targets:
 
   - name: "CustomService"
     service: "custom"
-    service_code: 0x0E          # Get_Attribute_List
+    service_code: 0x03          # Get_Attribute_List
     class: 0x04
     instance: 0x65
     attribute: 0x00
@@ -184,7 +283,152 @@ custom_targets:
 - Requires knowledge of CIP service codes and payload formats.
 - Useful for DPI testing of edge cases.
 
-#### 5. `io_connections` Section
+#### 6. `edge_targets` Section
+
+Defines protocol-valid edge case requests for DPI falsification.
+
+```yaml
+edge_targets:
+  - name: "Class16_Instance8_Attr8"
+    service: "get_attribute_single"
+    class: 0x0100
+    instance: 0x65
+    attribute: 0x03
+    expected_outcome: "success"
+  - name: "Class8_Instance16_Attr16"
+    service: "get_attribute_single"
+    class: 0x04
+    instance: 0x0100
+    attribute: 0x0100
+    expected_outcome: "success"
+  - name: "InvalidClass_Error"
+    service: "get_attribute_single"
+    class: 0xFFFF
+    instance: 0x0001
+    attribute: 0x0001
+    expected_outcome: "error"
+    force_status: 0x01          # optional metrics override for unconnected_send
+  - name: "PCAP_Class0067_Path"
+    service: "get_attribute_single"
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Class00A1_Path"
+    service: "get_attribute_single"
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x4B"
+    service: "custom"
+    service_code: 0x4B
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x4D"
+    service: "custom"
+    service_code: 0x4D
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x52"
+    service: "custom"
+    service_code: 0x52
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "PCAP_Unknown_0x51"
+    service: "custom"
+    service_code: 0x51
+    class: 0x00A1
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Read_Tag"
+    service: "custom"
+    service_code: 0x4C
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Write_Tag"
+    service: "custom"
+    service_code: 0x4D
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Read_Tag_Fragmented"
+    service: "custom"
+    service_code: 0x52
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "Rockwell_Write_Tag_Fragmented"
+    service: "custom"
+    service_code: 0x53
+    class: 0x0067
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Get_Connection_Data"
+    service: "custom"
+    service_code: 0x56
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Search_Connection_Data"
+    service: "custom"
+    service_code: 0x57
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Get_Connection_Owner"
+    service: "custom"
+    service_code: 0x5A
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+  - name: "ConnMgr_Large_Forward_Open"
+    service: "custom"
+    service_code: 0x5B
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    expected_outcome: "any"
+```
+
+**Fields (per target):**
+- `name` (string, required): Unique identifier for this edge case.
+- `service` (string, required): `get_attribute_single`, `set_attribute_single`, or `custom`.
+- `service_code` (hex integer, required for `custom`): CIP service code.
+- `class` / `instance` / `attribute` (hex integer, required): CIP path segments.
+- `request_payload_hex` (string, optional): Hex-encoded payload.
+- `expected_outcome` (string, optional): `success`, `error`, `timeout`, or `any`.
+- `force_status` (hex integer, optional): Override status used for metrics in `unconnected_send` (does not change on-wire response).
+- `tags` (list of strings, optional): Labels used to select targets for specific scenarios (e.g., firewall packs).
+
+**Notes:**
+- Used by the `edge_valid` and `unconnected_send` scenarios.
+- Use 16-bit values to force 16-bit EPATH segments.
+
+#### 7. `scenario_jitter_ms` Section
+
+Optional per-operation jitter (milliseconds) injected into edge cases and mixed-state traffic.
+
+```yaml
+scenario_jitter_ms: 5
+```
+
+#### 8. `io_connections` Section
 
 Defines connected Class 1 I/O connections for the `io` scenario.
 
@@ -224,6 +468,7 @@ io_connections:
 - `class` (hex integer, required): CIP class ID for the target assembly/object.
 - `instance` (hex integer, required): CIP instance ID for the target assembly/object.
 - `connection_path_hex` (string, optional): Raw hexadecimal connection path for complex routing. Leave empty for simple paths.
+- `tags` (list of strings, optional): Labels used to select connections for specific scenarios (e.g., firewall packs).
 
 **Example:**
 ```yaml
@@ -266,6 +511,11 @@ adapter:
   name: "CLICK C2-03CPU"
   port: 44818
 
+protocol:
+  mode: "strict_odva"
+  overrides:
+    use_cpf: true
+
 read_targets:
   - name: "InputBlock1"
     service: "get_attribute_single"
@@ -298,9 +548,11 @@ io_connections:
 ### Client Config Validation
 
 The following rules apply:
-- At least one of `read_targets`, `write_targets`, or `custom_targets` must be populated.
+- At least one of `read_targets`, `write_targets`, `custom_targets`, or `edge_targets` must be populated.
 - All targets must have a `name` and `service`.
 - Custom targets must have a `service_code` when `service` is `"custom"`.
+- Edge targets must have a `service_code` when `service` is `"custom"`.
+- `protocol_variants` entries must use valid `mode` and optional `variant`.
 - I/O connections must have all required fields with valid values (RPI > 0, sizes > 0, etc.).
 
 ## Server Configuration (`cipdip_server.yaml`)
@@ -326,6 +578,16 @@ server:
   tcp_port: 44818               # TCP port for explicit messaging
   udp_io_port: 2222             # UDP port for I/O (optional, used if enable_udp_io is true)
   enable_udp_io: false          # Enable UDP I/O server on port 2222
+  connection_timeout_ms: 10000  # I/O connection inactivity timeout (ms)
+  rng_seed: 0                   # RNG seed (0 = time-based) for deterministic personalities
+  identity_vendor_id: 0x0000        # Identity Object Attribute 1
+  identity_device_type: 0x0000      # Identity Object Attribute 2
+  identity_product_code: 0x0000     # Identity Object Attribute 3
+  identity_rev_major: 1             # Identity Object Attribute 4 (major)
+  identity_rev_minor: 0             # Identity Object Attribute 4 (minor)
+  identity_status: 0x0000           # Identity Object Attribute 5
+  identity_serial: 0x00000000       # Identity Object Attribute 6
+  identity_product_name: "Go CIP Emulator" # Identity Object Attribute 7 (short string)
 ```
 
 **Fields:**
@@ -337,6 +599,16 @@ server:
 - `tcp_port` (integer, optional): TCP port for explicit messaging. Default: `44818`.
 - `udp_io_port` (integer, optional): UDP port for Class 1 I/O. Default: `2222`.
 - `enable_udp_io` (boolean, optional): Enable UDP I/O server. Default: `false`.
+- `connection_timeout_ms` (integer, optional): I/O connection inactivity timeout in milliseconds. Default: `10000`.
+- `rng_seed` (integer, optional): Seed for deterministic random data patterns. Default: `0` (time-based).
+- `identity_vendor_id` (hex integer, optional): Identity Object attribute 1 (Vendor ID).
+- `identity_device_type` (hex integer, optional): Identity Object attribute 2 (Device Type).
+- `identity_product_code` (hex integer, optional): Identity Object attribute 3 (Product Code).
+- `identity_rev_major` (integer, optional): Identity Object attribute 4 (Major Revision).
+- `identity_rev_minor` (integer, optional): Identity Object attribute 4 (Minor Revision).
+- `identity_status` (hex integer, optional): Identity Object attribute 5 (Status).
+- `identity_serial` (hex integer, optional): Identity Object attribute 6 (Serial Number).
+- `identity_product_name` (string, optional): Identity Object attribute 7 (Product Name, short string).
 
 **Example:**
 ```yaml
@@ -353,8 +625,38 @@ server:
 - `listen_ip` can be set to a specific IP (e.g., `"192.168.1.100"`) to bind to one interface.
 - `enable_udp_io` must be `true` for the `io` scenario to work with UDP 2222.
 - CLI flags (`--listen-ip`, `--listen-port`, `--enable-udp-io`) override config file values.
+- Identity Object attributes apply to Get_Attribute_Single and Get_Attribute_All requests to Class 0x01, Instance 0x01.
 
-#### 2. `adapter_assemblies` Section
+#### 2. `protocol` Section
+
+Same structure as the client `protocol` section; controls protocol framing for server responses.
+
+```yaml
+protocol:
+  mode: "strict_odva"
+  variant: ""
+  overrides:
+    enip_endianness: "little"
+    cip_endianness: "little"
+    cip_path_size: true
+    cip_response_reserved: true
+    use_cpf: true
+    io_sequence_mode: "increment"
+
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+
+cip_profile_classes:
+  energy:
+    - 0x004E # Base Energy Object
+    - 0x004F # Electrical Energy Object
+    - 0x0050 # Non-Electrical Energy Object
+    - 0x0053 # Power Management Object
+```
+
+#### 3. `adapter_assemblies` Section
 
 Defines assembly objects for adapter personality. Only used when `personality: "adapter"`.
 
@@ -407,7 +709,7 @@ adapter_assemblies:
 - Assemblies respond to Get/Set Attribute Single requests.
 - Writable assemblies with `"reflect_inputs"` pattern echo back written values.
 
-#### 3. `logix_tags` Section
+#### 4. `logix_tags` Section
 
 Defines tags for logix_like personality. Only used when `personality: "logix_like"`.
 
@@ -452,7 +754,7 @@ logix_tags:
   - name: "status"
     type: "BOOL"
     array_length: 1
-    update_pattern: "toggle"
+    update_pattern: "static"
 ```
 
 **Notes:**
@@ -460,7 +762,7 @@ logix_tags:
 - Tags respond to tag read/write requests.
 - Array tags can be indexed (e.g., `scada[0]`, `scada[1]`).
 
-#### 4. `tag_namespace` Section
+#### 5. `tag_namespace` Section
 
 Optional namespace prefix for logix_like tags.
 
@@ -493,6 +795,9 @@ server:
   udp_io_port: 2222
   enable_udp_io: true
 
+protocol:
+  mode: "strict_odva"
+
 adapter_assemblies:
   - name: "InputAssembly1"
     class: 0x04
@@ -521,6 +826,9 @@ server:
   tcp_port: 44818
   udp_io_port: 2222
   enable_udp_io: false
+
+protocol:
+  mode: "strict_odva"
 
 logix_tags:
   - name: "scada"
@@ -575,7 +883,7 @@ For I/O connections, typical values are:
 
 ## Common Issues
 
-### "at least one of read_targets, write_targets, or custom_targets must be populated"
+### "at least one of read_targets, write_targets, custom_targets, or edge_targets must be populated"
 
 **Solution**: Add at least one target to your client config.
 

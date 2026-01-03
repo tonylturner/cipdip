@@ -20,6 +20,37 @@ High-frequency reads to stress DPI:
 cipdip client --ip 10.0.0.50 --scenario stress --interval-ms 10 --duration-seconds 300
 ```
 
+### Unconnected Send (UCMM wrapper)
+
+Embedded CIP requests wrapped in Unconnected Send:
+
+```bash
+cipdip client --ip 10.0.0.50 --scenario unconnected_send --duration-seconds 300
+```
+
+### Rockwell Edge Pack
+
+Consolidated Rockwell (Logix + ENBT) edge cases:
+
+```bash
+cipdip client --ip 10.0.0.50 --scenario rockwell --duration-seconds 300
+
+# Firewall DPI packs (vendor-specific scenarios)
+cipdip client --ip 10.0.0.50 --scenario firewall_hirschmann --config configs/firewall_test_pack.yaml.example
+cipdip client --ip 10.0.0.50 --scenario firewall_moxa --config configs/firewall_test_pack.yaml.example
+cipdip client --ip 10.0.0.50 --scenario firewall_dynics --config configs/firewall_test_pack.yaml.example
+cipdip client --ip 10.0.0.50 --scenario firewall_pack --config configs/firewall_test_pack.yaml.example
+
+# Composed run: stress pattern through Moxa firewall targeting Rockwell-tagged targets
+cipdip client --ip 10.0.0.50 --scenario stress --target-tags rockwell --firewall-vendor moxa
+
+# One-off service/class/instance check (no YAML edits)
+cipdip single --ip 10.0.0.50 --service 0x0E --class 0x01 --instance 0x01 --attribute 0x01
+
+# ARP probe before raw/tcpreplay replays
+cipdip arp --iface eth0 --target-ip 10.0.0.10
+```
+
 ### I/O Scenario with UDP 2222
 
 Connected Class 1 I/O traffic:
@@ -33,7 +64,7 @@ cipdip client --ip 10.0.0.50 --scenario io --duration-seconds 300
 ### Adapter Personality
 
 ```bash
-
+cipdip server --personality adapter
 ```
 
 ### Logix-like Personality
@@ -53,7 +84,7 @@ cipdip discover
 ### Discovery with Timeout
 
 ```bash
-cipdip discover --timeout 10s --interface eth0
+cipdip discover --timeout 10s --interface <iface>
 ```
 
 ## Packet Analysis
@@ -94,7 +125,7 @@ cipdip client --ip 127.0.0.1 --scenario mixed \
 
 ```bash
 # Terminal 3
-tcpdump -i lo0 -w capture.pcap port 44818
+tcpdump -i <iface> -w capture.pcap port 44818
 ```
 
 ### 4. Analyze Packets
@@ -135,6 +166,46 @@ io_connections:
     instance: 0x65
 ```
 
+### Client Config with CIP Profiles + Evidence-Based Targets
+
+```yaml
+# cipdip_client.yaml
+adapter:
+  name: "Profile Coverage Target"
+  port: 44818
+
+cip_profiles:
+  - "energy"
+  - "safety"
+  - "motion"
+
+# Optional: override or extend with explicit targets
+custom_targets:
+  - name: "Modbus_Read_Holding_Registers"
+    service: "custom"
+    service_code: 0x4E
+    class: 0x44
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: "00000100" # start=0x0000, qty=0x0001 (UINTs)
+```
+
+### Client Config for Unconnected Send
+
+```yaml
+# cipdip_client.yaml
+edge_targets:
+  - name: "ConnMgr_Unconnected_Send"
+    service: "custom"
+    service_code: 0x52
+    class: 0x0006
+    instance: 0x0001
+    attribute: 0x0000
+    request_payload_hex: ""
+    expected_outcome: "any"
+    force_status: 0x01
+```
+
 ### Server Config for Adapter
 
 ```yaml
@@ -160,7 +231,7 @@ adapter_assemblies:
 
 ```bash
 cipdip client --ip 10.0.0.50 --scenario baseline \
-  --metrics-file metrics.json \
+  --metrics-file metrics.csv \
   --duration-seconds 300
 ```
 
@@ -228,10 +299,16 @@ cipdip client --ip 10.0.0.50 --scenario baseline --config cipdip_client.yaml
 cipdip pcap --input error_packet.bin --validate
 ```
 
+### Investigate Unknown CIP Services
+
+```bash
+# Dump first 5 occurrences of service 0x51
+cipdip pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
+```
+
 ## See Also
 
 - `README.md` - Main documentation
 - `docs/PCAP_USAGE.md` - Packet analysis guide
 - `docs/COMPLIANCE.md` - Protocol compliance
-- `docs/VENDOR_RESEARCH.md` - Vendor research
 

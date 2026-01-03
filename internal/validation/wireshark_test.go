@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -11,7 +12,7 @@ func TestWiresharkValidationRegisterSession(t *testing.T) {
 	// Skip if tshark is not available
 	validator := NewWiresharkValidator("")
 	if _, err := validator.ValidatePacket([]byte{}); err != nil {
-		if err.Error() == "tshark not found in PATH" {
+		if strings.Contains(err.Error(), "tshark not found in PATH") {
 			t.Skip("tshark not available, skipping Wireshark validation test")
 		}
 	}
@@ -56,7 +57,7 @@ func TestWiresharkValidationSendRRData(t *testing.T) {
 	// Skip if tshark is not available
 	validator := NewWiresharkValidator("")
 	if _, err := validator.ValidatePacket([]byte{}); err != nil {
-		if err.Error() == "tshark not found in PATH" {
+		if strings.Contains(err.Error(), "tshark not found in PATH") {
 			t.Skip("tshark not available, skipping Wireshark validation test")
 		}
 	}
@@ -94,7 +95,7 @@ func TestWiresharkValidationSendRRData(t *testing.T) {
 func TestWiresharkValidationConvenienceFunction(t *testing.T) {
 	// Skip if tshark is not available
 	if _, err := ValidateENIPPacket([]byte{}); err != nil {
-		if err.Error() == "tshark not found in PATH" {
+		if strings.Contains(err.Error(), "tshark not found in PATH") {
 			t.Skip("tshark not available, skipping Wireshark validation test")
 		}
 	}
@@ -113,4 +114,3 @@ func TestWiresharkValidationConvenienceFunction(t *testing.T) {
 		t.Error("RegisterSession packet should be valid according to Wireshark")
 	}
 }
-

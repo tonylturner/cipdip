@@ -1,0 +1,16 @@
+﻿
+File                                             ForwardOpenResponse GetAttributeSingleResponse
+----                                             ------------------- --------------------------
+cip_only.pcap                                                      4                          0
+cip_unclean.pcap                                                   8                          0
+CL5000EIP-Change-Port-Configuration-Attempt.pcap                   0                          5
+CL5000EIP-Control-Protocol-Change-Attempt.pcap                     5                          0
+CL5000EIP-Firmware-Change.pcap                                     0                          3
+CL5000EIP-IP-Address-Change-Attempt.pcap                           0                        129
+CL5000EIP-Reboot-or-Restart.pcap                                   5                          0
+CL5000EIP-Software-Download.pcap                                   5                          0
+CL5000EIP-Software-Upload.pcap                                     7                          0
+ENIP.pcap                                                         29                          3
+
+
+

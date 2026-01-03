@@ -39,17 +39,17 @@ func AnalyzeENIPPacket(packetData []byte) (*PacketInfo, error) {
 	}
 
 	// Parse ENIP header
-	// Offset 0-1: Command (2 bytes, big-endian)
-	info.ENIPCommand = binary.BigEndian.Uint16(packetData[0:2])
+	// Offset 0-1: Command (2 bytes, little-endian)
+	info.ENIPCommand = binary.LittleEndian.Uint16(packetData[0:2])
 
-	// Offset 2-3: Length (2 bytes, big-endian)
-	info.DataLength = binary.BigEndian.Uint16(packetData[2:4])
+	// Offset 2-3: Length (2 bytes, little-endian)
+	info.DataLength = binary.LittleEndian.Uint16(packetData[2:4])
 
-	// Offset 4-7: Session Handle (4 bytes, big-endian)
-	info.SessionID = binary.BigEndian.Uint32(packetData[4:8])
+	// Offset 4-7: Session Handle (4 bytes, little-endian)
+	info.SessionID = binary.LittleEndian.Uint32(packetData[4:8])
 
-	// Offset 8-11: Status (4 bytes, big-endian)
-	info.Status = binary.BigEndian.Uint32(packetData[8:12])
+	// Offset 8-11: Status (4 bytes, little-endian)
+	info.Status = binary.LittleEndian.Uint32(packetData[8:12])
 
 	// Validate packet length matches header
 	expectedLength := 24 + int(info.DataLength)
@@ -114,7 +114,7 @@ func ValidateODVACompliance(packetData []byte) (bool, []string) {
 	}
 
 	// Check options field (bytes 20-23) - should be 0x00000000
-	options := binary.BigEndian.Uint32(packetData[20:24])
+	options := binary.LittleEndian.Uint32(packetData[20:24])
 	if options != 0 {
 		errors = append(errors, fmt.Sprintf("Options field non-zero: 0x%08X (should be 0x00000000)", options))
 	}
@@ -134,7 +134,7 @@ func ExtractCIPData(packetData []byte) ([]byte, error) {
 	}
 
 	// For SendRRData, CIP data starts after interface handle (4 bytes) and timeout (2 bytes)
-	command := binary.BigEndian.Uint16(packetData[0:2])
+	command := binary.LittleEndian.Uint16(packetData[0:2])
 	if command == 0x006F { // SendRRData
 		if len(packetData) < 24+6 {
 			return nil, fmt.Errorf("packet too short for SendRRData structure")
@@ -220,4 +220,3 @@ func ComparePackets(packet1, packet2 []byte) ([]string, error) {
 
 	return differences, nil
 }
-

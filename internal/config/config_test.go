@@ -87,6 +87,30 @@ func TestValidateClientConfig(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "strict_odva with cpf disabled",
+			config: &Config{
+				Adapter: AdapterConfig{
+					Name: "Test",
+				},
+				Protocol: ProtocolConfig{
+					Mode: "strict_odva",
+					Overrides: ProtocolOverrides{
+						UseCPF: boolPtr(false),
+					},
+				},
+				ReadTargets: []CIPTarget{
+					{
+						Name:      "TestTarget",
+						Service:   ServiceGetAttributeSingle,
+						Class:     0x04,
+						Instance:  0x65,
+						Attribute: 0x03,
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,6 +121,10 @@ func TestValidateClientConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func TestLoadClientConfig(t *testing.T) {
@@ -176,5 +204,114 @@ read_targets:
 	// Port should default to 44818
 	if cfg.Adapter.Port != 44818 {
 		t.Errorf("adapter port: got %d, want 44818 (default)", cfg.Adapter.Port)
+	}
+}
+
+func TestValidateClientConfigProtocolVariantsDefault(t *testing.T) {
+	cfg := &Config{
+		Adapter: AdapterConfig{
+			Name: "Test",
+		},
+		ReadTargets: []CIPTarget{
+			{
+				Name:      "Target",
+				Service:   ServiceGetAttributeSingle,
+				Class:     0x04,
+				Instance:  0x01,
+				Attribute: 0x01,
+			},
+		},
+		ProtocolVariants: []ProtocolConfig{
+			{
+				Variant: "rockwell_enbt",
+			},
+		},
+	}
+
+	if err := ValidateClientConfig(cfg); err != nil {
+		t.Fatalf("ValidateClientConfig failed: %v", err)
+	}
+	if got := cfg.ProtocolVariants[0].Mode; got != "vendor_variant" {
+		t.Fatalf("protocol_variants[0].mode: got %q, want %q", got, "vendor_variant")
+	}
+}
+
+func TestValidateClientConfigCIPProfiles(t *testing.T) {
+	cfg := &Config{
+		Adapter: AdapterConfig{
+			Name: "Test",
+		},
+		ReadTargets: []CIPTarget{
+			{
+				Name:      "Target",
+				Service:   ServiceGetAttributeSingle,
+				Class:     0x04,
+				Instance:  0x01,
+				Attribute: 0x01,
+			},
+		},
+		CIPProfiles: []string{"energy", "safety"},
+	}
+
+	if err := ValidateClientConfig(cfg); err != nil {
+		t.Fatalf("ValidateClientConfig failed: %v", err)
+	}
+
+	cfg.CIPProfiles = []string{"bad_profile"}
+	if err := ValidateClientConfig(cfg); err == nil {
+		t.Fatalf("ValidateClientConfig expected error for invalid cip_profiles")
+	}
+}
+
+func TestValidateServerConfig(t *testing.T) {
+	base := &ServerConfig{
+		Server: ServerConfigSection{
+			Name:        "Test",
+			Personality: "adapter",
+			TCPPort:     44818,
+		},
+		Protocol: ProtocolConfig{
+			Mode: "strict_odva",
+		},
+		AdapterAssemblies: []AdapterAssemblyConfig{
+			{
+				Name:          "Input",
+				Class:         0x04,
+				Instance:      0x65,
+				Attribute:     0x03,
+				SizeBytes:     4,
+				UpdatePattern: "counter",
+			},
+		},
+	}
+
+	if err := ValidateServerConfig(base); err != nil {
+		t.Fatalf("ValidateServerConfig failed: %v", err)
+	}
+
+	adapterMissing := *base
+	adapterMissing.AdapterAssemblies = nil
+	if err := ValidateServerConfig(&adapterMissing); err == nil {
+		t.Fatalf("ValidateServerConfig expected error for missing adapter_assemblies")
+	}
+
+	logix := *base
+	logix.Server.Personality = "logix_like"
+	logix.AdapterAssemblies = nil
+	logix.LogixTags = []LogixTagConfig{
+		{
+			Name:          "TestTag",
+			Type:          "DINT",
+			ArrayLength:   1,
+			UpdatePattern: "counter",
+		},
+	}
+	if err := ValidateServerConfig(&logix); err != nil {
+		t.Fatalf("ValidateServerConfig logix_like failed: %v", err)
+	}
+
+	logix.CIPProfiles = []string{"bad_profile"}
+	if err := ValidateServerConfig(&logix); err == nil {
+		t.Fatalf("ValidateServerConfig expected error for invalid cip_profiles")
 	}
 }

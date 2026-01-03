@@ -4,7 +4,6 @@ package scenario
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -25,6 +24,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	params.Logger.Info("Starting mixed scenario")
 	params.Logger.Verbose("  Read targets: %d", len(cfg.ReadTargets))
 	params.Logger.Verbose("  Write targets: %d", len(cfg.WriteTargets))
+	params.Logger.Verbose("  Custom targets: %d", len(cfg.CustomTargets))
 	params.Logger.Verbose("  Interval: %v", params.Interval)
 	params.Logger.Verbose("  Duration: %v", params.Duration)
 
@@ -141,6 +141,64 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			)
 		}
 
+		for _, target := range cfg.CustomTargets {
+			serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
+			if err != nil {
+				return err
+			}
+			payload, err := parseHexPayload(target.RequestPayloadHex)
+			if err != nil {
+				return fmt.Errorf("custom target %s payload: %w", target.Name, err)
+			}
+
+			req := cipclient.CIPRequest{
+				Service: serviceCode,
+				Path: cipclient.CIPPath{
+					Class:     target.Class,
+					Instance:  target.Instance,
+					Attribute: target.Attribute,
+					Name:      target.Name,
+				},
+				Payload: payload,
+			}
+
+			start := time.Now()
+			resp, err := client.InvokeService(ctx, req)
+			rtt := time.Since(start).Seconds() * 1000
+
+			success := err == nil && resp.Status == 0
+			var errorMsg string
+			if err != nil {
+				errorMsg = err.Error()
+			} else if resp.Status != 0 {
+				errorMsg = fmt.Sprintf("CIP status: 0x%02X", resp.Status)
+			}
+
+			metric := metrics.Metric{
+				Timestamp:   time.Now(),
+				Scenario:    "mixed",
+				TargetType:  params.TargetType,
+				Operation:   metrics.OperationCustom,
+				TargetName:  target.Name,
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(serviceCode)),
+				Success:     success,
+				RTTMs:       rtt,
+				Status:      resp.Status,
+				Error:       errorMsg,
+			}
+			params.MetricsSink.Record(metric)
+
+			params.Logger.LogOperation(
+				"CUSTOM",
+				target.Name,
+				fmt.Sprintf("0x%02X", uint8(serviceCode)),
+				success,
+				rtt,
+				resp.Status,
+				err,
+			)
+		}
+
 		// Perform writes for all write targets
 		for _, target := range cfg.WriteTargets {
 			path := cipclient.CIPPath{
@@ -155,7 +213,8 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 			// Encode value to bytes (using 32-bit integer for now)
 			valueBytes := make([]byte, 4)
-			binary.BigEndian.PutUint32(valueBytes, uint32(value))
+			order := cipclient.CurrentProtocolProfile().CIPByteOrder
+			order.PutUint32(valueBytes, uint32(value))
 
 			start := time.Now()
 			resp, err := client.WriteAttribute(ctx, path, valueBytes)
