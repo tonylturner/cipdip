@@ -26,48 +26,59 @@ const (
 	viewReview
 	viewWizard
 	viewHelp
+	viewText
 )
 
 type tuiModel struct {
-	workspaceRoot string
-	workspaceName string
-	profiles      []ProfileInfo
-	runs          []string
-	palette       []PaletteItem
-	catalog       []CatalogEntry
-	mode          viewMode
-	search        string
-	searchFocus   bool
-	cursor        int
-	selected      string
-	reviewText    string
-	reviewProfile *Profile
-	reviewCommand CommandSpec
-	reviewStatus  string
-	reviewPlan    *Plan
-	running       bool
-	showStatus    bool
-	cancelRun     func()
-	wizardForm    *huh.Form
-	wizardContext string
-	compareRuns   []string
-	homeStatus    string
-	prevMode      viewMode
-	err           error
+	workspaceRoot  string
+	workspaceName  string
+	profiles       []ProfileInfo
+	runs           []string
+	palette        []PaletteItem
+	catalog        []CatalogEntry
+	catalogSources []string
+	mode           viewMode
+	search         string
+	searchFocus    bool
+	cursor         int
+	selected       string
+	reviewText     string
+	reviewProfile  *Profile
+	reviewCommand  CommandSpec
+	reviewStatus   string
+	reviewPlan     *Plan
+	reviewRun      *RunArtifacts
+	reviewCatalog  *CatalogEntry
+	running        bool
+	showStatus     bool
+	cancelRun      func()
+	catalogStatus  string
+	wizardStatus   string
+	wizardForm     *huh.Form
+	wizardContext  string
+	compareRuns    []string
+	homeStatus     string
+	prevMode       viewMode
+	textTitle      string
+	textContent    string
+	textOffset     int
+	err            error
 }
 
 type homeStatusClearMsg struct{}
+type catalogStatusClearMsg struct{}
 
-func newTUIModel(workspaceRoot, workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, catalog []CatalogEntry) tuiModel {
+func newTUIModel(workspaceRoot, workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, catalog []CatalogEntry, catalogSources []string) tuiModel {
 	return tuiModel{
-		workspaceRoot: workspaceRoot,
-		workspaceName: workspaceName,
-		profiles:      profiles,
-		runs:          runs,
-		palette:       palette,
-		catalog:       catalog,
-		mode:          viewHome,
-		showStatus:    true,
+		workspaceRoot:  workspaceRoot,
+		workspaceName:  workspaceName,
+		profiles:       profiles,
+		runs:           runs,
+		palette:        palette,
+		catalog:        catalog,
+		catalogSources: catalogSources,
+		mode:           viewHome,
+		showStatus:     true,
 	}
 }
 
@@ -76,6 +87,29 @@ func (m tuiModel) Init() tea.Cmd {
 }
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.mode == viewWizard && m.wizardForm != nil {
+		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "r" {
+			profile, err := buildWizardProfileFromForm(m.wizardForm, m.workspaceRoot)
+			if err != nil {
+				m.wizardStatus = err.Error()
+				return m, nil
+			}
+			command, err := BuildCommand(profile)
+			if err != nil {
+				m.wizardStatus = err.Error()
+				return m, nil
+			}
+			m.reviewText = RenderReviewScreen(profile, command)
+			m.reviewProfile = &profile
+			m.reviewCommand = command
+			m.reviewStatus = ""
+			m.wizardForm = nil
+			m.wizardContext = ""
+			m.wizardStatus = ""
+			m.mode = viewReview
+			return m.runCurrentArtifact()
+		}
+	}
 	if m.mode == viewWizard && m.wizardForm != nil {
 		formModel, cmd := m.wizardForm.Update(msg)
 		m.wizardForm = formModel.(*huh.Form)
@@ -127,10 +161,12 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reviewStatus = ""
 			m.wizardForm = nil
 			m.wizardContext = ""
+			m.wizardStatus = ""
 			m.mode = viewReview
 		case huh.StateAborted:
 			m.wizardForm = nil
 			m.wizardContext = ""
+			m.wizardStatus = ""
 			m.mode = viewHome
 		}
 		return m, cmd
@@ -138,6 +174,55 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.searchFocus {
+			switch msg.String() {
+			case "esc":
+				m.searchFocus = false
+				m.search = ""
+				return m, nil
+			}
+			switch msg.Type {
+			case tea.KeyBackspace:
+				if len(m.search) > 0 {
+					m.search = m.search[:len(m.search)-1]
+				}
+				if m.mode == viewReview && m.reviewCatalog != nil {
+					m.mode = viewCatalog
+					m.reviewCatalog = nil
+				}
+				m.cursor = 0
+				return m, nil
+			case tea.KeyEnter:
+				m.searchFocus = false
+				break
+			default:
+				if msg.Type == tea.KeyRunes {
+					m.search += msg.String()
+					if m.mode == viewReview && m.reviewCatalog != nil {
+						m.mode = viewCatalog
+						m.reviewCatalog = nil
+					}
+					m.cursor = 0
+					return m, nil
+				}
+			}
+		}
+		if m.mode == viewPalette || m.mode == viewCatalog {
+			if !m.searchFocus {
+				if msg.Type == tea.KeyRunes && msg.String() != "" {
+					m.searchFocus = true
+					m.search += msg.String()
+					m.cursor = 0
+					return m, nil
+				}
+				if msg.Type != tea.KeyRunes && len(msg.String()) == 1 && msg.String() != " " {
+					m.searchFocus = true
+					m.search += msg.String()
+					m.cursor = 0
+					return m, nil
+				}
+			}
+		}
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -148,11 +233,19 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 		case "/":
+			m.search = ""
 			m.searchFocus = true
 			return m, nil
 		case "esc":
 			if m.mode == viewHelp {
 				m.mode = m.prevMode
+				return m, nil
+			}
+			if m.mode == viewText {
+				m.mode = viewReview
+				m.textTitle = ""
+				m.textContent = ""
+				m.textOffset = 0
 				return m, nil
 			}
 			m.searchFocus = false
@@ -181,10 +274,26 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = 0
 		case "c":
 			m.mode = viewCatalog
+			m.search = ""
+			m.searchFocus = false
 			m.cursor = 0
 		case "b":
 			if m.mode == viewHelp {
 				m.mode = m.prevMode
+				return m, nil
+			}
+			if m.mode == viewText {
+				m.mode = viewReview
+				m.textTitle = ""
+				m.textContent = ""
+				m.textOffset = 0
+				return m, nil
+			}
+			if m.mode == viewReview && m.reviewCatalog != nil {
+				m.mode = viewCatalog
+				m.reviewCatalog = nil
+				m.reviewText = ""
+				m.reviewStatus = ""
 				return m, nil
 			}
 			m.mode = viewHome
@@ -193,91 +302,148 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reviewCommand = CommandSpec{}
 			m.reviewStatus = ""
 			m.reviewPlan = nil
+			m.reviewRun = nil
+			m.reviewCatalog = nil
 			m.cancelRun = nil
 			m.wizardForm = nil
 			m.wizardContext = ""
 			m.compareRuns = nil
 			m.homeStatus = ""
 		default:
-			if m.searchFocus {
-				switch msg.Type {
-				case tea.KeyBackspace:
-					if len(m.search) > 0 {
-						m.search = m.search[:len(m.search)-1]
-					}
-				case tea.KeyEnter:
-					m.searchFocus = false
-				default:
-					if msg.Type == tea.KeyRunes {
-						m.search += msg.String()
+			switch msg.String() {
+			case "up", "k":
+				if m.mode == viewText {
+					m.textOffset--
+					break
+				}
+				m.cursor--
+			case "down", "j":
+				if m.mode == viewText {
+					m.textOffset++
+					break
+				}
+				m.cursor++
+			case "enter":
+				m.selected = m.currentSelection()
+				m.searchFocus = false
+				if m.mode == viewHome {
+					m = m.handleHomeSelection()
+				}
+				if m.mode == viewPalette {
+					m = m.handlePaletteSelection()
+				}
+				if m.mode == viewCatalog {
+					if entry := m.currentCatalogEntry(); entry != nil {
+						m.reviewText = renderCatalogDetail(*entry, m.catalogSources)
+						m.reviewProfile = nil
+						m.reviewCommand = CommandSpec{}
+						m.reviewStatus = ""
+						m.reviewPlan = nil
+						m.reviewRun = nil
+						m.reviewCatalog = entry
+						m.mode = viewReview
 					}
 				}
-			} else {
-				switch msg.String() {
-				case "up", "k":
-					m.cursor--
-				case "down", "j":
-					m.cursor++
-				case "enter":
-					m.selected = m.currentSelection()
-					if m.mode == viewHome {
-						m = m.handleHomeSelection()
+				if m.mode == viewReview && strings.HasPrefix(m.reviewStatus, "Compare:") {
+					m.mode = viewPalette
+					m.search = "run"
+					m.searchFocus = false
+					m.cursor = 0
+				}
+			case "pgup":
+				if m.mode == viewText {
+					m.textOffset -= 10
+				}
+			case "pgdown":
+				if m.mode == viewText {
+					m.textOffset += 10
+				}
+			case "r":
+				if m.mode == viewReview {
+					var cmd tea.Cmd
+					m, cmd = m.runCurrentArtifact()
+					return m, cmd
+				}
+			case "s":
+				if m.mode == viewReview {
+					m = m.saveCurrentArtifact()
+				}
+			case "c":
+				if m.mode == viewReview {
+					if m.reviewCatalog != nil {
+						if err := clipboard.WriteAll(m.reviewCatalog.Key); err != nil {
+							m.reviewStatus = fmt.Sprintf("Copy failed: %v", err)
+						} else {
+							m.reviewStatus = fmt.Sprintf("Copied key: %s", m.reviewCatalog.Key)
+						}
+						break
 					}
-					if m.mode == viewPalette {
-						m = m.handlePaletteSelection()
-					}
-					if m.mode == viewCatalog {
-						if entry := m.currentCatalogEntry(); entry != nil {
-							m.wizardForm = buildWizardFormWithDefaults(m.workspaceRoot, *entry)
-							m.mode = viewWizard
+					m = m.copyCurrentCommand()
+				}
+			case "x":
+				if m.mode == viewReview && m.running && m.cancelRun != nil {
+					m.cancelRun()
+					m.reviewStatus = "Cancel requested..."
+				}
+			case " ":
+				if m.mode == viewReview {
+					m.showStatus = !m.showStatus
+				}
+			case "d":
+				if m.mode == viewReview && m.reviewStatus != "" {
+					if runName := strings.TrimPrefix(m.reviewStatus, "Run: "); runName != "" {
+						m.compareRuns = append(m.compareRuns, runName)
+						if len(m.compareRuns) > 2 {
+							m.compareRuns = m.compareRuns[len(m.compareRuns)-2:]
+						}
+						if len(m.compareRuns) == 2 {
+							left := filepath.Join(m.workspaceRoot, "runs", m.compareRuns[0])
+							right := filepath.Join(m.workspaceRoot, "runs", m.compareRuns[1])
+							m.reviewText = renderRunComparison(left, right)
+							m.reviewStatus = fmt.Sprintf("Compare: %s vs %s", m.compareRuns[0], m.compareRuns[1])
+							m.mode = viewReview
+						} else {
+							m.reviewStatus = fmt.Sprintf("Compare: selected %s (pick another run)", runName)
 						}
 					}
-					if m.mode == viewReview && strings.HasPrefix(m.reviewStatus, "Compare:") {
-						m.mode = viewPalette
-						m.search = "run"
-						m.searchFocus = false
-						m.cursor = 0
+				}
+			case "o":
+				if m.mode == viewReview && m.reviewRun != nil && m.reviewRun.Stdout != "" {
+					m.textTitle = "Run Stdout"
+					m.textContent = m.reviewRun.Stdout
+					m.textOffset = 0
+					m.mode = viewText
+				}
+			case "v":
+				if m.mode == viewReview && m.reviewRun != nil && m.reviewRun.Resolved != "" {
+					m.textTitle = "Resolved YAML"
+					m.textContent = m.reviewRun.Resolved
+					m.textOffset = 0
+					m.mode = viewText
+				}
+			case "w":
+				if m.mode == viewCatalog {
+					if entry := m.currentCatalogEntry(); entry != nil {
+						m.wizardForm = buildWizardFormWithDefaults(m.workspaceRoot, *entry)
+						m.mode = viewWizard
 					}
-				case "r":
-					if m.mode == viewReview {
-						var cmd tea.Cmd
-						m, cmd = m.runCurrentArtifact()
-						return m, cmd
-					}
-				case "s":
-					if m.mode == viewReview {
-						m = m.saveCurrentArtifact()
-					}
-				case "c":
-					if m.mode == viewReview {
-						m = m.copyCurrentCommand()
-					}
-				case "x":
-					if m.mode == viewReview && m.running && m.cancelRun != nil {
-						m.cancelRun()
-						m.reviewStatus = "Cancel requested..."
-					}
-				case " ":
-					if m.mode == viewReview {
-						m.showStatus = !m.showStatus
-					}
-				case "d":
-					if m.mode == viewReview && m.reviewStatus != "" {
-						if runName := strings.TrimPrefix(m.reviewStatus, "Run: "); runName != "" {
-							m.compareRuns = append(m.compareRuns, runName)
-							if len(m.compareRuns) > 2 {
-								m.compareRuns = m.compareRuns[len(m.compareRuns)-2:]
-							}
-							if len(m.compareRuns) == 2 {
-								left := filepath.Join(m.workspaceRoot, "runs", m.compareRuns[0])
-								right := filepath.Join(m.workspaceRoot, "runs", m.compareRuns[1])
-								m.reviewText = renderRunComparison(left, right)
-								m.reviewStatus = fmt.Sprintf("Compare: %s vs %s", m.compareRuns[0], m.compareRuns[1])
-								m.mode = viewReview
-							} else {
-								m.reviewStatus = fmt.Sprintf("Compare: selected %s (pick another run)", runName)
-							}
+				}
+				if m.mode == viewReview && m.reviewCatalog != nil {
+					m.wizardForm = buildWizardFormWithDefaults(m.workspaceRoot, *m.reviewCatalog)
+					m.reviewCatalog = nil
+					m.mode = viewWizard
+				}
+			case "y":
+				if m.mode == viewCatalog {
+					if entry := m.currentCatalogEntry(); entry != nil {
+						if err := clipboard.WriteAll(entry.Key); err != nil {
+							m.catalogStatus = fmt.Sprintf("Copy failed: %v", err)
+						} else {
+							m.catalogStatus = fmt.Sprintf("Copied key: %s", entry.Key)
 						}
+						return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+							return catalogStatusClearMsg{}
+						})
 					}
 				}
 			}
@@ -286,7 +452,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.canceled {
 			m.reviewStatus = fmt.Sprintf("Run canceled. Artifacts: %s", msg.runDir)
 		} else if msg.err != nil {
-			m.reviewStatus = fmt.Sprintf("Run failed (exit %d). Artifacts: %s", msg.exitCode, msg.runDir)
+			m.reviewStatus = fmt.Sprintf("Run failed (exit %d): %v. Artifacts: %s", msg.exitCode, msg.err, msg.runDir)
 		} else {
 			m.reviewStatus = fmt.Sprintf("Run complete. Artifacts: %s", msg.runDir)
 		}
@@ -313,6 +479,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cancelRun = nil
 	case homeStatusClearMsg:
 		m.homeStatus = ""
+	case catalogStatusClearMsg:
+		m.catalogStatus = ""
 	}
 	m.cursor = clampCursor(m.cursor, m.currentListLen())
 	return m, nil
@@ -344,7 +512,7 @@ func (m tuiModel) View() string {
 		return header + renderPaletteWithCursor(filtered, m.cursor, m.search) + footer
 	case viewCatalog:
 		filtered := FilterCatalogEntries(m.catalog, m.search)
-		return header + renderCatalogWithCursor(filtered, m.cursor, m.search) + footer
+		return header + renderCatalogWithCursor(filtered, m.cursor, m.search, m.catalogStatus, len(m.catalog), m.catalogSources, m.searchFocus) + footer
 	case viewReview:
 		status := ""
 		if m.showStatus {
@@ -357,12 +525,30 @@ func (m tuiModel) View() string {
 			if len(m.compareRuns) == 1 {
 				status += fmt.Sprintf("\n\nCompare: %s (pick another run)", m.compareRuns[0])
 			}
+			if m.reviewPlan != nil {
+				status += "\n\nTip: press r to execute the plan, s to save it"
+			} else if m.reviewCatalog != nil {
+				status += "\n\nTip: press w to open a single-request wizard"
+				status += "\nTip: press c to copy catalog key"
+			} else if m.reviewProfile == nil && strings.HasPrefix(m.reviewStatus, "Run:") {
+				status += "\n\nTip: press d to compare with another run"
+				if m.reviewRun != nil {
+					status += "\nTip: press o for stdout, v for resolved.yaml"
+				}
+			} else if m.reviewProfile != nil {
+				status += "\n\nTip: press r to run, s to save, c to copy"
+			}
+			status += "\n\nTip: press b to go back"
 		}
 		frameStyle := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("12")).
 			Padding(1, 2)
-		reviewFooter := footerStyle.Render("\n\nKeys: r=run s=save c=copy x=cancel d=compare space=status b=back q=quit")
+		reviewFooter := "\n\nKeys: r=run s=save c=copy x=cancel d=compare space=status b=back q=quit"
+		if m.reviewCatalog != nil {
+			reviewFooter = "\n\nKeys: w=wizard c=copy b=back q=quit"
+		}
+		reviewFooter = footerStyle.Render(reviewFooter)
 		return header + frameStyle.Render(m.reviewText+status) + reviewFooter
 	case viewWizard:
 		if m.wizardForm == nil {
@@ -372,9 +558,17 @@ func (m tuiModel) View() string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("12")).
 			Padding(1, 2)
-		return header + frameStyle.Render(m.wizardForm.View())
+		footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+		hint := footerStyle.Render("\n\nTip: press Tab or Enter to start, r to run, Esc to cancel")
+		status := ""
+		if strings.TrimSpace(m.wizardStatus) != "" {
+			status = "\n\n" + m.wizardStatus
+		}
+		return header + frameStyle.Render(m.wizardForm.View()+status) + hint
 	case viewHelp:
 		return header + renderHelpScreen() + footer
+	case viewText:
+		return header + renderTextView(m.textTitle, m.textContent, &m.textOffset) + footer
 	default:
 		return header + RenderHomeScreenWithCursor(m.workspaceName, m.profiles, m.runs, m.palette, m.cursor, m.homeStatus) + footer
 	}
@@ -496,6 +690,8 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 		m.reviewProfile = nil
 		m.reviewCommand = CommandSpec{}
 		m.reviewStatus = fmt.Sprintf("Run: %s", item.Title)
+		m.reviewRun = artifacts
+		m.reviewCatalog = nil
 		m.mode = viewReview
 	case "Plan":
 		planPath := filepath.Join(m.workspaceRoot, "plans", item.Title+".yaml")
@@ -514,6 +710,8 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 		m.reviewProfile = nil
 		m.reviewCommand = CommandSpec{}
 		m.reviewStatus = fmt.Sprintf("Plan: %s", plan.Name)
+		m.reviewRun = nil
+		m.reviewCatalog = nil
 		m.mode = viewReview
 	case "Task":
 		return m.applyTaskAction(item.Title)
@@ -528,6 +726,7 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 	case "Explore CIP Catalog":
 		m.mode = viewCatalog
 		m.search = ""
+		m.searchFocus = false
 	case "Baseline (Guided)":
 		profile := Profile{
 			Version: 1,
@@ -544,6 +743,7 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 		m.reviewProfile = &profile
 		m.reviewCommand = cmd
 		m.reviewStatus = ""
+		m.reviewCatalog = nil
 		m.mode = viewReview
 	case "Start Server Emulator":
 		profile := Profile{
@@ -561,6 +761,7 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 		m.reviewProfile = &profile
 		m.reviewCommand = cmd
 		m.reviewStatus = ""
+		m.reviewCatalog = nil
 		m.mode = viewReview
 	case "Run Existing Config":
 		m.mode = viewPalette
@@ -886,11 +1087,14 @@ func renderPaletteWithCursor(items []PaletteItem, cursor int, query string) stri
 			lines = append(lines, fmt.Sprintf("  %s", metaStyle.Render(hint)))
 		}
 	}
+	lines = append(lines, "", "Tip: / to search, Enter to select")
 	return frameStyle.Render(strings.Join(lines, "\n"))
 }
 
-func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string) string {
+func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string, status string, totalCount int, sources []string, searchFocus bool) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
+	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
 	frameStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("12")).
@@ -902,12 +1106,18 @@ func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string) s
 			header = fmt.Sprintf("CIP Catalog (%d matches)", len(entries))
 		}
 	}
-	lines := []string{titleStyle.Render(header), ""}
+	lines := []string{titleStyle.Render(header)}
+	sourceLabel := "(none)"
+	if len(sources) > 0 {
+		sourceLabel = strings.Join(sources, ", ")
+	}
+	lines = append(lines, fmt.Sprintf("Sources: %s", sourceLabel))
+	lines = append(lines, fmt.Sprintf("Query: %s", query))
+	lines = append(lines, fmt.Sprintf("Matches: %d of %d", len(entries), totalCount))
+	lines = append(lines, "")
 	if len(entries) == 0 {
 		lines = append(lines, "(no catalog entries)")
-		if strings.TrimSpace(query) != "" {
-			lines = append(lines, "Tip: press Esc to clear search")
-		}
+		lines = append(lines, "Tip: press Esc to clear search")
 		return frameStyle.Render(strings.Join(lines, "\n"))
 	}
 	for i, entry := range entries {
@@ -915,34 +1125,61 @@ func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string) s
 		if i == cursor {
 			prefix = "> "
 		}
-		serviceLabel := entry.Service
-		if code, ok := parseServiceForDisplay(entry.Service); ok {
-			if alias, ok := cipclient.ServiceAliasName(code); ok {
-				serviceLabel = fmt.Sprintf("%s (%s)", entry.Service, alias)
-			}
+		name := entry.Name
+		if name == "" {
+			name = entry.Key
 		}
-		classLabel := entry.Class
-		if code, ok := parseClassForDisplay(entry.Class); ok {
-			if alias, ok := cipclient.ClassAliasName(code); ok {
-				classLabel = fmt.Sprintf("%s (%s)", entry.Class, alias)
-			}
+		line := ""
+		if entry.Key != "" && entry.Key != name {
+			line = fmt.Sprintf("%s%s - %s", prefix, name, entry.Key)
+		} else {
+			line = fmt.Sprintf("%s%s", prefix, name)
 		}
-		scopeLabel := entry.Scope
-		if scopeLabel == "" {
-			scopeLabel = "core"
+		if i == cursor && !searchFocus {
+			line = selectedStyle.Render(line)
 		}
-		scopeSuffix := scopeLabel
-		if entry.Vendor != "" {
-			scopeSuffix = fmt.Sprintf("%s/%s", scopeLabel, entry.Vendor)
-		}
-		lines = append(lines, fmt.Sprintf("%s%s (%s)", prefix, entry.Name, entry.Key))
-		lines = append(lines, fmt.Sprintf("  Scope: %s", scopeSuffix))
-		lines = append(lines, fmt.Sprintf("  Service: %s  Class: %s  Instance: %s  Attribute: %s", serviceLabel, classLabel, entry.Instance, entry.Attribute))
-		if entry.Notes != "" {
-			lines = append(lines, fmt.Sprintf("  Notes: %s", entry.Notes))
-		}
+		lines = append(lines, line)
 	}
+	if strings.TrimSpace(status) != "" {
+		lines = append(lines, "", statusStyle.Render(status))
+	}
+	lines = append(lines, "", "Tip: type to filter, Enter to view, w to open a single-request wizard, y to copy key")
+	lines = append(lines, "Tip: press Esc to clear search")
 	return frameStyle.Render(strings.Join(lines, "\n"))
+}
+
+func renderCatalogDetail(entry CatalogEntry, sources []string) string {
+	scope := entry.Scope
+	if scope == "" {
+		scope = "core"
+	}
+	if entry.Vendor != "" {
+		scope = fmt.Sprintf("%s/%s", scope, entry.Vendor)
+	}
+	sourceLabel := "(none)"
+	if len(sources) > 0 {
+		sourceLabel = strings.Join(sources, ", ")
+	}
+	lines := []string{
+		"Catalog Entry",
+		fmt.Sprintf("Sources: %s", sourceLabel),
+		fmt.Sprintf("Key: %s", entry.Key),
+		fmt.Sprintf("Name: %s", entry.Name),
+		fmt.Sprintf("Scope: %s", scope),
+		"",
+		fmt.Sprintf("Service: %s", entry.Service),
+		fmt.Sprintf("Class: %s", entry.Class),
+		fmt.Sprintf("Instance: %s", entry.Instance),
+		fmt.Sprintf("Attribute: %s", entry.Attribute),
+	}
+	if entry.PayloadHex != "" {
+		lines = append(lines, "", fmt.Sprintf("Payload Hex: %s", entry.PayloadHex))
+	}
+	if entry.Notes != "" {
+		lines = append(lines, "", fmt.Sprintf("Notes: %s", entry.Notes))
+	}
+	lines = append(lines, "", "Tip: press b to return to the catalog list")
+	return strings.Join(lines, "\n")
 }
 
 func renderRunDetails(artifacts RunArtifacts) string {
@@ -1084,9 +1321,16 @@ func renderHelpScreen() string {
 		"Navigation:",
 		"  h        Home",
 		"  p        Palette",
+		"  u        Runs",
+		"  g        Profiles",
+		"  n        Plans",
 		"  c        Catalog",
 		"  Up/Down  Move selection",
 		"  Enter    Select",
+		"",
+		"Search:",
+		"  /        Start search (clears prior query)",
+		"  Type     Filter when in Palette/Catalog",
 		"",
 		"Review:",
 		"  r        Run",
@@ -1096,14 +1340,53 @@ func renderHelpScreen() string {
 		"  d        Compare runs",
 		"  Space    Toggle status",
 		"  b        Back",
+		"",
+		"Catalog:",
+		"  Enter    View catalog detail",
+		"  w        Open single-request wizard",
+		"  y        Copy catalog key",
+		"  c        Copy catalog key (detail view)",
+		"",
+		"Text Viewer:",
+		"  o        Open stdout (run view)",
+		"  v        Open resolved.yaml (run view)",
+		"  Up/Down  Scroll",
+		"  PgUp/Dn  Page",
+		"  b        Back",
 	}
 	return frameStyle.Render(strings.Join(lines, "\n"))
+}
+
+func renderTextView(title, content string, offset *int) string {
+	frameStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("12")).
+		Padding(1, 2)
+	lines := strings.Split(content, "\n")
+	if *offset < 0 {
+		*offset = 0
+	}
+	if *offset > len(lines) {
+		*offset = len(lines)
+	}
+	maxLines := 20
+	end := *offset + maxLines
+	if end > len(lines) {
+		end = len(lines)
+	}
+	view := append([]string{title, ""}, lines[*offset:end]...)
+	if end < len(lines) {
+		view = append(view, "...")
+	}
+	return frameStyle.Render(strings.Join(view, "\n"))
 }
 
 func (m tuiModel) applyWorkspaceForm() (tuiModel, tea.Cmd) {
 	action := strings.ToLower(strings.TrimSpace(m.wizardForm.GetString("workspace_action")))
 	path := strings.TrimSpace(m.wizardForm.GetString("workspace_path"))
 	name := strings.TrimSpace(m.wizardForm.GetString("workspace_name"))
+	targetIPsRaw := strings.TrimSpace(m.wizardForm.GetString("workspace_target_ips"))
+	defaultTargetIP := strings.TrimSpace(m.wizardForm.GetString("workspace_default_target_ip"))
 	if path == "" {
 		m.reviewText = "Workspace"
 		m.reviewStatus = "Workspace path is required."
@@ -1128,6 +1411,24 @@ func (m tuiModel) applyWorkspaceForm() (tuiModel, tea.Cmd) {
 		m.mode = viewReview
 		return m, nil
 	}
+	if targetIPsRaw != "" || defaultTargetIP != "" {
+		cfg := ws.Config
+		if targetIPsRaw != "" {
+			cfg.Defaults.TargetIPs = splitCSV(targetIPsRaw)
+		}
+		if defaultTargetIP != "" {
+			cfg.Defaults.DefaultTargetIP = defaultTargetIP
+		}
+		if err := writeWorkspaceConfig(ws.Root, cfg); err != nil {
+			m.reviewText = "Workspace"
+			m.reviewStatus = err.Error()
+			m.wizardForm = nil
+			m.wizardContext = ""
+			m.mode = viewReview
+			return m, nil
+		}
+		ws.Config = cfg
+	}
 	m.workspaceRoot = ws.Root
 	m.workspaceName = ws.Config.Name
 	m.reloadWorkspace()
@@ -1140,11 +1441,25 @@ func (m tuiModel) applyWorkspaceForm() (tuiModel, tea.Cmd) {
 	})
 }
 
+func splitCSV(input string) []string {
+	parts := strings.Split(input, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item == "" {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
 func (m *tuiModel) reloadWorkspace() {
 	m.profiles, _ = ListProfiles(m.workspaceRoot)
 	m.runs, _ = ListRuns(m.workspaceRoot, 5)
 	m.palette, _ = BuildPaletteIndex(m.workspaceRoot)
 	m.catalog, _ = ListCatalogEntries(m.workspaceRoot)
+	m.catalogSources, _ = ListCatalogSources(m.workspaceRoot)
 }
 
 func summaryStatus(summary *RunSummary) string {
@@ -1198,12 +1513,16 @@ func RunTUI(workspaceRoot string) error {
 	if err != nil {
 		return err
 	}
+	if err := EnsureWorkspaceLayout(ws.Root); err != nil {
+		return err
+	}
 	profiles, _ := ListProfiles(ws.Root)
 	runs, _ := ListRuns(ws.Root, 5)
 	palette, _ := BuildPaletteIndex(ws.Root)
 	catalog, _ := ListCatalogEntries(ws.Root)
+	catalogSources, _ := ListCatalogSources(ws.Root)
 
-	model := newTUIModel(ws.Root, ws.Config.Name, profiles, runs, palette, catalog)
+	model := newTUIModel(ws.Root, ws.Config.Name, profiles, runs, palette, catalog, catalogSources)
 	program := tea.NewProgram(model)
 	_, err = program.Run()
 	return err

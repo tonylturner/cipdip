@@ -1,0 +1,22 @@
+{
+  "status": "failed",
+  "command": [
+    "cipdip",
+    "single",
+    "--ip",
+    "192.168.10.11",
+    "--port",
+    "44818",
+    "--service",
+    "0x0E",
+    "--class",
+    "0x01",
+    "--instance",
+    "0x00",
+    "--attribute",
+    "0x01"
+  ],
+  "started_at": "2026-01-04T03:04:25Z",
+  "finished_at": "2026-01-04T03:04:30Z",
+  "exit_code": 1
+}

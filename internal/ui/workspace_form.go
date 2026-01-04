@@ -6,6 +6,8 @@ func buildWorkspaceForm(currentRoot string) *huh.Form {
 	action := "open"
 	path := currentRoot
 	name := ""
+	targetIPs := ""
+	defaultTargetIP := ""
 
 	actionGroup := huh.NewGroup(
 		huh.NewSelect[string]().
@@ -35,5 +37,18 @@ func buildWorkspaceForm(currentRoot string) *huh.Form {
 			Value(&name),
 	).WithHideFunc(func() bool { return action != "create" })
 
-	return huh.NewForm(actionGroup, pathGroup, nameGroup)
+	targetGroup := huh.NewGroup(
+		huh.NewInput().
+			Title("Target IPs (optional)").
+			Description("Comma-separated list of targets for this workspace.").
+			Key("workspace_target_ips").
+			Value(&targetIPs),
+		huh.NewInput().
+			Title("Default target IP (optional)").
+			Description("Used to prefill single-request wizards.").
+			Key("workspace_default_target_ip").
+			Value(&defaultTargetIP),
+	)
+
+	return huh.NewForm(actionGroup, pathGroup, nameGroup, targetGroup)
 }

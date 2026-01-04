@@ -53,15 +53,21 @@ func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 	if strings.TrimSpace(status) != "" {
 		lines = append(lines, "", status)
 	}
+	lines = append(lines, "", "Tip: press / to search, p for palette")
 	return frameStyle.Render(strings.Join(lines, "\n"))
 }
 
 // RenderCatalogExplorer renders a catalog view with hex fields visible.
-func RenderCatalogExplorer(entries []CatalogEntry, query string) string {
+func RenderCatalogExplorer(entries []CatalogEntry, query string, sources []string) string {
 	filtered := FilterCatalogEntries(entries, query)
+	sourceLabel := "(none)"
+	if len(sources) > 0 {
+		sourceLabel = strings.Join(sources, ", ")
+	}
 	lines := []string{
 		"CIP Catalog",
 		fmt.Sprintf("Search: %s", query),
+		fmt.Sprintf("Sources: %s", sourceLabel),
 		"",
 	}
 	if len(filtered) == 0 {
