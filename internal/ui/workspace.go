@@ -11,9 +11,15 @@ import (
 
 // WorkspaceConfig is the on-disk workspace descriptor.
 type WorkspaceConfig struct {
-	Version   int    `yaml:"version"`
-	Name      string `yaml:"name"`
-	CreatedAt string `yaml:"created_at"`
+	Version   int               `yaml:"version"`
+	Name      string            `yaml:"name"`
+	CreatedAt string            `yaml:"created_at"`
+	Defaults  WorkspaceDefaults `yaml:"defaults,omitempty"`
+}
+
+type WorkspaceDefaults struct {
+	TargetIPs       []string `yaml:"target_ips,omitempty"`
+	DefaultTargetIP string   `yaml:"default_target_ip,omitempty"`
 }
 
 // Workspace represents a discovered workspace.
@@ -55,6 +61,12 @@ func CreateWorkspace(root string, name string) (*Workspace, error) {
 			return nil, err
 		}
 	}
+	extendedPath := filepath.Join(root, "catalogs", "extended.yaml")
+	if _, err := os.Stat(extendedPath); os.IsNotExist(err) {
+		if err := SaveCatalogFile(extendedPath, DefaultExtendedCatalog()); err != nil {
+			return nil, err
+		}
+	}
 
 	profilesDir := filepath.Join(root, "profiles")
 	if err := ensureDefaultProfile(profilesDir); err != nil {
@@ -65,6 +77,7 @@ func CreateWorkspace(root string, name string) (*Workspace, error) {
 		Version:   1,
 		Name:      name,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		Defaults:  WorkspaceDefaults{},
 	}
 	if err := writeWorkspaceConfig(root, cfg); err != nil {
 		return nil, err
@@ -91,7 +104,40 @@ func EnsureWorkspace(root string) (*Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := EnsureWorkspaceLayout(root); err != nil {
+		return nil, err
+	}
 	return &Workspace{Root: root, Config: cfg}, nil
+}
+
+// EnsureWorkspaceLayout makes sure required directories and defaults exist.
+func EnsureWorkspaceLayout(root string) error {
+	if root == "" {
+		return fmt.Errorf("workspace path is required")
+	}
+	for _, dir := range workspaceDirs {
+		path := filepath.Join(root, dir)
+		if err := os.MkdirAll(path, 0755); err != nil {
+			return fmt.Errorf("create workspace dir %s: %w", dir, err)
+		}
+	}
+	catalogPath := filepath.Join(root, "catalogs", "core.yaml")
+	if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
+		if err := SaveCatalogFile(catalogPath, DefaultCatalog()); err != nil {
+			return err
+		}
+	}
+	extendedPath := filepath.Join(root, "catalogs", "extended.yaml")
+	if _, err := os.Stat(extendedPath); os.IsNotExist(err) {
+		if err := SaveCatalogFile(extendedPath, DefaultExtendedCatalog()); err != nil {
+			return err
+		}
+	}
+	profilesDir := filepath.Join(root, "profiles")
+	if err := ensureDefaultProfile(profilesDir); err != nil {
+		return err
+	}
+	return nil
 }
 
 func readWorkspaceConfig(root string) (WorkspaceConfig, error) {

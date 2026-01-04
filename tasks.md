@@ -196,6 +196,12 @@
 #### Phase 2: Optional features
 - [ ] Test plan builder (multi-step runner).
 - [ ] Run comparison view (resolved.yaml + summary.json diff).
+- [ ] Add config edit flow (`e`): open profile in $EDITOR or provide in-TUI editor for spec/advanced YAML.
+- [ ] Align home screen with spec: show quick actions + recent runs + configs list (compact) instead of minimal-only.
+- [ ] Wizard review screen: add Effective Behavior summary panel (e.g., replay mode, rewrite, ARP) per spec.
+- [ ] Profiles: implement spec/advanced layering + workspace defaults expansion order (spec->advanced->overrides).
+- [ ] Catalog explorer: group by object/class and show hex values in detail view; keep list compact with name+key.
+- [ ] Single-request wizard: auto-focus first field on open (avoid extra Enter/Tab), and allow preset target selection (done) to sync with IP field.
 
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.

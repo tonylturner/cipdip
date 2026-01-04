@@ -25,11 +25,18 @@ func TestListCatalogEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListCatalogEntries failed: %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(entries))
+	if len(entries) < 1 {
+		t.Fatalf("expected at least 1 entry, got %d", len(entries))
 	}
-	if entries[0].Key != "identity.vendor_id" {
-		t.Fatalf("unexpected entry key: %s", entries[0].Key)
+	found := false
+	for _, entry := range entries {
+		if entry.Key == "identity.vendor_id" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected identity.vendor_id in catalog entries")
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -131,13 +132,14 @@ func runUI(flags *uiFlags) error {
 	if flags.startTUI {
 		return ui.RunTUI(ws.Root)
 	}
-	previewOnly := flags.cliMode || flags.noRun || flags.printCommand || flags.showCatalog || flags.showPalette || flags.showHome || flags.wizard != ""
+	previewOnly := flags.cliMode || flags.noRun || flags.printCommand || flags.showCatalog || flags.showPalette || flags.showHome || flags.wizard != "" || flags.profile != ""
 	if flags.showCatalog {
 		entries, err := ui.ListCatalogEntries(ws.Root)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(os.Stdout, ui.RenderCatalogExplorer(entries, flags.catalogQuery))
+		sources, _ := ui.ListCatalogSources(ws.Root)
+		fmt.Fprintln(os.Stdout, ui.RenderCatalogExplorer(entries, flags.catalogQuery, sources))
 		return nil
 	}
 	if flags.showPalette {
@@ -158,14 +160,14 @@ func runUI(flags *uiFlags) error {
 		fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, items))
 		return nil
 	}
-	if flags.cliMode && !flags.showCatalog && !flags.showPalette && !flags.showHome && flags.wizard == "" && !flags.noRun && !flags.printCommand {
+	if flags.cliMode && flags.wizard == "" && flags.profile == "" && !flags.noRun && !flags.printCommand {
 		profiles, _ := ui.ListProfiles(ws.Root)
 		items, _ := ui.BuildPaletteIndex(ws.Root)
 		runs, _ := ui.ListRuns(ws.Root, 5)
 		fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, items))
 		return nil
 	}
-	if flags.startTUI || !previewOnly {
+	if !previewOnly {
 		return ui.RunTUI(ws.Root)
 	}
 	var profiles []ui.ProfileInfo
@@ -177,27 +179,23 @@ func runUI(flags *uiFlags) error {
 	}
 	if flags.wizard == "" && len(profiles) == 0 {
 		fmt.Fprintln(os.Stdout, "No profiles found under workspace/profiles.")
+		palette, _ := ui.BuildPaletteIndex(ws.Root)
+		runs, _ := ui.ListRuns(ws.Root, 5)
+		fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, palette))
 		if flags.noRun {
-			palette, _ := ui.BuildPaletteIndex(ws.Root)
-			runs, _ := ui.ListRuns(ws.Root, 5)
-			fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, palette))
 			fmt.Fprintln(os.Stdout, "TUI run disabled (--no-run).")
-			return nil
 		}
-		fmt.Fprintln(os.Stdout, "TUI scaffolding ready. Interactive UI is not yet implemented.")
 		return nil
 	}
 	if flags.wizard == "" && len(profiles) > 1 {
 		if flags.profile == "" {
 			fmt.Fprintln(os.Stdout, "Multiple profiles found. Use --profile to select one or start the TUI.")
+			palette, _ := ui.BuildPaletteIndex(ws.Root)
+			runs, _ := ui.ListRuns(ws.Root, 5)
+			fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, palette))
 			if flags.noRun {
-				palette, _ := ui.BuildPaletteIndex(ws.Root)
-				runs, _ := ui.ListRuns(ws.Root, 5)
-				fmt.Fprintln(os.Stdout, ui.RenderHomeScreen(ws.Config.Name, profiles, runs, palette))
 				fmt.Fprintln(os.Stdout, "TUI run disabled (--no-run).")
-				return nil
 			}
-			fmt.Fprintln(os.Stdout, "TUI scaffolding ready. Interactive UI is not yet implemented.")
 			return nil
 		}
 		selected := selectProfile(profiles, flags.profile)
@@ -297,9 +295,33 @@ func runUI(flags *uiFlags) error {
 		fmt.Fprintln(os.Stdout, "TUI run disabled (--no-run).")
 		return nil
 	}
-
-	fmt.Fprintln(os.Stdout, "TUI scaffolding ready. Interactive UI is not yet implemented.")
-	return nil
+	runDir, err := ui.CreateRunDir(ws.Root, profile.Name)
+	if err != nil {
+		return err
+	}
+	started := time.Now().UTC()
+	stdout, exitCode, runErr := ui.ExecuteCommand(context.Background(), command)
+	finished := time.Now().UTC()
+	status := "success"
+	if runErr != nil {
+		status = "failed"
+	}
+	summary := ui.RunSummary{
+		Status:     status,
+		Command:    command.Args,
+		StartedAt:  started.Format(time.RFC3339),
+		FinishedAt: finished.Format(time.RFC3339),
+		ExitCode:   exitCode,
+	}
+	resolved := map[string]interface{}{
+		"profile": profile,
+		"command": command.Args,
+	}
+	if err := ui.WriteRunArtifacts(runDir, resolved, command.Args, stdout, summary); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "Run complete (%s). Artifacts: %s\n", status, runDir)
+	return runErr
 }
 
 func selectProfile(profiles []ui.ProfileInfo, value string) *ui.ProfileInfo {

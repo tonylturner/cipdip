@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -16,8 +17,11 @@ func buildWizardFormWithDefault(defaultKind, workspaceRoot string) *huh.Form {
 }
 
 func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.Form {
+	if strings.TrimSpace(entry.Key) != "" {
+		return buildSingleWizardForm(workspaceRoot, entry)
+	}
 	defaultKind := "pcap-replay"
-	if entry.Key != "" {
+	if strings.TrimSpace(entry.Key) != "" {
 		defaultKind = "single"
 	}
 	kind := defaultKind
@@ -30,6 +34,7 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	target := ""
 	listenPort := "44818"
 	singleIP := ""
+	targetChoice := ""
 	singlePort := "44818"
 	singleService := ""
 	singleClass := ""
@@ -38,6 +43,15 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	catalogKey := ""
 	planName := "plan"
 	planSteps := "single:identity.vendor_id@192.168.0.10\nsleep:500ms\nreplay:baseline-raw.yaml"
+	if ws, err := LoadWorkspace(workspaceRoot); err == nil {
+		if ws.Config.Defaults.DefaultTargetIP != "" {
+			singleIP = ws.Config.Defaults.DefaultTargetIP
+			targetChoice = ws.Config.Defaults.DefaultTargetIP
+		} else if len(ws.Config.Defaults.TargetIPs) > 0 {
+			singleIP = ws.Config.Defaults.TargetIPs[0]
+			targetChoice = ws.Config.Defaults.TargetIPs[0]
+		}
+	}
 	if entry.Key != "" {
 		catalogKey = entry.Key
 		singleService = entry.Service
@@ -111,6 +125,7 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	).WithHideFunc(func() bool { return kind != "server" })
 
 	singleGroup := huh.NewGroup(
+		buildTargetSelect(workspaceRoot, &targetChoice),
 		huh.NewInput().
 			Title("Catalog key (optional)").
 			Description("Catalog key to prefill service/class/instance/attribute (e.g., identity.vendor_id).").
@@ -164,10 +179,105 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	return huh.NewForm(kindGroup, pcapGroup, baselineGroup, serverGroup, singleGroup, planGroup)
 }
 
+func buildSingleWizardForm(workspaceRoot string, entry CatalogEntry) *huh.Form {
+	catalogKey := entry.Key
+	singleIP := ""
+	targetChoice := ""
+	singlePort := "44818"
+	singleService := entry.Service
+	singleClass := entry.Class
+	singleInstance := entry.Instance
+	singleAttribute := entry.Attribute
+	if ws, err := LoadWorkspace(workspaceRoot); err == nil {
+		if ws.Config.Defaults.DefaultTargetIP != "" {
+			singleIP = ws.Config.Defaults.DefaultTargetIP
+			targetChoice = ws.Config.Defaults.DefaultTargetIP
+		} else if len(ws.Config.Defaults.TargetIPs) > 0 {
+			singleIP = ws.Config.Defaults.TargetIPs[0]
+			targetChoice = ws.Config.Defaults.TargetIPs[0]
+		}
+	}
+
+	singleGroup := huh.NewGroup(
+		buildTargetSelect(workspaceRoot, &targetChoice),
+		huh.NewInput().
+			Title("Catalog key (optional)").
+			Description("Catalog key to prefill service/class/instance/attribute (e.g., identity.vendor_id).").
+			Key("single_catalog_key").
+			Value(&catalogKey),
+		huh.NewInput().
+			Title("Target IP").
+			Description("Device IP address.").
+			Key("single_ip").
+			Value(&singleIP),
+		huh.NewInput().
+			Title("Port").
+			Description("TCP port for EtherNet/IP (default 44818).").
+			Key("single_port").
+			Value(&singlePort),
+		huh.NewInput().
+			Title("Service").
+			Description("CIP service code (hex) or alias (e.g., get_attribute_single).").
+			Key("single_service").
+			Value(&singleService),
+		huh.NewInput().
+			Title("Class").
+			Description("Class ID (hex) or alias (e.g., identity_object).").
+			Key("single_class").
+			Value(&singleClass),
+		huh.NewInput().
+			Title("Instance").
+			Description("Instance ID (hex).").
+			Key("single_instance").
+			Value(&singleInstance),
+		huh.NewInput().
+			Title("Attribute (optional)").
+			Description("Attribute ID (hex).").
+			Key("single_attribute").
+			Value(&singleAttribute),
+	)
+	return huh.NewForm(singleGroup)
+}
+
+func buildTargetSelect(workspaceRoot string, targetChoice *string) *huh.Select[string] {
+	ws, err := LoadWorkspace(workspaceRoot)
+	if err != nil || len(ws.Config.Defaults.TargetIPs) == 0 {
+		return huh.NewSelect[string]().
+			Title("Target preset (optional)").
+			Description("No presets configured in workspace defaults.").
+			Key("single_target_choice").
+			Options(huh.NewOption("None", "")).
+			Value(targetChoice)
+	}
+	options := []huh.Option[string]{
+		huh.NewOption("Custom (enter below)", "custom"),
+	}
+	for _, ip := range ws.Config.Defaults.TargetIPs {
+		label := ip
+		if ws.Config.Defaults.DefaultTargetIP == ip {
+			label = ip + " (default)"
+		}
+		options = append(options, huh.NewOption(label, ip))
+	}
+	return huh.NewSelect[string]().
+		Title("Target preset").
+		Description("Pick a saved target or choose custom.").
+		Key("single_target_choice").
+		Options(options...).
+		Value(targetChoice)
+}
+
 func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, error) {
 	kind := strings.ToLower(strings.TrimSpace(form.GetString("wizard_type")))
 	if kind == "" {
-		kind = "pcap-replay"
+		if strings.TrimSpace(form.GetString("single_ip")) != "" ||
+			strings.TrimSpace(form.GetString("single_service")) != "" ||
+			strings.TrimSpace(form.GetString("single_class")) != "" ||
+			strings.TrimSpace(form.GetString("single_catalog_key")) != "" {
+			kind = "single"
+		} else {
+			kind = "pcap-replay"
+		}
 	}
 	switch kind {
 	case "pcap-replay":
@@ -217,10 +327,20 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 				if attribute == "" {
 					attribute = entry.Attribute
 				}
+				ip := strings.TrimSpace(form.GetString("single_ip"))
+				if ip == "" {
+					ip = strings.TrimSpace(form.GetString("single_target_choice"))
+				}
+				if ip == "" {
+					return Profile{}, fmt.Errorf("single request requires target IP")
+				}
+				if service == "" || classID == "" {
+					return Profile{}, fmt.Errorf("single request requires service and class")
+				}
 				return BuildWizardProfile(WizardOptions{
 					Kind:      "single",
 					Name:      entry.Key,
-					IP:        strings.TrimSpace(form.GetString("single_ip")),
+					IP:        ip,
 					Port:      port,
 					Service:   service,
 					Class:     classID,
@@ -229,13 +349,25 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 				})
 			}
 		}
+		ip := strings.TrimSpace(form.GetString("single_ip"))
+		if ip == "" {
+			ip = strings.TrimSpace(form.GetString("single_target_choice"))
+		}
+		service := strings.TrimSpace(form.GetString("single_service"))
+		classID := strings.TrimSpace(form.GetString("single_class"))
+		if ip == "" {
+			return Profile{}, fmt.Errorf("single request requires target IP")
+		}
+		if service == "" || classID == "" {
+			return Profile{}, fmt.Errorf("single request requires service and class")
+		}
 		return BuildWizardProfile(WizardOptions{
 			Kind:      "single",
 			Name:      "single",
-			IP:        strings.TrimSpace(form.GetString("single_ip")),
+			IP:        ip,
 			Port:      port,
-			Service:   strings.TrimSpace(form.GetString("single_service")),
-			Class:     strings.TrimSpace(form.GetString("single_class")),
+			Service:   service,
+			Class:     classID,
 			Instance:  strings.TrimSpace(form.GetString("single_instance")),
 			Attribute: strings.TrimSpace(form.GetString("single_attribute")),
 		})
@@ -249,6 +381,12 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 func wizardKindFromForm(form *huh.Form) string {
 	kind := strings.ToLower(strings.TrimSpace(form.GetString("wizard_type")))
 	if kind == "" {
+		if strings.TrimSpace(form.GetString("single_ip")) != "" ||
+			strings.TrimSpace(form.GetString("single_service")) != "" ||
+			strings.TrimSpace(form.GetString("single_class")) != "" ||
+			strings.TrimSpace(form.GetString("single_catalog_key")) != "" {
+			return "single"
+		}
 		return "pcap-replay"
 	}
 	return kind
