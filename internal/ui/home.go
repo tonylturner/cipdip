@@ -15,21 +15,23 @@ func HomeActions() []string {
 		"Baseline (Guided)",
 		"Start Server Emulator",
 		"Single Request",
+		"Test Plan Builder",
+		"Workspace",
 		"Explore CIP Catalog",
 	}
 }
 
 // RenderHomeScreen builds a simple home screen view for non-interactive runs.
 func RenderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem) string {
-	return renderHomeScreen(workspaceName, profiles, runs, palette, -1)
+	return renderHomeScreen(workspaceName, profiles, runs, palette, -1, "")
 }
 
 // RenderHomeScreenWithCursor renders the home screen with a highlighted quick action.
-func RenderHomeScreenWithCursor(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int) string {
-	return renderHomeScreen(workspaceName, profiles, runs, palette, cursor)
+func RenderHomeScreenWithCursor(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int, status string) string {
+	return renderHomeScreen(workspaceName, profiles, runs, palette, cursor, status)
 }
 
-func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int) string {
+func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int, status string) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	sectionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
 	frameStyle := lipgloss.NewStyle().
@@ -47,6 +49,9 @@ func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 			prefix = "> "
 		}
 		lines = append(lines, fmt.Sprintf("%s%s", prefix, action))
+	}
+	if strings.TrimSpace(status) != "" {
+		lines = append(lines, "", status)
 	}
 	return frameStyle.Render(strings.Join(lines, "\n"))
 }
