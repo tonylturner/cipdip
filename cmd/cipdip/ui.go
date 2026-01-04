@@ -263,7 +263,7 @@ func runUI(flags *uiFlags) error {
 		}
 		profile = loaded
 	}
-	command, err := ui.BuildCommand(*profile)
+	command, err := ui.BuildCommandWithWorkspace(*profile, ws.Root)
 	if err != nil {
 		return err
 	}

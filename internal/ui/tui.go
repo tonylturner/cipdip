@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -30,39 +31,41 @@ const (
 )
 
 type tuiModel struct {
-	workspaceRoot  string
-	workspaceName  string
-	profiles       []ProfileInfo
-	runs           []string
-	palette        []PaletteItem
-	catalog        []CatalogEntry
-	catalogSources []string
-	mode           viewMode
-	search         string
-	searchFocus    bool
-	cursor         int
-	selected       string
-	reviewText     string
-	reviewProfile  *Profile
-	reviewCommand  CommandSpec
-	reviewStatus   string
-	reviewPlan     *Plan
-	reviewRun      *RunArtifacts
-	reviewCatalog  *CatalogEntry
-	running        bool
-	showStatus     bool
-	cancelRun      func()
-	catalogStatus  string
-	wizardStatus   string
-	wizardForm     *huh.Form
-	wizardContext  string
-	compareRuns    []string
-	homeStatus     string
-	prevMode       viewMode
-	textTitle      string
-	textContent    string
-	textOffset     int
-	err            error
+	workspaceRoot     string
+	workspaceName     string
+	profiles          []ProfileInfo
+	runs              []string
+	palette           []PaletteItem
+	catalog           []CatalogEntry
+	catalogSources    []string
+	mode              viewMode
+	search            string
+	searchFocus       bool
+	cursor            int
+	selected          string
+	reviewText        string
+	reviewProfile     *Profile
+	reviewProfilePath string
+	reviewCommand     CommandSpec
+	reviewStatus      string
+	reviewPlan        *Plan
+	reviewRun         *RunArtifacts
+	reviewCatalog     *CatalogEntry
+	running           bool
+	showStatus        bool
+	cancelRun         func()
+	catalogStatus     string
+	wizardStatus      string
+	wizardForm        *huh.Form
+	wizardContext     string
+	wizardNeedsFocus  bool
+	compareRuns       []string
+	homeStatus        string
+	prevMode          viewMode
+	textTitle         string
+	textContent       string
+	textOffset        int
+	err               error
 }
 
 type homeStatusClearMsg struct{}
@@ -87,6 +90,10 @@ func (m tuiModel) Init() tea.Cmd {
 }
 
 func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.wizardNeedsFocus && m.wizardForm != nil {
+		m.wizardNeedsFocus = false
+		return m, m.wizardForm.NextField()
+	}
 	if m.mode == viewWizard && m.wizardForm != nil {
 		if key, ok := msg.(tea.KeyMsg); ok && key.String() == "r" {
 			profile, err := buildWizardProfileFromForm(m.wizardForm, m.workspaceRoot)
@@ -94,13 +101,19 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.wizardStatus = err.Error()
 				return m, nil
 			}
-			command, err := BuildCommand(profile)
+			command, err := BuildCommandWithWorkspace(profile, m.workspaceRoot)
 			if err != nil {
 				m.wizardStatus = err.Error()
 				return m, nil
 			}
-			m.reviewText = RenderReviewScreen(profile, command)
+			resolved, err := ResolveProfile(profile, m.workspaceRoot)
+			if err != nil {
+				m.wizardStatus = err.Error()
+				return m, nil
+			}
+			m.reviewText = RenderReviewScreen(resolved, command)
 			m.reviewProfile = &profile
+			m.reviewProfilePath = ""
 			m.reviewCommand = command
 			m.reviewStatus = ""
 			m.wizardForm = nil
@@ -138,6 +151,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.reviewText = renderPlanDetails(plan)
 				m.reviewPlan = &plan
 				m.reviewProfile = nil
+				m.reviewProfilePath = ""
 				m.reviewCommand = CommandSpec{}
 				m.reviewStatus = "Plan ready. Save to workspace/plans."
 				m.wizardForm = nil
@@ -150,13 +164,19 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = err
 				return m, nil
 			}
-			command, err := BuildCommand(profile)
+			command, err := BuildCommandWithWorkspace(profile, m.workspaceRoot)
 			if err != nil {
 				m.err = err
 				return m, nil
 			}
-			m.reviewText = RenderReviewScreen(profile, command)
+			resolved, err := ResolveProfile(profile, m.workspaceRoot)
+			if err != nil {
+				m.err = err
+				return m, nil
+			}
+			m.reviewText = RenderReviewScreen(resolved, command)
 			m.reviewProfile = &profile
+			m.reviewProfilePath = ""
 			m.reviewCommand = command
 			m.reviewStatus = ""
 			m.wizardForm = nil
@@ -277,6 +297,10 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.search = ""
 			m.searchFocus = false
 			m.cursor = 0
+		case "e":
+			if m.mode == viewReview {
+				m = m.editCurrentProfile()
+			}
 		case "b":
 			if m.mode == viewHelp {
 				m.mode = m.prevMode
@@ -299,6 +323,7 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.mode = viewHome
 			m.reviewText = ""
 			m.reviewProfile = nil
+			m.reviewProfilePath = ""
 			m.reviewCommand = CommandSpec{}
 			m.reviewStatus = ""
 			m.reviewPlan = nil
@@ -426,12 +451,14 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if entry := m.currentCatalogEntry(); entry != nil {
 						m.wizardForm = buildWizardFormWithDefaults(m.workspaceRoot, *entry)
 						m.mode = viewWizard
+						m.wizardNeedsFocus = true
 					}
 				}
 				if m.mode == viewReview && m.reviewCatalog != nil {
 					m.wizardForm = buildWizardFormWithDefaults(m.workspaceRoot, *m.reviewCatalog)
 					m.reviewCatalog = nil
 					m.mode = viewWizard
+					m.wizardNeedsFocus = true
 				}
 			case "y":
 				if m.mode == viewCatalog {
@@ -536,7 +563,7 @@ func (m tuiModel) View() string {
 					status += "\nTip: press o for stdout, v for resolved.yaml"
 				}
 			} else if m.reviewProfile != nil {
-				status += "\n\nTip: press r to run, s to save, c to copy"
+				status += "\n\nTip: press r to run, s to save, c to copy, e to edit"
 			}
 			status += "\n\nTip: press b to go back"
 		}
@@ -545,6 +572,9 @@ func (m tuiModel) View() string {
 			BorderForeground(lipgloss.Color("12")).
 			Padding(1, 2)
 		reviewFooter := "\n\nKeys: r=run s=save c=copy x=cancel d=compare space=status b=back q=quit"
+		if m.reviewProfile != nil {
+			reviewFooter = "\n\nKeys: r=run s=save c=copy e=edit x=cancel d=compare space=status b=back q=quit"
+		}
 		if m.reviewCatalog != nil {
 			reviewFooter = "\n\nKeys: w=wizard c=copy b=back q=quit"
 		}
@@ -664,13 +694,19 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 				m.err = err
 				return m
 			}
-			cmd, err := BuildCommand(*loaded)
+			cmd, err := BuildCommandWithWorkspace(*loaded, m.workspaceRoot)
 			if err != nil {
 				m.err = err
 				return m
 			}
-			m.reviewText = RenderReviewScreen(*loaded, cmd)
+			resolved, err := ResolveProfile(*loaded, m.workspaceRoot)
+			if err != nil {
+				m.err = err
+				return m
+			}
+			m.reviewText = RenderReviewScreen(resolved, cmd)
 			m.reviewProfile = loaded
+			m.reviewProfilePath = profile.Path
 			m.reviewCommand = cmd
 			m.reviewStatus = ""
 			m.mode = viewReview
@@ -681,6 +717,7 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 		if err != nil {
 			m.reviewText = "Run details"
 			m.reviewProfile = nil
+			m.reviewProfilePath = ""
 			m.reviewCommand = CommandSpec{}
 			m.reviewStatus = fmt.Sprintf("Run: %s (failed to load artifacts)", item.Title)
 			m.mode = viewReview
@@ -699,6 +736,7 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 		if err != nil {
 			m.reviewText = "Test Plan"
 			m.reviewProfile = nil
+			m.reviewProfilePath = ""
 			m.reviewCommand = CommandSpec{}
 			m.reviewPlan = nil
 			m.reviewStatus = fmt.Sprintf("Failed to load plan: %s", item.Title)
@@ -734,13 +772,19 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 			Name:    "baseline",
 			Spec:    map[string]interface{}{},
 		}
-		cmd, err := BuildCommand(profile)
+		cmd, err := BuildCommandWithWorkspace(profile, m.workspaceRoot)
 		if err != nil {
 			m.err = err
 			return m
 		}
-		m.reviewText = RenderReviewScreen(profile, cmd)
+		resolved, err := ResolveProfile(profile, m.workspaceRoot)
+		if err != nil {
+			m.err = err
+			return m
+		}
+		m.reviewText = RenderReviewScreen(resolved, cmd)
 		m.reviewProfile = &profile
+		m.reviewProfilePath = ""
 		m.reviewCommand = cmd
 		m.reviewStatus = ""
 		m.reviewCatalog = nil
@@ -752,13 +796,19 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 			Name:    "server",
 			Spec:    map[string]interface{}{},
 		}
-		cmd, err := BuildCommand(profile)
+		cmd, err := BuildCommandWithWorkspace(profile, m.workspaceRoot)
 		if err != nil {
 			m.err = err
 			return m
 		}
-		m.reviewText = RenderReviewScreen(profile, cmd)
+		resolved, err := ResolveProfile(profile, m.workspaceRoot)
+		if err != nil {
+			m.err = err
+			return m
+		}
+		m.reviewText = RenderReviewScreen(resolved, cmd)
 		m.reviewProfile = &profile
+		m.reviewProfilePath = ""
 		m.reviewCommand = cmd
 		m.reviewStatus = ""
 		m.reviewCatalog = nil
@@ -772,18 +822,22 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 		m.wizardForm = buildWizardForm(m.workspaceRoot)
 		m.wizardContext = "wizard"
 		m.mode = viewWizard
+		m.wizardNeedsFocus = true
 	case "Single Request":
 		m.wizardForm = buildWizardFormWithDefault("single", m.workspaceRoot)
 		m.wizardContext = "wizard"
 		m.mode = viewWizard
+		m.wizardNeedsFocus = true
 	case "Test Plan Builder":
 		m.wizardForm = buildWizardFormWithDefault("plan", m.workspaceRoot)
 		m.wizardContext = "wizard"
 		m.mode = viewWizard
+		m.wizardNeedsFocus = true
 	case "Workspace":
 		m.wizardForm = buildWorkspaceForm(m.workspaceRoot)
 		m.wizardContext = "workspace"
 		m.mode = viewWizard
+		m.wizardNeedsFocus = true
 	}
 	return m
 }
@@ -840,7 +894,7 @@ func (m tuiModel) runCurrentProfile() (tuiModel, tea.Cmd) {
 		return m, nil
 	}
 	if m.reviewCommand.Args == nil || len(m.reviewCommand.Args) == 0 {
-		cmd, err := BuildCommand(*m.reviewProfile)
+		cmd, err := BuildCommandWithWorkspace(*m.reviewProfile, m.workspaceRoot)
 		if err != nil {
 			m.err = err
 			return m, nil
@@ -853,6 +907,11 @@ func (m tuiModel) runCurrentProfile() (tuiModel, tea.Cmd) {
 		return m, nil
 	}
 	profile := *m.reviewProfile
+	resolved, err := ResolveProfile(profile, m.workspaceRoot)
+	if err != nil {
+		m.err = err
+		return m, nil
+	}
 	command := m.reviewCommand
 	m.running = true
 	m.reviewStatus = fmt.Sprintf("Run started. Artifacts: %s", runDir)
@@ -873,7 +932,7 @@ func (m tuiModel) runCurrentProfile() (tuiModel, tea.Cmd) {
 		}
 		return runResult{
 			runDir:     runDir,
-			profile:    profile,
+			profile:    resolved,
 			command:    command,
 			stdout:     stdout,
 			exitCode:   exitCode,
@@ -973,6 +1032,7 @@ func (m tuiModel) saveCurrentProfile() tuiModel {
 		m.err = err
 		return m
 	}
+	m.reviewProfilePath = path
 	m.reviewStatus = fmt.Sprintf("Saved profile: %s", path)
 	return m
 }
@@ -983,7 +1043,7 @@ func (m tuiModel) copyCurrentCommand() tuiModel {
 			m.reviewStatus = "Copy: no command available"
 			return m
 		}
-		cmd, err := BuildCommand(*m.reviewProfile)
+		cmd, err := BuildCommandWithWorkspace(*m.reviewProfile, m.workspaceRoot)
 		if err != nil {
 			m.err = err
 			return m
@@ -996,6 +1056,37 @@ func (m tuiModel) copyCurrentCommand() tuiModel {
 		return m
 	}
 	m.reviewStatus = "Command copied to clipboard"
+	return m
+}
+
+func (m tuiModel) editCurrentProfile() tuiModel {
+	if m.reviewProfile == nil {
+		m.reviewStatus = "Edit: no profile selected"
+		return m
+	}
+	path := strings.TrimSpace(m.reviewProfilePath)
+	if path == "" {
+		tmpDir := filepath.Join(m.workspaceRoot, "tmp")
+		if err := os.MkdirAll(tmpDir, 0755); err != nil {
+			m.reviewStatus = fmt.Sprintf("Edit: %v", err)
+			return m
+		}
+		name := sanitizeRunName(m.reviewProfile.Name)
+		if name == "" {
+			name = "profile"
+		}
+		path = filepath.Join(tmpDir, name+"-edit.yaml")
+		if err := SaveProfile(path, *m.reviewProfile); err != nil {
+			m.reviewStatus = fmt.Sprintf("Edit: %v", err)
+			return m
+		}
+		m.reviewProfilePath = path
+	}
+	if err := OpenEditor(path); err != nil {
+		m.reviewStatus = err.Error()
+		return m
+	}
+	m.reviewStatus = fmt.Sprintf("Edited: %s", path)
 	return m
 }
 
@@ -1129,11 +1220,20 @@ func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string, s
 		if name == "" {
 			name = entry.Key
 		}
+		classLabel := ""
+		if code, ok := parseClassForDisplay(entry.Class); ok {
+			if alias, ok := cipclient.ClassAliasName(code); ok {
+				classLabel = titleizeAlias(alias)
+			}
+		}
+		if classLabel == "" {
+			classLabel = entry.Class
+		}
 		line := ""
 		if entry.Key != "" && entry.Key != name {
-			line = fmt.Sprintf("%s%s - %s", prefix, name, entry.Key)
+			line = fmt.Sprintf("%s%s: %s - %s", prefix, classLabel, name, entry.Key)
 		} else {
-			line = fmt.Sprintf("%s%s", prefix, name)
+			line = fmt.Sprintf("%s%s: %s", prefix, classLabel, name)
 		}
 		if i == cursor && !searchFocus {
 			line = selectedStyle.Render(line)
@@ -1175,11 +1275,41 @@ func renderCatalogDetail(entry CatalogEntry, sources []string) string {
 	if entry.PayloadHex != "" {
 		lines = append(lines, "", fmt.Sprintf("Payload Hex: %s", entry.PayloadHex))
 	}
+	if entry.Payload.Type != "" {
+		lines = append(lines, "", fmt.Sprintf("Payload Type: %s", entry.Payload.Type))
+	}
+	if len(entry.Payload.Params) > 0 {
+		lines = append(lines, fmt.Sprintf("Payload Params: %s", formatPayloadParams(entry.Payload.Params)))
+	}
 	if entry.Notes != "" {
 		lines = append(lines, "", fmt.Sprintf("Notes: %s", entry.Notes))
 	}
 	lines = append(lines, "", "Tip: press b to return to the catalog list")
 	return strings.Join(lines, "\n")
+}
+
+func titleizeAlias(alias string) string {
+	parts := strings.Split(strings.ToLower(alias), "_")
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	return strings.Join(parts, " ")
+}
+
+func formatPayloadParams(params map[string]any) string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", key, params[key]))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func renderRunDetails(artifacts RunArtifacts) string {
@@ -1335,6 +1465,7 @@ func renderHelpScreen() string {
 		"Review:",
 		"  r        Run",
 		"  s        Save",
+		"  e        Edit config",
 		"  c        Copy command",
 		"  x        Cancel run",
 		"  d        Compare runs",

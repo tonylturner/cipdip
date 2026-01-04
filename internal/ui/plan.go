@@ -172,7 +172,7 @@ func buildSingleCommandFromPlan(workspaceRoot, value string) (CommandSpec, error
 		Name:    entry.Key,
 		Spec:    spec,
 	}
-	return BuildCommand(profile)
+	return BuildCommandWithWorkspace(profile, workspaceRoot)
 }
 
 func buildReplayCommandFromPlan(workspaceRoot, value string) (CommandSpec, error) {
@@ -180,7 +180,7 @@ func buildReplayCommandFromPlan(workspaceRoot, value string) (CommandSpec, error
 	if err != nil {
 		return CommandSpec{}, err
 	}
-	return BuildCommand(*profile)
+	return BuildCommandWithWorkspace(*profile, workspaceRoot)
 }
 
 func loadProfileByName(workspaceRoot, name string) (*Profile, error) {

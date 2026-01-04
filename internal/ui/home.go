@@ -34,6 +34,7 @@ func RenderHomeScreenWithCursor(workspaceName string, profiles []ProfileInfo, ru
 func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int, status string) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	sectionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
+	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	frameStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("12")).
@@ -50,11 +51,41 @@ func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 		}
 		lines = append(lines, fmt.Sprintf("%s%s", prefix, action))
 	}
+	lines = append(lines, "")
+	lines = append(lines, sectionStyle.Render("Configs:"))
+	for _, profile := range truncateProfiles(profiles, 5) {
+		lines = append(lines, fmt.Sprintf("  - %s (%s)", profile.Name, profile.Kind))
+	}
+	if len(profiles) == 0 {
+		lines = append(lines, metaStyle.Render("  (no profiles yet)"))
+	}
+	lines = append(lines, "")
+	lines = append(lines, sectionStyle.Render("Recent Runs:"))
+	for _, run := range truncateStrings(runs, 5) {
+		lines = append(lines, fmt.Sprintf("  - %s", run))
+	}
+	if len(runs) == 0 {
+		lines = append(lines, metaStyle.Render("  (no runs yet)"))
+	}
 	if strings.TrimSpace(status) != "" {
 		lines = append(lines, "", status)
 	}
 	lines = append(lines, "", "Tip: press / to search, p for palette")
 	return frameStyle.Render(strings.Join(lines, "\n"))
+}
+
+func truncateProfiles(profiles []ProfileInfo, limit int) []ProfileInfo {
+	if len(profiles) <= limit {
+		return profiles
+	}
+	return profiles[:limit]
+}
+
+func truncateStrings(values []string, limit int) []string {
+	if len(values) <= limit {
+		return values
+	}
+	return values[:limit]
 }
 
 // RenderCatalogExplorer renders a catalog view with hex fields visible.

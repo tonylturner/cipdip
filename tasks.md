@@ -141,28 +141,22 @@
 - [x] Add L2/L3 replay modes validation: confirm MAC rewrite + ARP flow works for routed vs bridged firewall paths.
 - [x] Add pcap-replay verification step: optional post-run sanity report (flows sent, dropped, missing responses).
 
-### Docs cleanup
-- [x] Relocate internal/audit docs to `notes/` and update references.
-- [x] Add `AGENTS.md` with project context for future sessions.
-- [x] Remove `.cursorrules` after capturing relevant guidance.
-- [ ] Validate `docs/COMPLIANCE_TESTING.md` against current behavior (status list normalized to ASCII; continue line-by-line review).
-- [ ] Consolidate internal plan/audit/status notes into fewer `notes/` docs, then review for accuracy.
-- [ ] Re-run evaluations that feed audit notes (compliance audit tests, pcap-summary on reference captures) before updating consolidated notes.
-- [ ] Line-by-line validation of all docs in `docs/` (excluding `docs/vendors/`) against current ODVA framing and implementation.
-- [ ] Fix outdated ODVA compliance notes (e.g., COMPLIANCE_TESTING.md big-endian assumptions).
-- [ ] Audit markdown docs for alignment (README.md, docs/CHANGELOG.md, notes/STATUS.md, notes/PROJECT_STATUS.md, notes/PROJECT_SUMMARY.md, notes/SUMMARY.md, docs/EXAMPLES.md).
-- [ ] Align COMPLIANCE.md and COMPLIANCE_TESTING.md with little-endian framing + CPF/path-size expectations.
-- [ ] Inventory docs with value status (active, stale, replace, remove).
-- [ ] Consolidate compliance docs (reduce duplication, highlight strict vs variants).
-- [ ] Remove or archive stale docs only after approval.
-
-### Cross-platform note
-- [x] Check path handling and example commands across macOS/Linux/Windows.
-- [x] Confirm any scripts rely on OS-specific tools and provide alternatives or detection.
-- [x] Improve tshark discovery (TSHARK env + OS default locations) for PCAP tooling and validation.
-- [x] Investigate Unknown CIP service 0x51 on class 0x00A1 (pcaps/stress/ENIP.pcap) and update contextual service mapping if evidence supports.
-- [x] Consolidate PCAP analysis into Go CLI (`cipdip pcap-report` and `cipdip pcap-classify`), remove PowerShell scripts.
-
+### CIP request payload framework (service-specific data)
+- [x] Add catalog schema for payload metadata: `payload.type` + `payload.params` (default none).
+- [x] Build ServiceDataBuilder table keyed by catalog key or (service,class) to append payload after EPATH.
+- [x] Add CLI flags for payload params: `--tag`, `--elements`, `--offset`, `--type`, `--value`, `--file`, `--file-offset`, `--chunk`, `--modbus-fc`, `--modbus-addr`, `--modbus-qty`, `--pccc-hex`, `--route-slot`, `--ucmm-wrap`.
+- [x] Implement Forward Open payload builder (Connection Manager 0x54) with sane defaults and CLI overrides (RPIs, sizes, connection path).
+- [x] Implement Unconnected Send builder (0x52/CM) with UCMM wrapper, route path (slot), and embedded catalog request.
+- [x] Implement Rockwell tag service payloads (read/write/fragmented) using symbolic EPATH segments (`--tag`, `--tag-path`).
+- [x] Implement Rockwell template read payload (0x4C/0x006C) with offset/length params.
+- [x] Implement File Object payloads (0x37 services 0x4B-0x51) with minimal valid fields and dummy defaults.
+- [x] Implement Modbus Object payloads (0x44 services 0x4B-0x51) with function-specific fields and passthrough.
+- [x] Implement Execute PCCC payload builder with raw hex + canned examples.
+- [x] Add `--dry-run` to print CIP bytes and hex dump (service/path/payload).
+- [x] Add `--mutate` payload variants (wrong length, missing fields, invalid offsets) with deterministic seed.
+- [x] Add unit tests for each payload builder + validation for required fields.
+- [ ] Add integration tests with known-good request bytes under `testdata/` for payload builders.
+- [ ] Migration: existing catalog entries without payload metadata continue to work (payload defaults to none).
 ### TUI + UX (new)
 #### Phase 0: Spec + design guardrails
 - [x] Capture authoritative TUI spec and UX contracts in `notes/TUI_SPEC.md`.
@@ -194,14 +188,14 @@
 - [x] Snapshot tests (text) for wizard review screen command output.
 
 #### Phase 2: Optional features
-- [ ] Test plan builder (multi-step runner).
-- [ ] Run comparison view (resolved.yaml + summary.json diff).
-- [ ] Add config edit flow (`e`): open profile in $EDITOR or provide in-TUI editor for spec/advanced YAML.
-- [ ] Align home screen with spec: show quick actions + recent runs + configs list (compact) instead of minimal-only.
-- [ ] Wizard review screen: add Effective Behavior summary panel (e.g., replay mode, rewrite, ARP) per spec.
-- [ ] Profiles: implement spec/advanced layering + workspace defaults expansion order (spec->advanced->overrides).
-- [ ] Catalog explorer: group by object/class and show hex values in detail view; keep list compact with name+key.
-- [ ] Single-request wizard: auto-focus first field on open (avoid extra Enter/Tab), and allow preset target selection (done) to sync with IP field.
+- [x] Test plan builder (multi-step runner).
+- [x] Run comparison view (resolved.yaml + summary.json diff).
+- [x] Add config edit flow (`e`): open profile in $EDITOR or provide in-TUI editor for spec/advanced YAML.
+- [x] Align home screen with spec: show quick actions + recent runs + configs list (compact) instead of minimal-only.
+- [x] Wizard review screen: add Effective Behavior summary panel (e.g., replay mode, rewrite, ARP) per spec.
+- [x] Profiles: implement spec/advanced layering + workspace defaults expansion order (spec->advanced->overrides).
+- [x] Catalog explorer: group by object/class and show hex values in detail view; keep list compact with name+key.
+- [x] Single-request wizard: auto-focus first field on open (avoid extra Enter/Tab), and allow preset target selection (done) to sync with IP field.
 
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
@@ -232,3 +226,4 @@
 - Vendor profiles scaffolded (Rockwell/Schneider/Siemens presets).
 - Server tracks Forward Open connections and validates SendUnitData.
 - Docs cleanup plan captured in `notes/DOCS_CLEANUP_PLAN.md`.
+
