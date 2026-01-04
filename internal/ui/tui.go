@@ -1,12 +1,10 @@
 package ui
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -27,6 +25,7 @@ const (
 	viewCatalog
 	viewReview
 	viewWizard
+	viewHelp
 )
 
 type tuiModel struct {
@@ -45,13 +44,19 @@ type tuiModel struct {
 	reviewProfile *Profile
 	reviewCommand CommandSpec
 	reviewStatus  string
+	reviewPlan    *Plan
 	running       bool
 	showStatus    bool
 	cancelRun     func()
 	wizardForm    *huh.Form
+	wizardContext string
 	compareRuns   []string
+	homeStatus    string
+	prevMode      viewMode
 	err           error
 }
+
+type homeStatusClearMsg struct{}
 
 func newTUIModel(workspaceRoot, workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, catalog []CatalogEntry) tuiModel {
 	return tuiModel{
@@ -76,6 +81,36 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.wizardForm = formModel.(*huh.Form)
 		switch m.wizardForm.State {
 		case huh.StateCompleted:
+			if m.wizardContext == "workspace" {
+				var cmd tea.Cmd
+				m, cmd = m.applyWorkspaceForm()
+				return m, cmd
+			}
+			if kind := wizardKindFromForm(m.wizardForm); kind == "plan" {
+				name := strings.TrimSpace(m.wizardForm.GetString("plan_name"))
+				steps := m.wizardForm.GetString("plan_steps")
+				plan, err := BuildPlanFromText(name, steps)
+				if err != nil {
+					m.reviewText = "Test Plan"
+					m.reviewPlan = nil
+					m.reviewProfile = nil
+					m.reviewCommand = CommandSpec{}
+					m.reviewStatus = err.Error()
+					m.wizardForm = nil
+					m.wizardContext = ""
+					m.mode = viewReview
+					return m, nil
+				}
+				m.reviewText = renderPlanDetails(plan)
+				m.reviewPlan = &plan
+				m.reviewProfile = nil
+				m.reviewCommand = CommandSpec{}
+				m.reviewStatus = "Plan ready. Save to workspace/plans."
+				m.wizardForm = nil
+				m.wizardContext = ""
+				m.mode = viewReview
+				return m, nil
+			}
 			profile, err := buildWizardProfileFromForm(m.wizardForm, m.workspaceRoot)
 			if err != nil {
 				m.err = err
@@ -91,9 +126,11 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.reviewCommand = command
 			m.reviewStatus = ""
 			m.wizardForm = nil
+			m.wizardContext = ""
 			m.mode = viewReview
 		case huh.StateAborted:
 			m.wizardForm = nil
+			m.wizardContext = ""
 			m.mode = viewHome
 		}
 		return m, cmd
@@ -104,10 +141,20 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "?":
+			if m.mode != viewHelp {
+				m.prevMode = m.mode
+				m.mode = viewHelp
+			}
+			return m, nil
 		case "/":
 			m.searchFocus = true
 			return m, nil
 		case "esc":
+			if m.mode == viewHelp {
+				m.mode = m.prevMode
+				return m, nil
+			}
 			m.searchFocus = false
 			m.search = ""
 			return m, nil
@@ -117,18 +164,40 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "p":
 			m.mode = viewPalette
 			m.cursor = 0
+		case "u":
+			m.mode = viewPalette
+			m.search = "run"
+			m.searchFocus = false
+			m.cursor = 0
+		case "g":
+			m.mode = viewPalette
+			m.search = "config"
+			m.searchFocus = false
+			m.cursor = 0
+		case "n":
+			m.mode = viewPalette
+			m.search = "plan"
+			m.searchFocus = false
+			m.cursor = 0
 		case "c":
 			m.mode = viewCatalog
 			m.cursor = 0
 		case "b":
+			if m.mode == viewHelp {
+				m.mode = m.prevMode
+				return m, nil
+			}
 			m.mode = viewHome
 			m.reviewText = ""
 			m.reviewProfile = nil
 			m.reviewCommand = CommandSpec{}
 			m.reviewStatus = ""
+			m.reviewPlan = nil
 			m.cancelRun = nil
 			m.wizardForm = nil
+			m.wizardContext = ""
 			m.compareRuns = nil
+			m.homeStatus = ""
 		default:
 			if m.searchFocus {
 				switch msg.Type {
@@ -163,15 +232,21 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							m.mode = viewWizard
 						}
 					}
+					if m.mode == viewReview && strings.HasPrefix(m.reviewStatus, "Compare:") {
+						m.mode = viewPalette
+						m.search = "run"
+						m.searchFocus = false
+						m.cursor = 0
+					}
 				case "r":
 					if m.mode == viewReview {
 						var cmd tea.Cmd
-						m, cmd = m.runCurrentProfile()
+						m, cmd = m.runCurrentArtifact()
 						return m, cmd
 					}
 				case "s":
 					if m.mode == viewReview {
-						m = m.saveCurrentProfile()
+						m = m.saveCurrentArtifact()
 					}
 				case "c":
 					if m.mode == viewReview {
@@ -236,6 +311,8 @@ func (m tuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.running = false
 		m.cancelRun = nil
+	case homeStatusClearMsg:
+		m.homeStatus = ""
 	}
 	m.cursor = clampCursor(m.cursor, m.currentListLen())
 	return m, nil
@@ -252,17 +329,22 @@ func (m tuiModel) View() string {
 	}
 	header := fmt.Sprintf("%s: %s\n", searchLabel, m.search)
 	footerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
-	footer := "\nKeys: h=home p=palette c=catalog /=search esc=clear q=quit enter=select"
+	footer := "\nKeys: h=home p=palette u=runs g=profiles n=plans c=catalog /=search esc=clear q=quit enter=select"
 	if m.selected != "" {
 		footer += fmt.Sprintf(" selected=%s", m.selected)
+	}
+	footer += fmt.Sprintf(" view=%s", m.viewLabel())
+	if m.searchFocus {
+		footer += " [search]"
 	}
 	footer = footerStyle.Render(footer)
 	switch m.mode {
 	case viewPalette:
-		return header + renderPaletteWithCursor(FilterPalette(m.palette, m.search), m.cursor) + footer
+		filtered := FilterPalette(m.palette, m.search)
+		return header + renderPaletteWithCursor(filtered, m.cursor, m.search) + footer
 	case viewCatalog:
 		filtered := FilterCatalogEntries(m.catalog, m.search)
-		return header + renderCatalogWithCursor(filtered, m.cursor) + footer
+		return header + renderCatalogWithCursor(filtered, m.cursor, m.search) + footer
 	case viewReview:
 		status := ""
 		if m.showStatus {
@@ -291,8 +373,29 @@ func (m tuiModel) View() string {
 			BorderForeground(lipgloss.Color("12")).
 			Padding(1, 2)
 		return header + frameStyle.Render(m.wizardForm.View())
+	case viewHelp:
+		return header + renderHelpScreen() + footer
 	default:
-		return header + RenderHomeScreenWithCursor(m.workspaceName, m.profiles, m.runs, m.palette, m.cursor) + footer
+		return header + RenderHomeScreenWithCursor(m.workspaceName, m.profiles, m.runs, m.palette, m.cursor, m.homeStatus) + footer
+	}
+}
+
+func (m tuiModel) viewLabel() string {
+	switch m.mode {
+	case viewHome:
+		return "home"
+	case viewPalette:
+		return "palette"
+	case viewCatalog:
+		return "catalog"
+	case viewReview:
+		return "review"
+	case viewWizard:
+		return "wizard"
+	case viewHelp:
+		return "help"
+	default:
+		return "unknown"
 	}
 }
 
@@ -394,6 +497,24 @@ func (m tuiModel) handlePaletteSelection() tuiModel {
 		m.reviewCommand = CommandSpec{}
 		m.reviewStatus = fmt.Sprintf("Run: %s", item.Title)
 		m.mode = viewReview
+	case "Plan":
+		planPath := filepath.Join(m.workspaceRoot, "plans", item.Title+".yaml")
+		plan, err := LoadPlan(planPath)
+		if err != nil {
+			m.reviewText = "Test Plan"
+			m.reviewProfile = nil
+			m.reviewCommand = CommandSpec{}
+			m.reviewPlan = nil
+			m.reviewStatus = fmt.Sprintf("Failed to load plan: %s", item.Title)
+			m.mode = viewReview
+			return m
+		}
+		m.reviewText = renderPlanDetails(*plan)
+		m.reviewPlan = plan
+		m.reviewProfile = nil
+		m.reviewCommand = CommandSpec{}
+		m.reviewStatus = fmt.Sprintf("Plan: %s", plan.Name)
+		m.mode = viewReview
 	case "Task":
 		return m.applyTaskAction(item.Title)
 	default:
@@ -448,9 +569,19 @@ func (m tuiModel) applyTaskAction(title string) tuiModel {
 		m.cursor = 0
 	case "New Run (Wizard)":
 		m.wizardForm = buildWizardForm(m.workspaceRoot)
+		m.wizardContext = "wizard"
 		m.mode = viewWizard
 	case "Single Request":
 		m.wizardForm = buildWizardFormWithDefault("single", m.workspaceRoot)
+		m.wizardContext = "wizard"
+		m.mode = viewWizard
+	case "Test Plan Builder":
+		m.wizardForm = buildWizardFormWithDefault("plan", m.workspaceRoot)
+		m.wizardContext = "wizard"
+		m.mode = viewWizard
+	case "Workspace":
+		m.wizardForm = buildWorkspaceForm(m.workspaceRoot)
+		m.wizardContext = "workspace"
 		m.mode = viewWizard
 	}
 	return m
@@ -528,7 +659,7 @@ func (m tuiModel) runCurrentProfile() (tuiModel, tea.Cmd) {
 	m.cancelRun = cancel
 	return m, func() tea.Msg {
 		started := time.Now().UTC()
-		stdout, exitCode, runErr := executeCommand(ctx, command)
+		stdout, exitCode, runErr := ExecuteCommand(ctx, command)
 		finished := time.Now().UTC()
 		status := "success"
 		canceled := false
@@ -552,6 +683,73 @@ func (m tuiModel) runCurrentProfile() (tuiModel, tea.Cmd) {
 			canceled:   canceled,
 		}
 	}
+}
+
+func (m tuiModel) runCurrentArtifact() (tuiModel, tea.Cmd) {
+	if m.reviewPlan != nil {
+		if m.running {
+			m.reviewStatus = "Run already in progress"
+			return m, nil
+		}
+		runDir, err := CreateRunDir(m.workspaceRoot, m.reviewPlan.Name)
+		if err != nil {
+			m.err = err
+			return m, nil
+		}
+		plan := *m.reviewPlan
+		m.running = true
+		m.reviewStatus = fmt.Sprintf("Plan started. Artifacts: %s", runDir)
+		ctx, cancel := context.WithCancel(context.Background())
+		m.cancelRun = cancel
+		return m, func() tea.Msg {
+			started := time.Now().UTC()
+			stdout, runErr := ExecutePlan(ctx, m.workspaceRoot, plan)
+			finished := time.Now().UTC()
+			status := "success"
+			exitCode := 0
+			canceled := false
+			if runErr != nil {
+				status = "failed"
+				exitCode = 1
+				if errors.Is(runErr, context.Canceled) {
+					status = "canceled"
+					canceled = true
+				}
+			}
+			return runResult{
+				runDir:     runDir,
+				profile:    Profile{Name: plan.Name},
+				command:    CommandSpec{Args: []string{"plan", plan.Name}},
+				stdout:     stdout,
+				exitCode:   exitCode,
+				status:     status,
+				startedAt:  started,
+				finishedAt: finished,
+				err:        runErr,
+				canceled:   canceled,
+			}
+		}
+	}
+	return m.runCurrentProfile()
+}
+
+func (m tuiModel) saveCurrentArtifact() tuiModel {
+	if m.reviewPlan != nil {
+		plansDir := filepath.Join(m.workspaceRoot, "plans")
+		if err := os.MkdirAll(plansDir, 0755); err != nil {
+			m.err = fmt.Errorf("create plans dir: %w", err)
+			return m
+		}
+		path := PlanPath(m.workspaceRoot, m.reviewPlan.Name)
+		path = nextAvailablePath(path)
+		if err := SavePlan(path, *m.reviewPlan); err != nil {
+			m.err = err
+			return m
+		}
+		m.reviewStatus = fmt.Sprintf("Saved plan: %s", path)
+		return m
+	}
+	return m.saveCurrentProfile()
 }
 
 func (m tuiModel) saveCurrentProfile() tuiModel {
@@ -598,35 +796,6 @@ func (m tuiModel) copyCurrentCommand() tuiModel {
 	}
 	m.reviewStatus = "Command copied to clipboard"
 	return m
-}
-
-func executeCommand(ctx context.Context, command CommandSpec) (string, int, error) {
-	if len(command.Args) == 0 {
-		return "", 0, fmt.Errorf("command is empty")
-	}
-	executable, err := os.Executable()
-	if err != nil {
-		executable = command.Args[0]
-	}
-	args := command.Args[1:]
-	if command.Args[0] != "cipdip" {
-		executable = command.Args[0]
-		args = command.Args[1:]
-	}
-	cmd := exec.CommandContext(ctx, executable, args...)
-	var output bytes.Buffer
-	cmd.Stdout = &output
-	cmd.Stderr = &output
-	err = cmd.Run()
-	exitCode := 0
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			exitCode = exitErr.ExitCode()
-		} else {
-			exitCode = 1
-		}
-	}
-	return output.String(), exitCode, err
 }
 
 func nextAvailablePath(path string) string {
@@ -679,16 +848,27 @@ func clampCursor(cursor, length int) int {
 	return cursor
 }
 
-func renderPaletteWithCursor(items []PaletteItem, cursor int) string {
+func renderPaletteWithCursor(items []PaletteItem, cursor int, query string) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
 	kindStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
+	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	frameStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("12")).
 		Padding(1, 2)
-	lines := []string{titleStyle.Render("Palette")}
+	header := "Palette"
+	if strings.TrimSpace(query) != "" {
+		header = fmt.Sprintf("Palette (%d match)", len(items))
+		if len(items) != 1 {
+			header = fmt.Sprintf("Palette (%d matches)", len(items))
+		}
+	}
+	lines := []string{titleStyle.Render(header)}
 	if len(items) == 0 {
 		lines = append(lines, "(no items)")
+		if strings.TrimSpace(query) != "" {
+			lines = append(lines, "Tip: press Esc to clear search")
+		}
 		return frameStyle.Render(strings.Join(lines, "\n"))
 	}
 	currentKind := ""
@@ -702,19 +882,32 @@ func renderPaletteWithCursor(items []PaletteItem, cursor int) string {
 			prefix = "> "
 		}
 		lines = append(lines, fmt.Sprintf("%s%s", prefix, item.String()))
+		if hint := paletteHint(item); hint != "" {
+			lines = append(lines, fmt.Sprintf("  %s", metaStyle.Render(hint)))
+		}
 	}
 	return frameStyle.Render(strings.Join(lines, "\n"))
 }
 
-func renderCatalogWithCursor(entries []CatalogEntry, cursor int) string {
+func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
 	frameStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("12")).
 		Padding(1, 2)
-	lines := []string{titleStyle.Render("CIP Catalog"), ""}
+	header := "CIP Catalog"
+	if strings.TrimSpace(query) != "" {
+		header = fmt.Sprintf("CIP Catalog (%d match)", len(entries))
+		if len(entries) != 1 {
+			header = fmt.Sprintf("CIP Catalog (%d matches)", len(entries))
+		}
+	}
+	lines := []string{titleStyle.Render(header), ""}
 	if len(entries) == 0 {
 		lines = append(lines, "(no catalog entries)")
+		if strings.TrimSpace(query) != "" {
+			lines = append(lines, "Tip: press Esc to clear search")
+		}
 		return frameStyle.Render(strings.Join(lines, "\n"))
 	}
 	for i, entry := range entries {
@@ -775,6 +968,44 @@ func renderRunDetails(artifacts RunArtifacts) string {
 	return strings.Join(lines, "\n")
 }
 
+func paletteHint(item PaletteItem) string {
+	switch item.Kind {
+	case "Task":
+		switch item.Title {
+		case "New Run (Wizard)":
+			return "Create a new run profile from guided inputs."
+		case "Run Existing Config":
+			return "Select a saved profile and run it."
+		case "Baseline (Guided)":
+			return "Run the baseline test suite."
+		case "Start Server Emulator":
+			return "Start the CIP server emulator."
+		case "Single Request":
+			return "Send a one-off CIP request."
+		case "Test Plan Builder":
+			return "Create and run multi-step plans."
+		case "Workspace":
+			return "Open or create a workspace."
+		case "Explore CIP Catalog":
+			return "Browse catalog operations."
+		}
+	case "Config":
+		return fmt.Sprintf("Profile kind: %s", item.Meta)
+	case "Plan":
+		if item.Meta != "" {
+			return "Plan " + item.Meta
+		}
+		return "Saved plan"
+	case "Run":
+		return "View run artifacts"
+	case "Catalog":
+		if item.Meta != "" {
+			return "Catalog: " + item.Meta
+		}
+		return "Catalog entry"
+	}
+	return ""
+}
 func renderRunComparison(leftDir, rightDir string) string {
 	left, leftErr := LoadRunArtifacts(leftDir)
 	right, rightErr := LoadRunArtifacts(rightDir)
@@ -810,7 +1041,110 @@ func renderRunComparison(leftDir, rightDir string) string {
 	} else {
 		lines = append(lines, "Resolved config: identical")
 	}
+	lines = append(lines, "", "Tip: press Enter to pick new runs")
 	return strings.Join(lines, "\n")
+}
+
+func renderPlanDetails(plan Plan) string {
+	lines := []string{
+		"Test Plan",
+		fmt.Sprintf("Name: %s", plan.Name),
+		"",
+		"Steps:",
+	}
+	for _, step := range plan.Steps {
+		for k, v := range step {
+			lines = append(lines, fmt.Sprintf("- %s: %s", k, v))
+		}
+	}
+	lines = append(lines,
+		"",
+		"Formats:",
+		"- single:<catalog_key>@<ip[:port]>",
+		"- sleep:<duration>",
+		"- replay:<profile_name>",
+	)
+	return strings.Join(lines, "\n")
+}
+
+func renderHelpScreen() string {
+	frameStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("12")).
+		Padding(1, 2)
+	lines := []string{
+		"Help",
+		"",
+		"Global:",
+		"  ?        Help",
+		"  /        Search",
+		"  Esc      Clear search / close help",
+		"  q        Quit",
+		"",
+		"Navigation:",
+		"  h        Home",
+		"  p        Palette",
+		"  c        Catalog",
+		"  Up/Down  Move selection",
+		"  Enter    Select",
+		"",
+		"Review:",
+		"  r        Run",
+		"  s        Save",
+		"  c        Copy command",
+		"  x        Cancel run",
+		"  d        Compare runs",
+		"  Space    Toggle status",
+		"  b        Back",
+	}
+	return frameStyle.Render(strings.Join(lines, "\n"))
+}
+
+func (m tuiModel) applyWorkspaceForm() (tuiModel, tea.Cmd) {
+	action := strings.ToLower(strings.TrimSpace(m.wizardForm.GetString("workspace_action")))
+	path := strings.TrimSpace(m.wizardForm.GetString("workspace_path"))
+	name := strings.TrimSpace(m.wizardForm.GetString("workspace_name"))
+	if path == "" {
+		m.reviewText = "Workspace"
+		m.reviewStatus = "Workspace path is required."
+		m.wizardForm = nil
+		m.wizardContext = ""
+		m.mode = viewReview
+		return m, nil
+	}
+	var ws *Workspace
+	var err error
+	switch action {
+	case "create":
+		ws, err = CreateWorkspace(path, name)
+	default:
+		ws, err = EnsureWorkspace(path)
+	}
+	if err != nil {
+		m.reviewText = "Workspace"
+		m.reviewStatus = err.Error()
+		m.wizardForm = nil
+		m.wizardContext = ""
+		m.mode = viewReview
+		return m, nil
+	}
+	m.workspaceRoot = ws.Root
+	m.workspaceName = ws.Config.Name
+	m.reloadWorkspace()
+	m.homeStatus = fmt.Sprintf("Workspace loaded: %s", ws.Root)
+	m.wizardForm = nil
+	m.wizardContext = ""
+	m.mode = viewHome
+	return m, tea.Tick(3*time.Second, func(time.Time) tea.Msg {
+		return homeStatusClearMsg{}
+	})
+}
+
+func (m *tuiModel) reloadWorkspace() {
+	m.profiles, _ = ListProfiles(m.workspaceRoot)
+	m.runs, _ = ListRuns(m.workspaceRoot, 5)
+	m.palette, _ = BuildPaletteIndex(m.workspaceRoot)
+	m.catalog, _ = ListCatalogEntries(m.workspaceRoot)
 }
 
 func summaryStatus(summary *RunSummary) string {

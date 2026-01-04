@@ -24,6 +24,8 @@ func BuildPaletteIndex(workspaceRoot string) ([]PaletteItem, error) {
 		"Run Existing Config",
 		"Baseline (Guided)",
 		"Start Server Emulator",
+		"Test Plan Builder",
+		"Workspace",
 		"Explore CIP Catalog",
 	} {
 		items = append(items, PaletteItem{Kind: "Task", Title: task})
@@ -36,6 +38,25 @@ func BuildPaletteIndex(workspaceRoot string) ([]PaletteItem, error) {
 				Kind:  "Config",
 				Title: profile.Name,
 				Meta:  profile.Kind,
+			})
+		}
+	}
+
+	plansDir := filepath.Join(workspaceRoot, "plans")
+	if entries, err := os.ReadDir(plansDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+				continue
+			}
+			planPath := filepath.Join(plansDir, entry.Name())
+			meta := ""
+			if plan, err := LoadPlan(planPath); err == nil {
+				meta = fmt.Sprintf("steps:%d", len(plan.Steps))
+			}
+			items = append(items, PaletteItem{
+				Kind:  "Plan",
+				Title: strings.TrimSuffix(entry.Name(), ".yaml"),
+				Meta:  meta,
 			})
 		}
 	}

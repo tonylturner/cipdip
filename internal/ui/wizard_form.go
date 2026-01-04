@@ -36,6 +36,8 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	singleInstance := ""
 	singleAttribute := ""
 	catalogKey := ""
+	planName := "plan"
+	planSteps := "single:identity.vendor_id@192.168.0.10\nsleep:500ms\nreplay:baseline-raw.yaml"
 	if entry.Key != "" {
 		catalogKey = entry.Key
 		singleService = entry.Service
@@ -54,6 +56,7 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 				huh.NewOption("Baseline Suite", "baseline"),
 				huh.NewOption("Server Emulator", "server"),
 				huh.NewOption("Single Request", "single"),
+				huh.NewOption("Test Plan Builder", "plan"),
 			).
 			Value(&kind),
 	)
@@ -145,7 +148,20 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 			Value(&singleAttribute),
 	).WithHideFunc(func() bool { return kind != "single" })
 
-	return huh.NewForm(kindGroup, pcapGroup, baselineGroup, serverGroup, singleGroup)
+	planGroup := huh.NewGroup(
+		huh.NewInput().
+			Title("Plan name").
+			Description("Short name for the plan file.").
+			Key("plan_name").
+			Value(&planName),
+		huh.NewText().
+			Title("Plan steps").
+			Description("One step per line (e.g., single:identity.vendor_id@192.168.0.10).").
+			Key("plan_steps").
+			Value(&planSteps),
+	).WithHideFunc(func() bool { return kind != "plan" })
+
+	return huh.NewForm(kindGroup, pcapGroup, baselineGroup, serverGroup, singleGroup, planGroup)
 }
 
 func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, error) {
@@ -223,7 +239,17 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 			Instance:  strings.TrimSpace(form.GetString("single_instance")),
 			Attribute: strings.TrimSpace(form.GetString("single_attribute")),
 		})
+	case "plan":
+		return BuildWizardProfile(WizardOptions{Kind: "plan"})
 	default:
 		return BuildWizardProfile(WizardOptions{Kind: kind})
 	}
+}
+
+func wizardKindFromForm(form *huh.Form) string {
+	kind := strings.ToLower(strings.TrimSpace(form.GetString("wizard_type")))
+	if kind == "" {
+		return "pcap-replay"
+	}
+	return kind
 }
