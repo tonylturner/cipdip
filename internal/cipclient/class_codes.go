@@ -63,6 +63,7 @@ const (
 	CIPClassSymbolObject                 uint16 = 0x6B
 	CIPClassTemplateObject               uint16 = 0x6C
 	CIPClassProgramName                  uint16 = 0x64
+	CIPClassPCCCObject                   uint16 = 0x67
 	CIPClassWallClockTime                uint16 = 0x8B
 	CIPClassControlNet                   uint16 = 0xF0
 	CIPClassControlNetKeeper             uint16 = 0xF1

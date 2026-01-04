@@ -55,6 +55,8 @@ type CIPTarget struct {
 	Pattern           string      `yaml:"pattern,omitempty"` // "increment", "toggle", "constant"
 	InitialValue      int64       `yaml:"initial_value,omitempty"`
 	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
+	PayloadType       string      `yaml:"payload_type,omitempty"`
+	PayloadParams     map[string]any `yaml:"payload_params,omitempty"`
 	Tags              []string    `yaml:"tags,omitempty"`
 }
 
@@ -83,6 +85,8 @@ type EdgeTarget struct {
 	Instance          uint16      `yaml:"instance"`
 	Attribute         uint16      `yaml:"attribute"`
 	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"`
+	PayloadType       string      `yaml:"payload_type,omitempty"`
+	PayloadParams     map[string]any `yaml:"payload_params,omitempty"`
 	ExpectedOutcome   string      `yaml:"expected_outcome,omitempty"` // "success", "error", "timeout", or "any"
 	ForceStatus       *uint8      `yaml:"force_status,omitempty"`     // optional metrics override in unconnected_send
 	Tags              []string    `yaml:"tags,omitempty"`

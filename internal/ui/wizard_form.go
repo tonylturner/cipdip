@@ -40,6 +40,20 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	singleClass := ""
 	singleInstance := ""
 	singleAttribute := ""
+	singlePayloadType := ""
+	singlePayloadParams := ""
+	singlePayloadHex := ""
+	singleTag := ""
+	singleTagPath := ""
+	singleElements := ""
+	singleOffset := ""
+	singleDataType := ""
+	singleValue := ""
+	singleRouteSlot := ""
+	singleUcmmWrap := ""
+	singleMutate := ""
+	singleMutateSeed := ""
+	singleDryRun := false
 	catalogKey := ""
 	planName := "plan"
 	planSteps := "single:identity.vendor_id@192.168.0.10\nsleep:500ms\nreplay:baseline-raw.yaml"
@@ -161,6 +175,76 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 			Description("Attribute ID (hex).").
 			Key("single_attribute").
 			Value(&singleAttribute),
+		huh.NewInput().
+			Title("Payload type (optional)").
+			Description("Service payload type (forward_open, unconnected_send, rockwell_tag, file_object, modbus_object).").
+			Key("single_payload_type").
+			Value(&singlePayloadType),
+		huh.NewInput().
+			Title("Payload params (optional)").
+			Description("Comma-separated key=value pairs (e.g., tag=MyTag, elements=1).").
+			Key("single_payload_params").
+			Value(&singlePayloadParams),
+		huh.NewInput().
+			Title("Payload hex (optional)").
+			Description("Raw payload hex (overrides builder).").
+			Key("single_payload_hex").
+			Value(&singlePayloadHex),
+		huh.NewInput().
+			Title("Tag (optional)").
+			Description("Symbolic tag name (e.g., MyTag).").
+			Key("single_tag").
+			Value(&singleTag),
+		huh.NewInput().
+			Title("Tag path (optional)").
+			Description("Symbolic tag path (e.g., Program:Main.MyTag).").
+			Key("single_tag_path").
+			Value(&singleTagPath),
+		huh.NewInput().
+			Title("Elements (optional)").
+			Description("Element count for tag operations.").
+			Key("single_elements").
+			Value(&singleElements),
+		huh.NewInput().
+			Title("Offset (optional)").
+			Description("Byte offset for fragmented tag operations.").
+			Key("single_offset").
+			Value(&singleOffset),
+		huh.NewInput().
+			Title("Data type (optional)").
+			Description("CIP data type (BOOL, INT, DINT, REAL, 0x00C4).").
+			Key("single_data_type").
+			Value(&singleDataType),
+		huh.NewInput().
+			Title("Value (optional)").
+			Description("Value for write/tag payloads (comma-separated allowed).").
+			Key("single_value").
+			Value(&singleValue),
+		huh.NewInput().
+			Title("Route slot (optional)").
+			Description("UCMM route slot (backplane port 1).").
+			Key("single_route_slot").
+			Value(&singleRouteSlot),
+		huh.NewInput().
+			Title("UCMM wrap (optional)").
+			Description("Catalog key for embedded UCMM request.").
+			Key("single_ucmm_wrap").
+			Value(&singleUcmmWrap),
+		huh.NewInput().
+			Title("Mutate payload (optional)").
+			Description("missing_fields, wrong_length, invalid_offsets, wrong_datatype, flip_bits").
+			Key("single_mutate").
+			Value(&singleMutate),
+		huh.NewInput().
+			Title("Mutate seed (optional)").
+			Description("Deterministic seed for mutation.").
+			Key("single_mutate_seed").
+			Value(&singleMutateSeed),
+		huh.NewConfirm().
+			Title("Dry run (no traffic)").
+			Description("Print constructed CIP bytes and exit.").
+			Key("single_dry_run").
+			Value(&singleDryRun),
 	).WithHideFunc(func() bool { return kind != "single" })
 
 	planGroup := huh.NewGroup(
@@ -188,6 +272,20 @@ func buildSingleWizardForm(workspaceRoot string, entry CatalogEntry) *huh.Form {
 	singleClass := entry.Class
 	singleInstance := entry.Instance
 	singleAttribute := entry.Attribute
+	singlePayloadType := ""
+	singlePayloadParams := ""
+	singlePayloadHex := ""
+	singleTag := ""
+	singleTagPath := ""
+	singleElements := ""
+	singleOffset := ""
+	singleDataType := ""
+	singleValue := ""
+	singleRouteSlot := ""
+	singleUcmmWrap := ""
+	singleMutate := ""
+	singleMutateSeed := ""
+	singleDryRun := false
 	if ws, err := LoadWorkspace(workspaceRoot); err == nil {
 		if ws.Config.Defaults.DefaultTargetIP != "" {
 			singleIP = ws.Config.Defaults.DefaultTargetIP
@@ -235,6 +333,76 @@ func buildSingleWizardForm(workspaceRoot string, entry CatalogEntry) *huh.Form {
 			Description("Attribute ID (hex).").
 			Key("single_attribute").
 			Value(&singleAttribute),
+		huh.NewInput().
+			Title("Payload type (optional)").
+			Description("Service payload type (forward_open, unconnected_send, rockwell_tag, file_object, modbus_object).").
+			Key("single_payload_type").
+			Value(&singlePayloadType),
+		huh.NewInput().
+			Title("Payload params (optional)").
+			Description("Comma-separated key=value pairs (e.g., tag=MyTag, elements=1).").
+			Key("single_payload_params").
+			Value(&singlePayloadParams),
+		huh.NewInput().
+			Title("Payload hex (optional)").
+			Description("Raw payload hex (overrides builder).").
+			Key("single_payload_hex").
+			Value(&singlePayloadHex),
+		huh.NewInput().
+			Title("Tag (optional)").
+			Description("Symbolic tag name (e.g., MyTag).").
+			Key("single_tag").
+			Value(&singleTag),
+		huh.NewInput().
+			Title("Tag path (optional)").
+			Description("Symbolic tag path (e.g., Program:Main.MyTag).").
+			Key("single_tag_path").
+			Value(&singleTagPath),
+		huh.NewInput().
+			Title("Elements (optional)").
+			Description("Element count for tag operations.").
+			Key("single_elements").
+			Value(&singleElements),
+		huh.NewInput().
+			Title("Offset (optional)").
+			Description("Byte offset for fragmented tag operations.").
+			Key("single_offset").
+			Value(&singleOffset),
+		huh.NewInput().
+			Title("Data type (optional)").
+			Description("CIP data type (BOOL, INT, DINT, REAL, 0x00C4).").
+			Key("single_data_type").
+			Value(&singleDataType),
+		huh.NewInput().
+			Title("Value (optional)").
+			Description("Value for write/tag payloads (comma-separated allowed).").
+			Key("single_value").
+			Value(&singleValue),
+		huh.NewInput().
+			Title("Route slot (optional)").
+			Description("UCMM route slot (backplane port 1).").
+			Key("single_route_slot").
+			Value(&singleRouteSlot),
+		huh.NewInput().
+			Title("UCMM wrap (optional)").
+			Description("Catalog key for embedded UCMM request.").
+			Key("single_ucmm_wrap").
+			Value(&singleUcmmWrap),
+		huh.NewInput().
+			Title("Mutate payload (optional)").
+			Description("missing_fields, wrong_length, invalid_offsets, wrong_datatype, flip_bits").
+			Key("single_mutate").
+			Value(&singleMutate),
+		huh.NewInput().
+			Title("Mutate seed (optional)").
+			Description("Deterministic seed for mutation.").
+			Key("single_mutate_seed").
+			Value(&singleMutateSeed),
+		huh.NewConfirm().
+			Title("Dry run (no traffic)").
+			Description("Print constructed CIP bytes and exit.").
+			Key("single_dry_run").
+			Value(&singleDryRun),
 	)
 	return huh.NewForm(singleGroup)
 }
@@ -307,6 +475,8 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 		})
 	case "single":
 		port, _ := strconv.Atoi(strings.TrimSpace(form.GetString("single_port")))
+		payloadParams := parsePayloadParamsText(form.GetString("single_payload_params"))
+		mutateSeed, _ := strconv.Atoi(strings.TrimSpace(form.GetString("single_mutate_seed")))
 		catalogKey := strings.TrimSpace(form.GetString("single_catalog_key"))
 		if catalogKey != "" {
 			entries, _ := ListCatalogEntries(workspaceRoot)
@@ -338,14 +508,29 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 					return Profile{}, fmt.Errorf("single request requires service and class")
 				}
 				return BuildWizardProfile(WizardOptions{
-					Kind:      "single",
-					Name:      entry.Key,
-					IP:        ip,
-					Port:      port,
-					Service:   service,
-					Class:     classID,
-					Instance:  instance,
-					Attribute: attribute,
+					Kind:          "single",
+					Name:          entry.Key,
+					CatalogKey:    catalogKey,
+					IP:            ip,
+					Port:          port,
+					Service:       service,
+					Class:         classID,
+					Instance:      instance,
+					Attribute:     attribute,
+					PayloadHex:    strings.TrimSpace(form.GetString("single_payload_hex")),
+					PayloadType:   strings.TrimSpace(form.GetString("single_payload_type")),
+					PayloadParams: payloadParams,
+					Tag:           strings.TrimSpace(form.GetString("single_tag")),
+					TagPath:       strings.TrimSpace(form.GetString("single_tag_path")),
+					Elements:      strings.TrimSpace(form.GetString("single_elements")),
+					Offset:        strings.TrimSpace(form.GetString("single_offset")),
+					DataType:      strings.TrimSpace(form.GetString("single_data_type")),
+					Value:         strings.TrimSpace(form.GetString("single_value")),
+					RouteSlot:     strings.TrimSpace(form.GetString("single_route_slot")),
+					UcmmWrap:      strings.TrimSpace(form.GetString("single_ucmm_wrap")),
+					DryRun:        form.GetBool("single_dry_run"),
+					Mutate:        strings.TrimSpace(form.GetString("single_mutate")),
+					MutateSeed:    mutateSeed,
 				})
 			}
 		}
@@ -362,14 +547,29 @@ func buildWizardProfileFromForm(form *huh.Form, workspaceRoot string) (Profile, 
 			return Profile{}, fmt.Errorf("single request requires service and class")
 		}
 		return BuildWizardProfile(WizardOptions{
-			Kind:      "single",
-			Name:      "single",
-			IP:        ip,
-			Port:      port,
-			Service:   service,
-			Class:     classID,
-			Instance:  strings.TrimSpace(form.GetString("single_instance")),
-			Attribute: strings.TrimSpace(form.GetString("single_attribute")),
+			Kind:          "single",
+			Name:          "single",
+			CatalogKey:    strings.TrimSpace(form.GetString("single_catalog_key")),
+			IP:            ip,
+			Port:          port,
+			Service:       service,
+			Class:         classID,
+			Instance:      strings.TrimSpace(form.GetString("single_instance")),
+			Attribute:     strings.TrimSpace(form.GetString("single_attribute")),
+			PayloadHex:    strings.TrimSpace(form.GetString("single_payload_hex")),
+			PayloadType:   strings.TrimSpace(form.GetString("single_payload_type")),
+			PayloadParams: payloadParams,
+			Tag:           strings.TrimSpace(form.GetString("single_tag")),
+			TagPath:       strings.TrimSpace(form.GetString("single_tag_path")),
+			Elements:      strings.TrimSpace(form.GetString("single_elements")),
+			Offset:        strings.TrimSpace(form.GetString("single_offset")),
+			DataType:      strings.TrimSpace(form.GetString("single_data_type")),
+			Value:         strings.TrimSpace(form.GetString("single_value")),
+			RouteSlot:     strings.TrimSpace(form.GetString("single_route_slot")),
+			UcmmWrap:      strings.TrimSpace(form.GetString("single_ucmm_wrap")),
+			DryRun:        form.GetBool("single_dry_run"),
+			Mutate:        strings.TrimSpace(form.GetString("single_mutate")),
+			MutateSeed:    mutateSeed,
 		})
 	case "plan":
 		return BuildWizardProfile(WizardOptions{Kind: "plan"})
@@ -390,4 +590,22 @@ func wizardKindFromForm(form *huh.Form) string {
 		return "pcap-replay"
 	}
 	return kind
+}
+
+func parsePayloadParamsText(input string) []string {
+	raw := strings.TrimSpace(input)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '\n'
+	})
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		val := strings.TrimSpace(part)
+		if val != "" {
+			out = append(out, val)
+		}
+	}
+	return out
 }

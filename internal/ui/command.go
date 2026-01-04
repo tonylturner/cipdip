@@ -13,17 +13,26 @@ type CommandSpec struct {
 
 // BuildCommand builds a CLI command from a profile kind/spec.
 func BuildCommand(profile Profile) (CommandSpec, error) {
-	switch strings.ToLower(profile.Kind) {
+	return BuildCommandWithWorkspace(profile, "")
+}
+
+// BuildCommandWithWorkspace builds a CLI command from a profile plus workspace defaults.
+func BuildCommandWithWorkspace(profile Profile, workspaceRoot string) (CommandSpec, error) {
+	resolved, err := ResolveProfile(profile, workspaceRoot)
+	if err != nil {
+		return CommandSpec{}, err
+	}
+	switch strings.ToLower(resolved.Kind) {
 	case "pcap_replay":
-		return buildPcapReplayCommand(profile)
+		return buildPcapReplayCommand(resolved)
 	case "baseline":
-		return buildBaselineCommand(profile)
+		return buildBaselineCommand(resolved)
 	case "server":
-		return buildServerCommand(profile)
+		return buildServerCommand(resolved)
 	case "single":
-		return buildSingleCommand(profile)
+		return buildSingleCommand(resolved)
 	default:
-		return CommandSpec{}, fmt.Errorf("unsupported profile kind: %s", profile.Kind)
+		return CommandSpec{}, fmt.Errorf("unsupported profile kind: %s", resolved.Kind)
 	}
 }
 
@@ -107,6 +116,28 @@ func buildSingleCommand(profile Profile) (CommandSpec, error) {
 	addStringFlag(&args, spec, "instance", "--instance")
 	addStringFlag(&args, spec, "attribute", "--attribute")
 	addStringFlag(&args, spec, "payload_hex", "--payload-hex")
+	addStringFlag(&args, spec, "payload_type", "--payload-type")
+	addStringSliceFlag(&args, spec, "payload_params", "--payload-param")
+	addStringFlag(&args, spec, "tag", "--tag")
+	addStringFlag(&args, spec, "tag_path", "--tag-path")
+	addStringFlag(&args, spec, "elements", "--elements")
+	addStringFlag(&args, spec, "offset", "--offset")
+	addStringFlag(&args, spec, "type", "--type")
+	addStringFlag(&args, spec, "value", "--value")
+	addStringFlag(&args, spec, "file_offset", "--file-offset")
+	addStringFlag(&args, spec, "chunk", "--chunk")
+	addStringFlag(&args, spec, "modbus_fc", "--modbus-fc")
+	addStringFlag(&args, spec, "modbus_addr", "--modbus-addr")
+	addStringFlag(&args, spec, "modbus_qty", "--modbus-qty")
+	addStringFlag(&args, spec, "modbus_data_hex", "--modbus-data-hex")
+	addStringFlag(&args, spec, "pccc_hex", "--pccc-hex")
+	addStringFlag(&args, spec, "route_slot", "--route-slot")
+	addStringFlag(&args, spec, "ucmm_wrap", "--ucmm-wrap")
+	addStringFlag(&args, spec, "catalog_root", "--catalog-root")
+	addStringFlag(&args, spec, "catalog_key", "--catalog-key")
+	addBoolFlag(&args, spec, "dry_run", "--dry-run")
+	addStringFlag(&args, spec, "mutate", "--mutate")
+	addIntFlag(&args, spec, "mutate_seed", "--mutate-seed")
 	return CommandSpec{Args: args}, nil
 }
 
@@ -136,6 +167,27 @@ func addBoolFlag(args *[]string, spec map[string]interface{}, key, flag string) 
 	case string:
 		if parsed, err := strconv.ParseBool(v); err == nil && parsed {
 			*args = append(*args, flag)
+		}
+	}
+}
+
+func addStringSliceFlag(args *[]string, spec map[string]interface{}, key, flag string) {
+	val, ok := spec[key]
+	if !ok {
+		return
+	}
+	switch v := val.(type) {
+	case []string:
+		for _, item := range v {
+			if strings.TrimSpace(item) != "" {
+				*args = append(*args, flag, item)
+			}
+		}
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+				*args = append(*args, flag, s)
+			}
 		}
 	}
 }

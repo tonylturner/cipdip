@@ -81,6 +81,8 @@ custom_targets:
     instance: 0x01              # example instance
     attribute: 0x00             # may be unused depending on service
     request_payload_hex: ""      # raw hex string for request body (optional)
+    payload_type: ""            # optional payload builder (e.g., rockwell_tag, unconnected_send)
+    payload_params: {}          # free-form params (e.g., tag: "MyTag", elements: 1)
 
 # Edge-valid targets for DPI falsification (used by edge_valid scenario)
 edge_targets:
