@@ -11,23 +11,32 @@ import (
 
 // InternalPacketInfo captures minimal internal parsing hints for a frame.
 type InternalPacketInfo struct {
-	HasENIP     bool
-	HasCIP      bool
-	ENIPCommand uint16
-	ENIPSession uint32
-	CPFItemCount int
-	CPFItems     []CPFItem
-	CIPData     []byte
-	CIPType     string
-	Layers      []string
-	SrcIP       string
-	DstIP       string
-	SrcPort     uint16
-	DstPort     uint16
-	Transport   string
-	CIPService  uint8
-	CIPIsResponse bool
-	CIPStatusPresent bool
+	HasENIP            bool
+	HasCIP             bool
+	ENIPCommand        uint16
+	ENIPSession        uint32
+	ENIPLength         uint16
+	ENIPDataLen        int
+	ENIPLengthMismatch bool
+	ENIPParseError     string
+	CPFItemCount       int
+	CPFItems           []CPFItem
+	CPFParseError      string
+	CIPData            []byte
+	CIPType            string
+	CIPPathSizeWords   int
+	CIPPathBytes       int
+	CIPParseError      string
+	CIPServiceDataLen  int
+	Layers             []string
+	SrcIP              string
+	DstIP              string
+	SrcPort            uint16
+	DstPort            uint16
+	Transport          string
+	CIPService         uint8
+	CIPIsResponse      bool
+	CIPStatusPresent   bool
 }
 
 // ParseInternalPCAP extracts basic ENIP/CIP payload data from a PCAP.
@@ -83,10 +92,15 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 
 		if len(payload) >= 24 {
 			encap, err := cipclient.DecodeENIP(payload)
-			if err == nil {
+			if err != nil {
+				info.ENIPParseError = err.Error()
+			} else {
 				info.HasENIP = true
 				info.ENIPCommand = encap.Command
 				info.ENIPSession = encap.SessionID
+				info.ENIPLength = encap.Length
+				info.ENIPDataLen = len(encap.Data)
+				info.ENIPLengthMismatch = encap.Length != uint16(len(encap.Data))
 				info.Layers = append(info.Layers, "enip")
 				if (encap.Command == cipclient.ENIPCommandSendRRData || encap.Command == cipclient.ENIPCommandSendUnitData) && len(encap.Data) >= 6 {
 					if items, err := cipclient.ParseCPFItems(encap.Data[6:]); err == nil {
@@ -98,6 +112,8 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 								Length: len(item.Data),
 							})
 						}
+					} else {
+						info.CPFParseError = err.Error()
 					}
 				}
 				cipData, _, dataType := cipclient.ExtractCIPFromENIPPacket(cipclient.ENIPPacket{Data: encap.Data})
@@ -109,8 +125,23 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 					info.CIPService = cipData[0]
 					info.CIPIsResponse = (cipData[0] & 0x80) != 0
 					if info.CIPIsResponse {
-						if _, err := cipclient.DecodeCIPResponse(cipData, cipclient.CIPPath{}); err == nil {
+						resp, err := cipclient.DecodeCIPResponse(cipData, cipclient.CIPPath{})
+						if err != nil {
+							info.CIPParseError = err.Error()
+						} else {
 							info.CIPStatusPresent = true
+							info.CIPServiceDataLen = len(resp.Payload)
+						}
+					} else {
+						req, err := cipclient.DecodeCIPRequest(cipData)
+						if err != nil {
+							info.CIPParseError = err.Error()
+						} else {
+							info.CIPPathBytes = len(req.RawPath)
+							if len(cipData) > 1 {
+								info.CIPPathSizeWords = int(cipData[1])
+							}
+							info.CIPServiceDataLen = len(req.Payload)
 						}
 					}
 				}

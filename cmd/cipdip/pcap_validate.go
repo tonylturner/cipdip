@@ -23,6 +23,7 @@ type pcapValidateFlags struct {
 	negativePolicy    string
 	expertPolicy      string
 	conversationMode  string
+	profile           string
 	tsharkPath        string
 	noTshark          bool
 	includeRawHex     bool
@@ -66,6 +67,7 @@ packet-level parse results. Optionally generate synthetic validation PCAPs.`,
 	cmd.Flags().StringVar(&flags.negativePolicy, "negative-policy", "tshark", "Negative validation policy: tshark, internal, either")
 	cmd.Flags().StringVar(&flags.expertPolicy, "expert-policy", "balanced", "Expert policy: strict, balanced, off")
 	cmd.Flags().StringVar(&flags.conversationMode, "conversation-mode", "basic", "Conversation mode: off, basic, strict")
+	cmd.Flags().StringVar(&flags.profile, "profile", "client_wire", "Validation profile: client_wire, server_wire, pairing")
 	cmd.Flags().StringVar(&flags.tsharkPath, "tshark", "", "Path to tshark binary")
 	cmd.Flags().BoolVar(&flags.noTshark, "no-tshark", false, "Disable tshark (internal-only validation)")
 	cmd.Flags().BoolVar(&flags.includeRawHex, "include-raw-hex", false, "Include raw ENIP hex in verbose output")
@@ -92,6 +94,11 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	case "off", "basic", "strict":
 	default:
 		return fmt.Errorf("invalid conversation-mode %q (expected off, basic, strict)", flags.conversationMode)
+	}
+	switch strings.ToLower(strings.TrimSpace(flags.profile)) {
+	case "client_wire", "server_wire", "pairing":
+	default:
+		return fmt.Errorf("invalid profile %q (expected client_wire, server_wire, pairing)", flags.profile)
 	}
 
 	var pcaps []string
@@ -123,13 +130,17 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	totalPassTransport := 0
 	totalPassWarn := 0
 	totalExpectedInvalid := 0
+	totalGradePass := 0
+	totalGradeFail := 0
+	totalGradeExpected := 0
 	report := validation.ValidationReport{
-		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
-		CIPDIPVersion: version,
-		CIPDIPCommit:  commit,
-		CIPDIPDate:    date,
-		ExpertPolicy:  flags.expertPolicy,
+		GeneratedAt:      time.Now().UTC().Format(time.RFC3339),
+		CIPDIPVersion:    version,
+		CIPDIPCommit:     commit,
+		CIPDIPDate:       date,
+		ExpertPolicy:     flags.expertPolicy,
 		ConversationMode: flags.conversationMode,
+		Profile:          flags.profile,
 	}
 	if mode != "internal-only" {
 		if tsharkPath, err := validation.ResolveTsharkPath(flags.tsharkPath); err == nil {
@@ -173,7 +184,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 			pairingMap := validation.BuildPairingResults(*manifest, results)
 			for i, expect := range manifest.Packets {
 				baseID := strings.TrimSuffix(strings.TrimSuffix(expect.ID, "/request"), "/response")
-				eval := validation.EvaluatePacket(expect, results[i], flags.negativePolicy, flags.expertPolicy, flags.conversationMode, pairingMap[baseID])
+				eval := validation.EvaluatePacket(expect, results[i], flags.negativePolicy, flags.expertPolicy, flags.conversationMode, flags.profile, pairingMap[baseID])
 				eval.PacketIndex = i + 1
 				evaluations = append(evaluations, eval)
 			}
@@ -185,6 +196,9 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 		filePassTransport := 0
 		filePassWarn := 0
 		fileExpectedInvalid := 0
+		fileGradePass := 0
+		fileGradeFail := 0
+		fileGradeExpected := 0
 		if len(evaluations) > 0 {
 			for _, eval := range evaluations {
 				switch eval.PassCategory {
@@ -198,6 +212,14 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 					filePassWarn++
 				case "expected_invalid_passed":
 					fileExpectedInvalid++
+				}
+				switch eval.Grade {
+				case validation.GradePass:
+					fileGradePass++
+				case validation.GradeFail:
+					fileGradeFail++
+				case validation.GradeExpectedInvalid:
+					fileGradeExpected++
 				}
 				if !eval.Pass {
 					fileInvalid++
@@ -219,6 +241,9 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 		totalPassTransport += filePassTransport
 		totalPassWarn += filePassWarn
 		totalExpectedInvalid += fileExpectedInvalid
+		totalGradePass += fileGradePass
+		totalGradeFail += fileGradeFail
+		totalGradeExpected += fileGradeExpected
 
 		fmt.Fprintf(os.Stdout, "%s: %d packets, %d invalid\n", pcapPath, len(results), fileInvalid)
 		if flags.verbose {
@@ -259,6 +284,10 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	fmt.Fprintf(os.Stdout, "Validated %d file(s): %d packets, %d invalid\n", totalFiles, totalPackets, totalInvalid)
 	fmt.Fprintf(os.Stdout, "Summary: pass_clean=%d pass_with_expected_experts=%d pass_with_transport_warnings=%d pass_with_warnings=%d expected_invalid_passed=%d fail=%d\n",
 		totalPassClean, totalPassExpected, totalPassTransport, totalPassWarn, totalExpectedInvalid, totalInvalid)
+	if totalGradePass+totalGradeFail+totalGradeExpected > 0 {
+		fmt.Fprintf(os.Stdout, "Grade A: A_pass=%d A_fail=%d expected_invalid=%d\n",
+			totalGradePass, totalGradeFail, totalGradeExpected)
+	}
 	if flags.reportJSON != "" {
 		if err := writeReportJSON(flags.reportJSON, report); err != nil {
 			return err
@@ -301,6 +330,12 @@ func printVerboseEvaluations(results []validation.ValidateResult, evals []valida
 		fmt.Fprintf(os.Stdout, "  #%d %s test=%s dir=%s\n", i+1, status, eval.Expected.ID, eval.Expected.Direction)
 		if len(result.Layers) > 0 {
 			fmt.Fprintf(os.Stdout, "    layers: %s\n", strings.Join(result.Layers, ":"))
+		}
+		if eval.Grade != "" {
+			fmt.Fprintf(os.Stdout, "    grade: %s\n", eval.Grade)
+		}
+		if len(eval.FailureLabels) > 0 {
+			fmt.Fprintf(os.Stdout, "    failures: %s\n", strings.Join(eval.FailureLabels, ", "))
 		}
 		if len(result.ExpertMessages) > 0 || result.Malformed {
 			fmt.Fprintf(os.Stdout, "    tshark: malformed=%t experts=%d\n", result.Malformed, len(result.ExpertMessages))

@@ -65,7 +65,7 @@ func TestGeneratedPCAPsValidateWithTshark(t *testing.T) {
 			for i, result := range results {
 				pairing := BuildPairingResults(*manifest, results)
 				baseID := strings.TrimSuffix(strings.TrimSuffix(manifest.Packets[i].ID, "/request"), "/response")
-				eval := EvaluatePacket(manifest.Packets[i], result, "tshark", "balanced", "basic", pairing[baseID])
+				eval := EvaluatePacket(manifest.Packets[i], result, "tshark", "balanced", "basic", "client_wire", pairing[baseID])
 				if !eval.Pass {
 					t.Fatalf("validation failed %s #%d (%s): %+v", spec.Name, i, eval.Expected.ID, eval.Scenarios)
 				}

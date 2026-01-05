@@ -246,7 +246,8 @@ func buildPCCCPayload(req CIPRequest, params PayloadParams) ([]byte, []byte, err
 	case "noop":
 		return []byte{0x00}, nil, nil
 	}
-	return nil, nil, fmt.Errorf("pccc payload requires pccc_hex or pccc_example")
+	// Minimal PCCC frame: command, status, TNS (2 bytes), function.
+	return []byte{0x0F, 0x00, 0x00, 0x00, 0x00}, nil, nil
 }
 
 func buildFileObjectPayload(req CIPRequest, params PayloadParams) ([]byte, error) {
@@ -262,11 +263,16 @@ func buildFileObjectPayload(req CIPRequest, params PayloadParams) ([]byte, error
 		format := uint16(params.getUintDefault("format_version", 0))
 		rev := uint16(params.getUintDefault("file_revision", 0))
 		name := params.getStringDefault("file_name", "")
-		buf := make([]byte, 8+len(name))
+		nameBytes := []byte(name)
+		if len(nameBytes) > 255 {
+			nameBytes = nameBytes[:255]
+		}
+		buf := make([]byte, 9+len(nameBytes))
 		order.PutUint32(buf[0:4], total)
 		order.PutUint16(buf[4:6], format)
 		order.PutUint16(buf[6:8], rev)
-		copy(buf[8:], []byte(name))
+		buf[8] = uint8(len(nameBytes))
+		copy(buf[9:], nameBytes)
 		return buf, nil
 	case CIPServiceInitiatePartialRead:
 		offset := uint32(params.getUintDefault("file_offset", 0))
@@ -316,10 +322,21 @@ func buildModbusPayload(req CIPRequest, params PayloadParams) ([]byte, error) {
 		return buf, nil
 	case 0x4F, 0x50:
 		data := params.getBytesHex("modbus_data_hex")
-		buf := make([]byte, 4+len(data))
+		if req.Service == 0x4F && len(data) == 0 && qty > 0 {
+			byteCount := int((qty + 7) / 8)
+			data = make([]byte, byteCount)
+		}
+		if req.Service == 0x50 && len(data) == 0 && qty > 0 {
+			data = make([]byte, int(qty)*2)
+		}
+		if len(data) > 255 {
+			data = data[:255]
+		}
+		buf := make([]byte, 5+len(data))
 		order.PutUint16(buf[0:2], addr)
 		order.PutUint16(buf[2:4], qty)
-		copy(buf[4:], data)
+		buf[4] = uint8(len(data))
+		copy(buf[5:], data)
 		return buf, nil
 	case 0x51:
 		pdu := params.getBytesHex("modbus_pdu_hex")
