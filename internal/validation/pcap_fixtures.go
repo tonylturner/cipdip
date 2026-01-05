@@ -13,7 +13,6 @@ import (
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cip/spec"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -677,17 +676,17 @@ func defaultResponsePayload(shape string) []byte {
 	}
 }
 
-func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error) {
+func BuildValidationPackets(pcapSpec ValidationPCAPSpec) ([]ValidationPacket, error) {
 	prevProfile := cipclient.CurrentProtocolProfile()
 	cipclient.SetProtocolProfile(cipclient.StrictODVAProfile)
 	defer cipclient.SetProtocolProfile(prevProfile)
 
-	validator := legacy.NewPacketValidator(true)
-	packets := make([]ValidationPacket, 0, len(spec.Requests)*2)
+	validator := NewValidator(true, "client_wire", spec.DefaultRegistry())
+	packets := make([]ValidationPacket, 0, len(pcapSpec.Requests)*2)
 	senderContext := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	sessionID := uint32(0x12345678)
 
-	for _, reqSpec := range spec.Requests {
+	for _, reqSpec := range pcapSpec.Requests {
 		req := reqSpec.Req
 		if reqSpec.PayloadType != "" || len(reqSpec.PayloadParams) > 0 {
 			result, err := cipclient.BuildServicePayload(req, cipclient.PayloadSpec{
@@ -705,8 +704,10 @@ func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error)
 			}
 		}
 
-		if err := validator.ValidateCIPRequest(req); err != nil {
-			return nil, fmt.Errorf("validate request (%s): %w", reqSpec.Name, err)
+		if !strings.EqualFold(reqSpec.Outcome, "invalid") {
+			if err := FindingsError(validator.ValidateCIPRequest(req)); err != nil {
+				return nil, fmt.Errorf("validate request (%s): %w", reqSpec.Name, err)
+			}
 		}
 		cipData, err := protocol.EncodeCIPRequest(req)
 		if err != nil {
@@ -717,7 +718,7 @@ func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error)
 		if err != nil {
 			return nil, fmt.Errorf("decode ENIP (%s): %w", reqSpec.Name, err)
 		}
-		if err := validator.ValidateENIP(encap); err != nil {
+		if err := FindingsError(validator.ValidateENIP(encap)); err != nil {
 			return nil, fmt.Errorf("validate ENIP (%s): %w", reqSpec.Name, err)
 		}
 
@@ -747,8 +748,8 @@ func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error)
 	return packets, nil
 }
 
-func BuildValidationENIPPackets(spec ValidationPCAPSpec) ([][]byte, error) {
-	packets, err := BuildValidationPackets(spec)
+func BuildValidationENIPPackets(pcapSpec ValidationPCAPSpec) ([][]byte, error) {
+	packets, err := BuildValidationPackets(pcapSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -880,5 +881,3 @@ func GenerateValidationPCAPs(outputDir string) ([]string, error) {
 	}
 	return paths, nil
 }
-
-

@@ -8,7 +8,6 @@ import (
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cip/spec"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -76,7 +75,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	}
 	defer client.Disconnect(ctx)
 
-	validator := legacy.NewPacketValidator(true)
+	validator := NewValidator(true, "server_wire", spec.DefaultRegistry())
 
 	readPath := protocol.CIPPath{
 		Class:     spec.CIPClassAssembly,
@@ -87,7 +86,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAttribute error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(readResp, spec.CIPServiceGetAttributeSingle); err != nil {
+	if err := FindingsError(validator.ValidateCIPResponse(readResp, spec.CIPServiceGetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(ReadAttribute) error: %v", err)
 	}
 
@@ -95,7 +94,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteAttribute error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(writeResp, spec.CIPServiceSetAttributeSingle); err != nil {
+	if err := FindingsError(validator.ValidateCIPResponse(writeResp, spec.CIPServiceSetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(WriteAttribute) error: %v", err)
 	}
 
@@ -111,10 +110,10 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InvokeUnconnectedSend error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(ucmmResp, spec.CIPServiceUnconnectedSend); err != nil {
+	if err := FindingsError(validator.ValidateCIPResponse(ucmmResp, spec.CIPServiceUnconnectedSend)); err != nil {
 		t.Fatalf("ValidateCIPResponse(UnconnectedSend) error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(embeddedResp, spec.CIPServiceGetAttributeSingle); err != nil {
+	if err := FindingsError(validator.ValidateCIPResponse(embeddedResp, spec.CIPServiceGetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(Embedded) error: %v", err)
 	}
 
@@ -139,5 +138,3 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 		t.Fatalf("ForwardClose error: %v", err)
 	}
 }
-
-
