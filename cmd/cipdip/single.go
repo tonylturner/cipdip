@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -188,7 +189,7 @@ func parseServiceInput(input string) (uint64, error) {
 	if value, err := parseUint(input, 8); err == nil {
 		return value, nil
 	}
-	if code, ok := cipclient.ParseServiceAlias(input); ok {
+	if code, ok := spec.ParseServiceAlias(input); ok {
 		return uint64(code), nil
 	}
 	return 0, fmt.Errorf("unknown service alias '%s'", input)
@@ -198,7 +199,7 @@ func parseClassInput(input string) (uint64, error) {
 	if value, err := parseUint(input, 16); err == nil {
 		return value, nil
 	}
-	if code, ok := cipclient.ParseClassAlias(input); ok {
+	if code, ok := spec.ParseClassAlias(input); ok {
 		return uint64(code), nil
 	}
 	return 0, fmt.Errorf("unknown class alias '%s'", input)

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"time"
 
 	"github.com/tturner/cipdip/internal/cip/codec"
@@ -214,13 +215,13 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req protocol.CIPRequest)
 	profile := CurrentProtocolProfile()
 	validator := NewPacketValidator(profile.Name != "legacy_compat")
 	if err := validator.ValidateCIPRequest(req); err != nil {
-		return protocol.CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s request", req.Service))
+		return protocol.CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s request", spec.ServiceName(req.Service)))
 	}
 
 	// Encode CIP request
 	cipData, err := protocol.EncodeCIPRequest(req)
 	if err != nil {
-		return protocol.CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("encode %s", req.Service))
+		return protocol.CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("encode %s", spec.ServiceName(req.Service)))
 	}
 
 	// Build SendRRData packet
@@ -257,7 +258,7 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req protocol.CIPRequest)
 	// Decode CIP response
 	resp, err := protocol.DecodeCIPResponse(cipRespData, req.Path)
 	if err != nil {
-		return protocol.CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s response", req.Service))
+		return protocol.CIPResponse{}, errors.WrapCIPError(err, fmt.Sprintf("%s response", spec.ServiceName(req.Service)))
 	}
 
 	resp.Service = req.Service
@@ -274,7 +275,7 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req protocol.CIPRequest)
 // ReadAttribute reads a CIP attribute using Get_Attribute_Single
 func (c *ENIPClient) ReadAttribute(ctx context.Context, path protocol.CIPPath) (protocol.CIPResponse, error) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path:    path,
 		Payload: nil,
 	}
@@ -285,7 +286,7 @@ func (c *ENIPClient) ReadAttribute(ctx context.Context, path protocol.CIPPath) (
 // WriteAttribute writes a CIP attribute using Set_Attribute_Single
 func (c *ENIPClient) WriteAttribute(ctx context.Context, path protocol.CIPPath, value []byte) (protocol.CIPResponse, error) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceSetAttributeSingle,
+		Service: spec.CIPServiceSetAttributeSingle,
 		Path:    path,
 		Payload: value,
 	}
@@ -297,7 +298,7 @@ func (c *ENIPClient) WriteAttribute(ctx context.Context, path protocol.CIPPath, 
 func (c *ENIPClient) ReadTag(ctx context.Context, path protocol.CIPPath, elementCount uint16) (protocol.CIPResponse, error) {
 	payload := BuildReadTagPayload(elementCount)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTag,
+		Service: spec.CIPServiceReadTag,
 		Path:    path,
 		Payload: payload,
 	}
@@ -308,7 +309,7 @@ func (c *ENIPClient) ReadTag(ctx context.Context, path protocol.CIPPath, element
 func (c *ENIPClient) ReadTagByName(ctx context.Context, tagName string, elementCount uint16) (protocol.CIPResponse, error) {
 	payload := BuildReadTagPayload(elementCount)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTag,
+		Service: spec.CIPServiceReadTag,
 		Path:    protocol.CIPPath{Name: tagName},
 		RawPath: protocol.BuildSymbolicEPATH(tagName),
 		Payload: payload,
@@ -320,7 +321,7 @@ func (c *ENIPClient) ReadTagByName(ctx context.Context, tagName string, elementC
 func (c *ENIPClient) WriteTag(ctx context.Context, path protocol.CIPPath, typeCode uint16, elementCount uint16, data []byte) (protocol.CIPResponse, error) {
 	payload := BuildWriteTagPayload(typeCode, elementCount, data)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceWriteTag,
+		Service: spec.CIPServiceWriteTag,
 		Path:    path,
 		Payload: payload,
 	}
@@ -331,7 +332,7 @@ func (c *ENIPClient) WriteTag(ctx context.Context, path protocol.CIPPath, typeCo
 func (c *ENIPClient) WriteTagByName(ctx context.Context, tagName string, typeCode uint16, elementCount uint16, data []byte) (protocol.CIPResponse, error) {
 	payload := BuildWriteTagPayload(typeCode, elementCount, data)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceWriteTag,
+		Service: spec.CIPServiceWriteTag,
 		Path:    protocol.CIPPath{Name: tagName},
 		RawPath: protocol.BuildSymbolicEPATH(tagName),
 		Payload: payload,
@@ -343,7 +344,7 @@ func (c *ENIPClient) WriteTagByName(ctx context.Context, tagName string, typeCod
 func (c *ENIPClient) ReadTagFragmented(ctx context.Context, path protocol.CIPPath, elementCount uint16, byteOffset uint32) (protocol.CIPResponse, error) {
 	payload := BuildReadTagFragmentedPayload(elementCount, byteOffset)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTagFragmented,
+		Service: spec.CIPServiceReadTagFragmented,
 		Path:    path,
 		Payload: payload,
 	}
@@ -354,7 +355,7 @@ func (c *ENIPClient) ReadTagFragmented(ctx context.Context, path protocol.CIPPat
 func (c *ENIPClient) ReadTagFragmentedByName(ctx context.Context, tagName string, elementCount uint16, byteOffset uint32) (protocol.CIPResponse, error) {
 	payload := BuildReadTagFragmentedPayload(elementCount, byteOffset)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTagFragmented,
+		Service: spec.CIPServiceReadTagFragmented,
 		Path:    protocol.CIPPath{Name: tagName},
 		RawPath: protocol.BuildSymbolicEPATH(tagName),
 		Payload: payload,
@@ -366,7 +367,7 @@ func (c *ENIPClient) ReadTagFragmentedByName(ctx context.Context, tagName string
 func (c *ENIPClient) WriteTagFragmented(ctx context.Context, path protocol.CIPPath, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (protocol.CIPResponse, error) {
 	payload := BuildWriteTagFragmentedPayload(typeCode, elementCount, byteOffset, data)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceWriteTagFragmented,
+		Service: spec.CIPServiceWriteTagFragmented,
 		Path:    path,
 		Payload: payload,
 	}
@@ -377,7 +378,7 @@ func (c *ENIPClient) WriteTagFragmented(ctx context.Context, path protocol.CIPPa
 func (c *ENIPClient) WriteTagFragmentedByName(ctx context.Context, tagName string, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (protocol.CIPResponse, error) {
 	payload := BuildWriteTagFragmentedPayload(typeCode, elementCount, byteOffset, data)
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceWriteTagFragmented,
+		Service: spec.CIPServiceWriteTagFragmented,
 		Path:    protocol.CIPPath{Name: tagName},
 		RawPath: protocol.BuildSymbolicEPATH(tagName),
 		Payload: payload,
@@ -392,7 +393,7 @@ func (c *ENIPClient) fileObjectRequest(service protocol.CIPServiceCode, instance
 	return protocol.CIPRequest{
 		Service: service,
 		Path: protocol.CIPPath{
-			Class:    CIPClassFileObject,
+			Class:    spec.CIPClassFileObject,
 			Instance: instance,
 		},
 		Payload: payload,
@@ -401,7 +402,7 @@ func (c *ENIPClient) fileObjectRequest(service protocol.CIPServiceCode, instance
 
 // FileInitiateUpload sends Initiate Upload (0x4B) to a File Object instance.
 func (c *ENIPClient) FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceInitiateUpload, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceInitiateUpload, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -410,7 +411,7 @@ func (c *ENIPClient) FileInitiateUpload(ctx context.Context, instance uint16, pa
 
 // FileInitiateDownload sends Initiate Download (0x4C) to a File Object instance.
 func (c *ENIPClient) FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceInitiateDownload, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceInitiateDownload, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -419,7 +420,7 @@ func (c *ENIPClient) FileInitiateDownload(ctx context.Context, instance uint16, 
 
 // FileInitiatePartialRead sends Initiate Partial Read (0x4D) to a File Object instance.
 func (c *ENIPClient) FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceInitiatePartialRead, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceInitiatePartialRead, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -428,7 +429,7 @@ func (c *ENIPClient) FileInitiatePartialRead(ctx context.Context, instance uint1
 
 // FileInitiatePartialWrite sends Initiate Partial Write (0x4E) to a File Object instance.
 func (c *ENIPClient) FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceInitiatePartialWrite, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceInitiatePartialWrite, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -437,7 +438,7 @@ func (c *ENIPClient) FileInitiatePartialWrite(ctx context.Context, instance uint
 
 // FileUploadTransfer sends Upload Transfer (0x4F) to a File Object instance.
 func (c *ENIPClient) FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceUploadTransfer, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceUploadTransfer, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -446,7 +447,7 @@ func (c *ENIPClient) FileUploadTransfer(ctx context.Context, instance uint16, pa
 
 // FileDownloadTransfer sends Download Transfer (0x50) to a File Object instance.
 func (c *ENIPClient) FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceDownloadTransfer, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceDownloadTransfer, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -455,7 +456,7 @@ func (c *ENIPClient) FileDownloadTransfer(ctx context.Context, instance uint16, 
 
 // FileClear sends Clear File (0x51) to a File Object instance.
 func (c *ENIPClient) FileClear(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	req, err := c.fileObjectRequest(protocol.CIPServiceClearFile, instance, payload)
+	req, err := c.fileObjectRequest(spec.CIPServiceClearFile, instance, payload)
 	if err != nil {
 		return protocol.CIPResponse{}, err
 	}
@@ -474,7 +475,7 @@ func (c *ENIPClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq prot
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceUnconnectedSend,
+		Service: spec.CIPServiceUnconnectedSend,
 		Path: protocol.CIPPath{
 			Class:    0x0006,
 			Instance: 0x0001,

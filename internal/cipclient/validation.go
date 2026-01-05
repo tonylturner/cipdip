@@ -2,7 +2,9 @@ package cipclient
 
 import (
 	"fmt"
+
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -79,14 +81,14 @@ func (v *PacketValidator) ValidateENIP(encap enip.ENIPEncapsulation) error {
 // ValidateCIPRequest validates a CIP request
 func (v *PacketValidator) ValidateCIPRequest(req protocol.CIPRequest) error {
 	// Validate service code
-	if !isValidCIPService(req.Service) {
+	if !spec.IsKnownService(req.Service) {
 		return fmt.Errorf("invalid CIP service code: 0x%02X", req.Service)
 	}
 	if v.strict {
 		if uint8(req.Service)&0x80 != 0 {
 			return fmt.Errorf("response service code not allowed in request: 0x%02X", req.Service)
 		}
-		if req.Service == protocol.CIPServiceErrorResponse {
+		if req.Service == spec.CIPServiceErrorResponse {
 			return fmt.Errorf("error response service not allowed in request")
 		}
 	}
@@ -103,27 +105,27 @@ func (v *PacketValidator) ValidateCIPRequest(req protocol.CIPRequest) error {
 
 	// Service-specific validation (non-overlapping codes first)
 	switch req.Service {
-	case protocol.CIPServiceMultipleService:
+	case spec.CIPServiceMultipleService:
 		if v.strict {
-			if req.Path.Class != CIPClassMessageRouter || req.Path.Instance != 0x0001 {
+			if req.Path.Class != spec.CIPClassMessageRouter || req.Path.Instance != 0x0001 {
 				return fmt.Errorf("Multiple_Service_Packet requires Message Router class 0x0002/instance 0x0001")
 			}
 			if len(req.Payload) < 4 {
 				return fmt.Errorf("Multiple_Service_Packet payload too short")
 			}
 		}
-	case protocol.CIPServiceGetAttributeSingle:
+	case spec.CIPServiceGetAttributeSingle:
 		// Get_Attribute_Single should not have payload
 		if len(req.Payload) > 0 && v.strict {
 			return fmt.Errorf("Get_Attribute_Single should not have payload")
 		}
-	case protocol.CIPServiceSetAttributeSingle:
+	case spec.CIPServiceSetAttributeSingle:
 		// Set_Attribute_Single should have payload
 		if len(req.Payload) == 0 {
 			return fmt.Errorf("Set_Attribute_Single requires payload")
 		}
-	case protocol.CIPServiceUnconnectedSend:
-		if req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
+	case spec.CIPServiceUnconnectedSend:
+		if req.Path.Class == spec.CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 4 && v.strict {
 				return fmt.Errorf("Unconnected_Send requires payload")
 			}
@@ -146,47 +148,47 @@ func (v *PacketValidator) ValidateCIPRequest(req protocol.CIPRequest) error {
 				return fmt.Errorf("Read_Tag_Fragmented requires element count + byte offset")
 			}
 		}
-	case protocol.CIPServiceWriteTag, protocol.CIPServiceWriteTagFragmented, protocol.CIPServiceSetMember, protocol.CIPServiceInsertMember, protocol.CIPServiceRemoveMember:
+	case spec.CIPServiceWriteTag, spec.CIPServiceWriteTagFragmented, spec.CIPServiceSetMember, spec.CIPServiceInsertMember, spec.CIPServiceRemoveMember:
 		if len(req.Payload) == 0 && v.strict {
-			return fmt.Errorf("%s requires payload", req.Service)
+			return fmt.Errorf("%s requires payload", spec.ServiceName(req.Service))
 		}
-		if req.Service == protocol.CIPServiceWriteTagFragmented && v.strict && len(req.Payload) < 8 {
+		if req.Service == spec.CIPServiceWriteTagFragmented && v.strict && len(req.Payload) < 8 {
 			return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and byte offset")
 		}
-	case protocol.CIPServiceForwardOpen:
-		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
+	case spec.CIPServiceForwardOpen:
+		if v.strict && req.Path.Class == spec.CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 20 {
 				return fmt.Errorf("Forward_Open payload too short")
 			}
 		}
-	case protocol.CIPServiceForwardClose:
-		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
+	case spec.CIPServiceForwardClose:
+		if v.strict && req.Path.Class == spec.CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 3 {
 				return fmt.Errorf("Forward_Close payload too short")
 			}
 		}
-	case protocol.CIPServiceExecutePCCC:
+	case spec.CIPServiceExecutePCCC:
 		if v.strict && len(req.Payload) == 0 {
 			return fmt.Errorf("Execute_PCCC requires payload")
 		}
 	}
 
 	// Tag services (symbol object path)
-	if req.Path.Class == CIPClassSymbolObject {
+	if req.Path.Class == spec.CIPClassSymbolObject {
 		switch req.Service {
-		case protocol.CIPServiceReadTag:
+		case spec.CIPServiceReadTag:
 			if v.strict && len(req.Payload) < 2 {
 				return fmt.Errorf("Read_Tag requires element count")
 			}
-		case protocol.CIPServiceWriteTag:
+		case spec.CIPServiceWriteTag:
 			if v.strict && len(req.Payload) < 4 {
 				return fmt.Errorf("Write_Tag requires type and element count")
 			}
-		case protocol.CIPServiceReadTagFragmented:
+		case spec.CIPServiceReadTagFragmented:
 			if v.strict && len(req.Payload) < 6 {
 				return fmt.Errorf("Read_Tag_Fragmented requires element count and offset")
 			}
-		case protocol.CIPServiceWriteTagFragmented:
+		case spec.CIPServiceWriteTagFragmented:
 			if v.strict && len(req.Payload) < 8 {
 				return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and offset")
 			}
@@ -194,22 +196,22 @@ func (v *PacketValidator) ValidateCIPRequest(req protocol.CIPRequest) error {
 	}
 
 	// File object services (class 0x37)
-	if req.Path.Class == CIPClassFileObject {
+	if req.Path.Class == spec.CIPClassFileObject {
 		switch req.Service {
-		case protocol.CIPServiceInitiateUpload, protocol.CIPServiceInitiateDownload, protocol.CIPServiceInitiatePartialRead,
-			protocol.CIPServiceInitiatePartialWrite, protocol.CIPServiceUploadTransfer, protocol.CIPServiceDownloadTransfer:
+		case spec.CIPServiceInitiateUpload, spec.CIPServiceInitiateDownload, spec.CIPServiceInitiatePartialRead,
+			spec.CIPServiceInitiatePartialWrite, spec.CIPServiceUploadTransfer, spec.CIPServiceDownloadTransfer:
 			if v.strict && len(req.Payload) == 0 {
 				return fmt.Errorf("File Object service 0x%02X requires payload", req.Service)
 			}
-		case protocol.CIPServiceClearFile:
+		case spec.CIPServiceClearFile:
 			// Clear file may have no payload.
 		}
 	}
 
 	// Event Log member operations (class 0x41)
-	if req.Path.Class == CIPClassEventLog {
+	if req.Path.Class == spec.CIPClassEventLog {
 		switch req.Service {
-		case protocol.CIPServiceGetMember, protocol.CIPServiceSetMember, protocol.CIPServiceInsertMember, protocol.CIPServiceRemoveMember:
+		case spec.CIPServiceGetMember, spec.CIPServiceSetMember, spec.CIPServiceInsertMember, spec.CIPServiceRemoveMember:
 			if v.strict && len(req.Payload) == 0 {
 				return fmt.Errorf("Event Log member service requires payload")
 			}
@@ -217,7 +219,7 @@ func (v *PacketValidator) ValidateCIPRequest(req protocol.CIPRequest) error {
 	}
 
 	// Modbus object services (class 0x44)
-	if req.Path.Class == CIPClassModbus {
+	if req.Path.Class == spec.CIPClassModbus {
 		switch req.Service {
 		case 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51:
 			if v.strict {
@@ -257,18 +259,18 @@ func (v *PacketValidator) ValidateCIPResponse(resp protocol.CIPResponse, expecte
 
 	// Validate payload structure based on service
 	switch resp.Service {
-	case protocol.CIPServiceGetAttributeSingle:
+	case spec.CIPServiceGetAttributeSingle:
 		if resp.Status == 0x00 && len(resp.Payload) == 0 {
 			// Success response should have payload (attribute value)
 			if v.strict {
 				return fmt.Errorf("Get_Attribute_Single success response should have payload")
 			}
 		}
-	case protocol.CIPServiceForwardOpen:
+	case spec.CIPServiceForwardOpen:
 		if v.strict && resp.Status == 0x00 && len(resp.Payload) < 17 {
 			return fmt.Errorf("Forward_Open success response payload too short")
 		}
-	case protocol.CIPServiceUnconnectedSend:
+	case spec.CIPServiceUnconnectedSend:
 		if v.strict && resp.Status == 0x00 {
 			embedded, ok := protocol.ParseUnconnectedSendResponsePayload(resp.Payload)
 			if !ok || len(embedded) == 0 {
@@ -407,52 +409,6 @@ func isValidENIPCommand(cmd uint16) bool {
 		enip.ENIPCommandListIdentity,
 		enip.ENIPCommandListServices,
 		enip.ENIPCommandListInterfaces:
-		return true
-	default:
-		return false
-	}
-}
-
-func isValidCIPService(svc protocol.CIPServiceCode) bool {
-	switch svc {
-	case protocol.CIPServiceGetAttributeAll,
-		protocol.CIPServiceSetAttributeAll,
-		protocol.CIPServiceGetAttributeList,
-		protocol.CIPServiceSetAttributeList,
-		protocol.CIPServiceReset,
-		protocol.CIPServiceStart,
-		protocol.CIPServiceStop,
-		protocol.CIPServiceCreate,
-		protocol.CIPServiceDelete,
-		protocol.CIPServiceMultipleService,
-		protocol.CIPServiceApplyAttributes,
-		protocol.CIPServiceGetAttributeSingle,
-		protocol.CIPServiceSetAttributeSingle,
-		protocol.CIPServiceFindNextObjectInst,
-		protocol.CIPServiceErrorResponse,
-		protocol.CIPServiceRestore,
-		protocol.CIPServiceSave,
-		protocol.CIPServiceNoOp,
-		protocol.CIPServiceGetMember,
-		protocol.CIPServiceSetMember,
-		protocol.CIPServiceInsertMember,
-		protocol.CIPServiceRemoveMember,
-		protocol.CIPServiceGroupSync,
-		protocol.CIPServiceExecutePCCC,
-		protocol.CIPServiceReadTag,
-		protocol.CIPServiceWriteTag,
-		protocol.CIPServiceUploadTransfer,
-		protocol.CIPServiceDownloadTransfer,
-		protocol.CIPServiceClearFile,
-		protocol.CIPServiceWriteTagFragmented,
-		protocol.CIPServiceGetInstanceAttrList,
-		protocol.CIPServiceUnconnectedSend,
-		protocol.CIPServiceGetConnectionData,
-		protocol.CIPServiceSearchConnectionData,
-		protocol.CIPServiceGetConnectionOwner,
-		protocol.CIPServiceLargeForwardOpen,
-		protocol.CIPServiceForwardOpen,
-		protocol.CIPServiceForwardClose:
 		return true
 	default:
 		return false

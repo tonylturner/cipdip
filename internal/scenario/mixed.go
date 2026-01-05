@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"time"
 
 	"github.com/tturner/cipdip/internal/cip/codec"
@@ -124,7 +125,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationRead,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				Status:      resp.Status,
@@ -135,7 +136,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			params.Logger.LogOperation(
 				"READ",
 				target.Name,
-				fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
+				fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				success,
 				rtt,
 				resp.Status,
@@ -248,7 +249,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationWrite,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceSetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				Status:      resp.Status,
@@ -259,7 +260,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			params.Logger.LogOperation(
 				"WRITE",
 				target.Name,
-				fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceSetAttributeSingle)),
+				fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 				success,
 				rtt,
 				resp.Status,

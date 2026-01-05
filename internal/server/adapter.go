@@ -5,6 +5,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"sync"
 	"time"
@@ -107,17 +108,17 @@ func (ap *AdapterPersonality) HandleCIPRequest(ctx context.Context, req protocol
 
 	// Handle service
 	switch req.Service {
-	case protocol.CIPServiceGetAttributeSingle:
+	case spec.CIPServiceGetAttributeSingle:
 		return ap.handleGetAttributeSingle(assembly, req)
 
-	case protocol.CIPServiceSetAttributeSingle:
+	case spec.CIPServiceSetAttributeSingle:
 		return ap.handleSetAttributeSingle(assembly, req)
 
 	default:
 		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08, // Service not supported
-		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), req.Service)
+		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), spec.ServiceName(req.Service))
 	}
 }
 

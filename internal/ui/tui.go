@@ -15,7 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/spec"
 )
 
 type viewMode int
@@ -1222,7 +1222,7 @@ func renderCatalogWithCursor(entries []CatalogEntry, cursor int, query string, s
 		}
 		classLabel := ""
 		if code, ok := parseClassForDisplay(entry.Class); ok {
-			if alias, ok := cipclient.ClassAliasName(code); ok {
+			if alias, ok := spec.ClassAliasName(code); ok {
 				classLabel = titleizeAlias(alias)
 			}
 		}
@@ -1622,7 +1622,7 @@ func parseServiceForDisplay(input string) (uint8, bool) {
 	if value, err := strconv.ParseUint(strings.TrimSpace(input), 0, 8); err == nil {
 		return uint8(value), true
 	}
-	if code, ok := cipclient.ParseServiceAlias(input); ok {
+	if code, ok := spec.ParseServiceAlias(input); ok {
 		return code, true
 	}
 	return 0, false
@@ -1632,7 +1632,7 @@ func parseClassForDisplay(input string) (uint16, bool) {
 	if value, err := strconv.ParseUint(strings.TrimSpace(input), 0, 16); err == nil {
 		return uint16(value), true
 	}
-	if code, ok := cipclient.ParseClassAlias(input); ok {
+	if code, ok := spec.ParseClassAlias(input); ok {
 		return code, true
 	}
 	return 0, false

@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
@@ -133,7 +134,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 					TargetType:  params.TargetType,
 					Operation:   metrics.OperationRead,
 					TargetName:  target.Name,
-					ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
+					ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 					Success:     success,
 					RTTMs:       rtt,
 					JitterMs:    jitterMs,
@@ -175,7 +176,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 					TargetType:  params.TargetType,
 					Operation:   metrics.OperationWrite,
 					TargetName:  target.Name,
-					ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceSetAttributeSingle)),
+					ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 					Success:     success,
 					RTTMs:       rtt,
 					JitterMs:    jitterMs,

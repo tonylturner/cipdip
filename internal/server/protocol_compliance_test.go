@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -183,7 +184,7 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 
 	// Build CIP request: Get_Attribute_Single for class 0x04, instance 0x65, attribute 0x03
 	cipReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
@@ -309,7 +310,7 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 
 	// Build Get_Attribute_Single request
 	cipReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
@@ -403,7 +404,7 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 
 	// Build Get_Attribute_Single request for non-existent assembly
 	cipReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x99, // Non-existent instance

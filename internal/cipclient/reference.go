@@ -3,6 +3,7 @@ package cipclient
 import (
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -162,7 +163,7 @@ func ValidatePacketStructure(packet []byte, expectedStructure string) error {
 		if len(cipData) < 1 {
 			return fmt.Errorf("CIP data too short")
 		}
-		if protocol.CIPServiceCode(cipData[0]) != protocol.CIPServiceGetAttributeSingle {
+		if protocol.CIPServiceCode(cipData[0]) != spec.CIPServiceGetAttributeSingle {
 			return fmt.Errorf("expected Get_Attribute_Single service, got 0x%02X", cipData[0])
 		}
 

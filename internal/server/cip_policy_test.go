@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -22,7 +23,7 @@ func TestCIPPolicyDenyOverride(t *testing.T) {
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x0004,
 			Instance:  0x0001,
@@ -51,7 +52,7 @@ func TestCIPPolicyAllowList(t *testing.T) {
 	}
 
 	allowReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x0004,
 			Instance:  0x0001,
@@ -63,7 +64,7 @@ func TestCIPPolicyAllowList(t *testing.T) {
 	}
 
 	blockReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceSetAttributeSingle,
+		Service: spec.CIPServiceSetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x0004,
 			Instance:  0x0001,
@@ -89,7 +90,7 @@ func TestCIPPolicyStrictPaths(t *testing.T) {
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path:    protocol.CIPPath{},
 	}
 	if _, ok := srv.applyCIPPolicy(req); !ok {

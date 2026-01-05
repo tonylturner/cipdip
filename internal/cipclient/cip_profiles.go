@@ -1,6 +1,10 @@
 package cipclient
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/tturner/cipdip/internal/cip/spec"
+)
 
 // CIPProfileClassSet captures CIP application profile class coverage.
 type CIPProfileClassSet struct {
@@ -10,48 +14,48 @@ type CIPProfileClassSet struct {
 
 var (
 	standardCoverageClasses = []uint16{
-		CIPClassIdentityObject,
-		CIPClassMessageRouter,
-		CIPClassAssembly,
-		CIPClassConnection,
-		CIPClassConnectionManager,
-		CIPClassFileObject,
-		CIPClassEventLog,
-		CIPClassTimeSync,
-		CIPClassModbus,
-		CIPClassSymbolObject,
-		CIPClassTemplateObject,
-		CIPClassProgramName,
-		CIPClassTCPIPInterface,
-		CIPClassEthernetLink,
-		CIPClassPort,
+		spec.CIPClassIdentityObject,
+		spec.CIPClassMessageRouter,
+		spec.CIPClassAssembly,
+		spec.CIPClassConnection,
+		spec.CIPClassConnectionManager,
+		spec.CIPClassFileObject,
+		spec.CIPClassEventLog,
+		spec.CIPClassTimeSync,
+		spec.CIPClassModbus,
+		spec.CIPClassSymbolObject,
+		spec.CIPClassTemplateObject,
+		spec.CIPClassProgramName,
+		spec.CIPClassTCPIPInterface,
+		spec.CIPClassEthernetLink,
+		spec.CIPClassPort,
 	}
 
 	cipApplicationProfiles = map[string]CIPProfileClassSet{
 		"energy": {
 			Name: "energy",
 			Classes: []uint16{
-				CIPClassEnergyBase,
-				CIPClassEnergyElectrical,
-				CIPClassEnergyNonElectrical,
-				CIPClassEnergyPowerManagement,
+				spec.CIPClassEnergyBase,
+				spec.CIPClassEnergyElectrical,
+				spec.CIPClassEnergyNonElectrical,
+				spec.CIPClassEnergyPowerManagement,
 			},
 		},
 		"safety": {
 			Name: "safety",
 			Classes: []uint16{
-				CIPClassSafetySupervisor,
-				CIPClassSafetyValidator,
-				CIPClassSafetyDiscreteOutputPoint,
-				CIPClassSafetyDiscreteOutputGroup,
-				CIPClassSafetyDiscreteInputPoint,
-				CIPClassSafetyDiscreteInputGroup,
-				CIPClassSafetyDualChannelOutput,
+				spec.CIPClassSafetySupervisor,
+				spec.CIPClassSafetyValidator,
+				spec.CIPClassSafetyDiscreteOutputPoint,
+				spec.CIPClassSafetyDiscreteOutputGroup,
+				spec.CIPClassSafetyDiscreteInputPoint,
+				spec.CIPClassSafetyDiscreteInputGroup,
+				spec.CIPClassSafetyDualChannelOutput,
 			},
 		},
 		"motion": {
 			Name:    "motion",
-			Classes: []uint16{CIPClassMotionAxis},
+			Classes: []uint16{spec.CIPClassMotionAxis},
 		},
 	}
 )

@@ -2,13 +2,14 @@ package cipclient
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 )
 
 func TestBuildServicePayloadRockwellTag(t *testing.T) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTag,
-		Path:    protocol.CIPPath{Class: CIPClassSymbolObject, Instance: 1},
+		Service: spec.CIPServiceReadTag,
+		Path:    protocol.CIPPath{Class: spec.CIPClassSymbolObject, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type: "rockwell_tag",
@@ -30,8 +31,8 @@ func TestBuildServicePayloadRockwellTag(t *testing.T) {
 
 func TestBuildServicePayloadUnconnectedSend(t *testing.T) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceUnconnectedSend,
-		Path:    protocol.CIPPath{Class: CIPClassConnectionManager, Instance: 1},
+		Service: spec.CIPServiceUnconnectedSend,
+		Path:    protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type: "unconnected_send",
@@ -53,8 +54,8 @@ func TestBuildServicePayloadUnconnectedSend(t *testing.T) {
 
 func TestBuildServicePayloadForwardOpen(t *testing.T) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceForwardOpen,
-		Path:    protocol.CIPPath{Class: CIPClassConnectionManager, Instance: 1},
+		Service: spec.CIPServiceForwardOpen,
+		Path:    protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type: "forward_open",
@@ -73,8 +74,8 @@ func TestBuildServicePayloadForwardOpen(t *testing.T) {
 
 func TestBuildServicePayloadTemplate(t *testing.T) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTag,
-		Path:    protocol.CIPPath{Class: CIPClassTemplateObject, Instance: 1},
+		Service: spec.CIPServiceReadTag,
+		Path:    protocol.CIPPath{Class: spec.CIPClassTemplateObject, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type: "rockwell_template",
@@ -93,8 +94,8 @@ func TestBuildServicePayloadTemplate(t *testing.T) {
 
 func TestBuildServicePayloadFileObject(t *testing.T) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceInitiateUpload,
-		Path:    protocol.CIPPath{Class: CIPClassFileObject, Instance: 1},
+		Service: spec.CIPServiceInitiateUpload,
+		Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type:   "file_object",
@@ -111,7 +112,7 @@ func TestBuildServicePayloadFileObject(t *testing.T) {
 func TestBuildServicePayloadModbus(t *testing.T) {
 	req := protocol.CIPRequest{
 		Service: 0x4B,
-		Path:    protocol.CIPPath{Class: CIPClassModbus, Instance: 1},
+		Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type: "modbus_object",
@@ -130,8 +131,8 @@ func TestBuildServicePayloadModbus(t *testing.T) {
 
 func TestBuildServicePayloadPCCC(t *testing.T) {
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceExecutePCCC,
-		Path:    protocol.CIPPath{Class: CIPClassPCCCObject, Instance: 1},
+		Service: spec.CIPServiceExecutePCCC,
+		Path:    protocol.CIPPath{Class: spec.CIPClassPCCCObject, Instance: 1},
 	}
 	result, err := BuildServicePayload(req, PayloadSpec{
 		Type:   "rockwell_pccc",

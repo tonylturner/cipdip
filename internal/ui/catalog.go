@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"gopkg.in/yaml.v3"
 )
 
@@ -264,12 +264,12 @@ func catalogEntryMatches(entry CatalogEntry, query string) bool {
 
 func resolveServiceAlias(value string) string {
 	if code, ok := parseServiceValue(value); ok {
-		if alias, ok := cipclient.ServiceAliasName(code); ok {
+		if alias, ok := spec.ServiceAliasName(code); ok {
 			return strings.ToLower(alias)
 		}
 	}
-	if alias, ok := cipclient.ParseServiceAlias(value); ok {
-		if name, ok := cipclient.ServiceAliasName(alias); ok {
+	if alias, ok := spec.ParseServiceAlias(value); ok {
+		if name, ok := spec.ServiceAliasName(alias); ok {
 			return strings.ToLower(name)
 		}
 	}
@@ -278,12 +278,12 @@ func resolveServiceAlias(value string) string {
 
 func resolveClassAlias(value string) string {
 	if code, ok := parseClassValue(value); ok {
-		if alias, ok := cipclient.ClassAliasName(code); ok {
+		if alias, ok := spec.ClassAliasName(code); ok {
 			return strings.ToLower(alias)
 		}
 	}
-	if alias, ok := cipclient.ParseClassAlias(value); ok {
-		if name, ok := cipclient.ClassAliasName(alias); ok {
+	if alias, ok := spec.ParseClassAlias(value); ok {
+		if name, ok := spec.ClassAliasName(alias); ok {
 			return strings.ToLower(name)
 		}
 	}
@@ -294,7 +294,7 @@ func parseServiceValue(value string) (uint8, bool) {
 	if code, err := strconv.ParseUint(strings.TrimSpace(value), 0, 8); err == nil {
 		return uint8(code), true
 	}
-	if code, ok := cipclient.ParseServiceAlias(value); ok {
+	if code, ok := spec.ParseServiceAlias(value); ok {
 		return code, true
 	}
 	return 0, false
@@ -304,7 +304,7 @@ func parseClassValue(value string) (uint16, bool) {
 	if code, err := strconv.ParseUint(strings.TrimSpace(value), 0, 16); err == nil {
 		return uint16(code), true
 	}
-	if code, ok := cipclient.ParseClassAlias(value); ok {
+	if code, ok := spec.ParseClassAlias(value); ok {
 		return code, true
 	}
 	return 0, false

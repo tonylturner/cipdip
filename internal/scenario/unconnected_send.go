@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
@@ -140,7 +141,7 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 				TargetType:      params.TargetType,
 				Operation:       metrics.OperationCustom,
 				TargetName:      target.Name,
-				ServiceCode:     fmt.Sprintf("0x%02X->0x%02X", uint8(protocol.CIPServiceUnconnectedSend), uint8(serviceCode)),
+				ServiceCode:     fmt.Sprintf("0x%02X->0x%02X", uint8(spec.CIPServiceUnconnectedSend), uint8(serviceCode)),
 				Success:         success,
 				RTTMs:           rtt,
 				JitterMs:        jitterMs,

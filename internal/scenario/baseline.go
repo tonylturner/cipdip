@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"time"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -121,7 +122,7 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationRead,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				Status:      resp.Status,
@@ -133,7 +134,7 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 			params.Logger.LogOperation(
 				"READ",
 				target.Name,
-				fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
+				fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				success,
 				rtt,
 				resp.Status,

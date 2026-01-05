@@ -2,30 +2,31 @@ package cipclient
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 )
 
 func TestValidateCIPRequestConnectionManagerServices(t *testing.T) {
 	validator := NewPacketValidator(true)
 	services := []protocol.CIPServiceCode{
-		protocol.CIPServiceForwardOpen,
-		protocol.CIPServiceForwardClose,
-		protocol.CIPServiceGetConnectionData,
-		protocol.CIPServiceSearchConnectionData,
-		protocol.CIPServiceGetConnectionOwner,
-		protocol.CIPServiceLargeForwardOpen,
+		spec.CIPServiceForwardOpen,
+		spec.CIPServiceForwardClose,
+		spec.CIPServiceGetConnectionData,
+		spec.CIPServiceSearchConnectionData,
+		spec.CIPServiceGetConnectionOwner,
+		spec.CIPServiceLargeForwardOpen,
 	}
 
 	for _, svc := range services {
 		req := protocol.CIPRequest{
 			Service: svc,
 			Path: protocol.CIPPath{
-				Class:    CIPClassConnectionManager,
+				Class:    spec.CIPClassConnectionManager,
 				Instance: 0x0001,
 			},
 		}
 		switch svc {
-		case protocol.CIPServiceForwardOpen:
+		case spec.CIPServiceForwardOpen:
 			payload, err := BuildForwardOpenPayload(ConnectionParams{
 				Priority:              "scheduled",
 				OToTRPIMs:             20,
@@ -33,14 +34,14 @@ func TestValidateCIPRequestConnectionManagerServices(t *testing.T) {
 				OToTSizeBytes:         32,
 				TToOSizeBytes:         32,
 				TransportClassTrigger: 3,
-				Class:                 CIPClassAssembly,
+				Class:                 spec.CIPClassAssembly,
 				Instance:              0x65,
 			})
 			if err != nil {
 				t.Fatalf("BuildForwardOpenPayload error: %v", err)
 			}
 			req.Payload = payload
-		case protocol.CIPServiceForwardClose:
+		case spec.CIPServiceForwardClose:
 			payload, err := BuildForwardClosePayload(0x11223344)
 			if err != nil {
 				t.Fatalf("BuildForwardClosePayload error: %v", err)
@@ -50,7 +51,7 @@ func TestValidateCIPRequestConnectionManagerServices(t *testing.T) {
 			req.Payload = []byte{0x01, 0x02}
 		}
 		if err := validator.ValidateCIPRequest(req); err != nil {
-			t.Fatalf("ValidateCIPRequest(%s) error: %v", svc, err)
+			t.Fatalf("ValidateCIPRequest(%s) error: %v", spec.ServiceName(svc), err)
 		}
 	}
 }
@@ -59,7 +60,7 @@ func TestValidateCIPRequestFragmentedPayloads(t *testing.T) {
 	validator := NewPacketValidator(true)
 
 	readReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTagFragmented,
+		Service: spec.CIPServiceReadTagFragmented,
 		Path:    protocol.CIPPath{Class: 0x006B, Instance: 0x0001},
 		Payload: nil,
 	}
@@ -78,7 +79,7 @@ func TestValidateCIPRequestFragmentedPayloads(t *testing.T) {
 	}
 
 	writeReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceWriteTagFragmented,
+		Service: spec.CIPServiceWriteTagFragmented,
 		Path:    protocol.CIPPath{Class: 0x006B, Instance: 0x0001},
 		Payload: []byte{0x00},
 	}
@@ -95,9 +96,9 @@ func TestValidateCIPRequestFragmentedPayloads(t *testing.T) {
 func TestValidateCIPRequestUnconnectedSendEmbedded(t *testing.T) {
 	validator := NewPacketValidator(true)
 	embedded := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
-			Class:    CIPClassIdentityObject,
+			Class:    spec.CIPClassIdentityObject,
 			Instance: 0x01,
 		},
 	}
@@ -110,9 +111,9 @@ func TestValidateCIPRequestUnconnectedSendEmbedded(t *testing.T) {
 		t.Fatalf("BuildUnconnectedSendPayload error: %v", err)
 	}
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceUnconnectedSend,
+		Service: spec.CIPServiceUnconnectedSend,
 		Path: protocol.CIPPath{
-			Class:    CIPClassConnectionManager,
+			Class:    spec.CIPClassConnectionManager,
 			Instance: 0x0001,
 		},
 		Payload: payload,
@@ -125,16 +126,16 @@ func TestValidateCIPRequestUnconnectedSendEmbedded(t *testing.T) {
 func TestValidateCIPResponseForwardOpenPayload(t *testing.T) {
 	validator := NewPacketValidator(true)
 	resp := protocol.CIPResponse{
-		Service: protocol.CIPServiceForwardOpen,
+		Service: spec.CIPServiceForwardOpen,
 		Status:  0x00,
 		Payload: make([]byte, 16),
 	}
-	if err := validator.ValidateCIPResponse(resp, protocol.CIPServiceForwardOpen); err == nil {
+	if err := validator.ValidateCIPResponse(resp, spec.CIPServiceForwardOpen); err == nil {
 		t.Fatalf("expected error for short Forward_Open response payload")
 	}
 
 	resp.Payload = make([]byte, 17)
-	if err := validator.ValidateCIPResponse(resp, protocol.CIPServiceForwardOpen); err != nil {
+	if err := validator.ValidateCIPResponse(resp, spec.CIPServiceForwardOpen); err != nil {
 		t.Fatalf("unexpected error for Forward_Open response payload: %v", err)
 	}
 }
@@ -142,16 +143,16 @@ func TestValidateCIPResponseForwardOpenPayload(t *testing.T) {
 func TestValidateCIPResponseUnconnectedSendPayload(t *testing.T) {
 	validator := NewPacketValidator(true)
 	resp := protocol.CIPResponse{
-		Service: protocol.CIPServiceUnconnectedSend,
+		Service: spec.CIPServiceUnconnectedSend,
 		Status:  0x00,
 		Payload: []byte{0x00},
 	}
-	if err := validator.ValidateCIPResponse(resp, protocol.CIPServiceUnconnectedSend); err == nil {
+	if err := validator.ValidateCIPResponse(resp, spec.CIPServiceUnconnectedSend); err == nil {
 		t.Fatalf("expected error for missing Unconnected_Send embedded payload")
 	}
 
 	embeddedResp, err := protocol.EncodeCIPResponse(protocol.CIPResponse{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Status:  0x00,
 		Payload: []byte{0x01},
 	})
@@ -159,7 +160,7 @@ func TestValidateCIPResponseUnconnectedSendPayload(t *testing.T) {
 		t.Fatalf("protocol.EncodeCIPResponse error: %v", err)
 	}
 	resp.Payload = BuildUnconnectedSendResponsePayload(embeddedResp)
-	if err := validator.ValidateCIPResponse(resp, protocol.CIPServiceUnconnectedSend); err != nil {
+	if err := validator.ValidateCIPResponse(resp, spec.CIPServiceUnconnectedSend); err != nil {
 		t.Fatalf("unexpected error for Unconnected_Send response payload: %v", err)
 	}
 }

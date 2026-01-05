@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"io"
 	"os"
 	"path/filepath"
@@ -23,7 +24,7 @@ func TestPcapSummaryReportCoverageDump(t *testing.T) {
 	defer cipclient.SetProtocolProfile(prev)
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x01,

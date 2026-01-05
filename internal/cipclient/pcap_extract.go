@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 	"io"
 	"sort"
@@ -324,10 +325,11 @@ func generatePacketDescription(command uint16, isRequest bool, data []byte) stri
 
 // getCIPServiceName returns the name of a CIP service code
 func getCIPServiceName(code uint8) string {
-	if name, ok := cipServiceNames[code]; ok {
-		return name
+	name := spec.ServiceName(protocol.CIPServiceCode(code))
+	if spec.IsUnknownServiceLabel(name) {
+		return ""
 	}
-	return ""
+	return name
 }
 
 // FindReferencePackets finds key reference packets from a PCAP file
@@ -371,22 +373,22 @@ func getReferenceKey(pkt ENIPPacket) string {
 				serviceCode := cipData[0] &^ 0x80
 				isResponse := cipData[0]&0x80 != 0
 				switch protocol.CIPServiceCode(serviceCode) {
-				case protocol.CIPServiceGetAttributeSingle:
+				case spec.CIPServiceGetAttributeSingle:
 					if isResponse {
 						return "GetAttributeSingle_Response"
 					}
 					return "GetAttributeSingle_Request"
-				case protocol.CIPServiceSetAttributeSingle:
+				case spec.CIPServiceSetAttributeSingle:
 					if isResponse {
 						return "SetAttributeSingle_Response"
 					}
 					return "SetAttributeSingle_Request"
-				case protocol.CIPServiceForwardOpen:
+				case spec.CIPServiceForwardOpen:
 					if isResponse {
 						return "ForwardOpen_Response"
 					}
 					return "ForwardOpen_Request"
-				case protocol.CIPServiceForwardClose:
+				case spec.CIPServiceForwardClose:
 					if isResponse {
 						return "ForwardClose_Response"
 					}
@@ -725,10 +727,10 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 			summary.CIPRequests++
 		}
 
-		serviceLabel, _ := labelCIPService(msgInfo.BaseService, msgInfo.PathInfo.Path, msgInfo.IsResponse)
+		serviceLabel, _ := spec.LabelService(msgInfo.BaseService, msgInfo.PathInfo.Path, msgInfo.IsResponse)
 		summary.CIPServices[serviceLabel]++
 
-		if isUnknownServiceLabel(serviceLabel) {
+		if spec.IsUnknownServiceLabel(serviceLabel) {
 			stats := summary.UnknownServices[msgInfo.BaseService]
 			if stats == nil {
 				stats = &CIPUnknownStats{
@@ -759,7 +761,7 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 			}
 		}
 
-		if msgInfo.BaseService == 0x52 && msgInfo.PathInfo.Path.Class == connectionManagerClass && msgInfo.PathInfo.Path.Instance == connectionManagerInst {
+		if msgInfo.BaseService == 0x52 && msgInfo.PathInfo.Path.Class == spec.CIPClassConnectionManager && msgInfo.PathInfo.Path.Instance == 0x0001 {
 			var embedded []byte
 			if msgInfo.IsResponse {
 				if msgInfo.RequestData != nil {
@@ -773,9 +775,9 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 			if len(embedded) > 0 {
 				embeddedInfo, err := protocol.ParseCIPMessage(embedded)
 				if err == nil {
-					embeddedLabel, _ := labelCIPService(embeddedInfo.BaseService, embeddedInfo.PathInfo.Path, embeddedInfo.IsResponse)
+					embeddedLabel, _ := spec.LabelService(embeddedInfo.BaseService, embeddedInfo.PathInfo.Path, embeddedInfo.IsResponse)
 					summary.EmbeddedServices[embeddedLabel]++
-					if isUnknownServiceLabel(embeddedLabel) {
+					if spec.IsUnknownServiceLabel(embeddedLabel) {
 						stats := summary.EmbeddedUnknown[embeddedInfo.BaseService]
 						if stats == nil {
 							stats = &CIPUnknownStats{

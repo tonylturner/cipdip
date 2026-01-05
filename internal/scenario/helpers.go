@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"strings"
 	"time"
 
@@ -56,9 +57,9 @@ func applyTargetPayload(req protocol.CIPRequest, payloadType string, payloadPara
 func serviceCodeForTarget(service config.ServiceType, serviceCode uint8) (protocol.CIPServiceCode, error) {
 	switch service {
 	case config.ServiceGetAttributeSingle:
-		return protocol.CIPServiceGetAttributeSingle, nil
+		return spec.CIPServiceGetAttributeSingle, nil
 	case config.ServiceSetAttributeSingle:
-		return protocol.CIPServiceSetAttributeSingle, nil
+		return spec.CIPServiceSetAttributeSingle, nil
 	case config.ServiceCustom:
 		if serviceCode == 0 {
 			return 0, fmt.Errorf("custom service requires service_code")
