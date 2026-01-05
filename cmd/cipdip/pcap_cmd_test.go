@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,14 +12,17 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 func TestPcapSummaryReportCoverageDump(t *testing.T) {
-	prev := legacy.CurrentProtocolProfile()
-	legacy.SetProtocolProfile(legacy.StrictODVAProfile)
-	defer legacy.SetProtocolProfile(prev)
+	prev := client.CurrentProtocolProfile()
+	client.SetProtocolProfile(client.StrictODVAProfile)
+	defer client.SetProtocolProfile(prev)
 
 	req := protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeSingle,
@@ -39,7 +40,7 @@ func TestPcapSummaryReportCoverageDump(t *testing.T) {
 	pcapPath := writeSinglePacketPCAP(t, enipPacket)
 
 	t.Run("summary counts", func(t *testing.T) {
-		summary, err := legacy.SummarizeENIPFromPCAP(pcapPath)
+		summary, err := pcap.SummarizeENIPFromPCAP(pcapPath)
 		if err != nil {
 			t.Fatalf("SummarizeENIPFromPCAP failed: %v", err)
 		}
@@ -196,6 +197,3 @@ func captureStdout(w io.Writer) func() {
 		os.Stdout = orig
 	}
 }
-
-
-

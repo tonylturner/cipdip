@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 type pcapReportFlags struct {
@@ -67,7 +67,7 @@ func runPcapReport(flags *pcapReportFlags) error {
 			return fmt.Errorf("write report header for %s: %w", name, err)
 		}
 
-		summary, err := legacy.SummarizeENIPFromPCAP(pcapPath)
+		summary, err := pcap.SummarizeENIPFromPCAP(pcapPath)
 		if err != nil {
 			if _, err := fmt.Fprintf(f, "Error: %v\n", err); err != nil {
 				return fmt.Errorf("write error for %s: %w", name, err)
@@ -111,6 +111,3 @@ func collectPcapFiles(root string) ([]string, error) {
 func formatTimestamp() string {
 	return time.Now().Format(time.RFC3339)
 }
-
-
-

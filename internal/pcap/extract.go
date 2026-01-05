@@ -1,11 +1,8 @@
-package cipclient
+package pcap
 
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/enip"
 	"io"
 	"sort"
 	"strings"
@@ -14,6 +11,11 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
+	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 // ExtractENIPFromPCAP extracts ENIP packets from a PCAP file
@@ -421,6 +423,21 @@ func isLittleEndianENIP(packet []byte) bool {
 	return len(packet) >= 24+int(length)
 }
 
+func isValidENIPCommand(cmd uint16) bool {
+	switch cmd {
+	case enip.ENIPCommandRegisterSession,
+		enip.ENIPCommandUnregisterSession,
+		enip.ENIPCommandSendRRData,
+		enip.ENIPCommandSendUnitData,
+		enip.ENIPCommandListIdentity,
+		enip.ENIPCommandListServices,
+		enip.ENIPCommandListInterfaces:
+		return true
+	default:
+		return false
+	}
+}
+
 // PopulateReferenceLibraryFromPCAP populates the reference library from a PCAP file
 func PopulateReferenceLibraryFromPCAP(pcapFile string, source string) error {
 	refPackets, err := FindReferencePackets(pcapFile)
@@ -433,7 +450,7 @@ func PopulateReferenceLibraryFromPCAP(pcapFile string, source string) error {
 		// Normalize packet (remove session-specific fields for comparison)
 		normalized := normalizePacket(pkt.FullPacket)
 
-		ReferencePackets[key] = ReferencePacket{
+		legacy.ReferencePackets[key] = legacy.ReferencePacket{
 			Name:        key,
 			Description: pkt.Description,
 			Data:        normalized,
@@ -472,7 +489,7 @@ func WriteReferencePacketsToFile(w io.Writer) error {
 	fmt.Fprintf(w, "func init() {\n")
 	fmt.Fprintf(w, "\t// Populate reference packets from PCAP files\n")
 
-	for key, ref := range ReferencePackets {
+	for key, ref := range legacy.ReferencePackets {
 		if len(ref.Data) == 0 {
 			continue
 		}
@@ -562,7 +579,7 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 	pathCounts := make(map[string]int)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	streams := make(map[string][]byte)
-	validator := NewPacketValidator(true)
+	validator := client.NewPacketValidator(true)
 
 	for packet := range packetSource.Packets() {
 		summary.TotalPackets++
@@ -685,7 +702,7 @@ func parseListIdentityIdentityItem(data []byte) (uint16, string, bool) {
 	return 0, "", false
 }
 
-func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map[string]int, validator *PacketValidator) {
+func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map[string]int, validator *client.PacketValidator) {
 	for _, pkt := range packets {
 		summary.ENIPPackets++
 		if pkt.IsRequest {
@@ -854,7 +871,7 @@ func extractCIPFromENIP(pkt ENIPPacket) ([]byte, bool, string) {
 	if len(payload) == 0 {
 		return nil, false, ""
 	}
-	items, err := parseCPFItemsLE(payload)
+	items, err := enip.ParseCPFItems(payload)
 	if err != nil {
 		return payload, false, "raw"
 	}
@@ -873,30 +890,6 @@ func extractCIPFromENIP(pkt ENIPPacket) ([]byte, bool, string) {
 // ExtractCIPFromENIPPacket returns CIP data from an ENIP packet.
 func ExtractCIPFromENIPPacket(pkt ENIPPacket) ([]byte, bool, string) {
 	return extractCIPFromENIP(pkt)
-}
-
-func parseCPFItemsLE(data []byte) ([]enip.CPFItem, error) {
-	if len(data) < 2 {
-		return nil, fmt.Errorf("CPF data too short")
-	}
-	count := int(binary.LittleEndian.Uint16(data[0:2]))
-	offset := 2
-	items := make([]enip.CPFItem, 0, count)
-	for i := 0; i < count; i++ {
-		if len(data) < offset+4 {
-			return nil, fmt.Errorf("CPF item header too short")
-		}
-		typeID := binary.LittleEndian.Uint16(data[offset : offset+2])
-		length := int(binary.LittleEndian.Uint16(data[offset+2 : offset+4]))
-		offset += 4
-		if len(data) < offset+length {
-			return nil, fmt.Errorf("CPF item data too short")
-		}
-		itemData := data[offset : offset+length]
-		offset += length
-		items = append(items, enip.CPFItem{TypeID: typeID, Data: itemData})
-	}
-	return items, nil
 }
 
 func extractEPATHFromRequest(cipData []byte) ([]byte, bool) {
