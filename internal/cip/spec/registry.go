@@ -73,6 +73,7 @@ func DefaultRegistry() *Registry {
 			MinResponseLen: 0,
 		})
 	}
+	registerDefaultServices(registry)
 	defaultRegistry = registry
 	return defaultRegistry
 }

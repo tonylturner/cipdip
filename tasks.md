@@ -203,6 +203,8 @@
 - [ ] Hardware validation test suite (requires lab devices; confirm scope and add fixtures when available).
 - [ ] Fix ForwardOpen/ForwardClose ODVA compliance audit failures (tick time, timeout, RPI units, connection path size, byte order).
 - [ ] Move reference packet library out of `internal/cipclient` so `internal/pcap` does not depend on the legacy package.
+- [ ] Unify client `PacketValidator` with `internal/validation.Validator` so spec rules stay authoritative and avoid drift.
+- [ ] Add spec rules for Multiple Service Packet and any remaining class-specific payload shapes (beyond current min-length checks).
 
 ## Notes
 - Docs folder is older; cleanup should be staged with a list of keep/remove candidates.
