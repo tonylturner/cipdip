@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -20,11 +21,18 @@ type ValidationRequestSpec struct {
 	ServiceShape    string
 	IncludeResponse bool
 	ExpectSymbol    bool
+	Outcome         string
+	ResponseOutcome string
 }
 
 type ValidationPCAPSpec struct {
 	Name     string
 	Requests []ValidationRequestSpec
+}
+
+type ValidationPacket struct {
+	Data   []byte
+	Expect PacketExpectation
 }
 
 func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
@@ -47,6 +55,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 			Requests: append(commonServiceRequests(), ValidationRequestSpec{
 				Name: "multiple_service_packet",
 				Req:  buildMultipleServiceRequest(),
+				ServiceShape:    ServiceShapePayload,
+				IncludeResponse: true,
 			}),
 		},
 		{
@@ -92,6 +102,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					ServiceShape:    ServiceShapeForwardOpen,
 					IncludeResponse: true,
+					Outcome:         "invalid",
+					ResponseOutcome: "valid",
 				},
 				{
 					Name: "forward_close",
@@ -105,6 +117,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					ServiceShape:    ServiceShapeForwardClose,
 					IncludeResponse: true,
+					Outcome:         "invalid",
+					ResponseOutcome: "valid",
 				},
 				{
 					Name: "unconnected_send",
@@ -135,6 +149,9 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					PayloadParams: map[string]any{
 						"tag": "TestTag",
 					},
+					ServiceShape:    ServiceShapeRockwellTag,
+					ExpectSymbol:    true,
+					IncludeResponse: true,
 				},
 				{
 					Name: "write_tag",
@@ -148,6 +165,9 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"type":  "DINT",
 						"value": "123",
 					},
+					ServiceShape:    ServiceShapeRockwellTag,
+					ExpectSymbol:    true,
+					IncludeResponse: true,
 				},
 				{
 					Name: "read_tag_fragmented",
@@ -160,6 +180,9 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"tag":    "TestTag",
 						"offset": uint64(0),
 					},
+					ServiceShape:    ServiceShapeRockwellTagFrag,
+					ExpectSymbol:    true,
+					IncludeResponse: true,
 				},
 				{
 					Name: "write_tag_fragmented",
@@ -174,6 +197,9 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"value":  "456",
 						"offset": uint64(0),
 					},
+					ServiceShape:    ServiceShapeRockwellTagFrag,
+					ExpectSymbol:    true,
+					IncludeResponse: true,
 				},
 				{
 					Name: "execute_pccc",
@@ -183,8 +209,12 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					PayloadType: string(cipclient.PayloadRockwellPCCC),
 					PayloadParams: map[string]any{
-						"pccc_hex": "0f00",
+						"pccc_hex": "0f0000000000",
 					},
+					ServiceShape:    ServiceShapePCCC,
+					IncludeResponse: true,
+					Outcome:         "invalid",
+					ResponseOutcome: "valid",
 				},
 				{
 					Name: "template_read",
@@ -197,6 +227,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"offset": uint64(0),
 						"length": uint64(64),
 					},
+					ServiceShape:    ServiceShapeTemplate,
+					IncludeResponse: true,
 				},
 			},
 		},
@@ -213,6 +245,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					PayloadParams: map[string]any{
 						"file_size": uint64(1024),
 					},
+					ServiceShape:    ServiceShapeFileObject,
+					IncludeResponse: true,
 				},
 				{
 					Name: "file_initiate_download",
@@ -227,6 +261,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"file_revision":  uint64(1),
 						"file_name":      "test.bin",
 					},
+					ServiceShape:    ServiceShapeFileObject,
+					IncludeResponse: true,
 				},
 				{
 					Name: "file_partial_read",
@@ -239,6 +275,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"file_offset": uint64(0),
 						"chunk":       uint64(32),
 					},
+					ServiceShape:    ServiceShapeFileObject,
+					IncludeResponse: true,
 				},
 				{
 					Name: "file_partial_write",
@@ -251,6 +289,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"file_offset": uint64(0),
 						"data_hex":    "01020304",
 					},
+					ServiceShape:    ServiceShapeFileObject,
+					IncludeResponse: true,
 				},
 				{
 					Name: "file_upload_transfer",
@@ -262,6 +302,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					PayloadParams: map[string]any{
 						"transfer_number": uint64(1),
 					},
+					ServiceShape:    ServiceShapeFileObject,
+					IncludeResponse: true,
 				},
 				{
 					Name: "file_download_transfer",
@@ -275,6 +317,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"transfer_type":   uint64(1),
 						"data_hex":        "0102",
 					},
+					ServiceShape:    ServiceShapeFileObject,
+					IncludeResponse: true,
 				},
 				{
 					Name: "file_clear",
@@ -283,6 +327,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						Path:    cipclient.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
+					ServiceShape:    ServiceShapeNone,
+					IncludeResponse: true,
 				},
 				{
 					Name: "modbus_read_discrete_inputs",
@@ -295,6 +341,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"modbus_addr": uint64(0),
 						"modbus_qty":  uint64(2),
 					},
+					ServiceShape:    ServiceShapeModbus,
+					IncludeResponse: true,
 				},
 				{
 					Name: "modbus_write_holding_registers",
@@ -308,6 +356,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						"modbus_qty":      uint64(1),
 						"modbus_data_hex": "0001",
 					},
+					ServiceShape:    ServiceShapeModbus,
+					IncludeResponse: true,
 				},
 				{
 					Name: "modbus_passthrough",
@@ -317,8 +367,10 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					PayloadType: string(cipclient.PayloadModbusObject),
 					PayloadParams: map[string]any{
-						"modbus_pdu_hex": "03",
+						"modbus_pdu_hex": "030000000001",
 					},
+					ServiceShape:    ServiceShapeModbus,
+					IncludeResponse: true,
 				},
 			},
 		},
@@ -335,6 +387,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					PayloadParams: map[string]any{
 						"reset_type": uint64(0),
 					},
+					ServiceShape:    ServiceShapeSafetyReset,
+					IncludeResponse: true,
 				},
 				{
 					Name: "energy_start_metering",
@@ -343,6 +397,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						Path:    cipclient.CIPPath{Class: cipclient.CIPClassEnergyBase, Instance: 0x01},
 						Payload: []byte{0x00},
 					},
+					ServiceShape:    ServiceShapePayload,
+					IncludeResponse: true,
 				},
 				{
 					Name: "motion_axis_list",
@@ -351,6 +407,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 						Path:    cipclient.CIPPath{Class: cipclient.CIPClassMotionAxis, Instance: 0x01},
 						Payload: []byte{0x00},
 					},
+					ServiceShape:    ServiceShapePayload,
+					IncludeResponse: true,
 				},
 			},
 		},
@@ -377,16 +435,16 @@ func commonServiceRequests() []ValidationRequestSpec {
 		{Name: "get_attribute_all", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGetAttributeAll, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "set_attribute_all", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSetAttributeAll, Path: assemblyPath, Payload: []byte{0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
 		{Name: "get_attribute_list", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGetAttributeList, Path: path, Payload: attrList}, ServiceShape: ServiceShapeRead, IncludeResponse: true},
-		{Name: "set_attribute_list", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSetAttributeList, Path: assemblyPath, Payload: setAttrList}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "set_attribute_list", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSetAttributeList, Path: assemblyPath, Payload: setAttrList}, ServiceShape: ServiceShapeWrite, IncludeResponse: false},
 		{Name: "reset", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceReset, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "start", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceStart, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "stop", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceStop, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "create", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceCreate, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "create", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceCreate, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true, ResponseOutcome: "invalid"},
 		{Name: "delete", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceDelete, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "apply_attributes", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceApplyAttributes, Path: assemblyPath}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "get_attribute_single", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGetAttributeSingle, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "set_attribute_single", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSetAttributeSingle, Path: assemblyPath, Payload: []byte{0x01, 0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "find_next_object_instance", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceFindNextObjectInst, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "find_next_object_instance", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceFindNextObjectInst, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true, Outcome: "invalid", ResponseOutcome: "invalid"},
 		{Name: "restore", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceRestore, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "save", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSave, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "nop", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceNoOp, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
@@ -394,12 +452,12 @@ func commonServiceRequests() []ValidationRequestSpec {
 		{Name: "set_member", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSetMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
 		{Name: "insert_member", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceInsertMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
 		{Name: "remove_member", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceRemoveMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "group_sync", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGroupSync, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "group_sync", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGroupSync, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: false},
 		{Name: "get_instance_attribute_list", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGetInstanceAttrList, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "get_connection_data", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGetConnectionData, Path: cipclient.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "search_connection_data", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceSearchConnectionData, Path: cipclient.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
 		{Name: "get_connection_owner", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceGetConnectionOwner, Path: cipclient.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "large_forward_open", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceLargeForwardOpen, Path: cipclient.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}, Payload: []byte{0x00}}, ServiceShape: ServiceShapePayload, IncludeResponse: true},
+		{Name: "large_forward_open", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceLargeForwardOpen, Path: cipclient.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}, Payload: []byte{0x00}}, ServiceShape: ServiceShapePayload, IncludeResponse: false, Outcome: "invalid"},
 		{Name: "read_modify_write", Req: cipclient.CIPRequest{Service: cipclient.CIPServiceReadModifyWrite, Path: assemblyPath, Payload: []byte{0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
 	}
 }
@@ -472,18 +530,154 @@ func appendUint16Local(order binary.ByteOrder, buf []byte, value uint16) []byte 
 	return append(buf, tmp[:]...)
 }
 
-func BuildValidationENIPPackets(spec ValidationPCAPSpec) ([][]byte, error) {
+func buildPacketExpectation(reqSpec ValidationRequestSpec, direction string) PacketExpectation {
+	outcome := strings.TrimSpace(reqSpec.Outcome)
+	if direction == "response" {
+		outcome = strings.TrimSpace(reqSpec.ResponseOutcome)
+		if outcome == "" {
+			outcome = strings.TrimSpace(reqSpec.Outcome)
+		}
+	}
+	if outcome == "" {
+		outcome = "valid"
+	}
+	expect := PacketExpectation{
+		ID:           fmt.Sprintf("%s/%s", reqSpec.Name, direction),
+		Outcome:      outcome,
+		Direction:    direction,
+		PacketType:   "explicit_request",
+		ServiceShape: reqSpec.ServiceShape,
+		ExpectLayers: []string{"eth", "ip", "tcp", "enip", "cip"},
+		ExpectENIP:   true,
+		ExpectCPF:    true,
+		ExpectCIP:    true,
+	}
+
+	if direction == "response" {
+		expect.PacketType = "explicit_response"
+		expect.ExpectStatus = true
+		expect.ExpectCIPPath = false
+		expect.ExpectSymbol = false
+		return expect
+	}
+
+	if reqSpec.ExpectSymbol {
+		expect.ExpectSymbol = true
+		expect.ExpectCIPPath = false
+	} else {
+		expect.ExpectCIPPath = true
+	}
+
+	return expect
+}
+
+func buildResponseForRequest(req cipclient.CIPRequest, spec ValidationRequestSpec) (*cipclient.CIPResponse, error) {
+	resp := &cipclient.CIPResponse{
+		Service: responseServiceCode(req.Service),
+		Status:  0x00,
+		Path:    req.Path,
+	}
+
+	if req.Service == cipclient.CIPServiceMultipleService {
+		payload, err := buildMultipleServiceResponsePayload(req)
+		if err != nil {
+			return nil, err
+		}
+		resp.Payload = payload
+		return resp, nil
+	}
+
+	switch spec.ServiceShape {
+	case ServiceShapeForwardOpen:
+		resp.Payload = make([]byte, 17)
+		return resp, nil
+	case ServiceShapeUnconnectedSend:
+		embedded, _, ok := cipclient.ParseUnconnectedSendRequestPayload(req.Payload)
+		if !ok || len(embedded) == 0 {
+			return nil, fmt.Errorf("unconnected_send missing embedded request")
+		}
+		embeddedReq, err := cipclient.DecodeCIPRequest(embedded)
+		if err != nil {
+			return nil, fmt.Errorf("decode embedded request: %w", err)
+		}
+		embeddedResp := cipclient.CIPResponse{
+			Service: responseServiceCode(embeddedReq.Service),
+			Status:  0x00,
+			Path:    embeddedReq.Path,
+			Payload: defaultResponsePayload(ServiceShapeRead),
+		}
+		embeddedData, err := cipclient.EncodeCIPResponse(embeddedResp)
+		if err != nil {
+			return nil, fmt.Errorf("encode embedded response: %w", err)
+		}
+		resp.Payload = cipclient.BuildUnconnectedSendResponsePayload(embeddedData)
+		return resp, nil
+	case ServiceShapePayload:
+		resp.Payload = []byte{0x00}
+		return resp, nil
+	case ServiceShapeRead:
+		resp.Payload = defaultResponsePayload(ServiceShapeRead)
+		return resp, nil
+	case ServiceShapeWrite:
+		return resp, nil
+	case ServiceShapeFragmented, ServiceShapeRockwellTag, ServiceShapeRockwellTagFrag, ServiceShapeTemplate, ServiceShapePCCC, ServiceShapeFileObject, ServiceShapeModbus, ServiceShapeSafetyReset:
+		resp.Payload = defaultResponsePayload(spec.ServiceShape)
+		return resp, nil
+	}
+
+	return resp, nil
+}
+
+func buildMultipleServiceResponsePayload(req cipclient.CIPRequest) ([]byte, error) {
+	requests, err := cipclient.ParseMultipleServiceRequestPayload(req.Payload)
+	if err != nil {
+		return nil, fmt.Errorf("parse multiple service payload: %w", err)
+	}
+	responses := make([]cipclient.CIPResponse, 0, len(requests))
+	for _, embedded := range requests {
+		resp := cipclient.CIPResponse{
+			Service: responseServiceCode(embedded.Service),
+			Status:  0x00,
+			Path:    embedded.Path,
+		}
+		resp.Payload = defaultResponsePayload(ServiceShapeRead)
+		responses = append(responses, resp)
+	}
+	return cipclient.BuildMultipleServiceResponsePayload(responses)
+}
+
+func responseServiceCode(service cipclient.CIPServiceCode) cipclient.CIPServiceCode {
+	return cipclient.CIPServiceCode(uint8(service) | 0x80)
+}
+
+func defaultResponsePayload(shape string) []byte {
+	switch shape {
+	case ServiceShapeRead, ServiceShapeRockwellTag, ServiceShapeRockwellTagFrag:
+		return []byte{0x00, 0x00}
+	case ServiceShapeTemplate:
+		return []byte{0x00, 0x00, 0x00, 0x00}
+	case ServiceShapeFileObject, ServiceShapeModbus, ServiceShapePCCC, ServiceShapePayload, ServiceShapeSafetyReset:
+		return []byte{0x00}
+	default:
+		return nil
+	}
+}
+
+func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error) {
 	validator := cipclient.NewPacketValidator(true)
-	enipPackets := make([][]byte, 0, len(spec.Requests))
-	for _, spec := range spec.Requests {
-		req := spec.Req
-		if spec.PayloadType != "" || len(spec.PayloadParams) > 0 {
+	packets := make([]ValidationPacket, 0, len(spec.Requests)*2)
+	senderContext := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
+	sessionID := uint32(0x12345678)
+
+	for _, reqSpec := range spec.Requests {
+		req := reqSpec.Req
+		if reqSpec.PayloadType != "" || len(reqSpec.PayloadParams) > 0 {
 			result, err := cipclient.BuildServicePayload(req, cipclient.PayloadSpec{
-				Type:   spec.PayloadType,
-				Params: spec.PayloadParams,
+				Type:   reqSpec.PayloadType,
+				Params: reqSpec.PayloadParams,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("build payload (%s): %w", spec.Name, err)
+				return nil, fmt.Errorf("build payload (%s): %w", reqSpec.Name, err)
 			}
 			if len(result.Payload) > 0 {
 				req.Payload = result.Payload
@@ -494,23 +688,57 @@ func BuildValidationENIPPackets(spec ValidationPCAPSpec) ([][]byte, error) {
 		}
 
 		if err := validator.ValidateCIPRequest(req); err != nil {
-			return nil, fmt.Errorf("validate request (%s): %w", spec.Name, err)
+			return nil, fmt.Errorf("validate request (%s): %w", reqSpec.Name, err)
 		}
 		cipData, err := cipclient.EncodeCIPRequest(req)
 		if err != nil {
-			return nil, fmt.Errorf("encode request (%s): %w", spec.Name, err)
+			return nil, fmt.Errorf("encode request (%s): %w", reqSpec.Name, err)
 		}
-		packet := cipclient.BuildSendRRData(0x12345678, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}, cipData)
+		packet := cipclient.BuildSendRRData(sessionID, senderContext, cipData)
 		encap, err := cipclient.DecodeENIP(packet)
 		if err != nil {
-			return nil, fmt.Errorf("decode ENIP (%s): %w", spec.Name, err)
+			return nil, fmt.Errorf("decode ENIP (%s): %w", reqSpec.Name, err)
 		}
 		if err := validator.ValidateENIP(encap); err != nil {
-			return nil, fmt.Errorf("validate ENIP (%s): %w", spec.Name, err)
+			return nil, fmt.Errorf("validate ENIP (%s): %w", reqSpec.Name, err)
 		}
-		enipPackets = append(enipPackets, packet)
+
+		packets = append(packets, ValidationPacket{
+			Data:   packet,
+			Expect: buildPacketExpectation(reqSpec, "request"),
+		})
+
+		if reqSpec.IncludeResponse {
+			resp, err := buildResponseForRequest(req, reqSpec)
+			if err != nil {
+				return nil, fmt.Errorf("build response (%s): %w", reqSpec.Name, err)
+			}
+			if resp != nil {
+				respData, err := cipclient.EncodeCIPResponse(*resp)
+				if err != nil {
+					return nil, fmt.Errorf("encode response (%s): %w", reqSpec.Name, err)
+				}
+				respPacket := cipclient.BuildSendRRData(sessionID, senderContext, respData)
+				packets = append(packets, ValidationPacket{
+					Data:   respPacket,
+					Expect: buildPacketExpectation(reqSpec, "response"),
+				})
+			}
+		}
 	}
-	return enipPackets, nil
+	return packets, nil
+}
+
+func BuildValidationENIPPackets(spec ValidationPCAPSpec) ([][]byte, error) {
+	packets, err := BuildValidationPackets(spec)
+	if err != nil {
+		return nil, err
+	}
+	out := make([][]byte, 0, len(packets))
+	for _, pkt := range packets {
+		out = append(out, pkt.Data)
+	}
+	return out, nil
 }
 
 func WriteENIPPCAP(path string, packets [][]byte) error {
@@ -578,12 +806,25 @@ func GenerateValidationPCAPs(outputDir string) ([]string, error) {
 	}
 	paths := make([]string, 0, len(specs))
 	for _, spec := range specs {
-		packets, err := BuildValidationENIPPackets(spec)
+		packets, err := BuildValidationPackets(spec)
 		if err != nil {
 			return nil, err
 		}
 		path := filepath.Join(outputDir, fmt.Sprintf("validation_%s.pcap", spec.Name))
-		if err := WriteENIPPCAP(path, packets); err != nil {
+		data := make([][]byte, 0, len(packets))
+		expectations := make([]PacketExpectation, 0, len(packets))
+		for _, pkt := range packets {
+			data = append(data, pkt.Data)
+			expectations = append(expectations, pkt.Expect)
+		}
+		if err := WriteENIPPCAP(path, data); err != nil {
+			return nil, err
+		}
+		manifest := ValidationManifest{
+			PCAP:    filepath.Base(path),
+			Packets: expectations,
+		}
+		if err := WriteValidationManifest(ValidationManifestPath(path), manifest); err != nil {
 			return nil, err
 		}
 		paths = append(paths, path)

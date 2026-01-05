@@ -57,6 +57,12 @@
 - [x] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
 - [x] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
 - [x] Test: Regression tests against reference_packets_gen.go for supported services/paths.
+- [x] Add validation PCAP manifest sidecars for generated fixtures.
+- [x] Expand pcap-validate to manifest-driven per-packet scenarios (layers/ENIP/CPF/CIP/status).
+- [x] Add service-shape checks for payload presence using internal CIP decoding.
+- [x] Add pcap-validate modes (structural/tshark-only/internal-only) and negative policy control.
+- [x] Add pcap-validate JSON report output and verbose per-packet diagnostics.
+- [x] Add pcap-validate tests that evaluate manifest expectations.
 
 ### Protocol compliance + modes
 - [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).
