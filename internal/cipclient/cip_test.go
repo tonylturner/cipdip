@@ -1,6 +1,7 @@
 package cipclient
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 )
 
@@ -10,12 +11,12 @@ func TestEncodeEPATH(t *testing.T) {
 	defer SetProtocolProfile(prevProfile)
 	tests := []struct {
 		name     string
-		path     CIPPath
+		path     protocol.CIPPath
 		expected []byte
 	}{
 		{
 			name: "8-bit class and instance",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -28,7 +29,7 @@ func TestEncodeEPATH(t *testing.T) {
 		},
 		{
 			name: "16-bit class",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x0100,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -43,7 +44,7 @@ func TestEncodeEPATH(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := EncodeEPATH(tt.path)
+			result := protocol.EncodeEPATH(tt.path)
 			if len(result) != len(tt.expected) {
 				t.Errorf("length mismatch: got %d, want %d", len(result), len(tt.expected))
 				return
@@ -61,9 +62,9 @@ func TestEncodeCIPRequest(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
 	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
-	req := CIPRequest{
-		Service: CIPServiceGetAttributeSingle,
-		Path: CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
 			Attribute: 0x03,
@@ -71,9 +72,9 @@ func TestEncodeCIPRequest(t *testing.T) {
 		Payload: nil,
 	}
 
-	data, err := EncodeCIPRequest(req)
+	data, err := protocol.EncodeCIPRequest(req)
 	if err != nil {
-		t.Fatalf("EncodeCIPRequest failed: %v", err)
+		t.Fatalf("protocol.EncodeCIPRequest failed: %v", err)
 	}
 
 	minLen := 7
@@ -85,20 +86,20 @@ func TestEncodeCIPRequest(t *testing.T) {
 	}
 
 	// Check service code
-	if data[0] != uint8(CIPServiceGetAttributeSingle) {
-		t.Errorf("service code: got 0x%02X, want 0x%02X", data[0], uint8(CIPServiceGetAttributeSingle))
+	if data[0] != uint8(protocol.CIPServiceGetAttributeSingle) {
+		t.Errorf("service code: got 0x%02X, want 0x%02X", data[0], uint8(protocol.CIPServiceGetAttributeSingle))
 	}
 }
 
 func TestCIPServiceCodeString(t *testing.T) {
 	tests := []struct {
-		code     CIPServiceCode
+		code     protocol.CIPServiceCode
 		expected string
 	}{
-		{CIPServiceGetAttributeSingle, "Get_Attribute_Single"},
-		{CIPServiceSetAttributeSingle, "Set_Attribute_Single"},
-		{CIPServiceForwardOpen, "Forward_Open"},
-		{CIPServiceCode(0xFF), "Unknown(0xFF)"},
+		{protocol.CIPServiceGetAttributeSingle, "Get_Attribute_Single"},
+		{protocol.CIPServiceSetAttributeSingle, "Set_Attribute_Single"},
+		{protocol.CIPServiceForwardOpen, "Forward_Open"},
+		{protocol.CIPServiceCode(0xFF), "Unknown(0xFF)"},
 	}
 
 	for _, tt := range tests {

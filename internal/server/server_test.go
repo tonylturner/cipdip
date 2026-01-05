@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
+	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/logging"
 )
 
@@ -205,8 +205,8 @@ func TestServerSessionManagement(t *testing.T) {
 	registerData := []byte{0x01, 0x00, 0x00, 0x00} // Protocol version 1.0, no flags
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        uint16(len(registerData)),
 		SessionID:     0, // Session ID is 0 for RegisterSession
 		Status:        0,
@@ -222,18 +222,18 @@ func TestServerSessionManagement(t *testing.T) {
 	}
 
 	// Decode response
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
 	// Verify response per ODVA spec
-	if respEncap.Command != cipclient.ENIPCommandRegisterSession {
-		t.Errorf("Expected command 0x%04X (RegisterSession), got 0x%04X", cipclient.ENIPCommandRegisterSession, respEncap.Command)
+	if respEncap.Command != enip.ENIPCommandRegisterSession {
+		t.Errorf("Expected command 0x%04X (RegisterSession), got 0x%04X", enip.ENIPCommandRegisterSession, respEncap.Command)
 	}
 
-	if respEncap.Status != cipclient.ENIPStatusSuccess {
-		t.Errorf("Expected status 0x%08X (success), got 0x%08X", cipclient.ENIPStatusSuccess, respEncap.Status)
+	if respEncap.Status != enip.ENIPStatusSuccess {
+		t.Errorf("Expected status 0x%08X (success), got 0x%08X", enip.ENIPStatusSuccess, respEncap.Status)
 	}
 
 	if respEncap.SessionID == 0 {
@@ -259,8 +259,8 @@ func TestServerSessionManagement(t *testing.T) {
 	}
 
 	// Test UnregisterSession
-	unregisterEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandUnregisterSession,
+	unregisterEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandUnregisterSession,
 		Length:        0,
 		SessionID:     respEncap.SessionID,
 		Status:        0,
@@ -274,13 +274,13 @@ func TestServerSessionManagement(t *testing.T) {
 		t.Fatal("handleUnregisterSession returned nil")
 	}
 
-	unregisterRespEncap, err := cipclient.DecodeENIP(unregisterResp)
+	unregisterRespEncap, err := enip.DecodeENIP(unregisterResp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
-	if unregisterRespEncap.Status != cipclient.ENIPStatusSuccess {
-		t.Errorf("Expected status 0x%08X (success), got 0x%08X", cipclient.ENIPStatusSuccess, unregisterRespEncap.Status)
+	if unregisterRespEncap.Status != enip.ENIPStatusSuccess {
+		t.Errorf("Expected status 0x%08X (success), got 0x%08X", enip.ENIPStatusSuccess, unregisterRespEncap.Status)
 	}
 
 	// Verify session is removed

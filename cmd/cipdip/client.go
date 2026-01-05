@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"os/signal"
 	"strings"
@@ -527,7 +528,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:        "File_Class_Max_Instance",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
 				Class:       cipclient.CIPClassFileObject,
 				Instance:    0x0000,
 				Attribute:   0x0002,
@@ -537,7 +538,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:        "Event_Log_Time_Format",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
 				Class:       cipclient.CIPClassEventLog,
 				Instance:    0x0000,
 				Attribute:   0x0020,
@@ -547,7 +548,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:        "Time_Sync_PTP_Enable",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
 				Class:       cipclient.CIPClassTimeSync,
 				Instance:    0x0001,
 				Attribute:   0x0001,
@@ -557,7 +558,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:              "Modbus_Read_Holding_Registers",
 				Service:           config.ServiceCustom,
-				ServiceCode:       uint8(cipclient.CIPServiceReadModifyWrite),
+				ServiceCode:       uint8(protocol.CIPServiceReadModifyWrite),
 				Class:             cipclient.CIPClassModbus,
 				Instance:          0x0001,
 				Attribute:         0x0000,
@@ -568,7 +569,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:        "Motion_Get_Axis_Attributes_List",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(cipclient.CIPServiceExecutePCCC),
+				ServiceCode: uint8(protocol.CIPServiceExecutePCCC),
 				Class:       cipclient.CIPClassMotionAxis,
 				Instance:    0x0001,
 				Attribute:   0x0000,
@@ -578,7 +579,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:        "Safety_Supervisor_Device_Status",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
 				Class:       cipclient.CIPClassSafetySupervisor,
 				Instance:    0x0001,
 				Attribute:   0x000B,
@@ -588,7 +589,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 			{
 				Name:        "Safety_Validator_State",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(cipclient.CIPServiceGetAttributeSingle),
+				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
 				Class:       cipclient.CIPClassSafetyValidator,
 				Instance:    0x0001,
 				Attribute:   0x0001,
@@ -606,7 +607,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		addTarget(config.CIPTarget{
 			Name:        fmt.Sprintf("Profile_Class_0x%04X", classID),
 			Service:     config.ServiceCustom,
-			ServiceCode: uint8(cipclient.CIPServiceGetAttributeAll),
+			ServiceCode: uint8(protocol.CIPServiceGetAttributeAll),
 			Class:       classID,
 			Instance:    0x0001,
 			Attribute:   0x0000,
@@ -620,7 +621,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		addTarget(config.CIPTarget{
 			Name:        "Energy_Start_Metering",
 			Service:     config.ServiceCustom,
-			ServiceCode: uint8(cipclient.CIPServiceExecutePCCC),
+			ServiceCode: uint8(protocol.CIPServiceExecutePCCC),
 			Class:       cipclient.CIPClassEnergyBase,
 			Instance:    0x0001,
 			Attribute:   0x0000,
@@ -628,7 +629,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		addTarget(config.CIPTarget{
 			Name:        "Energy_Stop_Metering",
 			Service:     config.ServiceCustom,
-			ServiceCode: uint8(cipclient.CIPServiceReadTag),
+			ServiceCode: uint8(protocol.CIPServiceReadTag),
 			Class:       cipclient.CIPClassEnergyBase,
 			Instance:    0x0001,
 			Attribute:   0x0000,

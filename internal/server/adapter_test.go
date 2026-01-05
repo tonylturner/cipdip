@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 	"time"
 
@@ -88,9 +89,9 @@ func TestAdapterGetAttributeSingle(t *testing.T) {
 	ctx := context.Background()
 
 	// Test reading from existing assembly
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
 			Attribute: 0x03,
@@ -106,8 +107,8 @@ func TestAdapterGetAttributeSingle(t *testing.T) {
 		t.Errorf("Expected status 0x00 (success), got 0x%02X", resp.Status)
 	}
 
-	if resp.Service != cipclient.CIPServiceGetAttributeSingle {
-		t.Errorf("Expected service 0x%02X, got 0x%02X", cipclient.CIPServiceGetAttributeSingle, resp.Service)
+	if resp.Service != protocol.CIPServiceGetAttributeSingle {
+		t.Errorf("Expected service 0x%02X, got 0x%02X", protocol.CIPServiceGetAttributeSingle, resp.Service)
 	}
 
 	if len(resp.Payload) != 16 {
@@ -125,9 +126,9 @@ func TestAdapterGetAttributeSingleNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	// Test reading from non-existent assembly
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x99,
 			Attribute: 0x03,
@@ -155,9 +156,9 @@ func TestAdapterSetAttributeSingle(t *testing.T) {
 
 	// Test writing to writable assembly
 	testData := []byte{0x01, 0x02, 0x03, 0x04}
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceSetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceSetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x66,
 			Attribute: 0x03,
@@ -175,9 +176,9 @@ func TestAdapterSetAttributeSingle(t *testing.T) {
 	}
 
 	// Verify data was written by reading it back
-	readReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	readReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x66,
 			Attribute: 0x03,
@@ -205,9 +206,9 @@ func TestAdapterSetAttributeSingleReadOnly(t *testing.T) {
 	ctx := context.Background()
 
 	// Test writing to read-only assembly
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceSetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceSetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65, // ReadOnlyAssembly
 			Attribute: 0x03,
@@ -237,9 +238,9 @@ func TestAdapterUpdatePatternCounter(t *testing.T) {
 	// Read assembly multiple times with delay to trigger counter updates
 	var values []uint32
 	for i := 0; i < 3; i++ {
-		req := cipclient.CIPRequest{
-			Service: cipclient.CIPServiceGetAttributeSingle,
-			Path: cipclient.CIPPath{
+		req := protocol.CIPRequest{
+			Service: protocol.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x66, // WritableAssembly with counter pattern
 				Attribute: 0x03,
@@ -282,9 +283,9 @@ func TestAdapterUpdatePatternReflectInputs(t *testing.T) {
 
 	// Write data to reflect assembly
 	testData := []byte{0xAA, 0xBB, 0xCC, 0xDD}
-	writeReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceSetAttributeSingle,
-		Path: cipclient.CIPPath{
+	writeReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceSetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x67, // ReflectAssembly
 			Attribute: 0x03,
@@ -298,9 +299,9 @@ func TestAdapterUpdatePatternReflectInputs(t *testing.T) {
 	}
 
 	// Read it back
-	readReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	readReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x67,
 			Attribute: 0x03,
@@ -334,9 +335,9 @@ func TestAdapterUnsupportedService(t *testing.T) {
 	ctx := context.Background()
 
 	// Test unsupported service
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeAll, // Not supported
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeAll, // Not supported
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
 			Attribute: 0x03,

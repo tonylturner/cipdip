@@ -1,9 +1,11 @@
 package server
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 var enipOrder = cipclient.CurrentProtocolProfile().ENIPByteOrder
@@ -24,8 +26,8 @@ func TestRegisterSessionODVACompliance(t *testing.T) {
 	registerData := []byte{0x01, 0x00, 0x00, 0x00} // Protocol version 1.0, no flags
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        uint16(len(registerData)),
 		SessionID:     0,
 		Status:        0,
@@ -35,7 +37,7 @@ func TestRegisterSessionODVACompliance(t *testing.T) {
 	}
 
 	resp := server.handleRegisterSession(encap, "127.0.0.1:1234")
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -92,8 +94,8 @@ func TestUnregisterSessionODVACompliance(t *testing.T) {
 	registerData := []byte{0x01, 0x00, 0x00, 0x00}
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	registerEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	registerEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     0,
 		Status:        0,
@@ -103,12 +105,12 @@ func TestUnregisterSessionODVACompliance(t *testing.T) {
 	}
 
 	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
-	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
+	registerRespEncap, _ := enip.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
 	// Now test UnregisterSession
-	unregisterEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandUnregisterSession,
+	unregisterEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandUnregisterSession,
 		Length:        0,
 		SessionID:     sessionID,
 		Status:        0,
@@ -118,7 +120,7 @@ func TestUnregisterSessionODVACompliance(t *testing.T) {
 	}
 
 	resp := server.handleUnregisterSession(unregisterEncap)
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -165,8 +167,8 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 	registerData := []byte{0x01, 0x00, 0x00, 0x00}
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	registerEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	registerEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     0,
 		Status:        0,
@@ -176,13 +178,13 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 	}
 
 	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
-	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
+	registerRespEncap, _ := enip.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
 	// Build CIP request: Get_Attribute_Single for class 0x04, instance 0x65, attribute 0x03
-	cipReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	cipReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
 			Attribute: 0x03,
@@ -190,13 +192,13 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 		Payload: nil,
 	}
 
-	cipData, _ := cipclient.EncodeCIPRequest(cipReq)
+	cipData, _ := protocol.EncodeCIPRequest(cipReq)
 
 	// Build SendRRData request per ODVA spec
-	sendRRData := cipclient.BuildSendRRDataPayload(cipData)
+	sendRRData := enip.BuildSendRRDataPayload(cipData)
 
-	sendRRDataEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	sendRRDataEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendRRData)),
 		SessionID:     sessionID,
 		Status:        0,
@@ -210,7 +212,7 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 		t.Fatal("handleSendRRData returned nil")
 	}
 
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -254,7 +256,7 @@ func TestSendRRDataODVACompliance(t *testing.T) {
 
 	// Validate CIP response structure per ODVA spec
 	// CIP response: Service code + status + optional reserved fields
-	cipRespData, err := cipclient.ParseSendRRDataRequest(respEncap.Data)
+	cipRespData, err := enip.ParseSendRRDataRequest(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
 	}
@@ -291,8 +293,8 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 	registerData := []byte{0x01, 0x00, 0x00, 0x00}
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	registerEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	registerEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     0,
 		Status:        0,
@@ -302,13 +304,13 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 	}
 
 	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
-	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
+	registerRespEncap, _ := enip.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
 	// Build Get_Attribute_Single request
-	cipReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	cipReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
 			Attribute: 0x03,
@@ -316,12 +318,12 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 		Payload: nil,
 	}
 
-	cipData, _ := cipclient.EncodeCIPRequest(cipReq)
+	cipData, _ := protocol.EncodeCIPRequest(cipReq)
 
-	sendRRData := cipclient.BuildSendRRDataPayload(cipData)
+	sendRRData := enip.BuildSendRRDataPayload(cipData)
 
-	sendRRDataEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	sendRRDataEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendRRData)),
 		SessionID:     sessionID,
 		Status:        0,
@@ -331,10 +333,10 @@ func TestCIPResponseODVACompliance(t *testing.T) {
 	}
 
 	resp := server.handleSendRRData(sendRRDataEncap, "127.0.0.1:12345")
-	respEncap, _ := cipclient.DecodeENIP(resp)
+	respEncap, _ := enip.DecodeENIP(resp)
 
 	// Extract CIP response
-	cipRespData, err := cipclient.ParseSendRRDataRequest(respEncap.Data)
+	cipRespData, err := enip.ParseSendRRDataRequest(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
 	}
@@ -385,8 +387,8 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 	registerData := []byte{0x01, 0x00, 0x00, 0x00}
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	registerEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	registerEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     0,
 		Status:        0,
@@ -396,13 +398,13 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 	}
 
 	registerResp := server.handleRegisterSession(registerEncap, "127.0.0.1:1234")
-	registerRespEncap, _ := cipclient.DecodeENIP(registerResp)
+	registerRespEncap, _ := enip.DecodeENIP(registerResp)
 	sessionID := registerRespEncap.SessionID
 
 	// Build Get_Attribute_Single request for non-existent assembly
-	cipReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	cipReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x99, // Non-existent instance
 			Attribute: 0x03,
@@ -410,12 +412,12 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 		Payload: nil,
 	}
 
-	cipData, _ := cipclient.EncodeCIPRequest(cipReq)
+	cipData, _ := protocol.EncodeCIPRequest(cipReq)
 
-	sendRRData := cipclient.BuildSendRRDataPayload(cipData)
+	sendRRData := enip.BuildSendRRDataPayload(cipData)
 
-	sendRRDataEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	sendRRDataEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendRRData)),
 		SessionID:     sessionID,
 		Status:        0,
@@ -425,10 +427,10 @@ func TestCIPErrorResponseODVACompliance(t *testing.T) {
 	}
 
 	resp := server.handleSendRRData(sendRRDataEncap, "127.0.0.1:12345")
-	respEncap, _ := cipclient.DecodeENIP(resp)
+	respEncap, _ := enip.DecodeENIP(resp)
 
 	// Extract CIP response
-	cipRespData, err := cipclient.ParseSendRRDataRequest(respEncap.Data)
+	cipRespData, err := enip.ParseSendRRDataRequest(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
 	}
@@ -474,8 +476,8 @@ func TestENIPErrorResponseODVACompliance(t *testing.T) {
 	// Test invalid session ID
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 
-	sendRRDataEncap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	sendRRDataEncap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        6,
 		SessionID:     0x12345678, // Invalid session ID
 		Status:        0,
@@ -489,14 +491,14 @@ func TestENIPErrorResponseODVACompliance(t *testing.T) {
 		t.Fatal("handleSendRRData returned nil")
 	}
 
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
 	// Validate error response per ODVA spec
-	if respEncap.Command != cipclient.ENIPCommandSendRRData {
-		t.Errorf("Command: got 0x%04X, want 0x%04X (must echo request per ODVA spec)", respEncap.Command, cipclient.ENIPCommandSendRRData)
+	if respEncap.Command != enip.ENIPCommandSendRRData {
+		t.Errorf("Command: got 0x%04X, want 0x%04X (must echo request per ODVA spec)", respEncap.Command, enip.ENIPCommandSendRRData)
 	}
 
 	// Status must be non-zero for error per ODVA spec

@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/config"
 )
 
@@ -21,9 +21,9 @@ func TestCIPPolicyDenyOverride(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x0004,
 			Instance:  0x0001,
 			Attribute: 0x0001,
@@ -50,9 +50,9 @@ func TestCIPPolicyAllowList(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	allowReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	allowReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x0004,
 			Instance:  0x0001,
 			Attribute: 0x0001,
@@ -62,9 +62,9 @@ func TestCIPPolicyAllowList(t *testing.T) {
 		t.Fatalf("expected allow without policy rejection")
 	}
 
-	blockReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceSetAttributeSingle,
-		Path: cipclient.CIPPath{
+	blockReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceSetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x0004,
 			Instance:  0x0001,
 			Attribute: 0x0001,
@@ -88,9 +88,9 @@ func TestCIPPolicyStrictPaths(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path:    cipclient.CIPPath{},
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path:    protocol.CIPPath{},
 	}
 	if _, ok := srv.applyCIPPolicy(req); !ok {
 		t.Fatalf("expected policy reject for missing path")

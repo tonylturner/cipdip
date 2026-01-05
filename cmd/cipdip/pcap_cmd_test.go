@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
 	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 func TestPcapSummaryReportCoverageDump(t *testing.T) {
@@ -20,20 +22,20 @@ func TestPcapSummaryReportCoverageDump(t *testing.T) {
 	cipclient.SetProtocolProfile(cipclient.StrictODVAProfile)
 	defer cipclient.SetProtocolProfile(prev)
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x01,
 			Attribute: 0x01,
 		},
 	}
-	cipData, err := cipclient.EncodeCIPRequest(req)
+	cipData, err := protocol.EncodeCIPRequest(req)
 	if err != nil {
 		t.Fatalf("EncodeCIPRequest failed: %v", err)
 	}
-	enip := cipclient.BuildSendRRData(0x12345678, [8]byte{0x01}, cipData)
-	pcapPath := writeSinglePacketPCAP(t, enip)
+	enipPacket := enip.BuildSendRRData(0x12345678, [8]byte{0x01}, cipData)
+	pcapPath := writeSinglePacketPCAP(t, enipPacket)
 
 	t.Run("summary counts", func(t *testing.T) {
 		summary, err := cipclient.SummarizeENIPFromPCAP(pcapPath)

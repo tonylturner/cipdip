@@ -1,6 +1,7 @@
 package cipclient
 
 import (
+	"github.com/tturner/cipdip/internal/enip"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestExtractENIPFromPCAPMetadataTCP(t *testing.T) {
-	payload := BuildRegisterSession([8]byte{0x01})
+	payload := enip.BuildRegisterSession([8]byte{0x01})
 	packet := buildENIPTCPPacket(t, "10.0.0.1", "10.0.0.2", 12000, 44818, payload)
 	pcapPath := writeENIPPCAP(t, packet)
 
@@ -36,7 +37,7 @@ func TestExtractENIPFromPCAPMetadataTCP(t *testing.T) {
 }
 
 func TestExtractENIPFromPCAPMetadataUDP(t *testing.T) {
-	payload := BuildListIdentity([8]byte{0x02})
+	payload := enip.BuildListIdentity([8]byte{0x02})
 	packet := buildENIPUDPPacket(t, "10.0.0.3", "10.0.0.4", 12001, 44818, payload)
 	pcapPath := writeENIPPCAP(t, packet)
 
@@ -56,7 +57,7 @@ func TestExtractENIPFromPCAPMetadataUDP(t *testing.T) {
 }
 
 func TestExtractENIPFromPCAPTCPReassembly(t *testing.T) {
-	payload := BuildRegisterSession([8]byte{0x03})
+	payload := enip.BuildRegisterSession([8]byte{0x03})
 	if len(payload) < 10 {
 		t.Fatalf("unexpected ENIP payload length: %d", len(payload))
 	}
@@ -86,9 +87,9 @@ func TestExtractENIPFromPCAPResponseDetection(t *testing.T) {
 	defer SetProtocolProfile(prev)
 
 	cipResp := []byte{0x8E, 0x00, 0x00, 0x00, 0x11, 0x22}
-	sendData := BuildSendRRDataPayload(cipResp)
-	encap := ENIPEncapsulation{
-		Command:       ENIPCommandSendRRData,
+	sendData := enip.BuildSendRRDataPayload(cipResp)
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendData)),
 		SessionID:     0x12345678,
 		Status:        0,
@@ -96,7 +97,7 @@ func TestExtractENIPFromPCAPResponseDetection(t *testing.T) {
 		Options:       0,
 		Data:          sendData,
 	}
-	packetBytes := EncodeENIP(encap)
+	packetBytes := enip.EncodeENIP(encap)
 	packet := buildENIPTCPPacket(t, "10.0.0.1", "10.0.0.2", 12003, 44818, packetBytes)
 	pcapPath := writeENIPPCAP(t, packet)
 

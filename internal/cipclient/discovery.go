@@ -5,6 +5,7 @@ package cipclient
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/enip"
 	"net"
 	"time"
 )
@@ -82,7 +83,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 
 	// Build ListIdentity packet
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildListIdentity(senderContext)
+	packet := enip.BuildListIdentity(senderContext)
 
 	// Send broadcast
 	if _, err := conn.WriteToUDP(packet, broadcastAddr); err != nil {
@@ -142,16 +143,16 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 	}
 
 	// Decode ENIP header
-	encap, err := DecodeENIP(data)
+	encap, err := enip.DecodeENIP(data)
 	if err != nil {
 		return device, fmt.Errorf("decode ENIP: %w", err)
 	}
 
-	if encap.Command != ENIPCommandListIdentity {
+	if encap.Command != enip.ENIPCommandListIdentity {
 		return device, fmt.Errorf("unexpected command: 0x%04X", encap.Command)
 	}
 
-	if encap.Status != ENIPStatusSuccess {
+	if encap.Status != enip.ENIPStatusSuccess {
 		return device, fmt.Errorf("ENIP error status: 0x%08X", encap.Status)
 	}
 

@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/config"
 )
 
@@ -22,9 +22,9 @@ func TestIdentityGetAttributeSingle(t *testing.T) {
 	}
 	s := &Server{config: cfg}
 
-	resp, ok := s.handleIdentityRequest(cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	resp, ok := s.handleIdentityRequest(protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x0001,
 			Instance:  0x0001,
 			Attribute: 1,
@@ -59,9 +59,9 @@ func TestIdentityGetAttributeAllIncludesName(t *testing.T) {
 	}
 	s := &Server{config: cfg}
 
-	resp, ok := s.handleIdentityRequest(cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeAll,
-		Path: cipclient.CIPPath{
+	resp, ok := s.handleIdentityRequest(protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeAll,
+		Path: protocol.CIPPath{
 			Class:     0x0001,
 			Instance:  0x0001,
 			Attribute: 0,

@@ -2,7 +2,10 @@ package cipclient
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"sort"
+
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 // CIPCoverageEntry captures a CIP request (service + path) observed in PCAPs.
@@ -36,7 +39,7 @@ func BuildPCAPCoverageReport(packets []ENIPPacket) *PCAPCoverageReport {
 	}
 
 	for _, pkt := range packets {
-		if pkt.Command != ENIPCommandSendRRData && pkt.Command != ENIPCommandSendUnitData {
+		if pkt.Command != enip.ENIPCommandSendRRData && pkt.Command != enip.ENIPCommandSendUnitData {
 			continue
 		}
 
@@ -51,7 +54,7 @@ func BuildPCAPCoverageReport(packets []ENIPPacket) *PCAPCoverageReport {
 			continue
 		}
 
-		msgInfo, err := parseCIPMessage(cipData)
+		msgInfo, err := protocol.ParseCIPMessage(cipData)
 		if err != nil {
 			continue
 		}
@@ -85,7 +88,7 @@ func BuildPCAPCoverageReport(packets []ENIPPacket) *PCAPCoverageReport {
 		if baseService == 0x52 && msgInfo.PathInfo.Path.Class == connectionManagerClass && msgInfo.PathInfo.Path.Instance == connectionManagerInst {
 			embedded := extractEmbeddedCIP(msgInfo, cipData)
 			if len(embedded) > 0 {
-				embeddedInfo, err := parseCIPMessage(embedded)
+				embeddedInfo, err := protocol.ParseCIPMessage(embedded)
 				if err == nil && !embeddedInfo.IsResponse && embeddedInfo.PathInfo.Path.Class != 0 {
 					embeddedKey := coverageKey(embeddedInfo.BaseService, embeddedInfo.PathInfo.Path.Class, embeddedInfo.PathInfo.Path.Instance, embeddedInfo.PathInfo.Path.Attribute)
 					entry := report.EmbeddedEntries[embeddedKey]
@@ -121,17 +124,21 @@ func coverageKey(service uint8, class, instance, attribute uint16) string {
 	return fmt.Sprintf("0x%02X/0x%04X/0x%04X/0x%04X", service, class, instance, attribute)
 }
 
-func extractEmbeddedCIP(msgInfo CIPMessageInfo, cipData []byte) []byte {
+func extractEmbeddedCIP(msgInfo protocol.CIPMessageInfo, cipData []byte) []byte {
 	if msgInfo.IsResponse {
 		if msgInfo.RequestData != nil {
-			embedded, _ := parseUnconnectedSendResponse(msgInfo.RequestData)
-			return embedded
+			if embedded, ok := protocol.ParseUnconnectedSendResponsePayload(msgInfo.RequestData); ok {
+				return embedded
+			}
+			return nil
 		}
 		return nil
 	}
 	if msgInfo.DataOffset > 0 && msgInfo.DataOffset <= len(cipData) {
-		embedded, _ := parseUnconnectedSendRequest(cipData[msgInfo.DataOffset:])
-		return embedded
+		if embedded, _, ok := protocol.ParseUnconnectedSendRequestPayload(cipData[msgInfo.DataOffset:]); ok {
+			return embedded
+		}
+		return nil
 	}
 	return nil
 }

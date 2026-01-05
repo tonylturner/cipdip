@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/ui"
 	"github.com/tturner/cipdip/internal/validation"
 )
@@ -95,11 +97,11 @@ func runEmitBytes(flags *emitBytesFlags) error {
 			if err != nil {
 				return fmt.Errorf("build response %s: %w", entry.Key, err)
 			}
-			cipBytes, err := cipclient.EncodeCIPResponse(resp)
+			cipBytes, err := protocol.EncodeCIPResponse(resp)
 			if err != nil {
 				return fmt.Errorf("encode CIP response %s: %w", entry.Key, err)
 			}
-			enipBytes := cipclient.BuildSendRRData(0x12345678, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}, cipBytes)
+			enipBytes := enip.BuildSendRRData(0x12345678, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}, cipBytes)
 			expect := buildResponseExpectation(entry, req)
 			output.Packets = append(output.Packets, validation.BytesPacket{
 				Expect:  expect,
@@ -128,11 +130,11 @@ func runEmitBytes(flags *emitBytesFlags) error {
 			req.RawPath = result.RawPath
 		}
 
-		cipBytes, err := cipclient.EncodeCIPRequest(req)
+		cipBytes, err := protocol.EncodeCIPRequest(req)
 		if err != nil {
 			return fmt.Errorf("encode CIP request %s: %w", entry.Key, err)
 		}
-		enipBytes := cipclient.BuildSendRRData(0x12345678, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}, cipBytes)
+		enipBytes := enip.BuildSendRRData(0x12345678, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}, cipBytes)
 		expect := buildExpectationFromCatalog(entry, req)
 		output.Packets = append(output.Packets, validation.BytesPacket{
 			Expect:  expect,
@@ -186,13 +188,13 @@ func resolveProtocolProfile(name string) cipclient.ProtocolProfile {
 	return cipclient.StrictODVAProfile
 }
 
-func buildExpectationFromCatalog(entry ui.CatalogEntry, req cipclient.CIPRequest) validation.PacketExpectation {
+func buildExpectationFromCatalog(entry ui.CatalogEntry, req protocol.CIPRequest) validation.PacketExpectation {
 	payloadType := entry.Payload.Type
 	if strings.TrimSpace(payloadType) == "" {
 		payloadType = inferPayloadType(req)
 	}
 	shape := serviceShapeFromPayload(payloadType)
-	if req.Path.Class == cipclient.CIPClassFileObject && req.Service == cipclient.CIPServiceClearFile {
+	if req.Path.Class == cipclient.CIPClassFileObject && req.Service == protocol.CIPServiceClearFile {
 		shape = validation.ServiceShapeNone
 	}
 	expect := validation.PacketExpectation{
@@ -216,7 +218,7 @@ func buildExpectationFromCatalog(entry ui.CatalogEntry, req cipclient.CIPRequest
 	return expect
 }
 
-func buildResponseExpectation(entry ui.CatalogEntry, req cipclient.CIPRequest) validation.PacketExpectation {
+func buildResponseExpectation(entry ui.CatalogEntry, req protocol.CIPRequest) validation.PacketExpectation {
 	shape := responseShapeFromRequest(req)
 	expect := validation.PacketExpectation{
 		ID:           entry.Key + "/response",
@@ -261,55 +263,55 @@ func serviceShapeFromPayload(payloadType string) string {
 	}
 }
 
-func responseShapeFromRequest(req cipclient.CIPRequest) string {
+func responseShapeFromRequest(req protocol.CIPRequest) string {
 	switch req.Path.Class {
 	case cipclient.CIPClassConnectionManager:
 		switch req.Service {
-		case cipclient.CIPServiceForwardOpen:
+		case protocol.CIPServiceForwardOpen:
 			return validation.ServiceShapeForwardOpen
-		case cipclient.CIPServiceForwardClose:
+		case protocol.CIPServiceForwardClose:
 			return validation.ServiceShapeForwardClose
 		}
 	case cipclient.CIPClassSymbolObject:
 		switch req.Service {
-		case cipclient.CIPServiceReadTag:
+		case protocol.CIPServiceReadTag:
 			return validation.ServiceShapeRead
-		case cipclient.CIPServiceWriteTag:
+		case protocol.CIPServiceWriteTag:
 			return validation.ServiceShapeNone
 		}
 	case cipclient.CIPClassModbus:
 		return validation.ServiceShapeModbus
 	case cipclient.CIPClassFileObject:
-		if req.Service == cipclient.CIPServiceInitiateDownload {
+		if req.Service == protocol.CIPServiceInitiateDownload {
 			return validation.ServiceShapeFileObject
 		}
 	}
 	return validation.ServiceShapeNone
 }
 
-func buildBaseRequest(entry ui.CatalogEntry) (cipclient.CIPRequest, error) {
+func buildBaseRequest(entry ui.CatalogEntry) (protocol.CIPRequest, error) {
 	service, err := parseServiceValue(entry.Service)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	classID, err := parseClassValue(entry.Class)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	instanceID, err := parseUintValue(entry.Instance, 16)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	attributeID := uint64(0)
 	if entry.Attribute != "" {
 		attributeID, err = parseUintValue(entry.Attribute, 16)
 		if err != nil {
-			return cipclient.CIPRequest{}, err
+			return protocol.CIPRequest{}, err
 		}
 	}
-	return cipclient.CIPRequest{
-		Service: cipclient.CIPServiceCode(service),
-		Path: cipclient.CIPPath{
+	return protocol.CIPRequest{
+		Service: protocol.CIPServiceCode(service),
+		Path: protocol.CIPPath{
 			Class:     uint16(classID),
 			Instance:  uint16(instanceID),
 			Attribute: uint16(attributeID),
@@ -318,32 +320,32 @@ func buildBaseRequest(entry ui.CatalogEntry) (cipclient.CIPRequest, error) {
 	}, nil
 }
 
-func supportsResponse(req cipclient.CIPRequest) bool {
+func supportsResponse(req protocol.CIPRequest) bool {
 	switch req.Path.Class {
 	case cipclient.CIPClassConnectionManager:
-		return req.Service == cipclient.CIPServiceForwardOpen || req.Service == cipclient.CIPServiceForwardClose
+		return req.Service == protocol.CIPServiceForwardOpen || req.Service == protocol.CIPServiceForwardClose
 	case cipclient.CIPClassSymbolObject:
-		return req.Service == cipclient.CIPServiceReadTag || req.Service == cipclient.CIPServiceWriteTag
+		return req.Service == protocol.CIPServiceReadTag || req.Service == protocol.CIPServiceWriteTag
 	case cipclient.CIPClassModbus:
 		switch req.Service {
 		case 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50:
 			return true
 		}
 	case cipclient.CIPClassFileObject:
-		return req.Service == cipclient.CIPServiceInitiateDownload
+		return req.Service == protocol.CIPServiceInitiateDownload
 	}
 	return false
 }
 
-func buildResponse(req cipclient.CIPRequest, params map[string]any) (cipclient.CIPResponse, error) {
+func buildResponse(req protocol.CIPRequest, params map[string]any) (protocol.CIPResponse, error) {
 	profile := cipclient.CurrentProtocolProfile()
 	order := profile.CIPByteOrder
-	replyService := cipclient.CIPServiceCode(uint8(req.Service) | 0x80)
+	replyService := protocol.CIPServiceCode(uint8(req.Service) | 0x80)
 	payload, err := buildResponsePayload(req, params, order)
 	if err != nil {
-		return cipclient.CIPResponse{}, err
+		return protocol.CIPResponse{}, err
 	}
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: replyService,
 		Path:    req.Path,
 		Status:  0x00,
@@ -351,10 +353,10 @@ func buildResponse(req cipclient.CIPRequest, params map[string]any) (cipclient.C
 	}, nil
 }
 
-func buildResponsePayload(req cipclient.CIPRequest, params map[string]any, order binary.ByteOrder) ([]byte, error) {
+func buildResponsePayload(req protocol.CIPRequest, params map[string]any, order binary.ByteOrder) ([]byte, error) {
 	switch req.Path.Class {
 	case cipclient.CIPClassConnectionManager:
-		if req.Service == cipclient.CIPServiceForwardOpen {
+		if req.Service == protocol.CIPServiceForwardOpen {
 			payload := make([]byte, 17)
 			order.PutUint32(payload[0:4], 0x12345678)
 			order.PutUint32(payload[4:8], 0x9ABCDEF0)
@@ -364,18 +366,18 @@ func buildResponsePayload(req cipclient.CIPRequest, params map[string]any, order
 			payload[16] = 0x03
 			return payload, nil
 		}
-		if req.Service == cipclient.CIPServiceForwardClose {
+		if req.Service == protocol.CIPServiceForwardClose {
 			return nil, nil
 		}
 	case cipclient.CIPClassSymbolObject:
-		if req.Service == cipclient.CIPServiceReadTag {
-			value, _ := cipclient.EncodeCIPValue(cipclient.CIPTypeDINT, int32(0))
+		if req.Service == protocol.CIPServiceReadTag {
+			value, _ := protocol.EncodeCIPValue(protocol.CIPTypeDINT, int32(0))
 			payload := make([]byte, 2+len(value))
-			order.PutUint16(payload[0:2], uint16(cipclient.CIPTypeDINT))
+			order.PutUint16(payload[0:2], uint16(protocol.CIPTypeDINT))
 			copy(payload[2:], value)
 			return payload, nil
 		}
-		if req.Service == cipclient.CIPServiceWriteTag {
+		if req.Service == protocol.CIPServiceWriteTag {
 			return nil, nil
 		}
 	case cipclient.CIPClassModbus:
@@ -395,7 +397,7 @@ func buildResponsePayload(req cipclient.CIPRequest, params map[string]any, order
 			return payload, nil
 		}
 	case cipclient.CIPClassFileObject:
-		if req.Service == cipclient.CIPServiceInitiateDownload {
+		if req.Service == protocol.CIPServiceInitiateDownload {
 			payload := make([]byte, 12)
 			order.PutUint32(payload[0:4], 512)
 			order.PutUint32(payload[4:8], 100)
@@ -403,7 +405,7 @@ func buildResponsePayload(req cipclient.CIPRequest, params map[string]any, order
 			return payload, nil
 		}
 	}
-	return nil, fmt.Errorf("unsupported response payload for %s", req.Path)
+	return nil, fmt.Errorf("unsupported response payload for %v", req.Path)
 }
 
 func getUintParam(params map[string]any, key string, def uint64) uint64 {
@@ -479,7 +481,7 @@ func mergePayloadParams(base, defaults map[string]any) map[string]any {
 	return params
 }
 
-func defaultPayloadParams(entry ui.CatalogEntry, req cipclient.CIPRequest) map[string]any {
+func defaultPayloadParams(entry ui.CatalogEntry, req protocol.CIPRequest) map[string]any {
 	params := map[string]any{}
 	payloadType := entry.Payload.Type
 	if strings.TrimSpace(payloadType) == "" {
@@ -489,15 +491,15 @@ func defaultPayloadParams(entry ui.CatalogEntry, req cipclient.CIPRequest) map[s
 	case "forward_close":
 		params["connection_id"] = uint64(0x11223344)
 	case "unconnected_send":
-		req := cipclient.CIPRequest{
-			Service: cipclient.CIPServiceGetAttributeSingle,
-			Path: cipclient.CIPPath{
+		req := protocol.CIPRequest{
+			Service: protocol.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     cipclient.CIPClassIdentityObject,
 				Instance:  0x01,
 				Attribute: 0x01,
 			},
 		}
-		if encoded, err := cipclient.EncodeCIPRequest(req); err == nil {
+		if encoded, err := protocol.EncodeCIPRequest(req); err == nil {
 			params["embedded_request_hex"] = encoded
 		}
 		params["route_slot"] = uint64(1)
@@ -516,22 +518,22 @@ func defaultPayloadParams(entry ui.CatalogEntry, req cipclient.CIPRequest) map[s
 		}
 	case "file_object":
 		switch req.Service {
-		case cipclient.CIPServiceInitiateUpload:
+		case protocol.CIPServiceInitiateUpload:
 			params["file_size"] = uint64(1024)
-		case cipclient.CIPServiceInitiateDownload:
+		case protocol.CIPServiceInitiateDownload:
 			params["file_size"] = uint64(512)
 			params["format_version"] = uint64(1)
 			params["file_revision"] = uint64(1)
 			params["file_name"] = "test.bin"
-		case cipclient.CIPServiceInitiatePartialRead:
+		case protocol.CIPServiceInitiatePartialRead:
 			params["file_offset"] = uint64(0)
 			params["chunk"] = uint64(32)
-		case cipclient.CIPServiceInitiatePartialWrite:
+		case protocol.CIPServiceInitiatePartialWrite:
 			params["file_offset"] = uint64(0)
 			params["data_hex"] = "01020304"
-		case cipclient.CIPServiceUploadTransfer:
+		case protocol.CIPServiceUploadTransfer:
 			params["transfer_number"] = uint64(1)
-		case cipclient.CIPServiceDownloadTransfer:
+		case protocol.CIPServiceDownloadTransfer:
 			params["transfer_number"] = uint64(1)
 			params["transfer_type"] = uint64(1)
 			params["data_hex"] = "0102"
@@ -540,26 +542,26 @@ func defaultPayloadParams(entry ui.CatalogEntry, req cipclient.CIPRequest) map[s
 	return params
 }
 
-func inferPayloadType(req cipclient.CIPRequest) string {
+func inferPayloadType(req protocol.CIPRequest) string {
 	switch req.Path.Class {
 	case cipclient.CIPClassConnectionManager:
 		switch req.Service {
-		case cipclient.CIPServiceForwardOpen:
+		case protocol.CIPServiceForwardOpen:
 			return "forward_open"
-		case cipclient.CIPServiceForwardClose:
+		case protocol.CIPServiceForwardClose:
 			return "forward_close"
-		case cipclient.CIPServiceUnconnectedSend:
+		case protocol.CIPServiceUnconnectedSend:
 			return "unconnected_send"
 		}
 	case cipclient.CIPClassSymbolObject:
 		switch req.Service {
-		case cipclient.CIPServiceReadTag, cipclient.CIPServiceWriteTag:
+		case protocol.CIPServiceReadTag, protocol.CIPServiceWriteTag:
 			return "rockwell_tag"
-		case cipclient.CIPServiceReadTagFragmented, cipclient.CIPServiceWriteTagFragmented:
+		case protocol.CIPServiceReadTagFragmented, protocol.CIPServiceWriteTagFragmented:
 			return "rockwell_tag_fragmented"
 		}
 	case cipclient.CIPClassTemplateObject:
-		if req.Service == cipclient.CIPServiceReadTag {
+		if req.Service == protocol.CIPServiceReadTag {
 			return "rockwell_template"
 		}
 	case cipclient.CIPClassFileObject:
@@ -569,7 +571,7 @@ func inferPayloadType(req cipclient.CIPRequest) string {
 	case cipclient.CIPClassSafetySupervisor, cipclient.CIPClassSafetyValidator:
 		return "safety_reset"
 	}
-	if req.Service == cipclient.CIPServiceExecutePCCC && req.Path.Class == cipclient.CIPClassPCCCObject {
+	if req.Service == protocol.CIPServiceExecutePCCC && req.Path.Class == cipclient.CIPClassPCCCObject {
 		return "rockwell_pccc"
 	}
 	return ""

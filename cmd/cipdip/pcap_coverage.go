@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"path/filepath"
 	"sort"
@@ -137,7 +138,7 @@ func mergeCoverage(dst, src *cipclient.PCAPCoverageReport) {
 func writeCoverageSummary(f *os.File, report *cipclient.PCAPCoverageReport) {
 	fmt.Fprintf(f, "## CIP Service Counts\n\n```text\n")
 	for _, svc := range sortedServiceKeys(report.ServiceCounts) {
-		name := cipclient.CIPServiceCode(svc).String()
+		name := protocol.CIPServiceCode(svc).String()
 		fmt.Fprintf(f, "0x%02X %s: %d requests, %d responses\n", svc, name, report.ServiceCounts[svc]-report.ServiceResponseCt[svc], report.ServiceResponseCt[svc])
 	}
 	fmt.Fprintf(f, "```\n\n")

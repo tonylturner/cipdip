@@ -1,6 +1,8 @@
 package cipclient
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 	"strings"
 	"testing"
 )
@@ -15,16 +17,16 @@ func TestReferencePacketsServicePathRegression(t *testing.T) {
 			continue
 		}
 
-		encap, err := DecodeENIP(ref.Data)
+		encap, err := enip.DecodeENIP(ref.Data)
 		if err != nil {
 			t.Fatalf("%s: decode ENIP: %v", key, err)
 		}
 
-		if encap.Command != ENIPCommandSendRRData {
+		if encap.Command != enip.ENIPCommandSendRRData {
 			continue
 		}
 
-		cipData, err := ParseSendRRDataRequest(encap.Data)
+		cipData, err := enip.ParseSendRRDataRequest(encap.Data)
 		if err != nil {
 			t.Fatalf("%s: parse SendRRData: %v", key, err)
 		}
@@ -36,7 +38,7 @@ func TestReferencePacketsServicePathRegression(t *testing.T) {
 			continue
 		}
 
-		req, err := DecodeCIPRequest(cipData)
+		req, err := protocol.DecodeCIPRequest(cipData)
 		if err != nil {
 			t.Fatalf("%s: decode CIP request: %v", key, err)
 		}

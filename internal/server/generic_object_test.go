@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -17,9 +18,9 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 		},
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceSetAttributeSingle,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceSetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x00F6,
 			Instance:  0x0001,
 			Attribute: 0x0006,
@@ -31,8 +32,8 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 		t.Fatalf("expected set success, ok=%v status=0x%02X", ok, resp.Status)
 	}
 
-	readReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
+	readReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
 		Path:    req.Path,
 	}
 	readResp, ok := s.handleGenericRequest(readReq)
@@ -53,9 +54,9 @@ func TestGenericGetAttributeList(t *testing.T) {
 	s.genericStore.set(0x0064, 0x0001, 0x0001, []byte{0x11})
 	s.genericStore.set(0x0064, 0x0001, 0x0002, []byte{0x22, 0x33})
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeList,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeList,
+		Path: protocol.CIPPath{
 			Class:    0x0064,
 			Instance: 0x0001,
 		},
@@ -84,9 +85,9 @@ func TestEnergyMeteringServices(t *testing.T) {
 		},
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceExecutePCCC,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceExecutePCCC,
+		Path: protocol.CIPPath{
 			Class:    cipclient.CIPClassEnergyBase,
 			Instance: 0x0001,
 		},
@@ -96,7 +97,7 @@ func TestEnergyMeteringServices(t *testing.T) {
 		t.Fatalf("expected start metering success, ok=%v status=0x%02X", ok, resp.Status)
 	}
 
-	req.Service = cipclient.CIPServiceReadTag
+	req.Service = protocol.CIPServiceReadTag
 	resp, ok = s.handleGenericRequest(req)
 	if !ok || resp.Status != 0x00 {
 		t.Fatalf("expected stop metering success, ok=%v status=0x%02X", ok, resp.Status)
@@ -122,9 +123,9 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 			},
 		}
 
-		setReq := cipclient.CIPRequest{
-			Service: cipclient.CIPServiceSetAttributeSingle,
-			Path: cipclient.CIPPath{
+		setReq := protocol.CIPRequest{
+			Service: protocol.CIPServiceSetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     classID,
 				Instance:  0x0001,
 				Attribute: 0x0001,
@@ -136,8 +137,8 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 			t.Fatalf("class 0x%04X set failed: ok=%v status=0x%02X", classID, ok, resp.Status)
 		}
 
-		getReq := cipclient.CIPRequest{
-			Service: cipclient.CIPServiceGetAttributeSingle,
+		getReq := protocol.CIPRequest{
+			Service: protocol.CIPServiceGetAttributeSingle,
 			Path:    setReq.Path,
 		}
 		resp, ok = s.handleGenericRequest(getReq)

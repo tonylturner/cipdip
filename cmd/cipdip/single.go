@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -145,9 +146,9 @@ func runSingle(flags *singleFlags) error {
 		}
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceCode(serviceCode),
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceCode(serviceCode),
+		Path: protocol.CIPPath{
 			Class:     uint16(classID),
 			Instance:  uint16(instanceID),
 			Attribute: uint16(attributeID),
@@ -275,7 +276,7 @@ func resolveCatalogRoot(root string) (string, error) {
 	return "", fmt.Errorf("catalog root not found (use --catalog-root)")
 }
 
-func applySinglePayload(req cipclient.CIPRequest, entry catalogEntry, flags *singleFlags) (cipclient.CIPRequest, error) {
+func applySinglePayload(req protocol.CIPRequest, entry catalogEntry, flags *singleFlags) (protocol.CIPRequest, error) {
 	if flags.payloadHex != "" {
 		payload, err := parseHexPayload(flags.payloadHex)
 		if err != nil {
@@ -380,7 +381,7 @@ func buildPayloadParams(entry catalogEntry, flags *singleFlags) map[string]any {
 				if wrap := ui.FindCatalogEntry(entries, flags.ucmmWrap); wrap != nil {
 					embeddedReq, err := buildCatalogRequest(*wrap)
 					if err == nil {
-						if encoded, err := cipclient.EncodeCIPRequest(embeddedReq); err == nil {
+						if encoded, err := protocol.EncodeCIPRequest(embeddedReq); err == nil {
 							params["embedded_request_hex"] = encoded
 						}
 					}
@@ -392,29 +393,29 @@ func buildPayloadParams(entry catalogEntry, flags *singleFlags) map[string]any {
 	return params
 }
 
-func buildCatalogRequest(entry ui.CatalogEntry) (cipclient.CIPRequest, error) {
+func buildCatalogRequest(entry ui.CatalogEntry) (protocol.CIPRequest, error) {
 	service, err := parseServiceInput(entry.Service)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	classID, err := parseClassInput(entry.Class)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	instanceID, err := parseUint(entry.Instance, 16)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	attributeID := uint64(0)
 	if entry.Attribute != "" {
 		attributeID, err = parseUint(entry.Attribute, 16)
 		if err != nil {
-			return cipclient.CIPRequest{}, err
+			return protocol.CIPRequest{}, err
 		}
 	}
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceCode(service),
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceCode(service),
+		Path: protocol.CIPPath{
 			Class:     uint16(classID),
 			Instance:  uint16(instanceID),
 			Attribute: uint16(attributeID),
@@ -424,7 +425,7 @@ func buildCatalogRequest(entry ui.CatalogEntry) (cipclient.CIPRequest, error) {
 	if entry.PayloadHex != "" {
 		payload, err := parseHexPayload(entry.PayloadHex)
 		if err != nil {
-			return cipclient.CIPRequest{}, err
+			return protocol.CIPRequest{}, err
 		}
 		req.Payload = payload
 		return req, nil
@@ -434,7 +435,7 @@ func buildCatalogRequest(entry ui.CatalogEntry) (cipclient.CIPRequest, error) {
 		Params: entry.Payload.Params,
 	})
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	req.Payload = result.Payload
 	if len(result.RawPath) > 0 {
@@ -443,8 +444,8 @@ func buildCatalogRequest(entry ui.CatalogEntry) (cipclient.CIPRequest, error) {
 	return req, nil
 }
 
-func printCIPRequest(req cipclient.CIPRequest) error {
-	encoded, err := cipclient.EncodeCIPRequest(req)
+func printCIPRequest(req protocol.CIPRequest) error {
+	encoded, err := protocol.EncodeCIPRequest(req)
 	if err != nil {
 		return fmt.Errorf("encode request: %w", err)
 	}

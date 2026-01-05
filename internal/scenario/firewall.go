@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"strings"
 	"time"
@@ -208,7 +209,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 
 	for _, target := range reads {
 		applyScenarioJitter(jitterMs, rng)
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -232,7 +233,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 			TargetType:  params.TargetType,
 			Operation:   metrics.OperationRead,
 			TargetName:  target.Name,
-			ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+			ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
 			Success:     success,
 			RTTMs:       rtt,
 			JitterMs:    computeJitterMs(&lastOp, params.Interval),
@@ -248,9 +249,9 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 		if err != nil {
 			return err
 		}
-		req := cipclient.CIPRequest{
+		req := protocol.CIPRequest{
 			Service: serviceCode,
-			Path: cipclient.CIPPath{
+			Path: protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -292,7 +293,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 
 	for _, target := range writes {
 		applyScenarioJitter(jitterMs, rng)
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -322,7 +323,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 			TargetType:  params.TargetType,
 			Operation:   metrics.OperationWrite,
 			TargetName:  target.Name,
-			ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceSetAttributeSingle)),
+			ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceSetAttributeSingle)),
 			Success:     success,
 			RTTMs:       rtt,
 			JitterMs:    computeJitterMs(&lastOp, params.Interval),
@@ -338,9 +339,9 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 		if err != nil {
 			return err
 		}
-		req := cipclient.CIPRequest{
+		req := protocol.CIPRequest{
 			Service: serviceCode,
-			Path: cipclient.CIPPath{
+			Path: protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,

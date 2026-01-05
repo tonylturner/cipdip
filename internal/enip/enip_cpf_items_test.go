@@ -1,11 +1,16 @@
-package cipclient
+package enip
 
 import (
 	"bytes"
+	"encoding/binary"
 	"testing"
 )
 
 func TestEncodeParseCPFItemsRoundTrip(t *testing.T) {
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
+
 	items := []CPFItem{
 		{TypeID: CPFItemNullAddress, Data: nil},
 		{TypeID: CPFItemUnconnectedData, Data: []byte{0x01, 0x02, 0x03}},
@@ -29,6 +34,10 @@ func TestEncodeParseCPFItemsRoundTrip(t *testing.T) {
 }
 
 func TestParseCPFItemsErrors(t *testing.T) {
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
+
 	if _, err := ParseCPFItems([]byte{}); err == nil {
 		t.Fatalf("expected short data error")
 	}
@@ -43,15 +52,9 @@ func TestParseCPFItemsErrors(t *testing.T) {
 }
 
 func TestParseSendUnitDataRequestMissingItems(t *testing.T) {
-	profileMu.Lock()
-	prev := currentProfile
-	currentProfile = StrictODVAProfile
-	profileMu.Unlock()
-	defer func() {
-		profileMu.Lock()
-		currentProfile = prev
-		profileMu.Unlock()
-	}()
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
 
 	// CPF with only connected data item (missing address).
 	cpf := EncodeCPFItems([]CPFItem{

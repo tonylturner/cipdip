@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
@@ -32,9 +32,9 @@ func TestLogixReadTag(t *testing.T) {
 	tag.Data[2] = 0x33
 	tag.Data[3] = 0x44
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceReadTag,
-		Path:    cipclient.CIPPath{Class: 0x0067, Instance: 0x0001, Attribute: 0x0000},
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceReadTag,
+		Path:    protocol.CIPPath{Class: 0x0067, Instance: 0x0001, Attribute: 0x0000},
 		Payload: []byte{0x01, 0x00},
 	}
 
@@ -76,9 +76,9 @@ func TestLogixWriteTag(t *testing.T) {
 		t.Fatalf("NewLogixPersonality failed: %v", err)
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceWriteTag,
-		Path:    cipclient.CIPPath{Class: 0x0067, Instance: 0x0001, Attribute: 0x0000},
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceWriteTag,
+		Path:    protocol.CIPPath{Class: 0x0067, Instance: 0x0001, Attribute: 0x0000},
 		Payload: []byte{0xC4, 0x00, 0x01, 0x00, 0xDE, 0xAD, 0xBE, 0xEF},
 	}
 
@@ -119,9 +119,9 @@ func TestLogixReadTagByName(t *testing.T) {
 	tag.Data[2] = 0x30
 	tag.Data[3] = 0x40
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceReadTag,
-		Path:    cipclient.CIPPath{Name: "Pressure.PV"},
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceReadTag,
+		Path:    protocol.CIPPath{Name: "Pressure.PV"},
 		Payload: []byte{0x01, 0x00},
 	}
 

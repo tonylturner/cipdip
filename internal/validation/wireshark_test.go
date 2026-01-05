@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 // TestWiresharkValidationRegisterSession tests Wireshark validation on RegisterSession packet
@@ -19,7 +19,7 @@ func TestWiresharkValidationRegisterSession(t *testing.T) {
 
 	// Build a RegisterSession packet
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := cipclient.BuildRegisterSession(senderContext)
+	packet := enip.BuildRegisterSession(senderContext)
 
 	// Validate with Wireshark
 	result, err := validator.ValidatePacket(packet)
@@ -66,7 +66,7 @@ func TestWiresharkValidationSendRRData(t *testing.T) {
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03} // GetAttributeSingle
-	packet := cipclient.BuildSendRRData(sessionID, senderContext, cipData)
+	packet := enip.BuildSendRRData(sessionID, senderContext, cipData)
 
 	// Validate with Wireshark
 	result, err := validator.ValidatePacket(packet)
@@ -102,7 +102,7 @@ func TestWiresharkValidationConvenienceFunction(t *testing.T) {
 
 	// Build a RegisterSession packet
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := cipclient.BuildRegisterSession(senderContext)
+	packet := enip.BuildRegisterSession(senderContext)
 
 	// Validate with convenience function
 	valid, err := ValidateENIPPacket(packet)

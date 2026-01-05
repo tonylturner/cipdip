@@ -48,7 +48,7 @@ across different sessions.`,
 	}
 
 	cmd.Flags().StringVar(&flags.baselineDir, "baseline-dir", "baseline_captures", "Directory containing baseline PCAP files")
-cmd.Flags().StringVar(&flags.realWorldDir, "real-world-dir", "pcaps", "Directory containing real-world PCAP files")
+	cmd.Flags().StringVar(&flags.realWorldDir, "real-world-dir", "pcaps", "Directory containing real-world PCAP files")
 	cmd.Flags().StringVar(&flags.outputFile, "output", "", "Output Go source file (default: update reference.go directly)")
 
 	return cmd

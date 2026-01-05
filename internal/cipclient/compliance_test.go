@@ -20,14 +20,16 @@ package cipclient
 // - ForwardOpen/ForwardClose: CIP Connection Management Specification
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 	"testing"
 )
 
 // TestENIPHeaderCompliance validates ENIP encapsulation header structure
 func TestENIPHeaderCompliance(t *testing.T) {
 	order := currentENIPByteOrder()
-	encap := ENIPEncapsulation{
-		Command:       ENIPCommandRegisterSession,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     0x12345678,
 		Status:        0,
@@ -36,7 +38,7 @@ func TestENIPHeaderCompliance(t *testing.T) {
 		Data:          []byte{0x01, 0x00, 0x00, 0x00},
 	}
 
-	packet := EncodeENIP(encap)
+	packet := enip.EncodeENIP(encap)
 
 	// ENIP header must be exactly 24 bytes
 	if len(packet) < 24 {
@@ -49,8 +51,8 @@ func TestENIPHeaderCompliance(t *testing.T) {
 	// - Field order: Command, Length, SessionID, Status, SenderContext, Options (ODVA requirement)
 	// Offset 0-1: Command (2 bytes, big-endian)
 	cmd := order.Uint16(packet[0:2])
-	if cmd != ENIPCommandRegisterSession {
-		t.Errorf("Command: got 0x%04X, want 0x%04X", cmd, ENIPCommandRegisterSession)
+	if cmd != enip.ENIPCommandRegisterSession {
+		t.Errorf("Command: got 0x%04X, want 0x%04X", cmd, enip.ENIPCommandRegisterSession)
 	}
 
 	// Offset 2-3: Length (2 bytes, big-endian)
@@ -109,8 +111,8 @@ func TestENIPHeaderLengthConsistency(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			data := make([]byte, tt.dataLen)
-			encap := ENIPEncapsulation{
-				Command:       ENIPCommandSendRRData,
+			encap := enip.ENIPEncapsulation{
+				Command:       enip.ENIPCommandSendRRData,
 				Length:        uint16(tt.dataLen),
 				SessionID:     0x12345678,
 				Status:        0,
@@ -119,7 +121,7 @@ func TestENIPHeaderLengthConsistency(t *testing.T) {
 				Data:          data,
 			}
 
-			packet := EncodeENIP(encap)
+			packet := enip.EncodeENIP(encap)
 			length := order.Uint16(packet[2:4])
 
 			if length != tt.expected {
@@ -140,7 +142,7 @@ func TestENIPByteOrder(t *testing.T) {
 	// Create data that will result in length 0x5678 (22136 bytes)
 	// For testing, use a smaller length that's easier to verify
 	testData := make([]byte, 0x1234) // 4660 bytes
-	encap := ENIPEncapsulation{
+	encap := enip.ENIPEncapsulation{
 		Command:       0x1234, // Will be 0x12 0x34 in big-endian
 		Length:        0,      // Ignored - calculated from Data length
 		SessionID:     0xABCDEF00,
@@ -150,7 +152,7 @@ func TestENIPByteOrder(t *testing.T) {
 		Data:          testData, // Length will be calculated from this
 	}
 
-	packet := EncodeENIP(encap)
+	packet := enip.EncodeENIP(encap)
 
 	// Verify byte order encoding
 	cmd := order.Uint16(packet[0:2])
@@ -189,13 +191,13 @@ func TestENIPCommandCodes(t *testing.T) {
 	}
 
 	actualCommands := map[uint16]uint16{
-		ENIPCommandRegisterSession:   0x0065,
-		ENIPCommandUnregisterSession: 0x0066,
-		ENIPCommandSendRRData:        0x006F,
-		ENIPCommandSendUnitData:      0x0070,
-		ENIPCommandListIdentity:      0x0063,
-		ENIPCommandListServices:      0x0004,
-		ENIPCommandListInterfaces:    0x0064,
+		enip.ENIPCommandRegisterSession:   0x0065,
+		enip.ENIPCommandUnregisterSession: 0x0066,
+		enip.ENIPCommandSendRRData:        0x006F,
+		enip.ENIPCommandSendUnitData:      0x0070,
+		enip.ENIPCommandListIdentity:      0x0063,
+		enip.ENIPCommandListServices:      0x0004,
+		enip.ENIPCommandListInterfaces:    0x0064,
 	}
 
 	for code, name := range expectedCommands {
@@ -220,13 +222,13 @@ func TestENIPStatusCodes(t *testing.T) {
 	}
 
 	actualStatuses := map[uint32]uint32{
-		ENIPStatusSuccess:              0x00000000,
-		ENIPStatusInvalidCommand:       0x00000001,
-		ENIPStatusInsufficientMemory:   0x00000002,
-		ENIPStatusIncorrectData:        0x00000003,
-		ENIPStatusInvalidSessionHandle: 0x00000064,
-		ENIPStatusInvalidLength:        0x00000065,
-		ENIPStatusUnsupportedCommand:   0x00000066,
+		enip.ENIPStatusSuccess:              0x00000000,
+		enip.ENIPStatusInvalidCommand:       0x00000001,
+		enip.ENIPStatusInsufficientMemory:   0x00000002,
+		enip.ENIPStatusIncorrectData:        0x00000003,
+		enip.ENIPStatusInvalidSessionHandle: 0x00000064,
+		enip.ENIPStatusInvalidLength:        0x00000065,
+		enip.ENIPStatusUnsupportedCommand:   0x00000066,
 	}
 
 	for status, name := range expectedStatuses {
@@ -240,17 +242,17 @@ func TestENIPStatusCodes(t *testing.T) {
 func TestRegisterSessionCompliance(t *testing.T) {
 	order := currentENIPByteOrder()
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildRegisterSession(senderContext)
+	packet := enip.BuildRegisterSession(senderContext)
 
 	// Decode and verify
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
 	// Verify command
-	if encap.Command != ENIPCommandRegisterSession {
-		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandRegisterSession)
+	if encap.Command != enip.ENIPCommandRegisterSession {
+		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandRegisterSession)
 	}
 
 	// RegisterSession data structure per ODVA EtherNet/IP Encapsulation Protocol:
@@ -286,15 +288,15 @@ func TestRegisterSessionCompliance(t *testing.T) {
 func TestUnregisterSessionCompliance(t *testing.T) {
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildUnregisterSession(sessionID, senderContext)
+	packet := enip.BuildUnregisterSession(sessionID, senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
-	if encap.Command != ENIPCommandUnregisterSession {
-		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandUnregisterSession)
+	if encap.Command != enip.ENIPCommandUnregisterSession {
+		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandUnregisterSession)
 	}
 
 	if encap.SessionID != sessionID {
@@ -317,17 +319,17 @@ func TestSendRRDataCompliance(t *testing.T) {
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03} // Get_Attribute_Single
 
-	packet := BuildSendRRData(sessionID, senderContext, cipData)
+	packet := enip.BuildSendRRData(sessionID, senderContext, cipData)
 
 	// Decode ENIP
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
 	// Verify command
-	if encap.Command != ENIPCommandSendRRData {
-		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandSendRRData)
+	if encap.Command != enip.ENIPCommandSendRRData {
+		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandSendRRData)
 	}
 
 	// SendRRData structure per ODVA EtherNet/IP Encapsulation Protocol:
@@ -347,7 +349,7 @@ func TestSendRRDataCompliance(t *testing.T) {
 	// Timeout can be 0 or other values, but typically 0 for UCMM
 	_ = timeout
 
-	cipDataFromPacket, err := ParseSendRRDataRequest(encap.Data)
+	cipDataFromPacket, err := enip.ParseSendRRDataRequest(encap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
 	}
@@ -373,17 +375,17 @@ func TestSendUnitDataCompliance(t *testing.T) {
 	connectionID := uint32(0xABCDEF00)
 	cipData := []byte{0x01, 0x02, 0x03, 0x04}
 
-	packet := BuildSendUnitData(sessionID, senderContext, connectionID, cipData)
+	packet := enip.BuildSendUnitData(sessionID, senderContext, connectionID, cipData)
 
 	// Decode ENIP
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
 	// Verify command
-	if encap.Command != ENIPCommandSendUnitData {
-		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandSendUnitData)
+	if encap.Command != enip.ENIPCommandSendUnitData {
+		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandSendUnitData)
 	}
 
 	// SendUnitData structure:
@@ -393,7 +395,7 @@ func TestSendUnitDataCompliance(t *testing.T) {
 		t.Fatalf("SendUnitData data too short: %d bytes (minimum 4)", len(encap.Data))
 	}
 
-	recvConnectionID, cipDataFromPacket, err := ParseSendUnitDataRequest(encap.Data)
+	recvConnectionID, cipDataFromPacket, err := enip.ParseSendUnitDataRequest(encap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendUnitDataRequest failed: %v", err)
 	}
@@ -428,12 +430,12 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 	order := currentCIPByteOrder()
 	tests := []struct {
 		name     string
-		path     CIPPath
+		path     protocol.CIPPath
 		validate func(t *testing.T, epath []byte)
 	}{
 		{
 			name: "8-bit class and instance",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -472,7 +474,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 		},
 		{
 			name: "16-bit class",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x0100,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -495,7 +497,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 		},
 		{
 			name: "16-bit instance",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x0100,
 				Attribute: 0x03,
@@ -513,7 +515,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 		},
 		{
 			name: "boundary 8-bit max",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0xFF,
 				Instance:  0xFF,
 				Attribute: 0xFF,
@@ -530,7 +532,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 		},
 		{
 			name: "boundary 16-bit min",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x0100,
 				Instance:  0x0100,
 				Attribute: 0x03,
@@ -550,7 +552,7 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			epath := EncodeEPATH(tt.path)
+			epath := protocol.EncodeEPATH(tt.path)
 			tt.validate(t, epath)
 		})
 	}
@@ -562,27 +564,27 @@ func TestEPATHEncodingCompliance(t *testing.T) {
 // Service codes are defined in the CIP specification and are vendor-independent.
 func TestCIPServiceCodeCompliance(t *testing.T) {
 	// Verify service codes match ODVA CIP Specification Volume 1, Table 3-5.1
-	serviceCodes := map[CIPServiceCode]struct {
+	serviceCodes := map[protocol.CIPServiceCode]struct {
 		value    uint8
 		name     string
 		odvaSpec string
 	}{
-		CIPServiceGetAttributeAll:    {0x01, "Get_Attribute_All", "Volume 1, Table 3-5.1"},
-		CIPServiceSetAttributeAll:    {0x02, "Set_Attribute_All", "Volume 1, Table 3-5.1"},
-		CIPServiceGetAttributeList:   {0x03, "Get_Attribute_List", "Volume 1, Table 3-5.1"},
-		CIPServiceSetAttributeList:   {0x04, "Set_Attribute_List", "Volume 1, Table 3-5.1"},
-		CIPServiceReset:              {0x05, "Reset", "Volume 1, Table 3-5.1"},
-		CIPServiceStart:              {0x06, "Start", "Volume 1, Table 3-5.1"},
-		CIPServiceStop:               {0x07, "Stop", "Volume 1, Table 3-5.1"},
-		CIPServiceCreate:             {0x08, "Create", "Volume 1, Table 3-5.1"},
-		CIPServiceDelete:             {0x09, "Delete", "Volume 1, Table 3-5.1"},
-		CIPServiceMultipleService:    {0x0A, "Multiple_Service", "Volume 1, Table 3-5.1"},
-		CIPServiceApplyAttributes:    {0x0D, "Apply_Attributes", "Volume 1, Table 3-5.1"},
-		CIPServiceGetAttributeSingle: {0x0E, "Get_Attribute_Single", "Volume 1, Table 3-5.1"},
-		CIPServiceSetAttributeSingle: {0x10, "Set_Attribute_Single", "Volume 1, Table 3-5.1"},
-		CIPServiceFindNextObjectInst: {0x11, "Find_Next_Object_Instance", "Volume 1, Table 3-5.1"},
-		CIPServiceForwardOpen:        {0x54, "Forward_Open", "Volume 1, Table 3-5.1"},
-		CIPServiceForwardClose:       {0x4E, "Forward_Close", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceGetAttributeAll:    {0x01, "Get_Attribute_All", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceSetAttributeAll:    {0x02, "Set_Attribute_All", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceGetAttributeList:   {0x03, "Get_Attribute_List", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceSetAttributeList:   {0x04, "Set_Attribute_List", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceReset:              {0x05, "Reset", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceStart:              {0x06, "Start", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceStop:               {0x07, "Stop", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceCreate:             {0x08, "Create", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceDelete:             {0x09, "Delete", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceMultipleService:    {0x0A, "Multiple_Service", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceApplyAttributes:    {0x0D, "Apply_Attributes", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceGetAttributeSingle: {0x0E, "Get_Attribute_Single", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceSetAttributeSingle: {0x10, "Set_Attribute_Single", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceFindNextObjectInst: {0x11, "Find_Next_Object_Instance", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceForwardOpen:        {0x54, "Forward_Open", "Volume 1, Table 3-5.1"},
+		protocol.CIPServiceForwardClose:       {0x4E, "Forward_Close", "Volume 1, Table 3-5.1"},
 	}
 
 	for code, expected := range serviceCodes {
@@ -620,8 +622,8 @@ func TestForwardOpenCompliance(t *testing.T) {
 
 	// ForwardOpen structure per ODVA CIP Connection Management Specification:
 	// - Service code (1 byte): MUST be 0x54 (ODVA standard)
-	if forwardOpenData[0] != uint8(CIPServiceForwardOpen) {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardOpenData[0], uint8(CIPServiceForwardOpen))
+	if forwardOpenData[0] != uint8(protocol.CIPServiceForwardOpen) {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardOpenData[0], uint8(protocol.CIPServiceForwardOpen))
 	}
 
 	// - Connection Manager path: class 0x06, instance 0x01 (ODVA standard path)
@@ -678,8 +680,8 @@ func TestForwardCloseCompliance(t *testing.T) {
 
 	// ForwardClose structure per ODVA CIP Connection Management Specification:
 	// - Service code (1 byte): MUST be 0x4E (ODVA standard)
-	if forwardCloseData[0] != uint8(CIPServiceForwardClose) {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardCloseData[0], uint8(CIPServiceForwardClose))
+	if forwardCloseData[0] != uint8(protocol.CIPServiceForwardClose) {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardCloseData[0], uint8(protocol.CIPServiceForwardClose))
 	}
 
 	// - Connection Manager path (class 0x06, instance 0x01)
@@ -709,15 +711,15 @@ func TestForwardCloseCompliance(t *testing.T) {
 // - No session required (session ID = 0)
 func TestListIdentityCompliance(t *testing.T) {
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildListIdentity(senderContext)
+	packet := enip.BuildListIdentity(senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
 
-	if encap.Command != ENIPCommandListIdentity {
-		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandListIdentity)
+	if encap.Command != enip.ENIPCommandListIdentity {
+		t.Errorf("Command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandListIdentity)
 	}
 
 	if encap.Length != 0 {
@@ -747,7 +749,7 @@ func TestDecodeENIPErrorHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := DecodeENIP(tt.data)
+			_, err := enip.DecodeENIP(tt.data)
 			if err == nil {
 				t.Errorf("DecodeENIP should have failed for %s", tt.name)
 			}
@@ -758,9 +760,9 @@ func TestDecodeENIPErrorHandling(t *testing.T) {
 // TestCIPRequestEncoding validates CIP request encoding structure
 func TestCIPRequestEncoding(t *testing.T) {
 	profile := CurrentProtocolProfile()
-	req := CIPRequest{
-		Service: CIPServiceGetAttributeSingle,
-		Path: CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
 			Attribute: 0x03,
@@ -768,9 +770,9 @@ func TestCIPRequestEncoding(t *testing.T) {
 		Payload: []byte{},
 	}
 
-	data, err := EncodeCIPRequest(req)
+	data, err := protocol.EncodeCIPRequest(req)
 	if err != nil {
-		t.Fatalf("EncodeCIPRequest failed: %v", err)
+		t.Fatalf("protocol.EncodeCIPRequest failed: %v", err)
 	}
 
 	// Should have: service code (1) + path size (1, if enabled) + EPATH (6) = 8 bytes minimum
@@ -783,8 +785,8 @@ func TestCIPRequestEncoding(t *testing.T) {
 	}
 
 	// Verify service code
-	if data[0] != uint8(CIPServiceGetAttributeSingle) {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", data[0], uint8(CIPServiceGetAttributeSingle))
+	if data[0] != uint8(protocol.CIPServiceGetAttributeSingle) {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", data[0], uint8(protocol.CIPServiceGetAttributeSingle))
 	}
 
 	// Verify EPATH follows
@@ -807,8 +809,8 @@ func TestSenderContextValidation(t *testing.T) {
 	}
 
 	for i, ctx := range senderContexts {
-		packet := BuildRegisterSession(ctx)
-		encap, err := DecodeENIP(packet)
+		packet := enip.BuildRegisterSession(ctx)
+		encap, err := enip.DecodeENIP(packet)
 		if err != nil {
 			t.Fatalf("DecodeENIP failed for context %d: %v", i, err)
 		}
@@ -832,8 +834,8 @@ func TestSessionIDRange(t *testing.T) {
 	}
 
 	for _, sid := range sessionIDs {
-		encap := ENIPEncapsulation{
-			Command:       ENIPCommandSendRRData,
+		encap := enip.ENIPEncapsulation{
+			Command:       enip.ENIPCommandSendRRData,
 			Length:        0,
 			SessionID:     sid,
 			Status:        0,
@@ -842,8 +844,8 @@ func TestSessionIDRange(t *testing.T) {
 			Data:          []byte{},
 		}
 
-		packet := EncodeENIP(encap)
-		decoded, err := DecodeENIP(packet)
+		packet := enip.EncodeENIP(encap)
+		decoded, err := enip.DecodeENIP(packet)
 		if err != nil {
 			t.Fatalf("DecodeENIP failed for session ID 0x%08X: %v", sid, err)
 		}

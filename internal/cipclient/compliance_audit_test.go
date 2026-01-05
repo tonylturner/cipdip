@@ -18,6 +18,8 @@ package cipclient
 // 4. Test edge cases and constraints from spec
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 	"testing"
 )
 
@@ -37,8 +39,8 @@ func TestENIPHeaderStructureODVA(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
 	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
-	encap := ENIPEncapsulation{
-		Command:       ENIPCommandRegisterSession,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     0x12345678,
 		Status:        0,
@@ -47,7 +49,7 @@ func TestENIPHeaderStructureODVA(t *testing.T) {
 		Data:          []byte{0x01, 0x00, 0x00, 0x00},
 	}
 
-	packet := EncodeENIP(encap)
+	packet := enip.EncodeENIP(encap)
 
 	// ODVA requirement: Header MUST be exactly 24 bytes
 	if len(packet) < 24 {
@@ -108,9 +110,9 @@ func TestRegisterSessionODVA(t *testing.T) {
 	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildRegisterSession(senderContext)
+	packet := enip.BuildRegisterSession(senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -162,8 +164,8 @@ func TestSendRRDataStructureODVA(t *testing.T) {
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03}
 
-	packet := BuildSendRRData(sessionID, senderContext, cipData)
-	encap, err := DecodeENIP(packet)
+	packet := enip.BuildSendRRData(sessionID, senderContext, cipData)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -194,7 +196,7 @@ func TestSendRRDataStructureODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: CIP data present
-	cipDataFromPacket, err := ParseSendRRDataRequest(encap.Data)
+	cipDataFromPacket, err := enip.ParseSendRRDataRequest(encap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataRequest failed: %v", err)
 	}
@@ -217,8 +219,8 @@ func TestSendUnitDataStructureODVA(t *testing.T) {
 	connectionID := uint32(0xABCDEF00)
 	cipData := []byte{0x01, 0x02, 0x03, 0x04}
 
-	packet := BuildSendUnitData(sessionID, senderContext, connectionID, cipData)
-	encap, err := DecodeENIP(packet)
+	packet := enip.BuildSendUnitData(sessionID, senderContext, connectionID, cipData)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -234,7 +236,7 @@ func TestSendUnitDataStructureODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: Connection ID present
-	recvConnectionID, _, err := ParseSendUnitDataRequest(encap.Data)
+	recvConnectionID, _, err := enip.ParseSendUnitDataRequest(encap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendUnitDataRequest failed: %v", err)
 	}
@@ -267,13 +269,13 @@ func TestEPATHEncodingODVA(t *testing.T) {
 	defer SetProtocolProfile(prevProfile)
 	tests := []struct {
 		name          string
-		path          CIPPath
+		path          protocol.CIPPath
 		expectedEPATH []byte
 		description   string
 	}{
 		{
 			name: "8-bit class and instance (ODVA standard)",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -287,7 +289,7 @@ func TestEPATHEncodingODVA(t *testing.T) {
 		},
 		{
 			name: "16-bit class (ODVA requirement for class > 0xFF)",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x0100,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -301,7 +303,7 @@ func TestEPATHEncodingODVA(t *testing.T) {
 		},
 		{
 			name: "16-bit instance (ODVA requirement for instance > 0xFF)",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x0100,
 				Attribute: 0x03,
@@ -317,7 +319,7 @@ func TestEPATHEncodingODVA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			epath := EncodeEPATH(tt.path)
+			epath := protocol.EncodeEPATH(tt.path)
 
 			// ODVA requirement: EPATH must match expected structure
 			if len(epath) != len(tt.expectedEPATH) {
@@ -470,7 +472,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 	// Verify connection path follows
 	// Path includes: class 0x04, instance 0x65, attribute 0x00 (default)
 	// EPATH: 0x20 0x04 0x24 0x65 0x30 0x00 = 6 bytes = 3 words (6 bytes / 2 = 3 words)
-	// Note: EncodeEPATH always includes attribute segment, even if 0
+	// Note: protocol.EncodeEPATH always includes attribute segment, even if 0
 	expectedPathSize := uint8(3) // 6 bytes = 3 words
 	if pathSizeByte != expectedPathSize {
 		t.Errorf("ODVA violation: Connection path size should be %d words (6 bytes / 2), got %d", expectedPathSize, pathSizeByte)
@@ -489,7 +491,7 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 		t.Errorf("ODVA violation: Connection path instance must be 0x24 0x65, got 0x%02X 0x%02X",
 			forwardOpenData[pathStart+2], forwardOpenData[pathStart+3])
 	}
-	// Attribute segment (0x30 0x00) is included by EncodeEPATH
+	// Attribute segment (0x30 0x00) is included by protocol.EncodeEPATH
 	if forwardOpenData[pathStart+4] != 0x30 || forwardOpenData[pathStart+5] != 0x00 {
 		t.Errorf("ODVA violation: Connection path attribute must be 0x30 0x00, got 0x%02X 0x%02X",
 			forwardOpenData[pathStart+4], forwardOpenData[pathStart+5])
@@ -583,21 +585,21 @@ func TestCIPResponseStructureODVA(t *testing.T) {
 	defer SetProtocolProfile(prevProfile)
 	profile := CurrentProtocolProfile()
 	// Test success response
-	successResp := CIPResponse{
-		Service: CIPServiceGetAttributeSingle,
+	successResp := protocol.CIPResponse{
+		Service: protocol.CIPServiceGetAttributeSingle,
 		Status:  0x00, // Success
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
 	}
 
-	data, err := EncodeCIPResponse(successResp)
+	data, err := protocol.EncodeCIPResponse(successResp)
 	if err != nil {
-		t.Fatalf("EncodeCIPResponse failed: %v", err)
+		t.Fatalf("protocol.EncodeCIPResponse failed: %v", err)
 	}
 
 	// ODVA requirement: Service code must be first byte
-	if data[0] != uint8(CIPServiceGetAttributeSingle) {
+	if data[0] != uint8(protocol.CIPServiceGetAttributeSingle) {
 		t.Errorf("ODVA violation: Service code must be first byte, got 0x%02X, want 0x%02X",
-			data[0], uint8(CIPServiceGetAttributeSingle))
+			data[0], uint8(protocol.CIPServiceGetAttributeSingle))
 	}
 
 	offset := 1
@@ -638,9 +640,9 @@ func TestListIdentityODVA(t *testing.T) {
 	SetProtocolProfile(StrictODVAProfile)
 	defer SetProtocolProfile(prevProfile)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildListIdentity(senderContext)
+	packet := enip.BuildListIdentity(senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -767,7 +769,7 @@ func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
 	rpiOToT := cipOrder.Uint32(forwardOpenData[offset : offset+4])
 	expectedMicroseconds := uint32(20 * 1000) // 20ms = 20000 microseconds
 	if rpiOToT != expectedMicroseconds {
-		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d (20ms = 20000μs)",
+		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d (20ms = 20000??s)",
 			rpiOToT, expectedMicroseconds)
 	}
 
@@ -777,7 +779,7 @@ func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
 	}
 	rpiTToO := cipOrder.Uint32(forwardOpenData[offset+8 : offset+12])
 	if rpiTToO != expectedMicroseconds {
-		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d (20ms = 20000μs)",
+		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d (20ms = 20000??s)",
 			rpiTToO, expectedMicroseconds)
 	}
 }
@@ -861,23 +863,23 @@ func TestCIPServiceCodeValuesODVA(t *testing.T) {
 		"Forward_Close":             0x4E,
 	}
 
-	ourServiceCodes := map[CIPServiceCode]string{
-		CIPServiceGetAttributeAll:    "Get_Attribute_All",
-		CIPServiceSetAttributeAll:    "Set_Attribute_All",
-		CIPServiceGetAttributeList:   "Get_Attribute_List",
-		CIPServiceSetAttributeList:   "Set_Attribute_List",
-		CIPServiceReset:              "Reset",
-		CIPServiceStart:              "Start",
-		CIPServiceStop:               "Stop",
-		CIPServiceCreate:             "Create",
-		CIPServiceDelete:             "Delete",
-		CIPServiceMultipleService:    "Multiple_Service",
-		CIPServiceApplyAttributes:    "Apply_Attributes",
-		CIPServiceGetAttributeSingle: "Get_Attribute_Single",
-		CIPServiceSetAttributeSingle: "Set_Attribute_Single",
-		CIPServiceFindNextObjectInst: "Find_Next_Object_Instance",
-		CIPServiceForwardOpen:        "Forward_Open",
-		CIPServiceForwardClose:       "Forward_Close",
+	ourServiceCodes := map[protocol.CIPServiceCode]string{
+		protocol.CIPServiceGetAttributeAll:    "Get_Attribute_All",
+		protocol.CIPServiceSetAttributeAll:    "Set_Attribute_All",
+		protocol.CIPServiceGetAttributeList:   "Get_Attribute_List",
+		protocol.CIPServiceSetAttributeList:   "Set_Attribute_List",
+		protocol.CIPServiceReset:              "Reset",
+		protocol.CIPServiceStart:              "Start",
+		protocol.CIPServiceStop:               "Stop",
+		protocol.CIPServiceCreate:             "Create",
+		protocol.CIPServiceDelete:             "Delete",
+		protocol.CIPServiceMultipleService:    "Multiple_Service",
+		protocol.CIPServiceApplyAttributes:    "Apply_Attributes",
+		protocol.CIPServiceGetAttributeSingle: "Get_Attribute_Single",
+		protocol.CIPServiceSetAttributeSingle: "Set_Attribute_Single",
+		protocol.CIPServiceFindNextObjectInst: "Find_Next_Object_Instance",
+		protocol.CIPServiceForwardOpen:        "Forward_Open",
+		protocol.CIPServiceForwardClose:       "Forward_Close",
 	}
 
 	for code, name := range ourServiceCodes {
@@ -914,13 +916,13 @@ func TestENIPCommandCodeValuesODVA(t *testing.T) {
 	}
 
 	ourCommandCodes := map[uint16]string{
-		ENIPCommandRegisterSession:   "RegisterSession",
-		ENIPCommandUnregisterSession: "UnregisterSession",
-		ENIPCommandSendRRData:        "SendRRData",
-		ENIPCommandSendUnitData:      "SendUnitData",
-		ENIPCommandListIdentity:      "ListIdentity",
-		ENIPCommandListServices:      "ListServices",
-		ENIPCommandListInterfaces:    "ListInterfaces",
+		enip.ENIPCommandRegisterSession:   "RegisterSession",
+		enip.ENIPCommandUnregisterSession: "UnregisterSession",
+		enip.ENIPCommandSendRRData:        "SendRRData",
+		enip.ENIPCommandSendUnitData:      "SendUnitData",
+		enip.ENIPCommandListIdentity:      "ListIdentity",
+		enip.ENIPCommandListServices:      "ListServices",
+		enip.ENIPCommandListInterfaces:    "ListInterfaces",
 	}
 
 	for code, name := range ourCommandCodes {
@@ -948,13 +950,13 @@ func TestEPATHSegmentTypeODVA(t *testing.T) {
 	defer SetProtocolProfile(prevProfile)
 	tests := []struct {
 		name          string
-		path          CIPPath
+		path          protocol.CIPPath
 		expectedTypes []uint8
 		description   string
 	}{
 		{
 			name: "8-bit segments",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -964,7 +966,7 @@ func TestEPATHSegmentTypeODVA(t *testing.T) {
 		},
 		{
 			name: "16-bit class segment",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x0100,
 				Instance:  0x65,
 				Attribute: 0x03,
@@ -974,7 +976,7 @@ func TestEPATHSegmentTypeODVA(t *testing.T) {
 		},
 		{
 			name: "16-bit instance segment",
-			path: CIPPath{
+			path: protocol.CIPPath{
 				Class:     0x04,
 				Instance:  0x0100,
 				Attribute: 0x03,
@@ -986,7 +988,7 @@ func TestEPATHSegmentTypeODVA(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			epath := EncodeEPATH(tt.path)
+			epath := protocol.EncodeEPATH(tt.path)
 
 			// Verify segment type bytes match ODVA spec
 			if len(epath) < len(tt.expectedTypes)*2 {

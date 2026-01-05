@@ -1,6 +1,9 @@
 package cipclient
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+)
 
 var cipServiceNames = map[uint8]string{
 	0x01: "Get_Attribute_All",
@@ -52,9 +55,9 @@ const (
 )
 
 // labelCIPService returns a contextual label for a service code.
-// Context is required because vendor-specific services (notably 0x4B–0x63)
+// Context is required because vendor-specific services (notably 0x4B???0x63)
 // are ambiguous without object class context.
-func labelCIPService(service uint8, path CIPPath, isResponse bool) (string, bool) {
+func labelCIPService(service uint8, path protocol.CIPPath, isResponse bool) (string, bool) {
 	baseName, ok := cipServiceNames[service]
 	if !ok {
 		baseName = fmt.Sprintf("Unknown(0x%02X)", service)

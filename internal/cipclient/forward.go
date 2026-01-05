@@ -4,6 +4,7 @@ package cipclient
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	profile := CurrentProtocolProfile()
 
 	// Service code (0x54 = Forward_Open)
-	data = append(data, uint8(CIPServiceForwardOpen))
+	data = append(data, uint8(protocol.CIPServiceForwardOpen))
 
 	// Connection Manager path (class 0x06, instance 0x01)
 	// EPATH: 0x20 (8-bit class) + 0x06, 0x24 (8-bit instance) + 0x01
@@ -93,7 +94,7 @@ func BuildForwardCloseRequest(connectionID uint32) ([]byte, error) {
 	profile := CurrentProtocolProfile()
 
 	// Service code (0x4E = Forward_Close)
-	data = append(data, uint8(CIPServiceForwardClose))
+	data = append(data, uint8(protocol.CIPServiceForwardClose))
 
 	// Connection Manager path (class 0x06, instance 0x01)
 	if profile.IncludeCIPPathSize {
@@ -213,7 +214,7 @@ func BuildForwardOpenPayload(params ConnectionParams) ([]byte, error) {
 			connPath[i/2] = b
 		}
 	} else {
-		connPath = EncodeEPATH(CIPPath{
+		connPath = protocol.EncodeEPATH(protocol.CIPPath{
 			Class:    params.Class,
 			Instance: params.Instance,
 		})
@@ -249,7 +250,7 @@ func BuildForwardClosePayload(connectionID uint32) ([]byte, error) {
 	data = appendUint16(order, data, originatorVendor)
 	data = appendUint32(order, data, originatorSerial)
 
-	connPath := EncodeEPATH(CIPPath{
+	connPath := protocol.EncodeEPATH(protocol.CIPPath{
 		Class:    CIPClassAssembly,
 		Instance: 0x65,
 	})

@@ -1,19 +1,22 @@
 package cipclient
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+)
 
 // BuildMultipleServiceRequest builds a Multiple Service Packet request for UCMM.
-func BuildMultipleServiceRequest(requests []CIPRequest) (CIPRequest, error) {
+func BuildMultipleServiceRequest(requests []protocol.CIPRequest) (protocol.CIPRequest, error) {
 	if len(requests) == 0 {
-		return CIPRequest{}, fmt.Errorf("multiple service request requires at least one embedded request")
+		return protocol.CIPRequest{}, fmt.Errorf("multiple service request requires at least one embedded request")
 	}
 	payload, err := BuildMultipleServiceRequestPayload(requests)
 	if err != nil {
-		return CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
-	return CIPRequest{
-		Service: CIPServiceMultipleService,
-		Path: CIPPath{
+	return protocol.CIPRequest{
+		Service: protocol.CIPServiceMultipleService,
+		Path: protocol.CIPPath{
 			Class:    CIPClassMessageRouter,
 			Instance: 0x0001,
 		},
@@ -22,7 +25,7 @@ func BuildMultipleServiceRequest(requests []CIPRequest) (CIPRequest, error) {
 }
 
 // BuildMultipleServiceRequestPayload encodes embedded CIP requests for service 0x0A.
-func BuildMultipleServiceRequestPayload(requests []CIPRequest) ([]byte, error) {
+func BuildMultipleServiceRequestPayload(requests []protocol.CIPRequest) ([]byte, error) {
 	if len(requests) == 0 {
 		return nil, fmt.Errorf("multiple service payload requires at least one request")
 	}
@@ -35,7 +38,7 @@ func BuildMultipleServiceRequestPayload(requests []CIPRequest) ([]byte, error) {
 	offset := headerLen
 	offsets := make([]uint16, count)
 	for i, req := range requests {
-		encoded, err := EncodeCIPRequest(req)
+		encoded, err := protocol.EncodeCIPRequest(req)
 		if err != nil {
 			return nil, fmt.Errorf("encode embedded request %d: %w", i, err)
 		}
@@ -55,9 +58,9 @@ func BuildMultipleServiceRequestPayload(requests []CIPRequest) ([]byte, error) {
 }
 
 // ParseMultipleServiceRequestPayload decodes embedded CIP requests from a 0x0A payload.
-func ParseMultipleServiceRequestPayload(payload []byte) ([]CIPRequest, error) {
-	requests, err := parseMultipleServicePayload(payload, func(data []byte) (CIPRequest, error) {
-		return DecodeCIPRequest(data)
+func ParseMultipleServiceRequestPayload(payload []byte) ([]protocol.CIPRequest, error) {
+	requests, err := parseMultipleServicePayload(payload, func(data []byte) (protocol.CIPRequest, error) {
+		return protocol.DecodeCIPRequest(data)
 	})
 	if err != nil {
 		return nil, err
@@ -66,7 +69,7 @@ func ParseMultipleServiceRequestPayload(payload []byte) ([]CIPRequest, error) {
 }
 
 // BuildMultipleServiceResponsePayload encodes embedded CIP responses for service 0x0A.
-func BuildMultipleServiceResponsePayload(responses []CIPResponse) ([]byte, error) {
+func BuildMultipleServiceResponsePayload(responses []protocol.CIPResponse) ([]byte, error) {
 	if len(responses) == 0 {
 		return nil, fmt.Errorf("multiple service response requires at least one embedded response")
 	}
@@ -79,7 +82,7 @@ func BuildMultipleServiceResponsePayload(responses []CIPResponse) ([]byte, error
 	offset := headerLen
 	offsets := make([]uint16, count)
 	for i, resp := range responses {
-		encoded, err := EncodeCIPResponse(resp)
+		encoded, err := protocol.EncodeCIPResponse(resp)
 		if err != nil {
 			return nil, fmt.Errorf("encode embedded response %d: %w", i, err)
 		}
@@ -99,9 +102,9 @@ func BuildMultipleServiceResponsePayload(responses []CIPResponse) ([]byte, error
 }
 
 // ParseMultipleServiceResponsePayload decodes embedded CIP responses from a 0x0A payload.
-func ParseMultipleServiceResponsePayload(payload []byte, path CIPPath) ([]CIPResponse, error) {
-	responses, err := parseMultipleServicePayload(payload, func(data []byte) (CIPResponse, error) {
-		return DecodeCIPResponse(data, path)
+func ParseMultipleServiceResponsePayload(payload []byte, path protocol.CIPPath) ([]protocol.CIPResponse, error) {
+	responses, err := parseMultipleServicePayload(payload, func(data []byte) (protocol.CIPResponse, error) {
+		return protocol.DecodeCIPResponse(data, path)
 	})
 	if err != nil {
 		return nil, err

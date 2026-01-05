@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 )
@@ -57,7 +57,7 @@ func TestMixedScenarioBasicExecution(t *testing.T) {
 
 	// Verify reads were performed
 	for _, target := range cfg.ReadTargets {
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -70,7 +70,7 @@ func TestMixedScenarioBasicExecution(t *testing.T) {
 
 	// Verify writes were performed
 	for _, target := range cfg.WriteTargets {
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -153,7 +153,7 @@ func TestMixedScenarioWritePatterns(t *testing.T) {
 			}
 
 			// Verify writes were performed
-			path := cipclient.CIPPath{
+			path := protocol.CIPPath{
 				Class:     cfg.WriteTargets[0].Class,
 				Instance:  cfg.WriteTargets[0].Instance,
 				Attribute: cfg.WriteTargets[0].Attribute,
@@ -174,7 +174,7 @@ func TestMixedScenarioErrorHandling(t *testing.T) {
 	params := createTestParams()
 
 	// Set error for read target
-	readPath := cipclient.CIPPath{
+	readPath := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -182,7 +182,7 @@ func TestMixedScenarioErrorHandling(t *testing.T) {
 	client.SetReadError(readPath, fmt.Errorf("read error"))
 
 	// Set error for write target
-	writePath := cipclient.CIPPath{
+	writePath := protocol.CIPPath{
 		Class:     cfg.WriteTargets[0].Class,
 		Instance:  cfg.WriteTargets[0].Instance,
 		Attribute: cfg.WriteTargets[0].Attribute,
