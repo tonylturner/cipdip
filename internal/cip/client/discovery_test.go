@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"net"
@@ -378,3 +378,4 @@ func TestBroadcastAddressCalculation(t *testing.T) {
 		})
 	}
 }
+

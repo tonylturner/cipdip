@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
@@ -354,3 +354,5 @@ func TestAdapterUnsupportedService(t *testing.T) {
 		t.Errorf("Expected status 0x08 (service not supported), got 0x%02X", resp.Status)
 	}
 }
+
+

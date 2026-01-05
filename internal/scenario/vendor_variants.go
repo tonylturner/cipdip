@@ -11,7 +11,7 @@ import (
 
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -274,3 +274,5 @@ func (s *VendorVariantsScenario) generateValue(target config.CIPTarget) int64 {
 		return val
 	}
 }
+
+

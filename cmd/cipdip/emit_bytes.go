@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/ui"
 	"github.com/tturner/cipdip/internal/validation"
@@ -578,3 +578,5 @@ func inferPayloadType(req protocol.CIPRequest) string {
 	}
 	return ""
 }
+
+

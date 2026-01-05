@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"testing"
@@ -57,3 +57,4 @@ func TestBuildForwardCloseRequestPadding(t *testing.T) {
 		t.Fatalf("expected non-zero path size")
 	}
 }
+

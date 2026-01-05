@@ -16,7 +16,7 @@ import (
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/cipclient"
+	legacy "github.com/tturner/cipdip/internal/cipclient"
 )
 
 type pcapReplayFlags struct {
@@ -172,7 +172,7 @@ func runAppReplay(flags *pcapReplayFlags) error {
 		return fmt.Errorf("server-ip is required for app replay")
 	}
 
-	packets, err := cipclient.ExtractENIPFromPCAP(flags.input)
+	packets, err := legacy.ExtractENIPFromPCAP(flags.input)
 	if err != nil {
 		return err
 	}
@@ -1033,7 +1033,7 @@ func summarizePcapForReplay(path string) (*replaySummary, error) {
 	if err != nil {
 		return nil, err
 	}
-	packets, err := cipclient.ExtractENIPFromPCAP(path)
+	packets, err := legacy.ExtractENIPFromPCAP(path)
 	if err != nil {
 		return nil, err
 	}
@@ -1218,3 +1218,6 @@ func runExternal(path string, args []string) error {
 	}
 	return nil
 }
+
+
+

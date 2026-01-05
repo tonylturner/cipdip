@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"encoding/binary"
@@ -162,3 +162,4 @@ func ResolveProtocolProfile(mode, variant, enipEndian, cipEndian string, cipPath
 
 	return profile
 }
+

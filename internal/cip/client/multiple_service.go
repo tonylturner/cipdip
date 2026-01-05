@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"fmt"
@@ -156,3 +156,4 @@ func parseMultipleServicePayload[T any](payload []byte, decode func([]byte) (T, 
 	}
 	return results, nil
 }
+

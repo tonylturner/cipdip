@@ -10,7 +10,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -163,3 +163,5 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 
 	return nil
 }
+
+

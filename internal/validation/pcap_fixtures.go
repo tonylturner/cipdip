@@ -2,7 +2,6 @@ package validation
 
 import (
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,9 +9,11 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/spec"
+	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -681,7 +682,7 @@ func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error)
 	cipclient.SetProtocolProfile(cipclient.StrictODVAProfile)
 	defer cipclient.SetProtocolProfile(prevProfile)
 
-	validator := cipclient.NewPacketValidator(true)
+	validator := legacy.NewPacketValidator(true)
 	packets := make([]ValidationPacket, 0, len(spec.Requests)*2)
 	senderContext := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
 	sessionID := uint32(0x12345678)
@@ -879,3 +880,5 @@ func GenerateValidationPCAPs(outputDir string) ([]string, error) {
 	}
 	return paths, nil
 }
+
+

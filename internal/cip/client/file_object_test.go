@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"context"
@@ -52,3 +52,4 @@ func TestFileObjectMethodsRejectInstanceZero(t *testing.T) {
 		t.Fatalf("expected error for FileClear instance 0")
 	}
 }
+

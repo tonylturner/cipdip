@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // ODVA Specification Compliance Audit Tests
 //
@@ -1013,3 +1013,4 @@ func TestEPATHSegmentTypeODVA(t *testing.T) {
 		})
 	}
 }
+

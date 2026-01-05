@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/enip"
 )
@@ -171,3 +171,5 @@ func runRawRegisterSession(t *testing.T, port int) error {
 	}
 	return nil
 }
+
+

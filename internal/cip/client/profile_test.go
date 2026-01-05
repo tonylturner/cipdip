@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"encoding/binary"
@@ -72,3 +72,4 @@ func TestResolveProtocolProfileOverrides(t *testing.T) {
 		t.Fatalf("unexpected IOSequenceMode override")
 	}
 }
+

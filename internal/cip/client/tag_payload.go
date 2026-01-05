@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"encoding/binary"
@@ -51,3 +51,4 @@ func BuildWriteTagPayload(typeCode uint16, elementCount uint16, data []byte) []b
 	copy(payload[4:], data)
 	return payload
 }
+

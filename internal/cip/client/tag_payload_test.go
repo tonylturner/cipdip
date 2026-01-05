@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import "testing"
 
@@ -58,3 +58,4 @@ func TestBuildReadWriteTagPayloads(t *testing.T) {
 		t.Fatalf("unexpected data bytes: %02X %02X", writePayload[4], writePayload[5])
 	}
 }
+

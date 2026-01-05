@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // Integration tests against server mode
 // These tests require a running server instance
@@ -180,3 +180,4 @@ func hasIntegrationTag() bool {
 	// Users can enable them by setting an environment variable or using build tags
 	return false // Change to true or check env var to enable
 }
+

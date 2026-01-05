@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/capture"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	cipdipErrors "github.com/tturner/cipdip/internal/errors"
 	"github.com/tturner/cipdip/internal/logging"
@@ -636,3 +636,5 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		})
 	}
 }
+
+

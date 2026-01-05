@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"encoding/binary"
@@ -46,3 +46,4 @@ func BuildUnconnectedSendResponsePayload(messageResponse []byte) []byte {
 	payload = append(payload, messageResponse...)
 	return payload
 }
+

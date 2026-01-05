@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // Discovery support for ListIdentity
 
@@ -223,3 +223,4 @@ func parseListIdentityResponse(data []byte) (DiscoveredDevice, error) {
 
 	return device, nil
 }
+

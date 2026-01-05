@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/capture"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -383,3 +383,5 @@ func applyServerMode(cfg *config.ServerConfig, mode string) error {
 	}
 	return nil
 }
+
+

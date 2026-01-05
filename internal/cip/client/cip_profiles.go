@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"strings"
@@ -131,3 +131,4 @@ func NormalizeCIPProfiles(profiles []string) []string {
 	}
 	return out
 }
+

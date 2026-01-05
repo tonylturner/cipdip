@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 )
 
@@ -101,3 +101,5 @@ func computeJitterMs(last *time.Time, expected time.Duration) float64 {
 	}
 	return float64(jitter.Milliseconds())
 }
+
+

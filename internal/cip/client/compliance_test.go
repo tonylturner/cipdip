@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // ODVA Protocol Compliance Tests
 //
@@ -856,3 +856,4 @@ func TestSessionIDRange(t *testing.T) {
 		}
 	}
 }
+
