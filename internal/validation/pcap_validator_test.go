@@ -29,13 +29,11 @@ func TestGeneratedPCAPsValidateWithTshark(t *testing.T) {
 
 			pcapPath := filepath.Join(t.TempDir(), spec.Name+".pcap")
 			manifestPath := ValidationManifestPath(pcapPath)
-			pcapData := make([][]byte, 0, len(packets))
 			expectations := make([]PacketExpectation, 0, len(packets))
 			for _, pkt := range packets {
-				pcapData = append(pcapData, pkt.Data)
 				expectations = append(expectations, pkt.Expect)
 			}
-			if err := WriteENIPPCAP(pcapPath, pcapData); err != nil {
+			if err := WriteENIPPCAP(pcapPath, packets); err != nil {
 				t.Fatalf("WriteENIPPCAP(%s) error: %v", spec.Name, err)
 			}
 			if err := WriteValidationManifest(manifestPath, ValidationManifest{
@@ -49,8 +47,8 @@ func TestGeneratedPCAPsValidateWithTshark(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ValidatePCAP(%s) error: %v", spec.Name, err)
 			}
-			if len(results) != len(pcapData) {
-				t.Fatalf("ValidatePCAP(%s) returned %d results, want %d", spec.Name, len(results), len(pcapData))
+			if len(results) != len(packets) {
+				t.Fatalf("ValidatePCAP(%s) returned %d results, want %d", spec.Name, len(results), len(packets))
 			}
 
 			manifest, err := LoadValidationManifest(manifestPath)
@@ -65,7 +63,9 @@ func TestGeneratedPCAPsValidateWithTshark(t *testing.T) {
 			}
 
 			for i, result := range results {
-				eval := EvaluatePacket(manifest.Packets[i], result, "tshark")
+				pairing := BuildPairingResults(*manifest, results)
+				baseID := strings.TrimSuffix(strings.TrimSuffix(manifest.Packets[i].ID, "/request"), "/response")
+				eval := EvaluatePacket(manifest.Packets[i], result, "tshark", "balanced", "basic", pairing[baseID])
 				if !eval.Pass {
 					t.Fatalf("validation failed %s #%d (%s): %+v", spec.Name, i, eval.Expected.ID, eval.Scenarios)
 				}
