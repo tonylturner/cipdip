@@ -11,21 +11,42 @@ import (
 )
 
 const (
-	ServiceShapeNone           = "none"
-	ServiceShapePayload        = "payload"
-	ServiceShapeRead           = "read"
-	ServiceShapeWrite          = "write"
-	ServiceShapeFragmented     = "fragmented"
-	ServiceShapeForwardOpen    = "forward_open"
-	ServiceShapeForwardClose   = "forward_close"
+	ServiceShapeNone            = "none"
+	ServiceShapePayload         = "payload"
+	ServiceShapeRead            = "read"
+	ServiceShapeWrite           = "write"
+	ServiceShapeFragmented      = "fragmented"
+	ServiceShapeForwardOpen     = "forward_open"
+	ServiceShapeForwardClose    = "forward_close"
 	ServiceShapeUnconnectedSend = "unconnected_send"
-	ServiceShapeRockwellTag    = "rockwell_tag"
+	ServiceShapeRockwellTag     = "rockwell_tag"
 	ServiceShapeRockwellTagFrag = "rockwell_tag_fragmented"
-	ServiceShapeTemplate       = "rockwell_template"
-	ServiceShapePCCC           = "rockwell_pccc"
-	ServiceShapeFileObject     = "file_object"
-	ServiceShapeModbus         = "modbus_object"
-	ServiceShapeSafetyReset    = "safety_reset"
+	ServiceShapeTemplate        = "rockwell_template"
+	ServiceShapePCCC            = "rockwell_pccc"
+	ServiceShapeFileObject      = "file_object"
+	ServiceShapeModbus          = "modbus_object"
+	ServiceShapeSafetyReset     = "safety_reset"
+)
+
+const (
+	GradePass            = "A_pass"
+	GradeFail            = "A_fail"
+	GradeExpectedInvalid = "expected_invalid"
+)
+
+const (
+	FailureENIPLengthMismatch         = "INV_ENIP_LENGTH_MISMATCH"
+	FailureENIPParse                  = "INV_ENIP_PARSE"
+	FailureCPFItemCountImplausible    = "INV_CPF_ITEMCOUNT_IMPLAUSIBLE"
+	FailureCPFItemLengthMismatch      = "INV_CPF_ITEM_LENGTH_MISMATCH"
+	FailureCPFParse                   = "INV_CPF_PARSE"
+	FailureCIPParse                   = "INV_CIP_PARSE"
+	FailureCIPPathSizeMismatch        = "INV_CIP_PATHSIZE_MISMATCH"
+	FailureCIPPathMissing             = "INV_CIP_PATH_MISSING"
+	FailureCIPServiceDataShape        = "INV_CIP_SERVICE_DATA_SHAPE_MISMATCH"
+	FailureCIPStatusMissing           = "INV_CIP_STATUS_MISSING"
+	FailureCIPResponseServiceMismatch = "INV_CIP_RESPONSE_SERVICE_MISMATCH"
+	FailureTsharkMalformed            = "TSHARK_MALFORMED"
 )
 
 // PacketExpectation describes validation expectations for a packet.
@@ -60,36 +81,78 @@ type ScenarioResult struct {
 
 // PacketEvaluation captures validation results for a packet.
 type PacketEvaluation struct {
-	PacketIndex int              `json:"packet_index"`
-	Expected    PacketExpectation `json:"expected"`
-	Pass        bool             `json:"pass"`
-	Scenarios   []ScenarioResult `json:"scenarios"`
-	Experts     []ExpertInfo     `json:"tshark_experts,omitempty"`
-	Pairing     *PairingResult   `json:"pairing,omitempty"`
-	ExpertSummary ExpertSummary  `json:"expert_summary"`
-	PassCategory  string         `json:"pass_category"`
+	PacketIndex     int               `json:"packet_index"`
+	Expected        PacketExpectation `json:"expected"`
+	Pass            bool              `json:"pass"`
+	Scenarios       []ScenarioResult  `json:"scenarios"`
+	Experts         []ExpertInfo      `json:"tshark_experts,omitempty"`
+	Pairing         *PairingResult    `json:"pairing,omitempty"`
+	ExpertSummary   ExpertSummary     `json:"expert_summary"`
+	PassCategory    string            `json:"pass_category"`
+	Grade           string            `json:"grade,omitempty"`
+	FailureLabels   []string          `json:"failure_labels,omitempty"`
+	ExtractedFields ExtractedFields   `json:"extracted_fields,omitempty"`
+}
+
+// ExtractedFields captures authoritative parsed fields for Grade A checks.
+type ExtractedFields struct {
+	ENIP   ENIPFields   `json:"enip"`
+	CPF    CPFFields    `json:"cpf"`
+	CIP    CIPFields    `json:"cip"`
+	Tshark TsharkFields `json:"tshark"`
+}
+
+type ENIPFields struct {
+	Command string `json:"command,omitempty"`
+	Length  string `json:"length,omitempty"`
+	Session string `json:"session,omitempty"`
+	Status  string `json:"status,omitempty"`
+}
+
+type CPFFields struct {
+	ItemCount int       `json:"item_count"`
+	Items     []CPFItem `json:"items,omitempty"`
+}
+
+type CIPFields struct {
+	Service        string `json:"service,omitempty"`
+	Class          string `json:"class,omitempty"`
+	Instance       string `json:"instance,omitempty"`
+	Attribute      string `json:"attribute,omitempty"`
+	Symbol         string `json:"symbol,omitempty"`
+	PathSizeWords  int    `json:"path_size_words,omitempty"`
+	ServiceDataLen int    `json:"service_data_len,omitempty"`
+}
+
+type TsharkFields struct {
+	Malformed     bool         `json:"malformed"`
+	Experts       []ExpertInfo `json:"experts,omitempty"`
+	PathClass     string       `json:"path_class,omitempty"`
+	PathInstance  string       `json:"path_instance,omitempty"`
+	PathAttribute string       `json:"path_attribute,omitempty"`
+	PathSymbol    string       `json:"path_symbol,omitempty"`
 }
 
 // PairingResult captures request/response pairing checks.
 type PairingResult struct {
-	BaseID         string `json:"base_id"`
-	RequestIndex   int    `json:"request_index"`
-	ResponseIndex  int    `json:"response_index"`
-	Required       bool   `json:"required"`
-	Pass           bool   `json:"pass"`
-	Reason         string `json:"reason,omitempty"`
-	OrderOK        bool   `json:"order_ok,omitempty"`
-	SessionMatch   bool   `json:"session_match,omitempty"`
-	TupleMatch     bool   `json:"tuple_match,omitempty"`
-	ServiceMatch   bool   `json:"service_match,omitempty"`
-	StatusPresent  bool   `json:"status_present,omitempty"`
+	BaseID        string `json:"base_id"`
+	RequestIndex  int    `json:"request_index"`
+	ResponseIndex int    `json:"response_index"`
+	Required      bool   `json:"required"`
+	Pass          bool   `json:"pass"`
+	Reason        string `json:"reason,omitempty"`
+	OrderOK       bool   `json:"order_ok,omitempty"`
+	SessionMatch  bool   `json:"session_match,omitempty"`
+	TupleMatch    bool   `json:"tuple_match,omitempty"`
+	ServiceMatch  bool   `json:"service_match,omitempty"`
+	StatusPresent bool   `json:"status_present,omitempty"`
 }
 
 // ExpertSummary captures expert classification counts.
 type ExpertSummary struct {
-	ExpectedCount  int `json:"expected_expert_count"`
+	ExpectedCount   int `json:"expected_expert_count"`
 	UnexpectedCount int `json:"unexpected_expert_count"`
-	TransportCount int `json:"transport_expert_count"`
+	TransportCount  int `json:"transport_expert_count"`
 }
 
 // ValidationManifestPath returns the sidecar manifest path for a PCAP.
@@ -128,12 +191,13 @@ func LoadValidationManifest(path string) (*ValidationManifest, error) {
 }
 
 // EvaluatePacket runs validation scenarios against tshark results.
-func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePolicy, expertPolicy, conversationMode string, pairing *PairingResult) PacketEvaluation {
+func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePolicy, expertPolicy, conversationMode, profile string, pairing *PairingResult) PacketEvaluation {
 	eval := PacketEvaluation{
-		Expected:  expect,
-		Scenarios: make([]ScenarioResult, 0, 8),
-		Experts:   append([]ExpertInfo(nil), result.Experts...),
-		Pairing:   pairing,
+		Expected:        expect,
+		Scenarios:       make([]ScenarioResult, 0, 8),
+		Experts:         append([]ExpertInfo(nil), result.Experts...),
+		Pairing:         pairing,
+		ExtractedFields: buildExtractedFields(result),
 	}
 	if strings.TrimSpace(eval.Expected.TrafficMode) == "" {
 		eval.Expected.TrafficMode = "client_only"
@@ -213,6 +277,8 @@ func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePol
 		} else {
 			eval.PassCategory = "fail"
 		}
+		eval.Grade = GradeExpectedInvalid
+		eval.FailureLabels = nil
 		return eval
 	}
 
@@ -224,6 +290,7 @@ func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePol
 		}
 	}
 	eval.PassCategory = categorizePass(eval)
+	eval.Grade, eval.FailureLabels = evaluateGradeA(expect, result, profile, pairing)
 	return eval
 }
 
@@ -494,4 +561,144 @@ func missingLayers(expected, actual []string) []string {
 func fieldPresent(fields map[string]string, key string) bool {
 	val, ok := fields[key]
 	return ok && strings.TrimSpace(val) != ""
+}
+
+func buildExtractedFields(result ValidateResult) ExtractedFields {
+	fields := ExtractedFields{
+		ENIP: ENIPFields{
+			Command: result.Fields["enip.command"],
+			Length:  result.Fields["enip.length"],
+			Session: result.Fields["enip.session"],
+			Status:  result.Fields["enip.status"],
+		},
+		CPF: CPFFields{
+			ItemCount: result.CPFItemCount,
+			Items:     append([]CPFItem(nil), result.CPFItems...),
+		},
+		CIP: CIPFields{
+			Service:   result.Fields["cip.service"],
+			Class:     result.Fields["cip.path.class"],
+			Instance:  result.Fields["cip.path.instance"],
+			Attribute: result.Fields["cip.path.attribute"],
+			Symbol:    result.Fields["cip.path.symbol"],
+		},
+		Tshark: TsharkFields{
+			Malformed:     result.Malformed,
+			Experts:       append([]ExpertInfo(nil), result.Experts...),
+			PathClass:     result.Fields["cip.path.class"],
+			PathInstance:  result.Fields["cip.path.instance"],
+			PathAttribute: result.Fields["cip.path.attribute"],
+			PathSymbol:    result.Fields["cip.path.symbol"],
+		},
+	}
+	if result.Internal != nil {
+		if result.Internal.ENIPCommand != 0 {
+			fields.ENIP.Command = fmt.Sprintf("0x%04X", result.Internal.ENIPCommand)
+		}
+		if result.Internal.ENIPLength > 0 {
+			fields.ENIP.Length = fmt.Sprintf("%d", result.Internal.ENIPLength)
+		}
+		if result.Internal.ENIPSession != 0 {
+			fields.ENIP.Session = fmt.Sprintf("0x%08X", result.Internal.ENIPSession)
+		}
+		if result.Internal.CPFItemCount > 0 {
+			fields.CPF.ItemCount = result.Internal.CPFItemCount
+			fields.CPF.Items = append([]CPFItem(nil), result.Internal.CPFItems...)
+		}
+		if result.Internal.CIPService != 0 {
+			fields.CIP.Service = fmt.Sprintf("0x%02X", result.Internal.CIPService)
+		}
+		if len(result.Internal.CIPData) > 0 {
+			req, err := decodeRequestForExpectation(result.Internal.CIPData)
+			if err == nil && !result.Internal.CIPIsResponse {
+				fields.CIP.Class = fmt.Sprintf("0x%04X", req.Path.Class)
+				fields.CIP.Instance = fmt.Sprintf("0x%04X", req.Path.Instance)
+				fields.CIP.Attribute = fmt.Sprintf("0x%04X", req.Path.Attribute)
+				fields.CIP.Symbol = req.Path.Name
+				fields.CIP.PathSizeWords = result.Internal.CIPPathSizeWords
+				fields.CIP.ServiceDataLen = result.Internal.CIPServiceDataLen
+			}
+			if result.Internal.CIPIsResponse {
+				fields.CIP.ServiceDataLen = result.Internal.CIPServiceDataLen
+			}
+		}
+	}
+	return fields
+}
+
+func evaluateGradeA(expect PacketExpectation, result ValidateResult, profile string, pairing *PairingResult) (string, []string) {
+	if strings.EqualFold(expect.Outcome, "invalid") {
+		return GradeExpectedInvalid, nil
+	}
+	profile = strings.ToLower(strings.TrimSpace(profile))
+	if profile == "" {
+		profile = "client_wire"
+	}
+	if profile == "client_wire" && expect.Direction != "request" {
+		return GradePass, nil
+	}
+	if profile == "server_wire" && expect.Direction != "response" {
+		return GradePass, nil
+	}
+
+	labels := []string{}
+	if result.Internal == nil {
+		labels = append(labels, FailureENIPParse)
+		return GradeFail, labels
+	}
+	if result.Internal.ENIPParseError != "" {
+		labels = append(labels, FailureENIPParse)
+	}
+	if result.Internal.ENIPLengthMismatch {
+		labels = append(labels, FailureENIPLengthMismatch)
+	}
+	if result.Internal.CPFParseError != "" {
+		labels = append(labels, FailureCPFParse)
+	}
+	if result.Internal.CPFItemCount < 1 || result.Internal.CPFItemCount > 8 {
+		labels = append(labels, FailureCPFItemCountImplausible)
+	}
+	if result.Internal.CPFItemCount > 0 && len(result.Internal.CPFItems) != result.Internal.CPFItemCount {
+		labels = append(labels, FailureCPFItemLengthMismatch)
+	}
+	if result.Internal.CIPParseError != "" {
+		labels = append(labels, FailureCIPParse)
+	}
+	if expect.ExpectCIPPath {
+		hasPath := fieldPresent(result.Fields, "cip.path.class") ||
+			fieldPresent(result.Fields, "cip.path.instance") ||
+			fieldPresent(result.Fields, "cip.path.attribute") ||
+			fieldPresent(result.Fields, "cip.path.symbol") ||
+			internalCIPPathPresent(result)
+		if !hasPath {
+			labels = append(labels, FailureCIPPathMissing)
+		}
+	}
+	if result.Internal.CIPPathSizeWords > 0 && result.Internal.CIPPathBytes > 0 {
+		if result.Internal.CIPPathSizeWords*2 != result.Internal.CIPPathBytes {
+			labels = append(labels, FailureCIPPathSizeMismatch)
+		}
+	}
+	if expect.Direction == "response" {
+		if !result.Internal.CIPIsResponse {
+			labels = append(labels, FailureCIPResponseServiceMismatch)
+		}
+		if profile == "server_wire" && !result.Internal.CIPStatusPresent {
+			labels = append(labels, FailureCIPStatusMissing)
+		}
+	}
+	if result.Malformed {
+		labels = append(labels, FailureTsharkMalformed)
+	}
+	if expect.Direction == "request" && expect.ServiceShape != "" && expect.ServiceShape != ServiceShapeNone {
+		shape := evaluateServiceShape(expect, result)
+		if !shape.Pass {
+			labels = append(labels, FailureCIPServiceDataShape)
+		}
+	}
+
+	if len(labels) > 0 {
+		return GradeFail, labels
+	}
+	return GradePass, nil
 }

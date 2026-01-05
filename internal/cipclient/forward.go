@@ -118,7 +118,7 @@ func BuildForwardOpenPayload(params ConnectionParams) ([]byte, error) {
 
 	// Priority and tick time (1 byte)
 	// Bits 0-3: Priority (0=low, 1=scheduled, 2=high, 3=urgent)
-	// Bits 4-7: Tick time (typically 0)
+	// Bits 4-7: Tick time (0-15)
 	priorityByte := byte(0)
 	switch params.Priority {
 	case "low":
@@ -132,11 +132,24 @@ func BuildForwardOpenPayload(params ConnectionParams) ([]byte, error) {
 	default:
 		priorityByte = 0x01 // Default to scheduled
 	}
-	data = append(data, priorityByte)
+	tickTime := byte(0x0A) // default tick time
+	data = append(data, (tickTime<<4)|priorityByte)
+	data = append(data, 0x0E) // timeout ticks
 
-	// Connection timeout (2 bytes, in seconds, typically 30)
-	timeout := uint16(30)
-	data = appendUint16(order, data, timeout)
+	// Connection IDs + serials (required for dissectors)
+	oToTConnID := uint32(0x11111111)
+	tToOConnID := uint32(0x22222222)
+	connectionSerial := uint16(0x1234)
+	originatorVendor := uint16(0x0001)
+	originatorSerial := uint32(0x01020304)
+
+	data = appendUint32(order, data, oToTConnID)
+	data = appendUint32(order, data, tToOConnID)
+	data = appendUint16(order, data, connectionSerial)
+	data = appendUint16(order, data, originatorVendor)
+	data = appendUint32(order, data, originatorSerial)
+	data = append(data, 0x03) // timeout multiplier
+	data = append(data, 0x00, 0x00, 0x00)
 
 	// O->T RPI (4 bytes, in microseconds)
 	rpiOToT := uint32(params.OToTRPIMs * 1000) // Convert ms to microseconds
@@ -223,15 +236,31 @@ func BuildForwardClosePayload(connectionID uint32) ([]byte, error) {
 	var data []byte
 	order := currentCIPByteOrder()
 
-	pathBytes := []byte{0x34}
-	pathBytes = appendUint32(order, pathBytes, connectionID)
-	pathSizeWords := len(pathBytes) / 2
-	if len(pathBytes)%2 != 0 {
+	priorityByte := byte(0x01)
+	tickTime := byte(0x0A)
+	data = append(data, (tickTime<<4)|priorityByte)
+	data = append(data, 0x0E) // timeout ticks
+
+	connectionSerial := uint16(connectionID & 0xFFFF)
+	originatorVendor := uint16(0x0001)
+	originatorSerial := connectionID
+
+	data = appendUint16(order, data, connectionSerial)
+	data = appendUint16(order, data, originatorVendor)
+	data = appendUint32(order, data, originatorSerial)
+
+	connPath := EncodeEPATH(CIPPath{
+		Class:    CIPClassAssembly,
+		Instance: 0x65,
+	})
+	pathSizeWords := len(connPath) / 2
+	if len(connPath)%2 != 0 {
 		pathSizeWords++
 	}
 	data = append(data, uint8(pathSizeWords))
-	data = append(data, pathBytes...)
-	if len(pathBytes)%2 != 0 {
+	data = append(data, 0x00)
+	data = append(data, connPath...)
+	if len(connPath)%2 != 0 {
 		data = append(data, 0x00)
 	}
 	return data, nil
