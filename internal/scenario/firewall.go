@@ -12,7 +12,7 @@ import (
 
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 )
@@ -584,3 +584,5 @@ func hasTags(tags []string, required []string, vendor string) bool {
 	}
 	return true
 }
+
+

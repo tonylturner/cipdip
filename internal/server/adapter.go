@@ -12,7 +12,7 @@ import (
 
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
@@ -196,3 +196,5 @@ func (ap *AdapterPersonality) updateAssemblyData(asm *Assembly) {
 		// No update needed (set by SetAttribute)
 	}
 }
+
+

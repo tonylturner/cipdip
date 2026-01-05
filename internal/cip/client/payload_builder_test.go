@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -145,3 +145,4 @@ func TestBuildServicePayloadPCCC(t *testing.T) {
 		t.Fatalf("expected pccc payload bytes")
 	}
 }
+

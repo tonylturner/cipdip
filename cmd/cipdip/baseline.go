@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/capture"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -230,3 +230,5 @@ func getDefaultInterval(scenarioName string) time.Duration {
 		return 100 * time.Millisecond
 	}
 }
+
+

@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
+	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -127,7 +128,7 @@ func runSelfTest(flags *selfTestFlags) error {
 	}
 	defer client.Disconnect(ctx)
 
-	validator := cipclient.NewPacketValidator(true)
+	validator := legacy.NewPacketValidator(true)
 	if flags.personality == "adapter" {
 		path := protocol.CIPPath{
 			Class:     spec.CIPClassAssembly,
@@ -194,3 +195,5 @@ func runSelfTest(flags *selfTestFlags) error {
 	fmt.Fprintln(os.Stdout, "Loopback selftest complete")
 	return nil
 }
+
+

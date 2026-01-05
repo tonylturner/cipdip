@@ -16,7 +16,7 @@ import (
 
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/logging"
@@ -2069,3 +2069,5 @@ func (s *Server) buildErrorResponse(encap enip.ENIPEncapsulation, status uint32)
 
 	return enip.EncodeENIP(response)
 }
+
+

@@ -7,7 +7,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/tturner/cipdip/internal/cipclient"
+	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -118,7 +118,7 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 						info.CPFParseError = err.Error()
 					}
 				}
-				cipData, _, dataType := cipclient.ExtractCIPFromENIPPacket(cipclient.ENIPPacket{Data: encap.Data})
+				cipData, _, dataType := legacy.ExtractCIPFromENIPPacket(legacy.ENIPPacket{Data: encap.Data})
 				if len(cipData) > 0 {
 					info.HasCIP = true
 					info.CIPData = cipData
@@ -175,3 +175,6 @@ func ValidatePCAPInternalOnly(pcapFile string) ([]ValidateResult, error) {
 	}
 	return results, nil
 }
+
+
+

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/tturner/cipdip/internal/cip/codec"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -303,3 +303,5 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 
 	return nil
 }
+
+

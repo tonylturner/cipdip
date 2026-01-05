@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -50,3 +50,4 @@ func TestDecodeCIPRequestStrictIncompletePath(t *testing.T) {
 		t.Fatalf("expected incomplete EPATH error")
 	}
 }
+

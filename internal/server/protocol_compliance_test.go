@@ -5,7 +5,7 @@ import (
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -522,3 +522,5 @@ func TestENIPErrorResponseODVACompliance(t *testing.T) {
 		t.Errorf("Length: got %d, want 0 (no data for error per ODVA spec)", respEncap.Length)
 	}
 }
+
+

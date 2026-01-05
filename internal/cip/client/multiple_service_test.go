@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -47,3 +47,4 @@ func TestMultipleServicePayloadRoundTrip(t *testing.T) {
 		}
 	}
 }
+

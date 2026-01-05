@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // Transport tests for TCP and UDP
 
@@ -161,3 +161,4 @@ func TestTransportDisconnectIdempotent(t *testing.T) {
 		t.Errorf("Second UDP Disconnect should succeed: %v", err)
 	}
 }
+

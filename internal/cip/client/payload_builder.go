@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"encoding/binary"
@@ -546,3 +546,4 @@ func splitCSV(input string) []string {
 	}
 	return out
 }
+

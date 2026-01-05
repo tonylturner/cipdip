@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 )
 
 type discoverFlags struct {
@@ -117,3 +117,5 @@ func runDiscover(flags *discoverFlags) error {
 
 	return nil
 }
+
+

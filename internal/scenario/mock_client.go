@@ -7,7 +7,7 @@ import (
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"sync"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 )
 
 // MockClient is a mock implementation of cipclient.Client for testing
@@ -320,3 +320,5 @@ func (m *MockClient) GetWriteCount(path protocol.CIPPath) int {
 func pathKey(path protocol.CIPPath) string {
 	return fmt.Sprintf("%04X:%04X:%04X", path.Class, path.Instance, path.Attribute)
 }
+
+

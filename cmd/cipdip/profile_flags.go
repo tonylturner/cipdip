@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 )
 
 func parseProfileFlag(value string) []string {
@@ -24,3 +24,5 @@ func mergeProfiles(existing, extra []string) []string {
 	merged = append(merged, extra...)
 	return cipclient.NormalizeCIPProfiles(merged)
 }
+
+

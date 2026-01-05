@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"math/rand"
@@ -48,3 +48,4 @@ func ApplyPayloadMutation(payload []byte, mutation PayloadMutation) []byte {
 	}
 	return out
 }
+

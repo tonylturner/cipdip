@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"encoding/binary"
@@ -24,3 +24,4 @@ func currentCIPByteOrder() binary.ByteOrder {
 }
 
 // append helpers moved to internal/cip/codec
+

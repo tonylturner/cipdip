@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // Response structure validation tests
 
@@ -250,3 +250,4 @@ func TestCIPStatusCodes(t *testing.T) {
 		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, spec.CIPServiceGetAttributeSingle)
 	}
 }
+

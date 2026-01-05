@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"github.com/tturner/cipdip/internal/enip"
@@ -150,3 +150,4 @@ func TestParseListResponseErrors(t *testing.T) {
 		}
 	})
 }
+

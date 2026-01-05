@@ -2,12 +2,13 @@ package validation
 
 import (
 	"context"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
+	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -75,7 +76,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	}
 	defer client.Disconnect(ctx)
 
-	validator := cipclient.NewPacketValidator(true)
+	validator := legacy.NewPacketValidator(true)
 
 	readPath := protocol.CIPPath{
 		Class:     spec.CIPClassAssembly,
@@ -138,3 +139,5 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 		t.Fatalf("ForwardClose error: %v", err)
 	}
 }
+
+

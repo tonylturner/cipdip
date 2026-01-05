@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"bytes"
@@ -32,3 +32,4 @@ func TestUnconnectedSendPayloadRoundTrip(t *testing.T) {
 		t.Fatalf("Response embedded mismatch: got %x want %x", respDecoded, embedded)
 	}
 }
+

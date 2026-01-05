@@ -5,7 +5,7 @@ import (
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/logging"
 )
@@ -213,3 +213,5 @@ func TestHandleMultipleService(t *testing.T) {
 		t.Fatalf("expected %d embedded responses, got %d", len(reqs), len(embedded))
 	}
 }
+
+

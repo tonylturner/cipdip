@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 import (
 	"fmt"
@@ -66,3 +66,4 @@ func parseListResponse(data []byte, expectedCommand uint16, name string) ([]enip
 	}
 	return items, nil
 }
+

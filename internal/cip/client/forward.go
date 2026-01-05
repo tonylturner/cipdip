@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // ForwardOpen/ForwardClose implementation for connected I/O messaging
 
@@ -282,3 +282,4 @@ func ParseForwardCloseResponse(data []byte) error {
 
 	return nil
 }
+

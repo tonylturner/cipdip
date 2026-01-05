@@ -9,7 +9,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -142,3 +142,5 @@ func (s *EdgeValidScenario) Run(ctx context.Context, client cipclient.Client, cf
 
 	return nil
 }
+
+

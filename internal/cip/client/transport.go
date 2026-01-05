@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // Transport abstraction for TCP/UDP connections
 
@@ -302,3 +302,4 @@ func (t *UDPTransport) IsConnected() bool {
 	defer t.connMu.RUnlock()
 	return t.conn != nil
 }
+

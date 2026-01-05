@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 )
 
 type testFlags struct {
@@ -93,3 +93,5 @@ func runTest(flags *testFlags) error {
 
 	return nil
 }
+
+

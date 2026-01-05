@@ -1,4 +1,4 @@
-package cipclient
+package client
 
 // Client interface and implementation for CIP/EtherNet-IP communication
 
@@ -764,3 +764,4 @@ func (c *ENIPClient) ReceiveIOData(ctx context.Context, conn *IOConnection) ([]b
 
 	return ioData, nil
 }
+
