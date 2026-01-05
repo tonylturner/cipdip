@@ -499,30 +499,33 @@ func WriteReferencePacketsToFile(w io.Writer) error {
 
 // PCAPSummary provides high-level stats for ENIP traffic.
 type PCAPSummary struct {
-	TotalPackets     int
-	ENIPPackets      int
-	Requests         int
-	Responses        int
-	Commands         map[string]int
-	CIPServices      map[string]int
-	EmbeddedServices map[string]int
-	EmbeddedUnknown  map[uint8]*CIPUnknownStats
-	CIPRequests      int
-	CIPResponses     int
-	IOPayloads       int
-	CIPPayloads      int
-	CPFUsed          int
-	CPFMissing       int
-	EPATH16Class     int
-	EPATH16Instance  int
-	EPATH16Attribute int
-	PathSizeUsed     int
-	PathSizeMissing  int
-	TopPaths         []string
-	UnknownServices  map[uint8]*CIPUnknownStats
-	UnknownPairs     map[string]int
-	VendorID         uint16
-	ProductName      string
+	TotalPackets            int
+	ENIPPackets             int
+	Requests                int
+	Responses               int
+	Commands                map[string]int
+	CIPServices             map[string]int
+	EmbeddedServices        map[string]int
+	EmbeddedUnknown         map[uint8]*CIPUnknownStats
+	RequestValidationErrors map[string]int
+	RequestValidationTotal  int
+	RequestValidationFailed int
+	CIPRequests             int
+	CIPResponses            int
+	IOPayloads              int
+	CIPPayloads             int
+	CPFUsed                 int
+	CPFMissing              int
+	EPATH16Class            int
+	EPATH16Instance         int
+	EPATH16Attribute        int
+	PathSizeUsed            int
+	PathSizeMissing         int
+	TopPaths                []string
+	UnknownServices         map[uint8]*CIPUnknownStats
+	UnknownPairs            map[string]int
+	VendorID                uint16
+	ProductName             string
 }
 
 // CIPUnknownStats captures metadata for unknown CIP services.
@@ -544,16 +547,18 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 	defer handle.Close()
 
 	summary := &PCAPSummary{
-		Commands:         make(map[string]int),
-		CIPServices:      make(map[string]int),
-		EmbeddedServices: make(map[string]int),
-		EmbeddedUnknown:  make(map[uint8]*CIPUnknownStats),
-		UnknownServices:  make(map[uint8]*CIPUnknownStats),
-		UnknownPairs:     make(map[string]int),
+		Commands:                make(map[string]int),
+		CIPServices:             make(map[string]int),
+		EmbeddedServices:        make(map[string]int),
+		EmbeddedUnknown:         make(map[uint8]*CIPUnknownStats),
+		UnknownServices:         make(map[uint8]*CIPUnknownStats),
+		UnknownPairs:            make(map[string]int),
+		RequestValidationErrors: make(map[string]int),
 	}
 	pathCounts := make(map[string]int)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	streams := make(map[string][]byte)
+	validator := NewPacketValidator(true)
 
 	for packet := range packetSource.Packets() {
 		summary.TotalPackets++
@@ -575,7 +580,7 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 			meta.DstPort = uint16(tcp.DstPort)
 			parsed, remaining := extractENIPFrames(streams[key], tcp.DstPort == 44818 || tcp.DstPort == 2222, meta)
 			streams[key] = remaining
-			summarizePackets(parsed, summary, pathCounts)
+			summarizePackets(parsed, summary, pathCounts, validator)
 			if summary.ProductName == "" {
 				updateVendorInfo(parsed, summary)
 			}
@@ -596,7 +601,7 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 			meta.SrcPort = uint16(udp.SrcPort)
 			meta.DstPort = uint16(udp.DstPort)
 			parsed, _ := extractENIPFrames(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222, meta)
-			summarizePackets(parsed, summary, pathCounts)
+			summarizePackets(parsed, summary, pathCounts, validator)
 			if summary.ProductName == "" {
 				updateVendorInfo(parsed, summary)
 			}
@@ -676,7 +681,7 @@ func parseListIdentityIdentityItem(data []byte) (uint16, string, bool) {
 	return 0, "", false
 }
 
-func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map[string]int) {
+func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map[string]int, validator *PacketValidator) {
 	for _, pkt := range packets {
 		summary.ENIPPackets++
 		if pkt.IsRequest {
@@ -803,6 +808,19 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 		if msgInfo.IsResponse {
 			continue
 		}
+
+		summary.RequestValidationTotal++
+		req, err := DecodeCIPRequest(cipData)
+		if err != nil {
+			summary.RequestValidationFailed++
+			key := fmt.Sprintf("%s: decode error: %v", serviceLabel, err)
+			summary.RequestValidationErrors[key]++
+		} else if err := validator.ValidateCIPRequest(req); err != nil {
+			summary.RequestValidationFailed++
+			key := fmt.Sprintf("%s: %v", serviceLabel, err)
+			summary.RequestValidationErrors[key]++
+		}
+
 		if msgInfo.UsedPathSize {
 			summary.PathSizeUsed++
 		} else {
