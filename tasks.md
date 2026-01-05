@@ -51,22 +51,12 @@
 - [x] Test: Scenario selection (tags, firewall vendor filters, preset selection).
 - [x] Test: Metrics output (CSV/JSON, percentiles, jitter, outcome flags).
 - [x] Test: PCAP extraction (metadata, request/response detection, TCP reassembly).
+- [x] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: PCAP replay (app/raw/tcpreplay) preflight + ARP/MAC rewrite paths.
 - [x] Test: PCAP rewrite (IP/port/MAC, checksum updates, onlyENIP filter).
-- [x] Test: PCAP summary/report/coverage/dump correctness.
 - [x] Test: CLI help/required flags errors (pcap-summary, pcap-replay, single).
 - [x] Test: Cross-platform path handling and tool discovery (tshark, tcpreplay, tcprewrite).
 - [x] Test: Regression tests against reference_packets_gen.go for supported services/paths.
-- [x] Add validation PCAP manifest sidecars for generated fixtures.
-- [x] Expand pcap-validate to manifest-driven per-packet scenarios (layers/ENIP/CPF/CIP/status).
-- [x] Add service-shape checks for payload presence using internal CIP decoding.
-- [x] Add pcap-validate modes (structural/tshark-only/internal-only) and negative policy control.
-- [x] Add pcap-validate JSON report output and verbose per-packet diagnostics.
-- [x] Add pcap-validate tests that evaluate manifest expectations.
-- [x] Add client_wire Grade-A guardrail test (tshark-backed) to prevent regression.
-- [x] Add emit-bytes `--responses-only` for server_wire response fixtures.
-- [x] Add server_wire response payload builders (Forward Open/Close, Rockwell read/write tag, Modbus read/write, File Initiate Download).
-- [x] Add server_wire Grade-A validation shape checks for responses.
 
 ### Protocol compliance + modes
 - [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).

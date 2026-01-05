@@ -174,10 +174,10 @@ type ServerFaultLatencyConfig struct {
 
 // ServerFaultReliabilityConfig controls drop/close/stall behavior.
 type ServerFaultReliabilityConfig struct {
-	DropResponseEveryN  int     `yaml:"drop_response_every_n,omitempty"`
-	DropResponsePct     float64 `yaml:"drop_response_pct,omitempty"`
-	CloseConnectionEveryN int   `yaml:"close_connection_every_n,omitempty"`
-	StallResponseEveryN int     `yaml:"stall_response_every_n,omitempty"`
+	DropResponseEveryN    int     `yaml:"drop_response_every_n,omitempty"`
+	DropResponsePct       float64 `yaml:"drop_response_pct,omitempty"`
+	CloseConnectionEveryN int     `yaml:"close_connection_every_n,omitempty"`
+	StallResponseEveryN   int     `yaml:"stall_response_every_n,omitempty"`
 }
 
 // ServerFaultTCPConfig controls TCP-level behavior.
@@ -191,10 +191,26 @@ type ServerFaultTCPConfig struct {
 
 // ServerFaultConfig controls fault injection for the server.
 type ServerFaultConfig struct {
-	Enable      bool                    `yaml:"enable,omitempty"`
-	Latency     ServerFaultLatencyConfig `yaml:"latency,omitempty"`
+	Enable      bool                         `yaml:"enable,omitempty"`
+	Latency     ServerFaultLatencyConfig     `yaml:"latency,omitempty"`
 	Reliability ServerFaultReliabilityConfig `yaml:"reliability,omitempty"`
-	TCP         ServerFaultTCPConfig    `yaml:"tcp,omitempty"`
+	TCP         ServerFaultTCPConfig         `yaml:"tcp,omitempty"`
+}
+
+// ServerLoggingConfig controls server log formatting and verbosity.
+type ServerLoggingConfig struct {
+	Format         string `yaml:"format,omitempty"` // "text" or "json"
+	Level          string `yaml:"level,omitempty"`  // "error","info","verbose","debug"
+	LogEveryN      int    `yaml:"log_every_n,omitempty"`
+	IncludeHexDump bool   `yaml:"include_hex_dump,omitempty"`
+	LogFile        string `yaml:"log_file,omitempty"`
+}
+
+// ServerMetricsConfig controls server metrics endpoint exposure.
+type ServerMetricsConfig struct {
+	Enable   bool   `yaml:"enable,omitempty"`
+	ListenIP string `yaml:"listen_ip,omitempty"`
+	Port     int    `yaml:"port,omitempty"`
 }
 
 // ServerCIPRule matches a CIP service/path combination for allow/deny policy.
@@ -252,6 +268,8 @@ type ServerConfig struct {
 	ENIP              ServerENIPConfig        `yaml:"enip,omitempty"`
 	CIP               ServerCIPPolicyConfig   `yaml:"cip,omitempty"`
 	Faults            ServerFaultConfig       `yaml:"faults,omitempty"`
+	Logging           ServerLoggingConfig     `yaml:"logging,omitempty"`
+	Metrics           ServerMetricsConfig     `yaml:"metrics,omitempty"`
 	AdapterAssemblies []AdapterAssemblyConfig `yaml:"adapter_assemblies"`
 	LogixTags         []LogixTagConfig        `yaml:"logix_tags"`
 	TagNamespace      string                  `yaml:"tag_namespace"`
@@ -295,6 +313,60 @@ func CreateDefaultClientConfig() *Config {
 			},
 		},
 	}
+}
+
+// CreateDefaultServerConfig creates a default server configuration.
+func CreateDefaultServerConfig() *ServerConfig {
+	cfg := &ServerConfig{
+		Server: ServerConfigSection{
+			Name:                "CIPDIP Emulator",
+			Personality:         "adapter",
+			ListenIP:            "0.0.0.0",
+			TCPPort:             44818,
+			UDPIOPort:           2222,
+			EnableUDPIO:         false,
+			ConnectionTimeoutMs: 10000,
+		},
+		Protocol: ProtocolConfig{
+			Mode: "strict_odva",
+		},
+		AdapterAssemblies: []AdapterAssemblyConfig{
+			{
+				Name:          "InputAssembly1",
+				Class:         0x04,
+				Instance:      0x65,
+				Attribute:     0x03,
+				SizeBytes:     16,
+				Writable:      false,
+				UpdatePattern: "counter",
+			},
+			{
+				Name:          "OutputAssembly1",
+				Class:         0x04,
+				Instance:      0x67,
+				Attribute:     0x03,
+				SizeBytes:     16,
+				Writable:      true,
+				UpdatePattern: "reflect_inputs",
+			},
+		},
+		LogixTags: []LogixTagConfig{
+			{
+				Name:          "scada",
+				Type:          "DINT",
+				ArrayLength:   1000,
+				UpdatePattern: "counter",
+			},
+		},
+		TagNamespace: "Program:MainProgram",
+	}
+
+	applyServerENIPDefaults(cfg)
+	applyServerCIPDefaults(cfg)
+	applyServerLoggingDefaults(cfg)
+	applyServerMetricsDefaults(cfg)
+
+	return cfg
 }
 
 // WriteDefaultClientConfig writes a default client configuration to a file
@@ -566,6 +638,8 @@ func LoadServerConfig(path string) (*ServerConfig, error) {
 	}
 	applyServerENIPDefaults(&cfg)
 	applyServerCIPDefaults(&cfg)
+	applyServerLoggingDefaults(&cfg)
+	applyServerMetricsDefaults(&cfg)
 
 	// Validate
 	if err := ValidateServerConfig(&cfg); err != nil {
@@ -603,6 +677,26 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 	}
 	if cfg.Faults.TCP.ChunkMin < 0 || cfg.Faults.TCP.ChunkMax < 0 || cfg.Faults.TCP.InterChunkDelayMs < 0 {
 		return fmt.Errorf("faults.tcp values must be >= 0")
+	}
+	if cfg.Logging.Level != "" {
+		switch strings.ToLower(cfg.Logging.Level) {
+		case "error", "info", "verbose", "debug":
+		default:
+			return fmt.Errorf("logging.level must be error, info, verbose, or debug")
+		}
+	}
+	if cfg.Logging.Format != "" {
+		switch strings.ToLower(cfg.Logging.Format) {
+		case "text", "json":
+		default:
+			return fmt.Errorf("logging.format must be text or json")
+		}
+	}
+	if cfg.Logging.LogEveryN < 0 {
+		return fmt.Errorf("logging.log_every_n must be >= 0")
+	}
+	if cfg.Metrics.Port < 0 {
+		return fmt.Errorf("metrics.port must be >= 0")
 	}
 	if cfg.CIP.DefaultUnsupportedStatus == 0 {
 		// allow defaulting during load, but if explicitly set to 0 it's not useful
@@ -678,6 +772,27 @@ func applyServerCIPDefaults(cfg *ServerConfig) {
 	cfg.CIP.StrictPaths = boolPtrDefault(cfg.CIP.StrictPaths, true)
 	if cfg.CIP.DefaultUnsupportedStatus == 0 {
 		cfg.CIP.DefaultUnsupportedStatus = 0x08
+	}
+}
+
+func applyServerLoggingDefaults(cfg *ServerConfig) {
+	if cfg.Logging.Level == "" {
+		cfg.Logging.Level = "info"
+	}
+	if cfg.Logging.Format == "" {
+		cfg.Logging.Format = "text"
+	}
+	if cfg.Logging.LogEveryN == 0 {
+		cfg.Logging.LogEveryN = 1
+	}
+}
+
+func applyServerMetricsDefaults(cfg *ServerConfig) {
+	if cfg.Metrics.ListenIP == "" {
+		cfg.Metrics.ListenIP = "127.0.0.1"
+	}
+	if cfg.Metrics.Port == 0 {
+		cfg.Metrics.Port = 9109
 	}
 }
 
