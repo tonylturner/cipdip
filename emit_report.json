@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-01-05T06:58:34Z",
+  "generated_at": "2026-01-05T07:20:20Z",
   "cipdip_version": "0.1",
   "cipdip_commit": "unknown",
   "cipdip_date": "unknown",
@@ -874,18 +874,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "TCP Zero Window segment",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "tcp",
-              "group": "33554432"
-            },
-            {
               "message": "CIP request without a response",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
             }
           ],
           "pairing": {
@@ -933,18 +933,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "TCP Zero Window segment",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "tcp",
-                  "group": "33554432"
-                },
-                {
                   "message": "CIP request without a response",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
                   "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
                 }
               ],
               "path_attribute": "6"
@@ -1276,18 +1276,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "TCP Zero Window segment",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "tcp",
-              "group": "33554432"
-            },
-            {
               "message": "CIP request without a response",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
             }
           ],
           "pairing": {
@@ -1335,18 +1335,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "TCP Zero Window segment",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "tcp",
-                  "group": "33554432"
-                },
-                {
                   "message": "CIP request without a response",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
                   "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
                 }
               ],
               "path_attribute": "3"
@@ -1678,18 +1678,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "TCP Zero Window segment",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "tcp",
-              "group": "33554432"
-            },
-            {
               "message": "CIP request without a response",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
             }
           ],
           "pairing": {
@@ -1737,18 +1737,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "TCP Zero Window segment",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "tcp",
-                  "group": "33554432"
-                },
-                {
                   "message": "CIP request without a response",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
                   "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
                 }
               ],
               "path_attribute": "6"
@@ -1951,6 +1951,13 @@
           ],
           "tshark_experts": [
             {
+              "message": "Null Forward Open",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
               "message": "TCP Zero Window segment",
               "severity": "warning",
               "severity_rank": 2,
@@ -1959,13 +1966,6 @@
             },
             {
               "message": "CIP request without a response",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "cip",
-              "group": "150994944"
-            },
-            {
-              "message": "Null Forward Open",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
@@ -2018,6 +2018,13 @@
               "malformed": false,
               "experts": [
                 {
+                  "message": "Null Forward Open",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
                   "message": "TCP Zero Window segment",
                   "severity": "warning",
                   "severity_rank": 2,
@@ -2026,13 +2033,6 @@
                 },
                 {
                   "message": "CIP request without a response",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "cip",
-                  "group": "150994944"
-                },
-                {
-                  "message": "Null Forward Open",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
@@ -2064,7 +2064,7 @@
             "expect_cip": true,
             "expect_cip_path": true
           },
-          "pass": true,
+          "pass": false,
           "scenarios": [
             {
               "name": "layers",
@@ -2090,7 +2090,7 @@
             },
             {
               "name": "malformed",
-              "pass": true
+              "pass": false
             },
             {
               "name": "experts",
@@ -2100,7 +2100,7 @@
             {
               "name": "service_data",
               "pass": true,
-              "details": "payload_len=18"
+              "details": "payload_len=17"
             }
           ],
           "tshark_experts": [
@@ -2110,6 +2110,13 @@
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "Malformed Packet (Exception occurred)",
+              "severity": "error",
+              "severity_rank": 3,
+              "layer": "unknown",
+              "group": "117440512"
             },
             {
               "message": "TCP Zero Window segment",
@@ -2131,12 +2138,15 @@
             "unexpected_expert_count": 0,
             "transport_expert_count": 1
           },
-          "pass_category": "pass_with_expected_experts",
-          "grade": "A_pass",
+          "pass_category": "fail",
+          "grade": "A_fail",
+          "failure_labels": [
+            "TSHARK_MALFORMED"
+          ],
           "extracted_fields": {
             "enip": {
               "command": "0x006F",
-              "length": "40",
+              "length": "39",
               "session": "0x12345678",
               "status": "0x00000000"
             },
@@ -2149,7 +2159,7 @@
                 },
                 {
                   "type_id": "0x00b2",
-                  "length": 24
+                  "length": 23
                 }
               ]
             },
@@ -2159,10 +2169,10 @@
               "instance": "0x0001",
               "attribute": "0x0000",
               "path_size_words": 2,
-              "service_data_len": 18
+              "service_data_len": 17
             },
             "tshark": {
-              "malformed": false,
+              "malformed": true,
               "experts": [
                 {
                   "message": "CIP request without a response",
@@ -2172,6 +2182,13 @@
                   "group": "150994944"
                 },
                 {
+                  "message": "Malformed Packet (Exception occurred)",
+                  "severity": "error",
+                  "severity_rank": 3,
+                  "layer": "unknown",
+                  "group": "117440512"
+                },
+                {
                   "message": "TCP Zero Window segment",
                   "severity": "warning",
                   "severity_rank": 2,
@@ -2179,8 +2196,7 @@
                   "group": "33554432"
                 }
               ],
-              "path_instance": "0x01",
-              "path_attribute": "0"
+              "path_instance": "0x01"
             }
           }
         },
@@ -2246,18 +2262,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "TCP Zero Window segment",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "tcp",
-              "group": "33554432"
-            },
-            {
               "message": "CIP request without a response",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
             }
           ],
           "pairing": {
@@ -2306,18 +2322,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "TCP Zero Window segment",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "tcp",
-                  "group": "33554432"
-                },
-                {
                   "message": "CIP request without a response",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
                   "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
                 }
               ],
               "path_instance": "0x01",
@@ -3361,18 +3377,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "TCP Zero Window segment",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "tcp",
-              "group": "33554432"
-            },
-            {
               "message": "CIP request without a response",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
             }
           ],
           "pairing": {
@@ -3421,18 +3437,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "TCP Zero Window segment",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "tcp",
-                  "group": "33554432"
-                },
-                {
                   "message": "CIP request without a response",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
                   "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
                 }
               ],
               "path_attribute": "0"
@@ -4201,18 +4217,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "TCP Zero Window segment",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "tcp",
-              "group": "33554432"
-            },
-            {
               "message": "CIP request without a response",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "cip",
               "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
             }
           ],
           "pairing": {
@@ -4261,18 +4277,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "TCP Zero Window segment",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "tcp",
-                  "group": "33554432"
-                },
-                {
                   "message": "CIP request without a response",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "cip",
                   "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
                 }
               ],
               "path_attribute": "0"
@@ -5140,18 +5156,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "CIP request without a response",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "cip",
-              "group": "150994944"
-            },
-            {
               "message": "TCP Zero Window segment",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "tcp",
               "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
             }
           ],
           "pairing": {
@@ -5199,18 +5215,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "CIP request without a response",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "cip",
-                  "group": "150994944"
-                },
-                {
                   "message": "TCP Zero Window segment",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "tcp",
                   "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
                 }
               ],
               "path_attribute": "0"
@@ -6135,18 +6151,18 @@
           ],
           "tshark_experts": [
             {
-              "message": "CIP request without a response",
-              "severity": "warning",
-              "severity_rank": 2,
-              "layer": "cip",
-              "group": "150994944"
-            },
-            {
               "message": "TCP Zero Window segment",
               "severity": "warning",
               "severity_rank": 2,
               "layer": "tcp",
               "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
             }
           ],
           "pairing": {
@@ -6196,18 +6212,18 @@
               "malformed": false,
               "experts": [
                 {
-                  "message": "CIP request without a response",
-                  "severity": "warning",
-                  "severity_rank": 2,
-                  "layer": "cip",
-                  "group": "150994944"
-                },
-                {
                   "message": "TCP Zero Window segment",
                   "severity": "warning",
                   "severity_rank": 2,
                   "layer": "tcp",
                   "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
                 }
               ],
               "path_symbol": "Tag1"

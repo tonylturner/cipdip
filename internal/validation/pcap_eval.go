@@ -313,8 +313,35 @@ func evaluateServiceShape(expect PacketExpectation, result ValidateResult) Scena
 	if result.Internal == nil || len(result.Internal.CIPData) == 0 {
 		return ScenarioResult{Name: "service_data", Pass: false, Details: "missing internal CIP data"}
 	}
-	if expect.Direction != "request" {
-		return ScenarioResult{Name: "service_data", Pass: true}
+	if expect.Direction == "response" {
+		resp, err := decodeResponseForExpectation(result.Internal.CIPData)
+		if err != nil {
+			return ScenarioResult{Name: "service_data", Pass: false, Details: err.Error()}
+		}
+		payloadLen := len(resp.Payload)
+		baseService := cipclient.CIPServiceCode(uint8(resp.Service) & 0x7F)
+		switch expect.ServiceShape {
+		case ServiceShapeNone, ServiceShapeForwardClose:
+			return ScenarioResult{Name: "service_data", Pass: payloadLen == 0, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+		case ServiceShapeForwardOpen:
+			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 17, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+		case ServiceShapeRockwellTag, ServiceShapeRead:
+			if baseService == cipclient.CIPServiceWriteTag || baseService == cipclient.CIPServiceWriteTagFragmented {
+				return ScenarioResult{Name: "service_data", Pass: payloadLen == 0, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+			}
+			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 2, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+		case ServiceShapeModbus:
+			switch baseService {
+			case 0x4F, 0x50:
+				return ScenarioResult{Name: "service_data", Pass: payloadLen >= 4, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+			default:
+				return ScenarioResult{Name: "service_data", Pass: payloadLen >= 2, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+			}
+		case ServiceShapeFileObject:
+			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 6, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+		default:
+			return ScenarioResult{Name: "service_data", Pass: payloadLen > 0, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
+		}
 	}
 	req, err := decodeRequestForExpectation(result.Internal.CIPData)
 	if err != nil {

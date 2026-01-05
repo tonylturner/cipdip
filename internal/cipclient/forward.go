@@ -258,7 +258,6 @@ func BuildForwardClosePayload(connectionID uint32) ([]byte, error) {
 		pathSizeWords++
 	}
 	data = append(data, uint8(pathSizeWords))
-	data = append(data, 0x00)
 	data = append(data, connPath...)
 	if len(connPath)%2 != 0 {
 		data = append(data, 0x00)

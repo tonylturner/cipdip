@@ -1,0 +1,247 @@
+{
+  "generated_at": "2026-01-05T07:19:55Z",
+  "packets": [
+    {
+      "expect": {
+        "id": "connection_manager.forward_open/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "forward_open",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0025007856341200000000010203040506070800000000000000000000020000000000b2001500d400000078563412f0debc9a010001000403020103"
+    },
+    {
+      "expect": {
+        "id": "connection_manager.forward_close/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "forward_close",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0014007856341200000000010203040506070800000000000000000000020000000000b2000400ce000000"
+    },
+    {
+      "expect": {
+        "id": "file_object.initiate_download/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "file_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0020007856341200000000010203040506070800000000000000000000020000000000b2001000cc000000000200006400000080000000"
+    },
+    {
+      "expect": {
+        "id": "modbus.read_discrete_inputs/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "modbus_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0017007856341200000000010203040506070800000000000000000000020000000000b2000700cb000000020100"
+    },
+    {
+      "expect": {
+        "id": "modbus.read_coils/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "modbus_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0017007856341200000000010203040506070800000000000000000000020000000000b2000700cc000000020100"
+    },
+    {
+      "expect": {
+        "id": "modbus.read_input_registers/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "modbus_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0017007856341200000000010203040506070800000000000000000000020000000000b2000700cd000000020000"
+    },
+    {
+      "expect": {
+        "id": "modbus.read_holding_registers/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "modbus_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0017007856341200000000010203040506070800000000000000000000020000000000b2000700ce000000020000"
+    },
+    {
+      "expect": {
+        "id": "modbus.write_coils/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "modbus_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0018007856341200000000010203040506070800000000000000000000020000000000b2000800cf00000000000100"
+    },
+    {
+      "expect": {
+        "id": "modbus.write_holding_registers/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "modbus_object",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0018007856341200000000010203040506070800000000000000000000020000000000b2000800d000000000000100"
+    },
+    {
+      "expect": {
+        "id": "rockwell.read_tag/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "read",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f001a007856341200000000010203040506070800000000000000000000020000000000b2000a00cc000000c40000000000"
+    },
+    {
+      "expect": {
+        "id": "rockwell.write_tag/response",
+        "outcome": "valid",
+        "direction": "response",
+        "packet_type": "explicit_response",
+        "service_shape": "none",
+        "traffic_mode": "server_only",
+        "expect_layers": [
+          "eth",
+          "ip",
+          "tcp",
+          "enip",
+          "cip"
+        ],
+        "expect_enip": true,
+        "expect_cpf": true,
+        "expect_cip": true,
+        "expect_status": true
+      },
+      "enip_hex": "6f0014007856341200000000010203040506070800000000000000000000020000000000b2000400cd000000"
+    }
+  ]
+}
