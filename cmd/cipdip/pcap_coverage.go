@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cip/spec"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 type pcapCoverageFlags struct {
@@ -61,16 +61,16 @@ func runPcapCoverage(flags *pcapCoverageFlags) error {
 	fmt.Fprintf(f, "# PCAP Coverage Report\n\nGenerated: %s\n\n", time.Now().UTC().Format(time.RFC3339))
 	fmt.Fprintf(f, "PCAP root: %s\n\n", flags.pcapDir)
 
-	aggregate := &legacy.PCAPCoverageReport{
+	aggregate := &pcap.PCAPCoverageReport{
 		ServiceCounts:       make(map[uint8]int),
 		ServiceResponseCt:   make(map[uint8]int),
-		RequestEntries:      make(map[string]*legacy.CIPCoverageEntry),
-		EmbeddedEntries:     make(map[string]*legacy.CIPCoverageEntry),
+		RequestEntries:      make(map[string]*pcap.CIPCoverageEntry),
+		EmbeddedEntries:     make(map[string]*pcap.CIPCoverageEntry),
 		UnknownServicePairs: make(map[string]int),
 	}
 
 	for _, pcapPath := range pcaps {
-		report, err := legacy.SummarizeCoverageFromPCAP(pcapPath)
+		report, err := pcap.SummarizeCoverageFromPCAP(pcapPath)
 		if err != nil {
 			fmt.Fprintf(f, "## %s\n\nError: %v\n\n", filepath.Base(pcapPath), err)
 			continue
@@ -106,7 +106,7 @@ func collectCoveragePcapFiles(root string) ([]string, error) {
 	return pcaps, nil
 }
 
-func mergeCoverage(dst, src *legacy.PCAPCoverageReport) {
+func mergeCoverage(dst, src *pcap.PCAPCoverageReport) {
 	for svc, count := range src.ServiceCounts {
 		dst.ServiceCounts[svc] += count
 	}
@@ -136,7 +136,7 @@ func mergeCoverage(dst, src *legacy.PCAPCoverageReport) {
 	}
 }
 
-func writeCoverageSummary(f *os.File, report *legacy.PCAPCoverageReport) {
+func writeCoverageSummary(f *os.File, report *pcap.PCAPCoverageReport) {
 	fmt.Fprintf(f, "## CIP Service Counts\n\n```text\n")
 	for _, svc := range sortedServiceKeys(report.ServiceCounts) {
 		name := spec.ServiceName(protocol.CIPServiceCode(svc))
@@ -145,7 +145,7 @@ func writeCoverageSummary(f *os.File, report *legacy.PCAPCoverageReport) {
 	fmt.Fprintf(f, "```\n\n")
 
 	fmt.Fprintf(f, "## CIP Request Coverage (Service/Class/Instance/Attribute)\n\n```text\n")
-	for _, key := range legacy.SortedCoverageEntries(report.RequestEntries) {
+	for _, key := range pcap.SortedCoverageEntries(report.RequestEntries) {
 		entry := report.RequestEntries[key]
 		fmt.Fprintf(f, "%s (%d)\n", key, entry.Count)
 	}
@@ -153,7 +153,7 @@ func writeCoverageSummary(f *os.File, report *legacy.PCAPCoverageReport) {
 
 	if len(report.EmbeddedEntries) > 0 {
 		fmt.Fprintf(f, "## Embedded CIP Request Coverage (Unconnected Send)\n\n```text\n")
-		for _, key := range legacy.SortedCoverageEntries(report.EmbeddedEntries) {
+		for _, key := range pcap.SortedCoverageEntries(report.EmbeddedEntries) {
 			entry := report.EmbeddedEntries[key]
 			fmt.Fprintf(f, "%s (%d)\n", key, entry.Count)
 		}
@@ -171,6 +171,3 @@ func sortedServiceKeys(values map[uint8]int) []uint8 {
 	})
 	return keys
 }
-
-
-

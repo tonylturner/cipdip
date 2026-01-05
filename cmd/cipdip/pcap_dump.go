@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 type pcapDumpFlags struct {
@@ -61,14 +61,14 @@ func runPcapDump(flags *pcapDumpFlags) error {
 		return fmt.Errorf("parse service code: %w", err)
 	}
 
-	packets, err := legacy.ExtractENIPFromPCAP(flags.inputFile)
+	packets, err := pcap.ExtractENIPFromPCAP(flags.inputFile)
 	if err != nil {
 		return err
 	}
 
 	count := 0
 	for idx, pkt := range packets {
-		cipData, _, dataType := legacy.ExtractCIPFromENIPPacket(pkt)
+		cipData, _, dataType := pcap.ExtractCIPFromENIPPacket(pkt)
 		if dataType != "unconnected" || len(cipData) == 0 {
 			continue
 		}
@@ -114,6 +114,3 @@ func parseHexByte(value string) (uint8, error) {
 	}
 	return uint8(parsed), nil
 }
-
-
-

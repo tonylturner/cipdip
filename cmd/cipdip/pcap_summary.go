@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 type pcapSummaryFlags struct {
@@ -47,7 +47,7 @@ If --input is omitted, the first positional argument is used.`,
 }
 
 func runPcapSummary(flags *pcapSummaryFlags) error {
-	summary, err := legacy.SummarizeENIPFromPCAP(flags.inputFile)
+	summary, err := pcap.SummarizeENIPFromPCAP(flags.inputFile)
 	if err != nil {
 		return fmt.Errorf("summarize pcap: %w", err)
 	}
@@ -57,7 +57,7 @@ func runPcapSummary(flags *pcapSummaryFlags) error {
 	return nil
 }
 
-func writePcapSummary(w io.Writer, summary *legacy.PCAPSummary) {
+func writePcapSummary(w io.Writer, summary *pcap.PCAPSummary) {
 	fmt.Fprintf(w, "PCAP Summary:\n")
 	fmt.Fprintf(w, "  Total packets: %d\n", summary.TotalPackets)
 	fmt.Fprintf(w, "  ENIP packets: %d\n", summary.ENIPPackets)
@@ -142,7 +142,7 @@ func printCounts(w io.Writer, values map[string]int) {
 	}
 }
 
-func printUnknownStats(w io.Writer, unknown map[uint8]*legacy.CIPUnknownStats) {
+func printUnknownStats(w io.Writer, unknown map[uint8]*pcap.CIPUnknownStats) {
 	type kv struct {
 		Key   uint8
 		Value int
@@ -267,6 +267,3 @@ func printValidationErrors(w io.Writer, errors map[string]int) {
 		fmt.Fprintf(w, "  %s (%d)\n", item.Key, item.Value)
 	}
 }
-
-
-

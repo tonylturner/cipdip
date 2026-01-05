@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 type extractFlags struct {
@@ -95,14 +96,14 @@ func runExtractReference(flags *extractFlags) error {
 		source := determineSource(pcapFile, flags.baselineDir, flags.realWorldDir)
 		fmt.Fprintf(os.Stdout, "Processing: %s (%s)\n", filepath.Base(pcapFile), source)
 
-		refPackets, err := legacy.FindReferencePackets(pcapFile)
+		refPackets, err := pcap.FindReferencePackets(pcapFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: Failed to extract from %s: %v\n", pcapFile, err)
 			continue
 		}
 
 		// Populate reference library
-		err = legacy.PopulateReferenceLibraryFromPCAP(pcapFile, source)
+		err = pcap.PopulateReferenceLibraryFromPCAP(pcapFile, source)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  Warning: Failed to populate from %s: %v\n", pcapFile, err)
 			continue
@@ -137,7 +138,7 @@ func runExtractReference(flags *extractFlags) error {
 		}
 		defer file.Close()
 
-		if err := legacy.WriteReferencePacketsToFile(file); err != nil {
+		if err := pcap.WriteReferencePacketsToFile(file); err != nil {
 			return fmt.Errorf("write reference packets: %w", err)
 		}
 		fmt.Fprintf(os.Stdout, "Done!\n")
@@ -179,5 +180,3 @@ func determineSource(pcapFile, baselineDir, realWorldDir string) string {
 	}
 	return "PCAP File"
 }
-
-

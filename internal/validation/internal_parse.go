@@ -2,13 +2,13 @@ package validation
 
 import (
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/enip"
+	pcappkg "github.com/tturner/cipdip/internal/pcap"
 )
 
 // InternalPacketInfo captures minimal internal parsing hints for a frame.
@@ -118,7 +118,7 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 						info.CPFParseError = err.Error()
 					}
 				}
-				cipData, _, dataType := legacy.ExtractCIPFromENIPPacket(legacy.ENIPPacket{Data: encap.Data})
+				cipData, _, dataType := pcappkg.ExtractCIPFromENIPPacket(pcappkg.ENIPPacket{Data: encap.Data})
 				if len(cipData) > 0 {
 					info.HasCIP = true
 					info.CIPData = cipData
@@ -175,6 +175,3 @@ func ValidatePCAPInternalOnly(pcapFile string) ([]ValidateResult, error) {
 	}
 	return results, nil
 }
-
-
-

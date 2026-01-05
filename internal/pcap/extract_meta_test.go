@@ -1,7 +1,6 @@
-package cipclient
+package pcap
 
 import (
-	"github.com/tturner/cipdip/internal/enip"
 	"net"
 	"os"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 func TestExtractENIPFromPCAPMetadataTCP(t *testing.T) {
@@ -82,9 +83,9 @@ func TestExtractENIPFromPCAPTCPReassembly(t *testing.T) {
 }
 
 func TestExtractENIPFromPCAPResponseDetection(t *testing.T) {
-	prev := CurrentProtocolProfile()
-	SetProtocolProfile(StrictODVAProfile)
-	defer SetProtocolProfile(prev)
+	prev := client.CurrentProtocolProfile()
+	client.SetProtocolProfile(client.StrictODVAProfile)
+	defer client.SetProtocolProfile(prev)
 
 	cipResp := []byte{0x8E, 0x00, 0x00, 0x00, 0x11, 0x22}
 	sendData := enip.BuildSendRRDataPayload(cipResp)
