@@ -1,4 +1,4 @@
-package server
+package core
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -213,5 +213,3 @@ func TestHandleMultipleService(t *testing.T) {
 		t.Fatalf("expected %d embedded responses, got %d", len(reqs), len(embedded))
 	}
 }
-
-

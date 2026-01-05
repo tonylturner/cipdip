@@ -1,4 +1,4 @@
-package server
+package core
 
 import (
 	"testing"
@@ -218,5 +218,3 @@ func TestHandleForwardCloseUntracksConnection(t *testing.T) {
 		t.Fatalf("expected connection to be removed after ForwardClose")
 	}
 }
-
-

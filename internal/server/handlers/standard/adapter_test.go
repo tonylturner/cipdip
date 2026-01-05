@@ -1,4 +1,4 @@
-package server
+package standard
 
 import (
 	"context"
@@ -354,5 +354,3 @@ func TestAdapterUnsupportedService(t *testing.T) {
 		t.Errorf("Expected status 0x08 (service not supported), got 0x%02X", resp.Status)
 	}
 }
-
-

@@ -1,10 +1,13 @@
-package server
+package core
 
 import (
+	"context"
 	"net"
 	"testing"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/logging"
@@ -63,12 +66,21 @@ func TestNewServer(t *testing.T) {
 		t.Error("Server logger not set correctly")
 	}
 
-	if server.personality == nil {
-		t.Error("Server personality not set")
-	}
-
-	if server.personality.GetName() != "adapter" {
-		t.Errorf("Expected personality 'adapter', got '%s'", server.personality.GetName())
+	if server.handlers == nil {
+		t.Error("Server handler registry not set")
+	} else {
+		req := protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
+				Class:     spec.CIPClassAssembly,
+				Instance:  0x65,
+				Attribute: 0x03,
+			},
+		}
+		_, handled, _ := server.handlers.Handle(context.Background(), req)
+		if !handled {
+			t.Error("Expected assembly handler to be registered")
+		}
 	}
 
 	if len(server.sessions) != 0 {

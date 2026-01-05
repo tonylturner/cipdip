@@ -1,4 +1,4 @@
-package server
+package core
 
 import (
 	"context"
@@ -171,5 +171,3 @@ func runRawRegisterSession(t *testing.T, port int) error {
 	}
 	return nil
 }
-
-

@@ -1,22 +1,16 @@
-package server
+package standard
 
 import (
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/config"
 )
 
 func TestGenericGetSetAttributeSingle(t *testing.T) {
-	cfg := &config.ServerConfig{}
-	s := &Server{
-		config:       cfg,
-		genericStore: newGenericAttributeStore(),
-		profileClasses: map[uint16]struct{}{
-			spec.CIPClassEnergyBase: {},
-		},
-	}
+	handler := NewGenericObjectHandler(map[uint16]struct{}{
+		spec.CIPClassEnergyBase: {},
+	})
 
 	req := protocol.CIPRequest{
 		Service: spec.CIPServiceSetAttributeSingle,
@@ -27,18 +21,18 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 		},
 		Payload: []byte{0xDE, 0xAD},
 	}
-	resp, ok := s.handleGenericRequest(req)
-	if !ok || resp.Status != 0x00 {
-		t.Fatalf("expected set success, ok=%v status=0x%02X", ok, resp.Status)
+	resp, handled, err := handler.HandleCIPRequest(nil, req)
+	if err != nil || !handled || resp.Status != 0x00 {
+		t.Fatalf("expected set success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
 
 	readReq := protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeSingle,
 		Path:    req.Path,
 	}
-	readResp, ok := s.handleGenericRequest(readReq)
-	if !ok || readResp.Status != 0x00 {
-		t.Fatalf("expected read success, ok=%v status=0x%02X", ok, readResp.Status)
+	readResp, handled, err := handler.HandleCIPRequest(nil, readReq)
+	if err != nil || !handled || readResp.Status != 0x00 {
+		t.Fatalf("expected read success, handled=%v status=0x%02X err=%v", handled, readResp.Status, err)
 	}
 	if len(readResp.Payload) != 2 || readResp.Payload[0] != 0xDE || readResp.Payload[1] != 0xAD {
 		t.Fatalf("unexpected payload: %v", readResp.Payload)
@@ -46,13 +40,9 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 }
 
 func TestGenericGetAttributeList(t *testing.T) {
-	cfg := &config.ServerConfig{}
-	s := &Server{
-		config:       cfg,
-		genericStore: newGenericAttributeStore(),
-	}
-	s.genericStore.set(0x0064, 0x0001, 0x0001, []byte{0x11})
-	s.genericStore.set(0x0064, 0x0001, 0x0002, []byte{0x22, 0x33})
+	handler := NewGenericObjectHandler(nil)
+	handler.store.set(0x0064, 0x0001, 0x0001, []byte{0x11})
+	handler.store.set(0x0064, 0x0001, 0x0002, []byte{0x22, 0x33})
 
 	req := protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeList,
@@ -66,9 +56,9 @@ func TestGenericGetAttributeList(t *testing.T) {
 			0x02, 0x00, // attr 2
 		},
 	}
-	resp, ok := s.handleGenericRequest(req)
-	if !ok || resp.Status != 0x00 {
-		t.Fatalf("expected list success, ok=%v status=0x%02X", ok, resp.Status)
+	resp, handled, err := handler.HandleCIPRequest(nil, req)
+	if err != nil || !handled || resp.Status != 0x00 {
+		t.Fatalf("expected list success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
 	if len(resp.Payload) == 0 {
 		t.Fatalf("expected payload data")
@@ -76,14 +66,9 @@ func TestGenericGetAttributeList(t *testing.T) {
 }
 
 func TestEnergyMeteringServices(t *testing.T) {
-	cfg := &config.ServerConfig{}
-	s := &Server{
-		config:       cfg,
-		genericStore: newGenericAttributeStore(),
-		profileClasses: map[uint16]struct{}{
-			spec.CIPClassEnergyBase: {},
-		},
-	}
+	handler := NewGenericObjectHandler(map[uint16]struct{}{
+		spec.CIPClassEnergyBase: {},
+	})
 
 	req := protocol.CIPRequest{
 		Service: spec.CIPServiceExecutePCCC,
@@ -92,15 +77,15 @@ func TestEnergyMeteringServices(t *testing.T) {
 			Instance: 0x0001,
 		},
 	}
-	resp, ok := s.handleGenericRequest(req)
-	if !ok || resp.Status != 0x00 {
-		t.Fatalf("expected start metering success, ok=%v status=0x%02X", ok, resp.Status)
+	resp, handled, err := handler.HandleCIPRequest(nil, req)
+	if err != nil || !handled || resp.Status != 0x00 {
+		t.Fatalf("expected start metering success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
 
 	req.Service = spec.CIPServiceReadTag
-	resp, ok = s.handleGenericRequest(req)
-	if !ok || resp.Status != 0x00 {
-		t.Fatalf("expected stop metering success, ok=%v status=0x%02X", ok, resp.Status)
+	resp, handled, err = handler.HandleCIPRequest(nil, req)
+	if err != nil || !handled || resp.Status != 0x00 {
+		t.Fatalf("expected stop metering success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
 }
 
@@ -115,13 +100,9 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 	}
 
 	for _, classID := range classes {
-		s := &Server{
-			config:       &config.ServerConfig{},
-			genericStore: newGenericAttributeStore(),
-			profileClasses: map[uint16]struct{}{
-				classID: {},
-			},
-		}
+		handler := NewGenericObjectHandler(map[uint16]struct{}{
+			classID: {},
+		})
 
 		setReq := protocol.CIPRequest{
 			Service: spec.CIPServiceSetAttributeSingle,
@@ -132,18 +113,18 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 			},
 			Payload: []byte{0xAA},
 		}
-		resp, ok := s.handleGenericRequest(setReq)
-		if !ok || resp.Status != 0x00 {
-			t.Fatalf("class 0x%04X set failed: ok=%v status=0x%02X", classID, ok, resp.Status)
+		resp, handled, err := handler.HandleCIPRequest(nil, setReq)
+		if err != nil || !handled || resp.Status != 0x00 {
+			t.Fatalf("class 0x%04X set failed: handled=%v status=0x%02X err=%v", classID, handled, resp.Status, err)
 		}
 
 		getReq := protocol.CIPRequest{
 			Service: spec.CIPServiceGetAttributeSingle,
 			Path:    setReq.Path,
 		}
-		resp, ok = s.handleGenericRequest(getReq)
-		if !ok || resp.Status != 0x00 {
-			t.Fatalf("class 0x%04X get failed: ok=%v status=0x%02X", classID, ok, resp.Status)
+		resp, handled, err = handler.HandleCIPRequest(nil, getReq)
+		if err != nil || !handled || resp.Status != 0x00 {
+			t.Fatalf("class 0x%04X get failed: handled=%v status=0x%02X err=%v", classID, handled, resp.Status, err)
 		}
 		if len(resp.Payload) == 0 || resp.Payload[0] != 0xAA {
 			t.Fatalf("class 0x%04X payload mismatch: %v", classID, resp.Payload)

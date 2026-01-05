@@ -1,4 +1,4 @@
-package server
+package standard
 
 // Adapter personality - assembly-style object model (CLICK-like)
 
@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
@@ -196,5 +196,3 @@ func (ap *AdapterPersonality) updateAssemblyData(asm *Assembly) {
 		// No update needed (set by SetAttribute)
 	}
 }
-
-

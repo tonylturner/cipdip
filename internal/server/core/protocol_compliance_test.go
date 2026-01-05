@@ -1,4 +1,4 @@
-package server
+package core
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -522,5 +522,3 @@ func TestENIPErrorResponseODVACompliance(t *testing.T) {
 		t.Errorf("Length: got %d, want 0 (no data for error per ODVA spec)", respEncap.Length)
 	}
 }
-
-
