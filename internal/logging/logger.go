@@ -23,20 +23,25 @@ const (
 
 // Logger provides structured logging
 type Logger struct {
-	mu      sync.Mutex
-	level   LogLevel
-	file    *os.File
-	fileLog *log.Logger
-	stdout  *log.Logger
-	stderr  *log.Logger
+	mu       sync.Mutex
+	level    LogLevel
+	format   string
+	file     *os.File
+	fileLog  *log.Logger
+	stdout   *log.Logger
+	stderr   *log.Logger
+	counter  int
+	logEvery int
 }
 
 // NewLogger creates a new logger
 func NewLogger(level LogLevel, logFile string) (*Logger, error) {
 	l := &Logger{
-		level:  level,
-		stdout: log.New(os.Stdout, "", 0),
-		stderr: log.New(os.Stderr, "", 0),
+		level:    level,
+		format:   "text",
+		logEvery: 1,
+		stdout:   log.New(os.Stdout, "", 0),
+		stderr:   log.New(os.Stderr, "", 0),
 	}
 
 	// Open log file if specified
@@ -49,6 +54,21 @@ func NewLogger(level LogLevel, logFile string) (*Logger, error) {
 		l.fileLog = log.New(file, "", log.LstdFlags)
 	}
 
+	return l, nil
+}
+
+// NewLoggerWithOptions creates a logger with formatting and sampling controls.
+func NewLoggerWithOptions(level LogLevel, logFile, format string, logEvery int) (*Logger, error) {
+	l, err := NewLogger(level, logFile)
+	if err != nil {
+		return nil, err
+	}
+	if format != "" {
+		l.format = format
+	}
+	if logEvery > 0 {
+		l.logEvery = logEvery
+	}
 	return l, nil
 }
 
@@ -99,6 +119,17 @@ func (l *Logger) Debug(format string, v ...interface{}) {
 func (l *Logger) write(msg string, isError bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	l.counter++
+	if l.logEvery > 1 && (l.counter%l.logEvery) != 0 {
+		if l.fileLog == nil {
+			return
+		}
+	}
+
+	if l.format == "json" {
+		msg = fmt.Sprintf("{\"level\":%q,\"message\":%q}", levelLabel(isError), msg)
+	}
 
 	// Always write to log file if available
 	if l.fileLog != nil {
@@ -181,6 +212,13 @@ func (l *Logger) LogHex(label string, data []byte) {
 		}
 		l.Debug("%s: %s", label, formatted)
 	}
+}
+
+func levelLabel(isError bool) string {
+	if isError {
+		return "error"
+	}
+	return "info"
 }
 
 // MultiWriter creates an io.Writer that writes to multiple writers

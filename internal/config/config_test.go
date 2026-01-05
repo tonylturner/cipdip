@@ -314,4 +314,17 @@ func TestValidateServerConfig(t *testing.T) {
 	if err := ValidateServerConfig(&logix); err == nil {
 		t.Fatalf("ValidateServerConfig expected error for invalid cip_profiles")
 	}
+
+	logix.CIPProfiles = nil
+	logix.Logging.Level = "verbose"
+	logix.Logging.Format = "json"
+	logix.Logging.LogEveryN = 2
+	if err := ValidateServerConfig(&logix); err != nil {
+		t.Fatalf("ValidateServerConfig failed for logging config: %v", err)
+	}
+
+	logix.Logging.Level = "nope"
+	if err := ValidateServerConfig(&logix); err == nil {
+		t.Fatalf("ValidateServerConfig expected error for invalid logging level")
+	}
 }
