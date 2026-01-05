@@ -4,9 +4,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"strconv"
 	"strings"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 )
 
 // PayloadSpec describes service-specific request payload metadata.
@@ -230,8 +232,8 @@ func buildTemplatePayload(req protocol.CIPRequest, params PayloadParams) ([]byte
 	offset := uint32(params.getUintDefault("offset", 0))
 	length := uint16(params.getUintDefault("length", 0x40))
 	buf := make([]byte, 6)
-	binary.LittleEndian.PutUint32(buf[0:4], offset)
-	binary.LittleEndian.PutUint16(buf[4:6], length)
+	codec.PutUint32(binary.LittleEndian, buf[0:4], offset)
+	codec.PutUint16(binary.LittleEndian, buf[4:6], length)
 	rawPath := []byte{0x20, 0x6C, 0x24, byte(req.Path.Instance)}
 	return buf, rawPath, nil
 }
@@ -257,7 +259,7 @@ func buildFileObjectPayload(req protocol.CIPRequest, params PayloadParams) ([]by
 	case protocol.CIPServiceInitiateUpload:
 		size := uint32(params.getUintDefault("file_size", 0))
 		buf := make([]byte, 4)
-		order.PutUint32(buf, size)
+		codec.PutUint32(order, buf, size)
 		return buf, nil
 	case protocol.CIPServiceInitiateDownload:
 		total := uint32(params.getUintDefault("file_size", 0))
@@ -269,9 +271,9 @@ func buildFileObjectPayload(req protocol.CIPRequest, params PayloadParams) ([]by
 			nameBytes = nameBytes[:255]
 		}
 		buf := make([]byte, 9+len(nameBytes))
-		order.PutUint32(buf[0:4], total)
-		order.PutUint16(buf[4:6], format)
-		order.PutUint16(buf[6:8], rev)
+		codec.PutUint32(order, buf[0:4], total)
+		codec.PutUint16(order, buf[4:6], format)
+		codec.PutUint16(order, buf[6:8], rev)
 		buf[8] = uint8(len(nameBytes))
 		copy(buf[9:], nameBytes)
 		return buf, nil
@@ -279,28 +281,28 @@ func buildFileObjectPayload(req protocol.CIPRequest, params PayloadParams) ([]by
 		offset := uint32(params.getUintDefault("file_offset", 0))
 		length := uint16(params.getUintDefault("chunk", 0x40))
 		buf := make([]byte, 6)
-		order.PutUint32(buf[0:4], offset)
-		order.PutUint16(buf[4:6], length)
+		codec.PutUint32(order, buf[0:4], offset)
+		codec.PutUint16(order, buf[4:6], length)
 		return buf, nil
 	case protocol.CIPServiceInitiatePartialWrite:
 		offset := uint32(params.getUintDefault("file_offset", 0))
 		data := params.getBytesHex("data_hex")
 		buf := make([]byte, 6+len(data))
-		order.PutUint32(buf[0:4], offset)
-		order.PutUint16(buf[4:6], uint16(len(data)))
+		codec.PutUint32(order, buf[0:4], offset)
+		codec.PutUint16(order, buf[4:6], uint16(len(data)))
 		copy(buf[6:], data)
 		return buf, nil
 	case protocol.CIPServiceUploadTransfer:
 		transfer := uint16(params.getUintDefault("transfer_number", 0))
 		buf := make([]byte, 2)
-		order.PutUint16(buf, transfer)
+		codec.PutUint16(order, buf, transfer)
 		return buf, nil
 	case protocol.CIPServiceDownloadTransfer:
 		transfer := uint16(params.getUintDefault("transfer_number", 0))
 		transferType := uint8(params.getUintDefault("transfer_type", 0))
 		data := params.getBytesHex("data_hex")
 		buf := make([]byte, 3+len(data))
-		order.PutUint16(buf[0:2], transfer)
+		codec.PutUint16(order, buf[0:2], transfer)
 		buf[2] = transferType
 		copy(buf[3:], data)
 		return buf, nil
@@ -318,8 +320,8 @@ func buildModbusPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, 
 	switch req.Service {
 	case 0x4B, 0x4C, 0x4D, 0x4E:
 		buf := make([]byte, 4)
-		order.PutUint16(buf[0:2], addr)
-		order.PutUint16(buf[2:4], qty)
+		codec.PutUint16(order, buf[0:2], addr)
+		codec.PutUint16(order, buf[2:4], qty)
 		return buf, nil
 	case 0x4F, 0x50:
 		data := params.getBytesHex("modbus_data_hex")
@@ -334,8 +336,8 @@ func buildModbusPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, 
 			data = data[:255]
 		}
 		buf := make([]byte, 5+len(data))
-		order.PutUint16(buf[0:2], addr)
-		order.PutUint16(buf[2:4], qty)
+		codec.PutUint16(order, buf[0:2], addr)
+		codec.PutUint16(order, buf[2:4], qty)
 		buf[4] = uint8(len(data))
 		copy(buf[5:], data)
 		return buf, nil

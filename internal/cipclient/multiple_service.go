@@ -2,6 +2,8 @@ package cipclient
 
 import (
 	"fmt"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 )
 
@@ -33,7 +35,7 @@ func BuildMultipleServiceRequestPayload(requests []protocol.CIPRequest) ([]byte,
 	count := len(requests)
 	headerLen := 2 + 2*count
 	payload := make([]byte, headerLen)
-	order.PutUint16(payload[0:2], uint16(count))
+	codec.PutUint16(order, payload[0:2], uint16(count))
 
 	offset := headerLen
 	offsets := make([]uint16, count)
@@ -52,7 +54,7 @@ func BuildMultipleServiceRequestPayload(requests []protocol.CIPRequest) ([]byte,
 
 	for i, off := range offsets {
 		start := 2 + i*2
-		order.PutUint16(payload[start:start+2], off)
+		codec.PutUint16(order, payload[start:start+2], off)
 	}
 	return payload, nil
 }
@@ -77,7 +79,7 @@ func BuildMultipleServiceResponsePayload(responses []protocol.CIPResponse) ([]by
 	count := len(responses)
 	headerLen := 2 + 2*count
 	payload := make([]byte, headerLen)
-	order.PutUint16(payload[0:2], uint16(count))
+	codec.PutUint16(order, payload[0:2], uint16(count))
 
 	offset := headerLen
 	offsets := make([]uint16, count)
@@ -96,7 +98,7 @@ func BuildMultipleServiceResponsePayload(responses []protocol.CIPResponse) ([]by
 
 	for i, off := range offsets {
 		start := 2 + i*2
-		order.PutUint16(payload[start:start+2], off)
+		codec.PutUint16(order, payload[start:start+2], off)
 	}
 	return payload, nil
 }

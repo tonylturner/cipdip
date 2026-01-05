@@ -5,10 +5,11 @@ package scenario
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -152,7 +153,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			oToTData := make([]byte, connCfg.OToTSizeBytes)
 			if len(oToTData) >= 4 {
 				order := cipclient.CurrentProtocolProfile().CIPByteOrder
-				order.PutUint32(oToTData[0:4], counter)
+				codec.PutUint32(order, oToTData[0:4], counter)
 			} else {
 				oToTData[0] = byte(counter)
 			}

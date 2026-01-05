@@ -6,6 +6,8 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
 )
 
 // CIPDataType encodes CIP primitive data types used by CIPDIP.
@@ -230,11 +232,11 @@ func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
 		switch v := value.(type) {
 		case int16:
 			buf := make([]byte, 2)
-			order.PutUint16(buf, uint16(v))
+			codec.PutUint16(order, buf, uint16(v))
 			return buf, nil
 		case int:
 			buf := make([]byte, 2)
-			order.PutUint16(buf, uint16(v))
+			codec.PutUint16(order, buf, uint16(v))
 			return buf, nil
 		default:
 			return nil, fmt.Errorf("INT expects int16")
@@ -243,11 +245,11 @@ func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
 		switch v := value.(type) {
 		case int32:
 			buf := make([]byte, 4)
-			order.PutUint32(buf, uint32(v))
+			codec.PutUint32(order, buf, uint32(v))
 			return buf, nil
 		case int:
 			buf := make([]byte, 4)
-			order.PutUint32(buf, uint32(v))
+			codec.PutUint32(order, buf, uint32(v))
 			return buf, nil
 		default:
 			return nil, fmt.Errorf("DINT expects int32")
@@ -256,11 +258,11 @@ func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
 		switch v := value.(type) {
 		case int64:
 			buf := make([]byte, 8)
-			order.PutUint64(buf, uint64(v))
+			codec.PutUint64(order, buf, uint64(v))
 			return buf, nil
 		case int:
 			buf := make([]byte, 8)
-			order.PutUint64(buf, uint64(v))
+			codec.PutUint64(order, buf, uint64(v))
 			return buf, nil
 		default:
 			return nil, fmt.Errorf("LINT expects int64")
@@ -269,11 +271,11 @@ func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
 		switch v := value.(type) {
 		case float32:
 			buf := make([]byte, 4)
-			order.PutUint32(buf, math.Float32bits(v))
+			codec.PutUint32(order, buf, math.Float32bits(v))
 			return buf, nil
 		case float64:
 			buf := make([]byte, 4)
-			order.PutUint32(buf, math.Float32bits(float32(v)))
+			codec.PutUint32(order, buf, math.Float32bits(float32(v)))
 			return buf, nil
 		default:
 			return nil, fmt.Errorf("REAL expects float32")
@@ -282,11 +284,11 @@ func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
 		switch v := value.(type) {
 		case float64:
 			buf := make([]byte, 8)
-			order.PutUint64(buf, math.Float64bits(v))
+			codec.PutUint64(order, buf, math.Float64bits(v))
 			return buf, nil
 		case float32:
 			buf := make([]byte, 8)
-			order.PutUint64(buf, math.Float64bits(float64(v)))
+			codec.PutUint64(order, buf, math.Float64bits(float64(v)))
 			return buf, nil
 		default:
 			return nil, fmt.Errorf("LREAL expects float64")
@@ -297,7 +299,7 @@ func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
 			return nil, fmt.Errorf("STRING expects string")
 		}
 		buf := make([]byte, 2+len(s))
-		binary.LittleEndian.PutUint16(buf[0:2], uint16(len(s)))
+		codec.PutUint16(binary.LittleEndian, buf[0:2], uint16(len(s)))
 		copy(buf[2:], []byte(s))
 		return buf, nil
 	default:

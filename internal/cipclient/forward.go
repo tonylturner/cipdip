@@ -4,8 +4,10 @@ package cipclient
 
 import (
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"strings"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 )
 
 // BuildForwardOpenRequest builds a ForwardOpen CIP request
@@ -144,17 +146,17 @@ func BuildForwardOpenPayload(params ConnectionParams) ([]byte, error) {
 	originatorVendor := uint16(0x0001)
 	originatorSerial := uint32(0x01020304)
 
-	data = appendUint32(order, data, oToTConnID)
-	data = appendUint32(order, data, tToOConnID)
-	data = appendUint16(order, data, connectionSerial)
-	data = appendUint16(order, data, originatorVendor)
-	data = appendUint32(order, data, originatorSerial)
+	data = codec.AppendUint32(order, data, oToTConnID)
+	data = codec.AppendUint32(order, data, tToOConnID)
+	data = codec.AppendUint16(order, data, connectionSerial)
+	data = codec.AppendUint16(order, data, originatorVendor)
+	data = codec.AppendUint32(order, data, originatorSerial)
 	data = append(data, 0x03) // timeout multiplier
 	data = append(data, 0x00, 0x00, 0x00)
 
 	// O->T RPI (4 bytes, in microseconds)
 	rpiOToT := uint32(params.OToTRPIMs * 1000) // Convert ms to microseconds
-	data = appendUint32(order, data, rpiOToT)
+	data = codec.AppendUint32(order, data, rpiOToT)
 
 	// O->T connection parameters (4 bytes)
 	// Bit 0: Connection type (0=explicit, 1=IO)
@@ -171,11 +173,11 @@ func BuildForwardOpenPayload(params ConnectionParams) ([]byte, error) {
 	} else {
 		oToTParams |= 0x03 << 2 // Variable
 	}
-	data = appendUint32(order, data, oToTParams)
+	data = codec.AppendUint32(order, data, oToTParams)
 
 	// T->O RPI (4 bytes, in microseconds)
 	rpiTToO := uint32(params.TToORPIMs * 1000) // Convert ms to microseconds
-	data = appendUint32(order, data, rpiTToO)
+	data = codec.AppendUint32(order, data, rpiTToO)
 
 	// T->O connection parameters (4 bytes, similar to O->T)
 	tToOParams := uint32(0x00000001) // IO connection
@@ -189,7 +191,7 @@ func BuildForwardOpenPayload(params ConnectionParams) ([]byte, error) {
 	} else {
 		tToOParams |= 0x03 << 2 // Variable
 	}
-	data = appendUint32(order, data, tToOParams)
+	data = codec.AppendUint32(order, data, tToOParams)
 
 	// Transport class and trigger (1 byte)
 	transportByte := byte(params.TransportClassTrigger)
@@ -246,9 +248,9 @@ func BuildForwardClosePayload(connectionID uint32) ([]byte, error) {
 	originatorVendor := uint16(0x0001)
 	originatorSerial := connectionID
 
-	data = appendUint16(order, data, connectionSerial)
-	data = appendUint16(order, data, originatorVendor)
-	data = appendUint32(order, data, originatorSerial)
+	data = codec.AppendUint16(order, data, connectionSerial)
+	data = codec.AppendUint16(order, data, originatorVendor)
+	data = codec.AppendUint32(order, data, originatorSerial)
 
 	connPath := protocol.EncodeEPATH(protocol.CIPPath{
 		Class:    CIPClassAssembly,

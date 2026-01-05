@@ -6,9 +6,11 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"time"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/enip"
-	"time"
 
 	"github.com/tturner/cipdip/internal/errors"
 )
@@ -675,7 +677,7 @@ func (c *ENIPClient) SendIOData(ctx context.Context, conn *IOConnection, data []
 		}
 		conn.Sequence = seq
 		var seqBytes [2]byte
-		order.PutUint16(seqBytes[:], seq)
+		codec.PutUint16(order, seqBytes[:], seq)
 		payload = append(seqBytes[:], paddedData...)
 	}
 

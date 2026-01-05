@@ -1,6 +1,10 @@
 package cipclient
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
+)
 
 // UnconnectedSendOptions defines UCMM unconnected send payload settings.
 type UnconnectedSendOptions struct {
@@ -28,7 +32,7 @@ func BuildUnconnectedSendPayload(messageRequest []byte, opts UnconnectedSendOpti
 
 	payload := make([]byte, 0, 4+len(messageRequest)+2+len(routePath))
 	payload = append(payload, priority, timeout)
-	payload = appendUint16(binary.LittleEndian, payload, uint16(len(messageRequest)))
+	payload = codec.AppendUint16(binary.LittleEndian, payload, uint16(len(messageRequest)))
 	payload = append(payload, messageRequest...)
 	payload = append(payload, routeWords, 0x00)
 	payload = append(payload, routePath...)
@@ -38,7 +42,7 @@ func BuildUnconnectedSendPayload(messageRequest []byte, opts UnconnectedSendOpti
 // BuildUnconnectedSendResponsePayload builds the payload for an Unconnected Send response.
 func BuildUnconnectedSendResponsePayload(messageResponse []byte) []byte {
 	payload := make([]byte, 0, 2+len(messageResponse))
-	payload = appendUint16(binary.LittleEndian, payload, uint16(len(messageResponse)))
+	payload = codec.AppendUint16(binary.LittleEndian, payload, uint16(len(messageResponse)))
 	payload = append(payload, messageResponse...)
 	return payload
 }

@@ -5,11 +5,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
@@ -67,7 +68,7 @@ func NewAdapterPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*A
 		case "counter":
 			// Initialize counter in first bytes
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(asm.Data[0:4], 0)
+			codec.PutUint32(order, asm.Data[0:4], 0)
 		}
 
 		ap.assemblies[asmCfg.Name] = asm
@@ -181,7 +182,7 @@ func (ap *AdapterPersonality) updateAssemblyData(asm *Assembly) {
 		asm.Counter++
 		if len(asm.Data) >= 4 {
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(asm.Data[0:4], asm.Counter)
+			codec.PutUint32(order, asm.Data[0:4], asm.Counter)
 		}
 
 	case "random":

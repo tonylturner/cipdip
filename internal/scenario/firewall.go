@@ -5,11 +5,12 @@ package scenario
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"strings"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -303,7 +304,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 
 		valueBytes := make([]byte, 4)
 		order := cipclient.CurrentProtocolProfile().CIPByteOrder
-		order.PutUint32(valueBytes, uint32(value))
+		codec.PutUint32(order, valueBytes, uint32(value))
 
 		start := time.Now()
 		resp, err := client.WriteAttribute(ctx, path, valueBytes)
@@ -430,7 +431,7 @@ func runFirewallIO(ctx context.Context, client cipclient.Client, ioConns []confi
 		oToTData := make([]byte, connCfg.OToTSizeBytes)
 		if len(oToTData) >= 4 {
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(oToTData, uint32(time.Now().UnixNano()))
+			codec.PutUint32(order, oToTData, uint32(time.Now().UnixNano()))
 		} else if len(oToTData) > 0 {
 			oToTData[0] = byte(time.Now().UnixNano())
 		}

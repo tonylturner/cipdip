@@ -11,6 +11,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/tturner/cipdip/internal/cip/codec"
 )
 
 func TestHasPerFlowTCPHandshake(t *testing.T) {
@@ -138,10 +139,10 @@ func buildENIPRegisterSession(isRequest bool) []byte {
 		sessionID = 0x11223344
 	}
 	header := make([]byte, 24+len(data))
-	binary.LittleEndian.PutUint16(header[0:2], 0x0065)
-	binary.LittleEndian.PutUint16(header[2:4], uint16(len(data)))
-	binary.LittleEndian.PutUint32(header[4:8], sessionID)
-	binary.LittleEndian.PutUint32(header[8:12], 0)
+	codec.PutUint16(binary.LittleEndian, header[0:2], 0x0065)
+	codec.PutUint16(binary.LittleEndian, header[2:4], uint16(len(data)))
+	codec.PutUint32(binary.LittleEndian, header[4:8], sessionID)
+	codec.PutUint32(binary.LittleEndian, header[8:12], 0)
 	copy(header[24:], data)
 	return header
 }

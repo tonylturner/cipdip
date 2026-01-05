@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"io"
 	"math/rand"
 	"net"
@@ -14,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/enip"
@@ -650,16 +651,16 @@ func (s *Server) handleForwardOpen(encap enip.ENIPEncapsulation, cipData []byte,
 	respData = append(respData, 0x00) // General status (success)
 	respData = append(respData, 0x00) // Additional status size
 	respData = append(respData, make([]byte, 4)...)
-	order.PutUint32(respData[len(respData)-4:], oToTConnID) // O->T connection ID
+	codec.PutUint32(order, respData[len(respData)-4:], oToTConnID) // O->T connection ID
 	respData = append(respData, make([]byte, 4)...)
-	order.PutUint32(respData[len(respData)-4:], tToOConnID) // T->O connection ID
+	codec.PutUint32(order, respData[len(respData)-4:], tToOConnID) // T->O connection ID
 	respData = append(respData, make([]byte, 2)...)
-	order.PutUint16(respData[len(respData)-2:], 0x0000) // Connection serial number
+	codec.PutUint16(order, respData[len(respData)-2:], 0x0000) // Connection serial number
 	respData = append(respData, make([]byte, 2)...)
-	order.PutUint16(respData[len(respData)-2:], 0x0000) // Originator vendor ID
+	codec.PutUint16(order, respData[len(respData)-2:], 0x0000) // Originator vendor ID
 	respData = append(respData, make([]byte, 4)...)
-	order.PutUint32(respData[len(respData)-4:], 0x00000000) // Originator serial number
-	respData = append(respData, 0x01)                       // Connection timeout multiplier
+	codec.PutUint32(order, respData[len(respData)-4:], 0x00000000) // Originator serial number
+	respData = append(respData, 0x01)                              // Connection timeout multiplier
 
 	sendData := enip.BuildSendRRDataPayload(respData)
 
@@ -899,25 +900,25 @@ func (s *Server) identityAttributePayload(attribute uint16) ([]byte, bool) {
 	switch attribute {
 	case 1:
 		payload := make([]byte, 2)
-		order.PutUint16(payload, vendorID)
+		codec.PutUint16(order, payload, vendorID)
 		return payload, true
 	case 2:
 		payload := make([]byte, 2)
-		order.PutUint16(payload, deviceType)
+		codec.PutUint16(order, payload, deviceType)
 		return payload, true
 	case 3:
 		payload := make([]byte, 2)
-		order.PutUint16(payload, productCode)
+		codec.PutUint16(order, payload, productCode)
 		return payload, true
 	case 4:
 		return []byte{revMajor, revMinor}, true
 	case 5:
 		payload := make([]byte, 2)
-		order.PutUint16(payload, status)
+		codec.PutUint16(order, payload, status)
 		return payload, true
 	case 6:
 		payload := make([]byte, 4)
-		order.PutUint32(payload, serial)
+		codec.PutUint32(order, payload, serial)
 		return payload, true
 	case 7:
 		return encodeShortString(productName), true
@@ -934,16 +935,16 @@ func (s *Server) identityAllPayload() []byte {
 	buf2 := make([]byte, 2)
 	buf4 := make([]byte, 4)
 
-	order.PutUint16(buf2, vendorID)
+	codec.PutUint16(order, buf2, vendorID)
 	payload = append(payload, buf2...)
-	order.PutUint16(buf2, deviceType)
+	codec.PutUint16(order, buf2, deviceType)
 	payload = append(payload, buf2...)
-	order.PutUint16(buf2, productCode)
+	codec.PutUint16(order, buf2, productCode)
 	payload = append(payload, buf2...)
 	payload = append(payload, revMajor, revMinor)
-	order.PutUint16(buf2, status)
+	codec.PutUint16(order, buf2, status)
 	payload = append(payload, buf2...)
-	order.PutUint32(buf4, serial)
+	codec.PutUint32(order, buf4, serial)
 	payload = append(payload, buf4...)
 	payload = append(payload, encodeShortString(productName)...)
 
@@ -1254,7 +1255,7 @@ func buildAttributeListResponse(req protocol.CIPRequest, store *genericAttribute
 
 		value, ok := store.get(req.Path.Class, req.Path.Instance, attrID)
 		payload = append(payload, 0x00, 0x00)
-		order.PutUint16(payload[len(payload)-2:], attrID)
+		codec.PutUint16(order, payload[len(payload)-2:], attrID)
 
 		status := byte(0x00)
 		if !ok {
@@ -1541,23 +1542,23 @@ func (s *Server) handleListIdentity(encap enip.ENIPEncapsulation, remoteAddr str
 
 	data := make([]byte, 0, 34+len(productName))
 	socket := make([]byte, 16)
-	order.PutUint16(socket[0:2], 0x0002)
-	order.PutUint16(socket[2:4], uint16(s.config.Server.TCPPort))
+	codec.PutUint16(order, socket[0:2], 0x0002)
+	codec.PutUint16(order, socket[2:4], uint16(s.config.Server.TCPPort))
 	copy(socket[4:8], net.ParseIP(s.config.Server.ListenIP).To4())
 	data = append(data, socket...)
 
 	buf2 := make([]byte, 2)
 	buf4 := make([]byte, 4)
-	order.PutUint16(buf2, vendorID)
+	codec.PutUint16(order, buf2, vendorID)
 	data = append(data, buf2...)
-	order.PutUint16(buf2, deviceType)
+	codec.PutUint16(order, buf2, deviceType)
 	data = append(data, buf2...)
-	order.PutUint16(buf2, productCode)
+	codec.PutUint16(order, buf2, productCode)
 	data = append(data, buf2...)
 	data = append(data, revMajor, revMinor)
-	order.PutUint16(buf2, status)
+	codec.PutUint16(order, buf2, status)
 	data = append(data, buf2...)
-	order.PutUint32(buf4, serial)
+	codec.PutUint32(order, buf4, serial)
 	data = append(data, buf4...)
 	data = append(data, byte(len(productName)))
 	data = append(data, []byte(productName)...)
