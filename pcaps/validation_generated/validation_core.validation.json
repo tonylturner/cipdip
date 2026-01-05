@@ -7,6 +7,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -25,6 +26,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -43,6 +45,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -61,6 +64,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -79,6 +83,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "forward_open",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -93,10 +98,11 @@
     },
     {
       "id": "forward_open/response",
-      "outcome": "valid",
+      "outcome": "invalid",
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "forward_open",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -115,6 +121,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "forward_close",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -133,6 +140,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "forward_close",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -151,6 +159,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "unconnected_send",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -169,6 +178,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "unconnected_send",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",

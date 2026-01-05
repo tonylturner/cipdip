@@ -23,6 +23,7 @@ type ValidationRequestSpec struct {
 	ExpectSymbol    bool
 	Outcome         string
 	ResponseOutcome string
+	TrafficMode     string
 }
 
 type ValidationPCAPSpec struct {
@@ -103,7 +104,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					ServiceShape:    ServiceShapeForwardOpen,
 					IncludeResponse: true,
 					Outcome:         "invalid",
-					ResponseOutcome: "valid",
+					ResponseOutcome: "invalid",
 				},
 				{
 					Name: "forward_close",
@@ -214,7 +215,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					ServiceShape:    ServiceShapePCCC,
 					IncludeResponse: true,
 					Outcome:         "invalid",
-					ResponseOutcome: "valid",
+					ResponseOutcome: "invalid",
 				},
 				{
 					Name: "template_read",
@@ -247,6 +248,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					ServiceShape:    ServiceShapeFileObject,
 					IncludeResponse: true,
+					ResponseOutcome: "invalid",
 				},
 				{
 					Name: "file_initiate_download",
@@ -263,6 +265,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					ServiceShape:    ServiceShapeFileObject,
 					IncludeResponse: true,
+					ResponseOutcome: "invalid",
 				},
 				{
 					Name: "file_partial_read",
@@ -304,6 +307,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					ServiceShape:    ServiceShapeFileObject,
 					IncludeResponse: true,
+					ResponseOutcome: "invalid",
 				},
 				{
 					Name: "file_download_transfer",
@@ -358,6 +362,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					},
 					ServiceShape:    ServiceShapeModbus,
 					IncludeResponse: true,
+					ResponseOutcome: "invalid",
 				},
 				{
 					Name: "modbus_passthrough",
@@ -541,12 +546,17 @@ func buildPacketExpectation(reqSpec ValidationRequestSpec, direction string) Pac
 	if outcome == "" {
 		outcome = "valid"
 	}
+	trafficMode := strings.TrimSpace(reqSpec.TrafficMode)
+	if trafficMode == "" {
+		trafficMode = "client_only"
+	}
 	expect := PacketExpectation{
 		ID:           fmt.Sprintf("%s/%s", reqSpec.Name, direction),
 		Outcome:      outcome,
 		Direction:    direction,
 		PacketType:   "explicit_request",
 		ServiceShape: reqSpec.ServiceShape,
+		TrafficMode:  trafficMode,
 		ExpectLayers: []string{"eth", "ip", "tcp", "enip", "cip"},
 		ExpectENIP:   true,
 		ExpectCPF:    true,
@@ -584,6 +594,10 @@ func buildResponseForRequest(req cipclient.CIPRequest, spec ValidationRequestSpe
 			return nil, err
 		}
 		resp.Payload = payload
+		return resp, nil
+	}
+	if req.Service == cipclient.CIPServiceGetAttributeSingle || req.Service == cipclient.CIPServiceGetAttributeAll || req.Service == cipclient.CIPServiceGetAttributeList {
+		resp.Payload = defaultResponsePayload(ServiceShapeRead)
 		return resp, nil
 	}
 
@@ -664,6 +678,10 @@ func defaultResponsePayload(shape string) []byte {
 }
 
 func BuildValidationPackets(spec ValidationPCAPSpec) ([]ValidationPacket, error) {
+	prevProfile := cipclient.CurrentProtocolProfile()
+	cipclient.SetProtocolProfile(cipclient.StrictODVAProfile)
+	defer cipclient.SetProtocolProfile(prevProfile)
+
 	validator := cipclient.NewPacketValidator(true)
 	packets := make([]ValidationPacket, 0, len(spec.Requests)*2)
 	senderContext := [8]byte{1, 2, 3, 4, 5, 6, 7, 8}
@@ -741,7 +759,7 @@ func BuildValidationENIPPackets(spec ValidationPCAPSpec) ([][]byte, error) {
 	return out, nil
 }
 
-func WriteENIPPCAP(path string, packets [][]byte) error {
+func WriteENIPPCAP(path string, packets []ValidationPacket) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create pcap: %w", err)
@@ -753,7 +771,33 @@ func WriteENIPPCAP(path string, packets [][]byte) error {
 		return fmt.Errorf("write pcap header: %w", err)
 	}
 
-	for i, packet := range packets {
+	type flowState struct {
+		port      uint16
+		clientSeq uint32
+		serverSeq uint32
+	}
+	baseFlows := map[string]*flowState{}
+	nextPort := uint16(50000)
+	for _, packet := range packets {
+		baseID := strings.TrimSuffix(strings.TrimSuffix(packet.Expect.ID, "/request"), "/response")
+		flow, ok := baseFlows[baseID]
+		if !ok {
+			flow = &flowState{port: nextPort, clientSeq: 1, serverSeq: 1}
+			baseFlows[baseID] = flow
+			nextPort++
+		}
+		srcIP := []byte{192, 168, 100, 10}
+		dstIP := []byte{192, 168, 100, 20}
+		srcPort := flow.port
+		dstPort := uint16(44818)
+		seq := flow.clientSeq
+		ack := uint32(0)
+		if packet.Expect.Direction == "response" {
+			srcIP, dstIP = dstIP, srcIP
+			srcPort, dstPort = dstPort, srcPort
+			seq = flow.serverSeq
+			ack = flow.clientSeq
+		}
 		buffer := gopacket.NewSerializeBuffer()
 		opts := gopacket.SerializeOptions{
 			FixLengths:       true,
@@ -769,20 +813,27 @@ func WriteENIPPCAP(path string, packets [][]byte) error {
 			Version:  4,
 			TTL:      64,
 			Protocol: layers.IPProtocolTCP,
-			SrcIP:    []byte{192, 168, 100, 10},
-			DstIP:    []byte{192, 168, 100, 20},
+			SrcIP:    srcIP,
+			DstIP:    dstIP,
 		}
 		tcp := &layers.TCP{
-			SrcPort: layers.TCPPort(50000 + i),
-			DstPort: 44818,
+			SrcPort: layers.TCPPort(srcPort),
+			DstPort: layers.TCPPort(dstPort),
 			SYN:     false,
 			ACK:     true,
 			PSH:     true,
-			Seq:     uint32(1 + i),
+			Seq:     seq,
+			Ack:     ack,
 		}
 		tcp.SetNetworkLayerForChecksum(ip)
 
-		if err := gopacket.SerializeLayers(buffer, opts, ethernet, ip, tcp, gopacket.Payload(packet)); err != nil {
+		if packet.Expect.Direction == "response" {
+			flow.serverSeq += uint32(len(packet.Data))
+		} else {
+			flow.clientSeq += uint32(len(packet.Data))
+		}
+
+		if err := gopacket.SerializeLayers(buffer, opts, ethernet, ip, tcp, gopacket.Payload(packet.Data)); err != nil {
 			return fmt.Errorf("serialize packet: %w", err)
 		}
 		if err := writer.WritePacket(gopacket.CaptureInfo{
@@ -811,13 +862,11 @@ func GenerateValidationPCAPs(outputDir string) ([]string, error) {
 			return nil, err
 		}
 		path := filepath.Join(outputDir, fmt.Sprintf("validation_%s.pcap", spec.Name))
-		data := make([][]byte, 0, len(packets))
 		expectations := make([]PacketExpectation, 0, len(packets))
 		for _, pkt := range packets {
-			data = append(data, pkt.Data)
 			expectations = append(expectations, pkt.Expect)
 		}
-		if err := WriteENIPPCAP(path, data); err != nil {
+		if err := WriteENIPPCAP(path, packets); err != nil {
 			return nil, err
 		}
 		manifest := ValidationManifest{

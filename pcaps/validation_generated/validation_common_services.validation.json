@@ -7,6 +7,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -25,6 +26,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -43,6 +45,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -61,6 +64,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -79,6 +83,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "read",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -97,6 +102,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "read",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -115,6 +121,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -133,6 +140,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -151,6 +159,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -169,6 +178,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -187,6 +197,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -205,6 +216,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -223,6 +235,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -241,6 +254,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -259,6 +273,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -277,6 +292,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -295,6 +311,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -313,6 +330,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -331,6 +349,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -349,6 +368,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -367,6 +387,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -385,6 +406,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -403,6 +425,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -421,6 +444,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -439,6 +463,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -457,6 +482,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -475,6 +501,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -493,6 +520,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -511,6 +539,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -529,6 +558,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -547,6 +577,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -565,6 +596,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -583,6 +615,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -601,6 +634,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -619,6 +653,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -637,6 +672,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -655,6 +691,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -673,6 +710,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -691,6 +729,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -709,6 +748,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -727,6 +767,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -745,6 +786,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -763,6 +805,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -781,6 +824,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -799,6 +843,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -817,6 +862,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -835,6 +881,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -853,6 +900,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -871,6 +919,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "payload",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -889,6 +938,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -907,6 +957,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "write",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -925,6 +976,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "payload",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -943,6 +995,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "payload",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",

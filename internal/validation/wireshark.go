@@ -46,7 +46,25 @@ type ValidateResult struct {
 	Malformed      bool              // tshark expert says malformed
 	ExpertMessages []string          // tshark expert messages
 	SeverityMax    string            // max expert severity
+	Experts        []ExpertInfo       // parsed expert items
+	CPFItemCount   int               // CPF item count
+	CPFItems       []CPFItem         // CPF items
 	Internal       *InternalPacketInfo
+}
+
+// ExpertInfo captures a single tshark expert item.
+type ExpertInfo struct {
+	Message      string `json:"message"`
+	Severity     string `json:"severity"`
+	SeverityRank int    `json:"severity_rank"`
+	Layer        string `json:"layer,omitempty"`
+	Group        string `json:"group,omitempty"`
+}
+
+// CPFItem captures a CPF item entry.
+type CPFItem struct {
+	TypeID string `json:"type_id"`
+	Length int    `json:"length"`
 }
 
 // ValidatePacket validates a single ENIP packet using Wireshark
@@ -187,16 +205,18 @@ func buildValidateResult(packet map[string]interface{}) ValidateResult {
 		"cip.extended_status": {"cip.extended_status", "cip.ext_status"},
 	})
 
+	countStr := firstStringValue(flat["enip.cpf.itemcount"])
+	count := parseCPFInt(countStr)
+	result.CPFItemCount, result.CPFItems = extractCPFItems(layerData, count)
+	if result.CPFItemCount > 0 {
+		result.Fields["cpf.item_count"] = fmt.Sprintf("%d", result.CPFItemCount)
+	}
+
 	if val := firstFieldValue(flat, "tcp.port"); val != "" {
 		result.Fields["tcp.port"] = val
 	}
 	if val := firstFieldValue(flat, "udp.port"); val != "" {
 		result.Fields["udp.port"] = val
-	}
-	if _, ok := result.Fields["cpf.item_count"]; !ok {
-		if val := findFieldContaining(flat, []string{"cpf", "count"}); val != "" {
-			result.Fields["cpf.item_count"] = val
-		}
 	}
 	if _, ok := result.Fields["cip.path.symbol"]; !ok {
 		if val := findFieldContaining(flat, []string{"symbol"}); val != "" {
@@ -204,7 +224,7 @@ func buildValidateResult(packet map[string]interface{}) ValidateResult {
 		}
 	}
 
-	result.Malformed, result.ExpertMessages, result.SeverityMax = parseExpertMessages(layerData)
+	result.Malformed, result.ExpertMessages, result.SeverityMax, result.Experts = parseExpertMessages(layerData)
 	if result.Malformed {
 		result.Warnings = append(result.Warnings, "tshark reported malformed packet")
 	}
@@ -219,6 +239,11 @@ func attachInternalInfo(results []ValidateResult, internal []InternalPacketInfo)
 	}
 	for i := 0; i < limit; i++ {
 		results[i].Internal = &internal[i]
+		if len(results[i].CPFItems) == 0 && internal[i].CPFItemCount > 0 {
+			results[i].CPFItemCount = internal[i].CPFItemCount
+			results[i].CPFItems = append([]CPFItem(nil), internal[i].CPFItems...)
+			results[i].Fields["cpf.item_count"] = fmt.Sprintf("%d", results[i].CPFItemCount)
+		}
 	}
 }
 
@@ -309,17 +334,43 @@ func firstStringValue(val interface{}) string {
 	return ""
 }
 
-func parseExpertMessages(layerData map[string]interface{}) (bool, []string, string) {
+func parseExpertMessages(layerData map[string]interface{}) (bool, []string, string, []ExpertInfo) {
 	messages := []string{}
 	maxSeverity := ""
 	malformed := false
 	severityRank := map[string]int{"error": 3, "warning": 2, "note": 1}
 	maxRank := 0
+	experts := []ExpertInfo{}
 
 	var walk func(key string, val interface{})
 	walk = func(key string, val interface{}) {
 		switch v := val.(type) {
 		case map[string]interface{}:
+			if msg, ok := v["_ws.expert.message"]; ok {
+				message := firstStringValue(msg)
+				sevRaw := firstStringValue(v["_ws.expert.severity"])
+				group := firstStringValue(v["_ws.expert.group"])
+				layer := inferExpertLayer(v)
+				sevName, sevRank := normalizeSeverity(sevRaw, severityRank)
+				if message != "" {
+					experts = append(experts, ExpertInfo{
+						Message:      message,
+						Severity:     sevName,
+						SeverityRank: sevRank,
+						Layer:        layer,
+						Group:        group,
+					})
+					messages = append(messages, message)
+					if sevRank > maxRank {
+						maxRank = sevRank
+						maxSeverity = sevName
+					}
+					lowerVal := strings.ToLower(message)
+					if strings.Contains(lowerVal, "malformed") || strings.Contains(lowerVal, "invalid") {
+						malformed = true
+					}
+				}
+			}
 			for k, child := range v {
 				walk(k, child)
 			}
@@ -344,17 +395,10 @@ func parseExpertMessages(layerData map[string]interface{}) (bool, []string, stri
 					messages = append(messages, str)
 				}
 				if strings.Contains(lowerKey, "severity") {
-					sev := strings.ToLower(str)
-					if rank, ok := severityRank[sev]; ok && rank > maxRank {
+					sevName, rank := normalizeSeverity(str, severityRank)
+					if rank > maxRank {
 						maxRank = rank
-						maxSeverity = sev
-					}
-					if valNum, err := parseSeverityNumber(sev); err == nil {
-						sevName, rank := severityNameFromNumber(valNum)
-						if rank > maxRank {
-							maxRank = rank
-							maxSeverity = sevName
-						}
+						maxSeverity = sevName
 					}
 				}
 				if strings.Contains(lowerVal, "malformed") || strings.Contains(lowerVal, "invalid") {
@@ -372,7 +416,7 @@ func parseExpertMessages(layerData map[string]interface{}) (bool, []string, stri
 		// Keep severity for reporting, but don't force malformed unless message text indicates it.
 	}
 
-	return malformed, messages, maxSeverity
+	return malformed, messages, maxSeverity, experts
 }
 
 func parseSeverityNumber(value string) (int, error) {
@@ -397,8 +441,160 @@ func severityNameFromNumber(val int) (string, int) {
 	case val >= 0x200000:
 		return "note", 1
 	default:
-		return "", 0
+		return "chat", 0
 	}
+}
+
+func normalizeSeverity(raw string, severityRank map[string]int) (string, int) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "chat", 0
+	}
+	lower := strings.ToLower(raw)
+	if rank, ok := severityRank[lower]; ok {
+		return lower, rank
+	}
+	if valNum, err := parseSeverityNumber(raw); err == nil {
+		return severityNameFromNumber(valNum)
+	}
+	return "chat", 0
+}
+
+func inferExpertLayer(expert map[string]interface{}) string {
+	for key := range expert {
+		lower := strings.ToLower(key)
+		if strings.Contains(lower, "tcp") {
+			return "tcp"
+		}
+		if strings.Contains(lower, "enip") {
+			return "enip"
+		}
+		if strings.Contains(lower, "cip") {
+			return "cip"
+		}
+	}
+	return "unknown"
+}
+
+func extractCPFItems(layerData map[string]interface{}, count int) (int, []CPFItem) {
+	enipLayer := layerMap(layerData, "enip")
+	if enipLayer == nil {
+		return 0, nil
+	}
+	items := extractCPFItemEntries(enipLayer["enip.cpf.itemcount_tree"])
+	if len(items) == 0 {
+		typeID := firstStringValue(enipLayer["enip.cpf.typeid"])
+		length := parseCPFInt(firstStringValue(enipLayer["enip.cpf.length"]))
+		if typeID != "" || length > 0 {
+			items = append(items, CPFItem{TypeID: typeID, Length: length})
+		}
+	}
+	if count == 0 && len(items) > 0 {
+		count = len(items)
+	}
+	return count, items
+}
+
+func extractCPFItemEntries(val interface{}) []CPFItem {
+	items := []CPFItem{}
+	var walk func(v interface{})
+	walk = func(v interface{}) {
+		switch t := v.(type) {
+		case []interface{}:
+			for _, child := range t {
+				walk(child)
+			}
+		case map[string]interface{}:
+			typeID := firstStringValue(t["enip.cpf.typeid"])
+			length := parseCPFInt(firstStringValue(t["enip.cpf.length"]))
+			if typeID != "" || length > 0 {
+				items = append(items, CPFItem{TypeID: typeID, Length: length})
+			}
+			for _, child := range t {
+				walk(child)
+			}
+		}
+	}
+	walk(val)
+	return items
+}
+
+func layerMap(layers map[string]interface{}, key string) map[string]interface{} {
+	val, ok := layers[key]
+	if !ok {
+		return nil
+	}
+	if m, ok := val.(map[string]interface{}); ok {
+		return m
+	}
+	if arr, ok := val.([]interface{}); ok {
+		for _, item := range arr {
+			if m, ok := item.(map[string]interface{}); ok {
+				return m
+			}
+		}
+	}
+	return nil
+}
+
+func extractStringList(val interface{}) []string {
+	switch v := val.(type) {
+	case []interface{}:
+		out := []string{}
+		for _, item := range v {
+			if s := firstStringValue(item); s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		if s := firstStringValue(val); s != "" {
+			return []string{s}
+		}
+	}
+	return nil
+}
+
+func extractLengthList(val interface{}) []int {
+	switch v := val.(type) {
+	case []interface{}:
+		out := []int{}
+		for _, item := range v {
+			out = append(out, extractLengthList(item)...)
+		}
+		return out
+	case map[string]interface{}:
+		lengths := []int{}
+		if l := parseCPFInt(firstStringValue(v["enip.cpf.length"])); l >= 0 {
+			lengths = append(lengths, l)
+		}
+		if nested, ok := v["enip.cpf.typeid_tree"]; ok {
+			lengths = append(lengths, extractLengthList(nested)...)
+		}
+		return lengths
+	default:
+		if l := parseCPFInt(firstStringValue(val)); l >= 0 {
+			return []int{l}
+		}
+	}
+	return nil
+}
+
+func parseCPFInt(val string) int {
+	val = strings.TrimSpace(val)
+	if val == "" {
+		return 0
+	}
+	if strings.HasPrefix(val, "0x") {
+		num, err := strconv.ParseInt(val[2:], 16, 64)
+		if err == nil {
+			return int(num)
+		}
+	}
+	if num, err := strconv.Atoi(val); err == nil {
+		return num
+	}
+	return 0
 }
 
 func flattenLayerFields(layerData map[string]interface{}) map[string]interface{} {

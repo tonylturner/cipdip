@@ -35,6 +35,7 @@ type PacketExpectation struct {
 	Direction     string   `json:"direction"`
 	PacketType    string   `json:"packet_type"`
 	ServiceShape  string   `json:"service_shape"`
+	TrafficMode   string   `json:"traffic_mode"`
 	ExpectLayers  []string `json:"expect_layers,omitempty"`
 	ExpectENIP    bool     `json:"expect_enip,omitempty"`
 	ExpectCPF     bool     `json:"expect_cpf,omitempty"`
@@ -63,6 +64,32 @@ type PacketEvaluation struct {
 	Expected    PacketExpectation `json:"expected"`
 	Pass        bool             `json:"pass"`
 	Scenarios   []ScenarioResult `json:"scenarios"`
+	Experts     []ExpertInfo     `json:"tshark_experts,omitempty"`
+	Pairing     *PairingResult   `json:"pairing,omitempty"`
+	ExpertSummary ExpertSummary  `json:"expert_summary"`
+	PassCategory  string         `json:"pass_category"`
+}
+
+// PairingResult captures request/response pairing checks.
+type PairingResult struct {
+	BaseID         string `json:"base_id"`
+	RequestIndex   int    `json:"request_index"`
+	ResponseIndex  int    `json:"response_index"`
+	Required       bool   `json:"required"`
+	Pass           bool   `json:"pass"`
+	Reason         string `json:"reason,omitempty"`
+	OrderOK        bool   `json:"order_ok,omitempty"`
+	SessionMatch   bool   `json:"session_match,omitempty"`
+	TupleMatch     bool   `json:"tuple_match,omitempty"`
+	ServiceMatch   bool   `json:"service_match,omitempty"`
+	StatusPresent  bool   `json:"status_present,omitempty"`
+}
+
+// ExpertSummary captures expert classification counts.
+type ExpertSummary struct {
+	ExpectedCount  int `json:"expected_expert_count"`
+	UnexpectedCount int `json:"unexpected_expert_count"`
+	TransportCount int `json:"transport_expert_count"`
 }
 
 // ValidationManifestPath returns the sidecar manifest path for a PCAP.
@@ -101,10 +128,15 @@ func LoadValidationManifest(path string) (*ValidationManifest, error) {
 }
 
 // EvaluatePacket runs validation scenarios against tshark results.
-func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePolicy string) PacketEvaluation {
+func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePolicy, expertPolicy, conversationMode string, pairing *PairingResult) PacketEvaluation {
 	eval := PacketEvaluation{
 		Expected:  expect,
 		Scenarios: make([]ScenarioResult, 0, 8),
+		Experts:   append([]ExpertInfo(nil), result.Experts...),
+		Pairing:   pairing,
+	}
+	if strings.TrimSpace(eval.Expected.TrafficMode) == "" {
+		eval.Expected.TrafficMode = "client_only"
 	}
 
 	layersOk := true
@@ -127,19 +159,16 @@ func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePol
 		eval.Scenarios = append(eval.Scenarios, ScenarioResult{Name: "enip", Pass: pass})
 	}
 	if expect.ExpectCPF {
-		pass := fieldPresent(result.Fields, "cpf.item_count")
-		eval.Scenarios = append(eval.Scenarios, ScenarioResult{Name: "cpf", Pass: pass})
+		pass, details := evaluateCPF(expect, result)
+		eval.Scenarios = append(eval.Scenarios, ScenarioResult{Name: "cpf", Pass: pass, Details: details})
 	}
 	if expect.ExpectCIP {
 		pass := fieldPresent(result.Fields, "cip.service")
 		eval.Scenarios = append(eval.Scenarios, ScenarioResult{Name: "cip", Pass: pass})
 	}
 	if expect.ExpectCIPPath {
-		pass := fieldPresent(result.Fields, "cip.path.class") || fieldPresent(result.Fields, "cip.class")
-		if !pass {
-			pass = internalCIPPathPresent(result)
-		}
-		eval.Scenarios = append(eval.Scenarios, ScenarioResult{Name: "cip_path", Pass: pass})
+		pass, details := evaluateCIPPath(expect, result)
+		eval.Scenarios = append(eval.Scenarios, ScenarioResult{Name: "cip_path", Pass: pass, Details: details})
 	}
 	if expect.ExpectSymbol {
 		pass := fieldPresent(result.Fields, "cip.path.symbol")
@@ -156,8 +185,35 @@ func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePol
 	}
 
 	eval.Scenarios = append(eval.Scenarios, evaluateMalformed(expect, result, negativePolicy, layersOk))
+	expertScenario, expertTriggered, summary := evaluateExperts(expect, result, expertPolicy, conversationMode, pairing)
+	eval.ExpertSummary = summary
+	eval.Scenarios = append(eval.Scenarios, expertScenario)
+	pairScenario, pairTriggered := evaluatePairing(expect, pairing)
+	if pairScenario.Name != "" {
+		eval.Scenarios = append(eval.Scenarios, pairScenario)
+	}
 	if expect.Direction == "request" && expect.ServiceShape != "" && expect.ServiceShape != ServiceShapeNone {
 		eval.Scenarios = append(eval.Scenarios, evaluateServiceShape(expect, result))
+	}
+
+	expectInvalid := strings.EqualFold(expect.Outcome, "invalid")
+	if expectInvalid {
+		observedFailure := false
+		for _, scenario := range eval.Scenarios {
+			if scenario.Name == "malformed" && scenario.Pass {
+				observedFailure = true
+			}
+		}
+		if expertTriggered || pairTriggered {
+			observedFailure = true
+		}
+		eval.Pass = observedFailure
+		if eval.Pass {
+			eval.PassCategory = "expected_invalid_passed"
+		} else {
+			eval.PassCategory = "fail"
+		}
+		return eval
 	}
 
 	eval.Pass = true
@@ -167,6 +223,7 @@ func EvaluatePacket(expect PacketExpectation, result ValidateResult, negativePol
 			break
 		}
 	}
+	eval.PassCategory = categorizePass(eval)
 	return eval
 }
 
@@ -288,6 +345,136 @@ func evaluateMalformed(expect PacketExpectation, result ValidateResult, policy s
 	default:
 		return ScenarioResult{Name: "malformed", Pass: result.Malformed || expertError}
 	}
+}
+
+func evaluateExperts(expect PacketExpectation, result ValidateResult, expertPolicy, conversationMode string, pairing *PairingResult) (ScenarioResult, bool, ExpertSummary) {
+	if strings.EqualFold(expertPolicy, "off") {
+		return ScenarioResult{Name: "experts", Pass: true, Details: "policy=off"}, false, ExpertSummary{}
+	}
+	if len(result.Experts) == 0 {
+		return ScenarioResult{Name: "experts", Pass: true, Details: "experts=0"}, false, ExpertSummary{}
+	}
+
+	expectResponse := pairing != nil && pairing.Required
+	failures := []string{}
+	triggered := false
+	summary := ExpertSummary{}
+
+	for _, expert := range result.Experts {
+		msgLower := strings.ToLower(expert.Message)
+		isTCP := expert.Layer == "tcp"
+		isCIP := expert.Layer == "cip" || expert.Layer == "enip"
+		isTransport := isTCP
+
+		if strings.Contains(msgLower, "cip request without a response") {
+			if strings.EqualFold(expect.TrafficMode, "client_only") {
+				summary.ExpectedCount++
+				continue
+			}
+			if expectResponse && (pairing == nil || !pairing.Pass) {
+				failures = append(failures, "cip_request_without_response")
+				triggered = true
+				summary.UnexpectedCount++
+			}
+			continue
+		}
+
+		if expert.SeverityRank < 2 {
+			if isTransport {
+				summary.TransportCount++
+			}
+			continue
+		}
+
+		switch strings.ToLower(expertPolicy) {
+		case "strict":
+			if isTCP && strings.EqualFold(conversationMode, "off") {
+				continue
+			}
+			failures = append(failures, fmt.Sprintf("%s:%s", expert.Layer, expert.Severity))
+			triggered = true
+			summary.UnexpectedCount++
+		default:
+			if isCIP {
+				failures = append(failures, fmt.Sprintf("%s:%s", expert.Layer, expert.Severity))
+				triggered = true
+				summary.UnexpectedCount++
+			} else if isTCP && strings.EqualFold(conversationMode, "strict") {
+				failures = append(failures, fmt.Sprintf("%s:%s", expert.Layer, expert.Severity))
+				triggered = true
+				summary.UnexpectedCount++
+			} else if isTransport {
+				summary.TransportCount++
+			}
+		}
+	}
+
+	if triggered {
+		return ScenarioResult{Name: "experts", Pass: false, Details: "policy=" + expertPolicy + " failures=" + strings.Join(failures, ",")}, true, summary
+	}
+	return ScenarioResult{Name: "experts", Pass: true, Details: "policy=" + expertPolicy}, false, summary
+}
+
+func evaluatePairing(expect PacketExpectation, pairing *PairingResult) (ScenarioResult, bool) {
+	if strings.EqualFold(expect.TrafficMode, "client_only") {
+		return ScenarioResult{}, false
+	}
+	if pairing == nil || !pairing.Required {
+		return ScenarioResult{}, false
+	}
+	if pairing.Pass {
+		return ScenarioResult{Name: "pairing", Pass: true}, false
+	}
+	return ScenarioResult{Name: "pairing", Pass: false, Details: pairing.Reason}, true
+}
+
+func evaluateCPF(expect PacketExpectation, result ValidateResult) (bool, string) {
+	if result.CPFItemCount == 0 {
+		return false, "missing item_count"
+	}
+	if result.CPFItemCount < 1 || result.CPFItemCount > 8 {
+		return false, fmt.Sprintf("implausible item_count=%d", result.CPFItemCount)
+	}
+	if len(result.CPFItems) != result.CPFItemCount {
+		return false, fmt.Sprintf("item_count=%d items=%d", result.CPFItemCount, len(result.CPFItems))
+	}
+	for _, item := range result.CPFItems {
+		if item.TypeID == "" {
+			return false, "missing item type"
+		}
+		if item.Length < 0 {
+			return false, "negative item length"
+		}
+	}
+	return true, fmt.Sprintf("item_count=%d", result.CPFItemCount)
+}
+
+func evaluateCIPPath(expect PacketExpectation, result ValidateResult) (bool, string) {
+	tsharkPath := strings.TrimSpace(result.Fields["cip.path.class"]) != "" ||
+		strings.TrimSpace(result.Fields["cip.path.instance"]) != "" ||
+		strings.TrimSpace(result.Fields["cip.path.attribute"]) != "" ||
+		strings.TrimSpace(result.Fields["cip.path.symbol"]) != ""
+	internalPath := internalCIPPathPresent(result)
+	if tsharkPath || internalPath {
+		return true, fmt.Sprintf("tshark=%t internal=%t", tsharkPath, internalPath)
+	}
+	return false, "missing path"
+}
+
+func categorizePass(eval PacketEvaluation) string {
+	if !eval.Pass {
+		return "fail"
+	}
+	if eval.ExpertSummary.UnexpectedCount == 0 && eval.ExpertSummary.ExpectedCount == 0 && eval.ExpertSummary.TransportCount == 0 {
+		return "pass_clean"
+	}
+	if eval.ExpertSummary.UnexpectedCount == 0 && eval.ExpertSummary.ExpectedCount > 0 {
+		return "pass_with_expected_experts"
+	}
+	if eval.ExpertSummary.UnexpectedCount == 0 && eval.ExpertSummary.TransportCount > 0 {
+		return "pass_with_transport_warnings"
+	}
+	return "pass_with_warnings"
 }
 
 func missingLayers(expected, actual []string) []string {

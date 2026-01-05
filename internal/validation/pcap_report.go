@@ -8,6 +8,8 @@ type ValidationReport struct {
 	CIPDIPDate    string        `json:"cipdip_date"`
 	TsharkPath    string        `json:"tshark_path,omitempty"`
 	TsharkVersion string        `json:"tshark_version,omitempty"`
+	ExpertPolicy  string        `json:"expert_policy,omitempty"`
+	ConversationMode string     `json:"conversation_mode,omitempty"`
 	PCAPs         []PCAPReport   `json:"pcaps"`
 }
 

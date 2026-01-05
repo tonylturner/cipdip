@@ -7,6 +7,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "rockwell_tag",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -25,6 +26,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "rockwell_tag",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -43,6 +45,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "rockwell_tag",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -61,6 +64,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "rockwell_tag",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -79,6 +83,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "rockwell_tag_fragmented",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -97,6 +102,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "rockwell_tag_fragmented",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -115,6 +121,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "rockwell_tag_fragmented",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -133,6 +140,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "rockwell_tag_fragmented",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -151,6 +159,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "rockwell_pccc",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -165,10 +174,11 @@
     },
     {
       "id": "execute_pccc/response",
-      "outcome": "valid",
+      "outcome": "invalid",
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "rockwell_pccc",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -187,6 +197,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "rockwell_template",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -205,6 +216,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "rockwell_template",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",

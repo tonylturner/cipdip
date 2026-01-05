@@ -7,6 +7,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -21,10 +22,11 @@
     },
     {
       "id": "file_initiate_upload/response",
-      "outcome": "valid",
+      "outcome": "invalid",
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -43,6 +45,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -57,10 +60,11 @@
     },
     {
       "id": "file_initiate_download/response",
-      "outcome": "valid",
+      "outcome": "invalid",
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -79,6 +83,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -97,6 +102,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -115,6 +121,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -133,6 +140,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -151,6 +159,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -165,10 +174,11 @@
     },
     {
       "id": "file_upload_transfer/response",
-      "outcome": "valid",
+      "outcome": "invalid",
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -187,6 +197,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -205,6 +216,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "file_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -223,6 +235,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -241,6 +254,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "none",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -259,6 +273,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "modbus_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -277,6 +292,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "modbus_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -295,6 +311,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "modbus_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -309,10 +326,11 @@
     },
     {
       "id": "modbus_write_holding_registers/response",
-      "outcome": "valid",
+      "outcome": "invalid",
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "modbus_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -331,6 +349,7 @@
       "direction": "request",
       "packet_type": "explicit_request",
       "service_shape": "modbus_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
@@ -349,6 +368,7 @@
       "direction": "response",
       "packet_type": "explicit_response",
       "service_shape": "modbus_object",
+      "traffic_mode": "client_only",
       "expect_layers": [
         "eth",
         "ip",
