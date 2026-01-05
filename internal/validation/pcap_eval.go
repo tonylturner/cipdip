@@ -3,6 +3,7 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"path/filepath"
 	"strings"
@@ -326,7 +327,7 @@ func evaluateServiceShape(expect PacketExpectation, result ValidateResult) Scena
 		case ServiceShapeForwardOpen:
 			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 17, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
 		case ServiceShapeRockwellTag, ServiceShapeRead:
-			if baseService == protocol.CIPServiceWriteTag || baseService == protocol.CIPServiceWriteTagFragmented {
+			if baseService == spec.CIPServiceWriteTag || baseService == spec.CIPServiceWriteTagFragmented {
 				return ScenarioResult{Name: "service_data", Pass: payloadLen == 0, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
 			}
 			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 2, Details: fmt.Sprintf("payload_len=%d", payloadLen)}

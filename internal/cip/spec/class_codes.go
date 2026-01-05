@@ -1,6 +1,6 @@
-package cipclient
+package spec
 
-// CIP class codes (subset for reference coverage).
+// CIP class codes (authoritative registry).
 const (
 	CIPClassIdentityObject               uint16 = 0x01
 	CIPClassMessageRouter                uint16 = 0x02
@@ -42,10 +42,6 @@ const (
 	CIPClassSGasCalibration              uint16 = 0x34
 	CIPClassTripPoint                    uint16 = 0x35
 	CIPClassFileObject                   uint16 = 0x37
-	CIPClassEnergyBase                   uint16 = 0x4E
-	CIPClassEnergyElectrical             uint16 = 0x4F
-	CIPClassEnergyNonElectrical          uint16 = 0x50
-	CIPClassEnergyPowerManagement        uint16 = 0x53
 	CIPClassSPartialPressure             uint16 = 0x38
 	CIPClassSafetySupervisor             uint16 = 0x39
 	CIPClassSafetyValidator              uint16 = 0x3A
@@ -60,10 +56,14 @@ const (
 	CIPClassTimeSync                     uint16 = 0x43
 	CIPClassModbus                       uint16 = 0x44
 	CIPClassModbusSerialLink             uint16 = 0x46
-	CIPClassSymbolObject                 uint16 = 0x6B
-	CIPClassTemplateObject               uint16 = 0x6C
+	CIPClassEnergyBase                   uint16 = 0x4E
+	CIPClassEnergyElectrical             uint16 = 0x4F
+	CIPClassEnergyNonElectrical          uint16 = 0x50
+	CIPClassEnergyPowerManagement        uint16 = 0x53
 	CIPClassProgramName                  uint16 = 0x64
 	CIPClassPCCCObject                   uint16 = 0x67
+	CIPClassSymbolObject                 uint16 = 0x6B
+	CIPClassTemplateObject               uint16 = 0x6C
 	CIPClassWallClockTime                uint16 = 0x8B
 	CIPClassControlNet                   uint16 = 0xF0
 	CIPClassControlNetKeeper             uint16 = 0xF1

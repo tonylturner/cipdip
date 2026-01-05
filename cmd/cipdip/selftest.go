@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"time"
 
@@ -76,7 +77,7 @@ func runSelfTest(flags *selfTestFlags) error {
 		cfg.AdapterAssemblies = []config.AdapterAssemblyConfig{
 			{
 				Name:          "TestAssembly",
-				Class:         cipclient.CIPClassAssembly,
+				Class:         spec.CIPClassAssembly,
 				Instance:      0x65,
 				Attribute:     0x03,
 				SizeBytes:     4,
@@ -129,7 +130,7 @@ func runSelfTest(flags *selfTestFlags) error {
 	validator := cipclient.NewPacketValidator(true)
 	if flags.personality == "adapter" {
 		path := protocol.CIPPath{
-			Class:     cipclient.CIPClassAssembly,
+			Class:     spec.CIPClassAssembly,
 			Instance:  0x65,
 			Attribute: 0x03,
 		}
@@ -137,7 +138,7 @@ func runSelfTest(flags *selfTestFlags) error {
 		if err != nil {
 			return fmt.Errorf("read attribute: %w", err)
 		}
-		if err := validator.ValidateCIPResponse(readResp, protocol.CIPServiceGetAttributeSingle); err != nil {
+		if err := validator.ValidateCIPResponse(readResp, spec.CIPServiceGetAttributeSingle); err != nil {
 			return fmt.Errorf("validate read response: %w", err)
 		}
 
@@ -145,15 +146,15 @@ func runSelfTest(flags *selfTestFlags) error {
 		if err != nil {
 			return fmt.Errorf("write attribute: %w", err)
 		}
-		if err := validator.ValidateCIPResponse(writeResp, protocol.CIPServiceSetAttributeSingle); err != nil {
+		if err := validator.ValidateCIPResponse(writeResp, spec.CIPServiceSetAttributeSingle); err != nil {
 			return fmt.Errorf("validate write response: %w", err)
 		}
 	}
 
 	embeddedReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
-			Class:     cipclient.CIPClassIdentityObject,
+			Class:     spec.CIPClassIdentityObject,
 			Instance:  0x01,
 			Attribute: 0x01,
 		},
@@ -162,10 +163,10 @@ func runSelfTest(flags *selfTestFlags) error {
 	if err != nil {
 		return fmt.Errorf("invoke unconnected send: %w", err)
 	}
-	if err := validator.ValidateCIPResponse(ucmmResp, protocol.CIPServiceUnconnectedSend); err != nil {
+	if err := validator.ValidateCIPResponse(ucmmResp, spec.CIPServiceUnconnectedSend); err != nil {
 		return fmt.Errorf("validate unconnected send response: %w", err)
 	}
-	if err := validator.ValidateCIPResponse(embeddedResp, protocol.CIPServiceGetAttributeSingle); err != nil {
+	if err := validator.ValidateCIPResponse(embeddedResp, spec.CIPServiceGetAttributeSingle); err != nil {
 		return fmt.Errorf("validate embedded response: %w", err)
 	}
 
@@ -177,7 +178,7 @@ func runSelfTest(flags *selfTestFlags) error {
 		OToTSizeBytes:         8,
 		TToOSizeBytes:         8,
 		TransportClassTrigger: 3,
-		Class:                 cipclient.CIPClassAssembly,
+		Class:                 spec.CIPClassAssembly,
 		Instance:              0x65,
 	})
 	if err != nil {

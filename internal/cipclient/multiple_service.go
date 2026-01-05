@@ -2,6 +2,7 @@ package cipclient
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -17,9 +18,9 @@ func BuildMultipleServiceRequest(requests []protocol.CIPRequest) (protocol.CIPRe
 		return protocol.CIPRequest{}, err
 	}
 	return protocol.CIPRequest{
-		Service: protocol.CIPServiceMultipleService,
+		Service: spec.CIPServiceMultipleService,
 		Path: protocol.CIPPath{
-			Class:    CIPClassMessageRouter,
+			Class:    spec.CIPClassMessageRouter,
 			Instance: 0x0001,
 		},
 		Payload: payload,

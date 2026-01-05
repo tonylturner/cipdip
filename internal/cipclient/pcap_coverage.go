@@ -2,9 +2,10 @@ package cipclient
 
 import (
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"sort"
 
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -85,7 +86,7 @@ func BuildPCAPCoverageReport(packets []ENIPPacket) *PCAPCoverageReport {
 			}
 		}
 
-		if baseService == 0x52 && msgInfo.PathInfo.Path.Class == connectionManagerClass && msgInfo.PathInfo.Path.Instance == connectionManagerInst {
+		if baseService == 0x52 && msgInfo.PathInfo.Path.Class == spec.CIPClassConnectionManager && msgInfo.PathInfo.Path.Instance == 0x0001 {
 			embedded := extractEmbeddedCIP(msgInfo, cipData)
 			if len(embedded) > 0 {
 				embeddedInfo, err := protocol.ParseCIPMessage(embedded)

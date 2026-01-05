@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
@@ -42,17 +43,17 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 	defer client.Disconnect(ctx)
 
 	allowedServices := map[uint8]bool{
-		uint8(protocol.CIPServiceExecutePCCC):          true,
-		uint8(protocol.CIPServiceReadTag):              true,
-		uint8(protocol.CIPServiceWriteTag):             true,
-		uint8(protocol.CIPServiceReadModifyWrite):      true,
-		uint8(protocol.CIPServiceReadTagFragmented):    true,
-		uint8(protocol.CIPServiceWriteTagFragmented):   true,
-		uint8(protocol.CIPServiceGetInstanceAttrList):  true,
-		uint8(protocol.CIPServiceGetConnectionData):    true,
-		uint8(protocol.CIPServiceSearchConnectionData): true,
-		uint8(protocol.CIPServiceGetConnectionOwner):   true,
-		uint8(protocol.CIPServiceLargeForwardOpen):     true,
+		uint8(spec.CIPServiceExecutePCCC):          true,
+		uint8(spec.CIPServiceReadTag):              true,
+		uint8(spec.CIPServiceWriteTag):             true,
+		uint8(spec.CIPServiceReadModifyWrite):      true,
+		uint8(spec.CIPServiceReadTagFragmented):    true,
+		uint8(spec.CIPServiceWriteTagFragmented):   true,
+		uint8(spec.CIPServiceGetInstanceAttrList):  true,
+		uint8(spec.CIPServiceGetConnectionData):    true,
+		uint8(spec.CIPServiceSearchConnectionData): true,
+		uint8(spec.CIPServiceGetConnectionOwner):   true,
+		uint8(spec.CIPServiceLargeForwardOpen):     true,
 	}
 
 	filtered := make([]config.EdgeTarget, 0, len(cfg.EdgeTargets))

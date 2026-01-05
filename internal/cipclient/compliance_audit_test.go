@@ -19,6 +19,7 @@ package cipclient
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 	"testing"
 )
@@ -586,7 +587,7 @@ func TestCIPResponseStructureODVA(t *testing.T) {
 	profile := CurrentProtocolProfile()
 	// Test success response
 	successResp := protocol.CIPResponse{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Status:  0x00, // Success
 		Payload: []byte{0x01, 0x02, 0x03, 0x04},
 	}
@@ -597,9 +598,9 @@ func TestCIPResponseStructureODVA(t *testing.T) {
 	}
 
 	// ODVA requirement: Service code must be first byte
-	if data[0] != uint8(protocol.CIPServiceGetAttributeSingle) {
+	if data[0] != uint8(spec.CIPServiceGetAttributeSingle) {
 		t.Errorf("ODVA violation: Service code must be first byte, got 0x%02X, want 0x%02X",
-			data[0], uint8(protocol.CIPServiceGetAttributeSingle))
+			data[0], uint8(spec.CIPServiceGetAttributeSingle))
 	}
 
 	offset := 1
@@ -864,22 +865,22 @@ func TestCIPServiceCodeValuesODVA(t *testing.T) {
 	}
 
 	ourServiceCodes := map[protocol.CIPServiceCode]string{
-		protocol.CIPServiceGetAttributeAll:    "Get_Attribute_All",
-		protocol.CIPServiceSetAttributeAll:    "Set_Attribute_All",
-		protocol.CIPServiceGetAttributeList:   "Get_Attribute_List",
-		protocol.CIPServiceSetAttributeList:   "Set_Attribute_List",
-		protocol.CIPServiceReset:              "Reset",
-		protocol.CIPServiceStart:              "Start",
-		protocol.CIPServiceStop:               "Stop",
-		protocol.CIPServiceCreate:             "Create",
-		protocol.CIPServiceDelete:             "Delete",
-		protocol.CIPServiceMultipleService:    "Multiple_Service",
-		protocol.CIPServiceApplyAttributes:    "Apply_Attributes",
-		protocol.CIPServiceGetAttributeSingle: "Get_Attribute_Single",
-		protocol.CIPServiceSetAttributeSingle: "Set_Attribute_Single",
-		protocol.CIPServiceFindNextObjectInst: "Find_Next_Object_Instance",
-		protocol.CIPServiceForwardOpen:        "Forward_Open",
-		protocol.CIPServiceForwardClose:       "Forward_Close",
+		spec.CIPServiceGetAttributeAll:    "Get_Attribute_All",
+		spec.CIPServiceSetAttributeAll:    "Set_Attribute_All",
+		spec.CIPServiceGetAttributeList:   "Get_Attribute_List",
+		spec.CIPServiceSetAttributeList:   "Set_Attribute_List",
+		spec.CIPServiceReset:              "Reset",
+		spec.CIPServiceStart:              "Start",
+		spec.CIPServiceStop:               "Stop",
+		spec.CIPServiceCreate:             "Create",
+		spec.CIPServiceDelete:             "Delete",
+		spec.CIPServiceMultipleService:    "Multiple_Service",
+		spec.CIPServiceApplyAttributes:    "Apply_Attributes",
+		spec.CIPServiceGetAttributeSingle: "Get_Attribute_Single",
+		spec.CIPServiceSetAttributeSingle: "Set_Attribute_Single",
+		spec.CIPServiceFindNextObjectInst: "Find_Next_Object_Instance",
+		spec.CIPServiceForwardOpen:        "Forward_Open",
+		spec.CIPServiceForwardClose:       "Forward_Close",
 	}
 
 	for code, name := range ourServiceCodes {

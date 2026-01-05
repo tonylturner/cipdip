@@ -1,10 +1,12 @@
 package cipclient
 
 import (
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/enip"
 	"strings"
 	"testing"
+
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 func TestReferencePacketsServicePathRegression(t *testing.T) {
@@ -43,7 +45,7 @@ func TestReferencePacketsServicePathRegression(t *testing.T) {
 			t.Fatalf("%s: decode CIP request: %v", key, err)
 		}
 
-		label, known := labelCIPService(uint8(req.Service), req.Path, false)
+		label, known := spec.LabelService(uint8(req.Service), req.Path, false)
 		if !known {
 			t.Fatalf("%s: unsupported service/path label=%s", key, label)
 		}

@@ -3,6 +3,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 	"time"
 
@@ -233,7 +234,7 @@ func TestBaselineScenarioCIPErrorStatus(t *testing.T) {
 		Attribute: cfg.ReadTargets[0].Attribute,
 	}
 	client.SetReadResponse(path, protocol.CIPResponse{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Status:  0x01, // General error
 		Path:    path,
 	})

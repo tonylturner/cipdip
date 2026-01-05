@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -26,9 +27,9 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 	}
 
 	embeddedReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
-			Class:     cipclient.CIPClassIdentityObject,
+			Class:     spec.CIPClassIdentityObject,
 			Instance:  0x0001,
 			Attribute: 0x0001,
 		},
@@ -43,9 +44,9 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceUnconnectedSend,
+		Service: spec.CIPServiceUnconnectedSend,
 		Path: protocol.CIPPath{
-			Class:    cipclient.CIPClassConnectionManager,
+			Class:    spec.CIPClassConnectionManager,
 			Instance: 0x0001,
 		},
 		Payload: payload,
@@ -102,9 +103,9 @@ func TestHandleUnconnectedSendInvalidPayload(t *testing.T) {
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceUnconnectedSend,
+		Service: spec.CIPServiceUnconnectedSend,
 		Path: protocol.CIPPath{
-			Class:    cipclient.CIPClassConnectionManager,
+			Class:    spec.CIPClassConnectionManager,
 			Instance: 0x0001,
 		},
 		Payload: []byte{0x01},
@@ -147,17 +148,17 @@ func TestHandleMultipleService(t *testing.T) {
 
 	reqs := []protocol.CIPRequest{
 		{
-			Service: protocol.CIPServiceGetAttributeSingle,
+			Service: spec.CIPServiceGetAttributeSingle,
 			Path: protocol.CIPPath{
-				Class:     cipclient.CIPClassIdentityObject,
+				Class:     spec.CIPClassIdentityObject,
 				Instance:  0x0001,
 				Attribute: 0x0001,
 			},
 		},
 		{
-			Service: protocol.CIPServiceGetAttributeSingle,
+			Service: spec.CIPServiceGetAttributeSingle,
 			Path: protocol.CIPPath{
-				Class:     cipclient.CIPClassIdentityObject,
+				Class:     spec.CIPClassIdentityObject,
 				Instance:  0x0001,
 				Attribute: 0x0002,
 			},
@@ -170,9 +171,9 @@ func TestHandleMultipleService(t *testing.T) {
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceMultipleService,
+		Service: spec.CIPServiceMultipleService,
 		Path: protocol.CIPPath{
-			Class:    cipclient.CIPClassMessageRouter,
+			Class:    spec.CIPClassMessageRouter,
 			Instance: 0x0001,
 		},
 		Payload: payload,

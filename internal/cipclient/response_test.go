@@ -4,6 +4,7 @@ package cipclient
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 )
 
@@ -245,7 +246,7 @@ func TestCIPStatusCodes(t *testing.T) {
 	if resp.Status != 0x00 {
 		t.Errorf("Success status: got 0x%02X, want 0x00", resp.Status)
 	}
-	if resp.Service != protocol.CIPServiceGetAttributeSingle {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, protocol.CIPServiceGetAttributeSingle)
+	if resp.Service != spec.CIPServiceGetAttributeSingle {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, spec.CIPServiceGetAttributeSingle)
 	}
 }

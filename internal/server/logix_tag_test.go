@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -33,7 +34,7 @@ func TestLogixReadTag(t *testing.T) {
 	tag.Data[3] = 0x44
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTag,
+		Service: spec.CIPServiceReadTag,
 		Path:    protocol.CIPPath{Class: 0x0067, Instance: 0x0001, Attribute: 0x0000},
 		Payload: []byte{0x01, 0x00},
 	}
@@ -77,7 +78,7 @@ func TestLogixWriteTag(t *testing.T) {
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceWriteTag,
+		Service: spec.CIPServiceWriteTag,
 		Path:    protocol.CIPPath{Class: 0x0067, Instance: 0x0001, Attribute: 0x0000},
 		Payload: []byte{0xC4, 0x00, 0x01, 0x00, 0xDE, 0xAD, 0xBE, 0xEF},
 	}
@@ -120,7 +121,7 @@ func TestLogixReadTagByName(t *testing.T) {
 	tag.Data[3] = 0x40
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceReadTag,
+		Service: spec.CIPServiceReadTag,
 		Path:    protocol.CIPPath{Name: "Pressure.PV"},
 		Payload: []byte{0x01, 0x00},
 	}

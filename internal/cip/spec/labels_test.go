@@ -1,11 +1,12 @@
-package cipclient
+package spec
 
 import (
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
+
+	"github.com/tturner/cipdip/internal/cip/protocol"
 )
 
-func TestLabelCIPServiceContextual(t *testing.T) {
+func TestLabelServiceContextual(t *testing.T) {
 	cases := []struct {
 		service uint8
 		path    protocol.CIPPath
@@ -24,7 +25,7 @@ func TestLabelCIPServiceContextual(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		name, ok := labelCIPService(tc.service, tc.path, tc.resp)
+		name, ok := LabelService(tc.service, tc.path, tc.resp)
 		if !ok {
 			t.Fatalf("expected label for service 0x%02X", tc.service)
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"sync"
 
 	"github.com/tturner/cipdip/internal/cipclient"
@@ -89,7 +90,7 @@ func (m *MockClient) ReadAttribute(ctx context.Context, path protocol.CIPPath) (
 
 	// Default success response
 	return protocol.CIPResponse{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Status:  0x00,
 		Path:    path,
 		Payload: make([]byte, 16),
@@ -114,7 +115,7 @@ func (m *MockClient) WriteAttribute(ctx context.Context, path protocol.CIPPath, 
 
 	// Default success response
 	return protocol.CIPResponse{
-		Service: protocol.CIPServiceSetAttributeSingle,
+		Service: spec.CIPServiceSetAttributeSingle,
 		Status:  0x00,
 		Path:    path,
 	}, nil
@@ -123,7 +124,7 @@ func (m *MockClient) WriteAttribute(ctx context.Context, path protocol.CIPPath, 
 // ReadTag simulates reading a tag via Read_Tag
 func (m *MockClient) ReadTag(ctx context.Context, path protocol.CIPPath, elementCount uint16) (protocol.CIPResponse, error) {
 	return protocol.CIPResponse{
-		Service: protocol.CIPServiceReadTag,
+		Service: spec.CIPServiceReadTag,
 		Status:  0x00,
 		Path:    path,
 		Payload: make([]byte, 4),
@@ -138,7 +139,7 @@ func (m *MockClient) ReadTagByName(ctx context.Context, tag string, elementCount
 // WriteTag simulates writing a tag via Write_Tag
 func (m *MockClient) WriteTag(ctx context.Context, path protocol.CIPPath, typeCode uint16, elementCount uint16, data []byte) (protocol.CIPResponse, error) {
 	return protocol.CIPResponse{
-		Service: protocol.CIPServiceWriteTag,
+		Service: spec.CIPServiceWriteTag,
 		Status:  0x00,
 		Path:    path,
 	}, nil
@@ -152,7 +153,7 @@ func (m *MockClient) WriteTagByName(ctx context.Context, tag string, typeCode ui
 // ReadTagFragmented simulates a fragmented tag read.
 func (m *MockClient) ReadTagFragmented(ctx context.Context, path protocol.CIPPath, elementCount uint16, byteOffset uint32) (protocol.CIPResponse, error) {
 	return protocol.CIPResponse{
-		Service: protocol.CIPServiceReadTagFragmented,
+		Service: spec.CIPServiceReadTagFragmented,
 		Status:  0x00,
 		Path:    path,
 		Payload: make([]byte, 4),
@@ -167,7 +168,7 @@ func (m *MockClient) ReadTagFragmentedByName(ctx context.Context, tag string, el
 // WriteTagFragmented simulates a fragmented tag write.
 func (m *MockClient) WriteTagFragmented(ctx context.Context, path protocol.CIPPath, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (protocol.CIPResponse, error) {
 	return protocol.CIPResponse{
-		Service: protocol.CIPServiceWriteTagFragmented,
+		Service: spec.CIPServiceWriteTagFragmented,
 		Status:  0x00,
 		Path:    path,
 	}, nil
@@ -180,43 +181,43 @@ func (m *MockClient) WriteTagFragmentedByName(ctx context.Context, tag string, t
 
 // FileInitiateUpload simulates a File Object initiate upload.
 func (m *MockClient) FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceInitiateUpload, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiateUpload, Status: 0x00}, nil
 }
 
 // FileInitiateDownload simulates a File Object initiate download.
 func (m *MockClient) FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceInitiateDownload, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiateDownload, Status: 0x00}, nil
 }
 
 // FileInitiatePartialRead simulates a File Object initiate partial read.
 func (m *MockClient) FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceInitiatePartialRead, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiatePartialRead, Status: 0x00}, nil
 }
 
 // FileInitiatePartialWrite simulates a File Object initiate partial write.
 func (m *MockClient) FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceInitiatePartialWrite, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiatePartialWrite, Status: 0x00}, nil
 }
 
 // FileUploadTransfer simulates a File Object upload transfer.
 func (m *MockClient) FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceUploadTransfer, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceUploadTransfer, Status: 0x00}, nil
 }
 
 // FileDownloadTransfer simulates a File Object download transfer.
 func (m *MockClient) FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceDownloadTransfer, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceDownloadTransfer, Status: 0x00}, nil
 }
 
 // FileClear simulates a File Object clear file.
 func (m *MockClient) FileClear(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
-	return protocol.CIPResponse{Service: protocol.CIPServiceClearFile, Status: 0x00}, nil
+	return protocol.CIPResponse{Service: spec.CIPServiceClearFile, Status: 0x00}, nil
 }
 
 // InvokeUnconnectedSend simulates an Unconnected Send with embedded response.
 func (m *MockClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq protocol.CIPRequest, opts cipclient.UnconnectedSendOptions) (protocol.CIPResponse, protocol.CIPResponse, error) {
 	outer := protocol.CIPResponse{
-		Service: protocol.CIPServiceUnconnectedSend,
+		Service: spec.CIPServiceUnconnectedSend,
 		Status:  0x00,
 		Path:    protocol.CIPPath{Class: 0x0006, Instance: 0x0001},
 	}

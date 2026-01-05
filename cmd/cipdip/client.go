@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"os/signal"
 	"strings"
@@ -524,73 +524,73 @@ func applyCIPProfileTargets(cfg *config.Config) {
 	}
 
 	overrides := map[uint16][]config.CIPTarget{
-		cipclient.CIPClassFileObject: {
+		spec.CIPClassFileObject: {
 			{
 				Name:        "File_Class_Max_Instance",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
-				Class:       cipclient.CIPClassFileObject,
+				ServiceCode: uint8(spec.CIPServiceGetAttributeSingle),
+				Class:       spec.CIPClassFileObject,
 				Instance:    0x0000,
 				Attribute:   0x0002,
 			},
 		},
-		cipclient.CIPClassEventLog: {
+		spec.CIPClassEventLog: {
 			{
 				Name:        "Event_Log_Time_Format",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
-				Class:       cipclient.CIPClassEventLog,
+				ServiceCode: uint8(spec.CIPServiceGetAttributeSingle),
+				Class:       spec.CIPClassEventLog,
 				Instance:    0x0000,
 				Attribute:   0x0020,
 			},
 		},
-		cipclient.CIPClassTimeSync: {
+		spec.CIPClassTimeSync: {
 			{
 				Name:        "Time_Sync_PTP_Enable",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
-				Class:       cipclient.CIPClassTimeSync,
+				ServiceCode: uint8(spec.CIPServiceGetAttributeSingle),
+				Class:       spec.CIPClassTimeSync,
 				Instance:    0x0001,
 				Attribute:   0x0001,
 			},
 		},
-		cipclient.CIPClassModbus: {
+		spec.CIPClassModbus: {
 			{
 				Name:              "Modbus_Read_Holding_Registers",
 				Service:           config.ServiceCustom,
-				ServiceCode:       uint8(protocol.CIPServiceReadModifyWrite),
-				Class:             cipclient.CIPClassModbus,
+				ServiceCode:       uint8(spec.CIPServiceReadModifyWrite),
+				Class:             spec.CIPClassModbus,
 				Instance:          0x0001,
 				Attribute:         0x0000,
 				RequestPayloadHex: "00000100",
 			},
 		},
-		cipclient.CIPClassMotionAxis: {
+		spec.CIPClassMotionAxis: {
 			{
 				Name:        "Motion_Get_Axis_Attributes_List",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(protocol.CIPServiceExecutePCCC),
-				Class:       cipclient.CIPClassMotionAxis,
+				ServiceCode: uint8(spec.CIPServiceExecutePCCC),
+				Class:       spec.CIPClassMotionAxis,
 				Instance:    0x0001,
 				Attribute:   0x0000,
 			},
 		},
-		cipclient.CIPClassSafetySupervisor: {
+		spec.CIPClassSafetySupervisor: {
 			{
 				Name:        "Safety_Supervisor_Device_Status",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
-				Class:       cipclient.CIPClassSafetySupervisor,
+				ServiceCode: uint8(spec.CIPServiceGetAttributeSingle),
+				Class:       spec.CIPClassSafetySupervisor,
 				Instance:    0x0001,
 				Attribute:   0x000B,
 			},
 		},
-		cipclient.CIPClassSafetyValidator: {
+		spec.CIPClassSafetyValidator: {
 			{
 				Name:        "Safety_Validator_State",
 				Service:     config.ServiceCustom,
-				ServiceCode: uint8(protocol.CIPServiceGetAttributeSingle),
-				Class:       cipclient.CIPClassSafetyValidator,
+				ServiceCode: uint8(spec.CIPServiceGetAttributeSingle),
+				Class:       spec.CIPClassSafetyValidator,
 				Instance:    0x0001,
 				Attribute:   0x0001,
 			},
@@ -607,7 +607,7 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		addTarget(config.CIPTarget{
 			Name:        fmt.Sprintf("Profile_Class_0x%04X", classID),
 			Service:     config.ServiceCustom,
-			ServiceCode: uint8(protocol.CIPServiceGetAttributeAll),
+			ServiceCode: uint8(spec.CIPServiceGetAttributeAll),
 			Class:       classID,
 			Instance:    0x0001,
 			Attribute:   0x0000,
@@ -621,16 +621,16 @@ func applyCIPProfileTargets(cfg *config.Config) {
 		addTarget(config.CIPTarget{
 			Name:        "Energy_Start_Metering",
 			Service:     config.ServiceCustom,
-			ServiceCode: uint8(protocol.CIPServiceExecutePCCC),
-			Class:       cipclient.CIPClassEnergyBase,
+			ServiceCode: uint8(spec.CIPServiceExecutePCCC),
+			Class:       spec.CIPClassEnergyBase,
 			Instance:    0x0001,
 			Attribute:   0x0000,
 		})
 		addTarget(config.CIPTarget{
 			Name:        "Energy_Stop_Metering",
 			Service:     config.ServiceCustom,
-			ServiceCode: uint8(protocol.CIPServiceReadTag),
-			Class:       cipclient.CIPClassEnergyBase,
+			ServiceCode: uint8(spec.CIPServiceReadTag),
+			Class:       spec.CIPClassEnergyBase,
 			Instance:    0x0001,
 			Attribute:   0x0000,
 		})

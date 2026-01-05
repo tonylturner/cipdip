@@ -4,6 +4,7 @@ package cipclient
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"strings"
 
 	"github.com/tturner/cipdip/internal/cip/codec"
@@ -17,7 +18,7 @@ func BuildForwardOpenRequest(params ConnectionParams) ([]byte, error) {
 	profile := CurrentProtocolProfile()
 
 	// Service code (0x54 = Forward_Open)
-	data = append(data, uint8(protocol.CIPServiceForwardOpen))
+	data = append(data, uint8(spec.CIPServiceForwardOpen))
 
 	// Connection Manager path (class 0x06, instance 0x01)
 	// EPATH: 0x20 (8-bit class) + 0x06, 0x24 (8-bit instance) + 0x01
@@ -96,7 +97,7 @@ func BuildForwardCloseRequest(connectionID uint32) ([]byte, error) {
 	profile := CurrentProtocolProfile()
 
 	// Service code (0x4E = Forward_Close)
-	data = append(data, uint8(protocol.CIPServiceForwardClose))
+	data = append(data, uint8(spec.CIPServiceForwardClose))
 
 	// Connection Manager path (class 0x06, instance 0x01)
 	if profile.IncludeCIPPathSize {
@@ -253,7 +254,7 @@ func BuildForwardClosePayload(connectionID uint32) ([]byte, error) {
 	data = codec.AppendUint32(order, data, originatorSerial)
 
 	connPath := protocol.EncodeEPATH(protocol.CIPPath{
-		Class:    CIPClassAssembly,
+		Class:    spec.CIPClassAssembly,
 		Instance: 0x65,
 	})
 	pathSizeWords := len(connPath) / 2

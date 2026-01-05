@@ -1,10 +1,10 @@
 package server
 
 import (
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 )
 
@@ -14,12 +14,12 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 		config:       cfg,
 		genericStore: newGenericAttributeStore(),
 		profileClasses: map[uint16]struct{}{
-			cipclient.CIPClassEnergyBase: {},
+			spec.CIPClassEnergyBase: {},
 		},
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceSetAttributeSingle,
+		Service: spec.CIPServiceSetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x00F6,
 			Instance:  0x0001,
@@ -33,7 +33,7 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 	}
 
 	readReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path:    req.Path,
 	}
 	readResp, ok := s.handleGenericRequest(readReq)
@@ -55,7 +55,7 @@ func TestGenericGetAttributeList(t *testing.T) {
 	s.genericStore.set(0x0064, 0x0001, 0x0002, []byte{0x22, 0x33})
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeList,
+		Service: spec.CIPServiceGetAttributeList,
 		Path: protocol.CIPPath{
 			Class:    0x0064,
 			Instance: 0x0001,
@@ -81,14 +81,14 @@ func TestEnergyMeteringServices(t *testing.T) {
 		config:       cfg,
 		genericStore: newGenericAttributeStore(),
 		profileClasses: map[uint16]struct{}{
-			cipclient.CIPClassEnergyBase: {},
+			spec.CIPClassEnergyBase: {},
 		},
 	}
 
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceExecutePCCC,
+		Service: spec.CIPServiceExecutePCCC,
 		Path: protocol.CIPPath{
-			Class:    cipclient.CIPClassEnergyBase,
+			Class:    spec.CIPClassEnergyBase,
 			Instance: 0x0001,
 		},
 	}
@@ -97,7 +97,7 @@ func TestEnergyMeteringServices(t *testing.T) {
 		t.Fatalf("expected start metering success, ok=%v status=0x%02X", ok, resp.Status)
 	}
 
-	req.Service = protocol.CIPServiceReadTag
+	req.Service = spec.CIPServiceReadTag
 	resp, ok = s.handleGenericRequest(req)
 	if !ok || resp.Status != 0x00 {
 		t.Fatalf("expected stop metering success, ok=%v status=0x%02X", ok, resp.Status)
@@ -106,12 +106,12 @@ func TestEnergyMeteringServices(t *testing.T) {
 
 func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 	classes := []uint16{
-		cipclient.CIPClassEventLog,
-		cipclient.CIPClassTimeSync,
-		cipclient.CIPClassModbus,
-		cipclient.CIPClassMotionAxis,
-		cipclient.CIPClassSafetySupervisor,
-		cipclient.CIPClassSafetyValidator,
+		spec.CIPClassEventLog,
+		spec.CIPClassTimeSync,
+		spec.CIPClassModbus,
+		spec.CIPClassMotionAxis,
+		spec.CIPClassSafetySupervisor,
+		spec.CIPClassSafetyValidator,
 	}
 
 	for _, classID := range classes {
@@ -124,7 +124,7 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 		}
 
 		setReq := protocol.CIPRequest{
-			Service: protocol.CIPServiceSetAttributeSingle,
+			Service: spec.CIPServiceSetAttributeSingle,
 			Path: protocol.CIPPath{
 				Class:     classID,
 				Instance:  0x0001,
@@ -138,7 +138,7 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 		}
 
 		getReq := protocol.CIPRequest{
-			Service: protocol.CIPServiceGetAttributeSingle,
+			Service: spec.CIPServiceGetAttributeSingle,
 			Path:    setReq.Path,
 		}
 		resp, ok = s.handleGenericRequest(getReq)

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,9 +41,9 @@ type ValidationPacket struct {
 
 func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 	embeddedReq := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
-			Class:     cipclient.CIPClassIdentityObject,
+			Class:     spec.CIPClassIdentityObject,
 			Instance:  0x01,
 			Attribute: 0x01,
 		},
@@ -68,9 +69,9 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "get_attribute_single",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceGetAttributeSingle,
+						Service: spec.CIPServiceGetAttributeSingle,
 						Path: protocol.CIPPath{
-							Class:     cipclient.CIPClassIdentityObject,
+							Class:     spec.CIPClassIdentityObject,
 							Instance:  0x01,
 							Attribute: 0x01,
 						},
@@ -81,9 +82,9 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "set_attribute_single",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceSetAttributeSingle,
+						Service: spec.CIPServiceSetAttributeSingle,
 						Path: protocol.CIPPath{
-							Class:     cipclient.CIPClassAssembly,
+							Class:     spec.CIPClassAssembly,
 							Instance:  0x64,
 							Attribute: 0x03,
 						},
@@ -95,12 +96,12 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "forward_open",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceForwardOpen,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01},
+						Service: spec.CIPServiceForwardOpen,
+						Path:    protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadForwardOpen),
 					PayloadParams: map[string]any{
-						"connection_class":    uint64(cipclient.CIPClassAssembly),
+						"connection_class":    uint64(spec.CIPClassAssembly),
 						"connection_instance": uint64(0x65),
 					},
 					ServiceShape:    ServiceShapeForwardOpen,
@@ -111,8 +112,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "forward_close",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceForwardClose,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01},
+						Service: spec.CIPServiceForwardClose,
+						Path:    protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadForwardClose),
 					PayloadParams: map[string]any{
@@ -126,8 +127,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "unconnected_send",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceUnconnectedSend,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01},
+						Service: spec.CIPServiceUnconnectedSend,
+						Path:    protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadUnconnectedSend),
 					PayloadParams: map[string]any{
@@ -145,8 +146,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "read_tag",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceReadTag,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassSymbolObject, Instance: 0x01},
+						Service: spec.CIPServiceReadTag,
+						Path:    protocol.CIPPath{Class: spec.CIPClassSymbolObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadRockwellTag),
 					PayloadParams: map[string]any{
@@ -159,8 +160,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "write_tag",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceWriteTag,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassSymbolObject, Instance: 0x01},
+						Service: spec.CIPServiceWriteTag,
+						Path:    protocol.CIPPath{Class: spec.CIPClassSymbolObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadRockwellTag),
 					PayloadParams: map[string]any{
@@ -175,8 +176,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "read_tag_fragmented",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceReadTagFragmented,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassSymbolObject, Instance: 0x01},
+						Service: spec.CIPServiceReadTagFragmented,
+						Path:    protocol.CIPPath{Class: spec.CIPClassSymbolObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadRockwellTagFrag),
 					PayloadParams: map[string]any{
@@ -190,8 +191,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "write_tag_fragmented",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceWriteTagFragmented,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassSymbolObject, Instance: 0x01},
+						Service: spec.CIPServiceWriteTagFragmented,
+						Path:    protocol.CIPPath{Class: spec.CIPClassSymbolObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadRockwellTagFrag),
 					PayloadParams: map[string]any{
@@ -207,8 +208,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "execute_pccc",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceExecutePCCC,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassPCCCObject, Instance: 0x01},
+						Service: spec.CIPServiceExecutePCCC,
+						Path:    protocol.CIPPath{Class: spec.CIPClassPCCCObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadRockwellPCCC),
 					PayloadParams: map[string]any{
@@ -222,8 +223,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "template_read",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceReadTag,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassTemplateObject, Instance: 0x01},
+						Service: spec.CIPServiceReadTag,
+						Path:    protocol.CIPPath{Class: spec.CIPClassTemplateObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadRockwellTemplate),
 					PayloadParams: map[string]any{
@@ -241,8 +242,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_initiate_upload",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceInitiateUpload,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceInitiateUpload,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
 					PayloadParams: map[string]any{
@@ -255,8 +256,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_initiate_download",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceInitiateDownload,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceInitiateDownload,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
 					PayloadParams: map[string]any{
@@ -272,8 +273,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_partial_read",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceInitiatePartialRead,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceInitiatePartialRead,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
 					PayloadParams: map[string]any{
@@ -286,8 +287,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_partial_write",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceInitiatePartialWrite,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceInitiatePartialWrite,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
 					PayloadParams: map[string]any{
@@ -300,8 +301,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_upload_transfer",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceUploadTransfer,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceUploadTransfer,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
 					PayloadParams: map[string]any{
@@ -314,8 +315,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_download_transfer",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceDownloadTransfer,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceDownloadTransfer,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadFileObject),
 					PayloadParams: map[string]any{
@@ -329,8 +330,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "file_clear",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceClearFile,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassFileObject, Instance: 0x01},
+						Service: spec.CIPServiceClearFile,
+						Path:    protocol.CIPPath{Class: spec.CIPClassFileObject, Instance: 0x01},
 					},
 					PayloadType:     string(cipclient.PayloadFileObject),
 					ServiceShape:    ServiceShapeNone,
@@ -340,7 +341,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					Name: "modbus_read_discrete_inputs",
 					Req: protocol.CIPRequest{
 						Service: 0x4B,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassModbus, Instance: 0x01},
+						Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadModbusObject),
 					PayloadParams: map[string]any{
@@ -354,7 +355,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					Name: "modbus_write_holding_registers",
 					Req: protocol.CIPRequest{
 						Service: 0x50,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassModbus, Instance: 0x01},
+						Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadModbusObject),
 					PayloadParams: map[string]any{
@@ -370,7 +371,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					Name: "modbus_passthrough",
 					Req: protocol.CIPRequest{
 						Service: 0x51,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassModbus, Instance: 0x01},
+						Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadModbusObject),
 					PayloadParams: map[string]any{
@@ -388,7 +389,7 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 					Name: "safety_reset",
 					Req: protocol.CIPRequest{
 						Service: 0x54,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassSafetySupervisor, Instance: 0x01},
+						Path:    protocol.CIPPath{Class: spec.CIPClassSafetySupervisor, Instance: 0x01},
 					},
 					PayloadType: string(cipclient.PayloadSafetyReset),
 					PayloadParams: map[string]any{
@@ -400,8 +401,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "energy_start_metering",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceExecutePCCC,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassEnergyBase, Instance: 0x01},
+						Service: spec.CIPServiceExecutePCCC,
+						Path:    protocol.CIPPath{Class: spec.CIPClassEnergyBase, Instance: 0x01},
 						Payload: []byte{0x00},
 					},
 					ServiceShape:    ServiceShapePayload,
@@ -410,8 +411,8 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 				{
 					Name: "motion_axis_list",
 					Req: protocol.CIPRequest{
-						Service: protocol.CIPServiceExecutePCCC,
-						Path:    protocol.CIPPath{Class: cipclient.CIPClassMotionAxis, Instance: 0x01},
+						Service: spec.CIPServiceExecutePCCC,
+						Path:    protocol.CIPPath{Class: spec.CIPClassMotionAxis, Instance: 0x01},
 						Payload: []byte{0x00},
 					},
 					ServiceShape:    ServiceShapePayload,
@@ -426,12 +427,12 @@ func DefaultValidationPCAPSpecs() ([]ValidationPCAPSpec, error) {
 
 func commonServiceRequests() []ValidationRequestSpec {
 	path := protocol.CIPPath{
-		Class:     cipclient.CIPClassIdentityObject,
+		Class:     spec.CIPClassIdentityObject,
 		Instance:  0x01,
 		Attribute: 0x01,
 	}
 	assemblyPath := protocol.CIPPath{
-		Class:     cipclient.CIPClassAssembly,
+		Class:     spec.CIPClassAssembly,
 		Instance:  0x65,
 		Attribute: 0x03,
 	}
@@ -439,49 +440,49 @@ func commonServiceRequests() []ValidationRequestSpec {
 	setAttrList := buildSetAttributeListPayload([]uint16{0x01}, [][]byte{{0x01, 0x00}})
 
 	return []ValidationRequestSpec{
-		{Name: "get_attribute_all", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetAttributeAll, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "set_attribute_all", Req: protocol.CIPRequest{Service: protocol.CIPServiceSetAttributeAll, Path: assemblyPath, Payload: []byte{0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "get_attribute_list", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetAttributeList, Path: path, Payload: attrList}, ServiceShape: ServiceShapeRead, IncludeResponse: true},
-		{Name: "set_attribute_list", Req: protocol.CIPRequest{Service: protocol.CIPServiceSetAttributeList, Path: assemblyPath, Payload: setAttrList}, ServiceShape: ServiceShapeWrite, IncludeResponse: false},
-		{Name: "reset", Req: protocol.CIPRequest{Service: protocol.CIPServiceReset, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "start", Req: protocol.CIPRequest{Service: protocol.CIPServiceStart, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "stop", Req: protocol.CIPRequest{Service: protocol.CIPServiceStop, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "create", Req: protocol.CIPRequest{Service: protocol.CIPServiceCreate, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true, ResponseOutcome: "invalid"},
-		{Name: "delete", Req: protocol.CIPRequest{Service: protocol.CIPServiceDelete, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "apply_attributes", Req: protocol.CIPRequest{Service: protocol.CIPServiceApplyAttributes, Path: assemblyPath}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "get_attribute_single", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetAttributeSingle, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "set_attribute_single", Req: protocol.CIPRequest{Service: protocol.CIPServiceSetAttributeSingle, Path: assemblyPath, Payload: []byte{0x01, 0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "find_next_object_instance", Req: protocol.CIPRequest{Service: protocol.CIPServiceFindNextObjectInst, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true, Outcome: "invalid", ResponseOutcome: "invalid"},
-		{Name: "restore", Req: protocol.CIPRequest{Service: protocol.CIPServiceRestore, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "save", Req: protocol.CIPRequest{Service: protocol.CIPServiceSave, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "nop", Req: protocol.CIPRequest{Service: protocol.CIPServiceNoOp, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "get_member", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetMember, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "set_member", Req: protocol.CIPRequest{Service: protocol.CIPServiceSetMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "insert_member", Req: protocol.CIPRequest{Service: protocol.CIPServiceInsertMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "remove_member", Req: protocol.CIPRequest{Service: protocol.CIPServiceRemoveMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
-		{Name: "group_sync", Req: protocol.CIPRequest{Service: protocol.CIPServiceGroupSync, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: false},
-		{Name: "get_instance_attribute_list", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetInstanceAttrList, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "get_connection_data", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetConnectionData, Path: protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "search_connection_data", Req: protocol.CIPRequest{Service: protocol.CIPServiceSearchConnectionData, Path: protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "get_connection_owner", Req: protocol.CIPRequest{Service: protocol.CIPServiceGetConnectionOwner, Path: protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
-		{Name: "large_forward_open", Req: protocol.CIPRequest{Service: protocol.CIPServiceLargeForwardOpen, Path: protocol.CIPPath{Class: cipclient.CIPClassConnectionManager, Instance: 0x01}, Payload: []byte{0x00}}, ServiceShape: ServiceShapePayload, IncludeResponse: false, Outcome: "invalid"},
-		{Name: "read_modify_write", Req: protocol.CIPRequest{Service: protocol.CIPServiceReadModifyWrite, Path: assemblyPath, Payload: []byte{0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "get_attribute_all", Req: protocol.CIPRequest{Service: spec.CIPServiceGetAttributeAll, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "set_attribute_all", Req: protocol.CIPRequest{Service: spec.CIPServiceSetAttributeAll, Path: assemblyPath, Payload: []byte{0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "get_attribute_list", Req: protocol.CIPRequest{Service: spec.CIPServiceGetAttributeList, Path: path, Payload: attrList}, ServiceShape: ServiceShapeRead, IncludeResponse: true},
+		{Name: "set_attribute_list", Req: protocol.CIPRequest{Service: spec.CIPServiceSetAttributeList, Path: assemblyPath, Payload: setAttrList}, ServiceShape: ServiceShapeWrite, IncludeResponse: false},
+		{Name: "reset", Req: protocol.CIPRequest{Service: spec.CIPServiceReset, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "start", Req: protocol.CIPRequest{Service: spec.CIPServiceStart, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "stop", Req: protocol.CIPRequest{Service: spec.CIPServiceStop, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "create", Req: protocol.CIPRequest{Service: spec.CIPServiceCreate, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true, ResponseOutcome: "invalid"},
+		{Name: "delete", Req: protocol.CIPRequest{Service: spec.CIPServiceDelete, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "apply_attributes", Req: protocol.CIPRequest{Service: spec.CIPServiceApplyAttributes, Path: assemblyPath}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "get_attribute_single", Req: protocol.CIPRequest{Service: spec.CIPServiceGetAttributeSingle, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "set_attribute_single", Req: protocol.CIPRequest{Service: spec.CIPServiceSetAttributeSingle, Path: assemblyPath, Payload: []byte{0x01, 0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "find_next_object_instance", Req: protocol.CIPRequest{Service: spec.CIPServiceFindNextObjectInst, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true, Outcome: "invalid", ResponseOutcome: "invalid"},
+		{Name: "restore", Req: protocol.CIPRequest{Service: spec.CIPServiceRestore, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "save", Req: protocol.CIPRequest{Service: spec.CIPServiceSave, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "nop", Req: protocol.CIPRequest{Service: spec.CIPServiceNoOp, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "get_member", Req: protocol.CIPRequest{Service: spec.CIPServiceGetMember, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "set_member", Req: protocol.CIPRequest{Service: spec.CIPServiceSetMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "insert_member", Req: protocol.CIPRequest{Service: spec.CIPServiceInsertMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "remove_member", Req: protocol.CIPRequest{Service: spec.CIPServiceRemoveMember, Path: path, Payload: []byte{0x00, 0x01}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
+		{Name: "group_sync", Req: protocol.CIPRequest{Service: spec.CIPServiceGroupSync, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: false},
+		{Name: "get_instance_attribute_list", Req: protocol.CIPRequest{Service: spec.CIPServiceGetInstanceAttrList, Path: path}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "get_connection_data", Req: protocol.CIPRequest{Service: spec.CIPServiceGetConnectionData, Path: protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "search_connection_data", Req: protocol.CIPRequest{Service: spec.CIPServiceSearchConnectionData, Path: protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "get_connection_owner", Req: protocol.CIPRequest{Service: spec.CIPServiceGetConnectionOwner, Path: protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01}}, ServiceShape: ServiceShapeNone, IncludeResponse: true},
+		{Name: "large_forward_open", Req: protocol.CIPRequest{Service: spec.CIPServiceLargeForwardOpen, Path: protocol.CIPPath{Class: spec.CIPClassConnectionManager, Instance: 0x01}, Payload: []byte{0x00}}, ServiceShape: ServiceShapePayload, IncludeResponse: false, Outcome: "invalid"},
+		{Name: "read_modify_write", Req: protocol.CIPRequest{Service: spec.CIPServiceReadModifyWrite, Path: assemblyPath, Payload: []byte{0x00}}, ServiceShape: ServiceShapeWrite, IncludeResponse: true},
 	}
 }
 
 func buildMultipleServiceRequest() protocol.CIPRequest {
 	req1 := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
-			Class:     cipclient.CIPClassIdentityObject,
+			Class:     spec.CIPClassIdentityObject,
 			Instance:  0x01,
 			Attribute: 0x01,
 		},
 	}
 	req2 := protocol.CIPRequest{
-		Service: protocol.CIPServiceSetAttributeSingle,
+		Service: spec.CIPServiceSetAttributeSingle,
 		Path: protocol.CIPPath{
-			Class:     cipclient.CIPClassAssembly,
+			Class:     spec.CIPClassAssembly,
 			Instance:  0x65,
 			Attribute: 0x03,
 		},
@@ -490,9 +491,9 @@ func buildMultipleServiceRequest() protocol.CIPRequest {
 	request, err := cipclient.BuildMultipleServiceRequest([]protocol.CIPRequest{req1, req2})
 	if err != nil {
 		return protocol.CIPRequest{
-			Service: protocol.CIPServiceMultipleService,
+			Service: spec.CIPServiceMultipleService,
 			Path: protocol.CIPPath{
-				Class:    cipclient.CIPClassMessageRouter,
+				Class:    spec.CIPClassMessageRouter,
 				Instance: 0x01,
 			},
 			Payload: []byte{},
@@ -579,14 +580,14 @@ func buildPacketExpectation(reqSpec ValidationRequestSpec, direction string) Pac
 	return expect
 }
 
-func buildResponseForRequest(req protocol.CIPRequest, spec ValidationRequestSpec) (*protocol.CIPResponse, error) {
+func buildResponseForRequest(req protocol.CIPRequest, reqSpec ValidationRequestSpec) (*protocol.CIPResponse, error) {
 	resp := &protocol.CIPResponse{
 		Service: responseServiceCode(req.Service),
 		Status:  0x00,
 		Path:    req.Path,
 	}
 
-	if req.Service == protocol.CIPServiceMultipleService {
+	if req.Service == spec.CIPServiceMultipleService {
 		payload, err := buildMultipleServiceResponsePayload(req)
 		if err != nil {
 			return nil, err
@@ -594,12 +595,12 @@ func buildResponseForRequest(req protocol.CIPRequest, spec ValidationRequestSpec
 		resp.Payload = payload
 		return resp, nil
 	}
-	if req.Service == protocol.CIPServiceGetAttributeSingle || req.Service == protocol.CIPServiceGetAttributeAll || req.Service == protocol.CIPServiceGetAttributeList {
+	if req.Service == spec.CIPServiceGetAttributeSingle || req.Service == spec.CIPServiceGetAttributeAll || req.Service == spec.CIPServiceGetAttributeList {
 		resp.Payload = defaultResponsePayload(ServiceShapeRead)
 		return resp, nil
 	}
 
-	switch spec.ServiceShape {
+	switch reqSpec.ServiceShape {
 	case ServiceShapeForwardOpen:
 		resp.Payload = make([]byte, 17)
 		return resp, nil
@@ -633,7 +634,7 @@ func buildResponseForRequest(req protocol.CIPRequest, spec ValidationRequestSpec
 	case ServiceShapeWrite:
 		return resp, nil
 	case ServiceShapeFragmented, ServiceShapeRockwellTag, ServiceShapeRockwellTagFrag, ServiceShapeTemplate, ServiceShapePCCC, ServiceShapeFileObject, ServiceShapeModbus, ServiceShapeSafetyReset:
-		resp.Payload = defaultResponsePayload(spec.ServiceShape)
+		resp.Payload = defaultResponsePayload(reqSpec.ServiceShape)
 		return resp, nil
 	}
 

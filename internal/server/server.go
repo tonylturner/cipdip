@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"io"
 	"math/rand"
 	"net"
@@ -534,13 +535,13 @@ func (s *Server) handleSendRRData(encap enip.ENIPEncapsulation, remoteAddr strin
 	}
 
 	// Check if this is a ForwardOpen request (service 0x54)
-	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == protocol.CIPServiceForwardOpen {
+	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == spec.CIPServiceForwardOpen {
 		// Handle ForwardOpen specially (it doesn't follow standard CIP request format)
 		return s.handleForwardOpen(encap, cipData, remoteAddr)
 	}
 
 	// Check if this is a ForwardClose request (service 0x4E)
-	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == protocol.CIPServiceForwardClose {
+	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == spec.CIPServiceForwardClose {
 		// Handle ForwardClose specially (it doesn't follow standard CIP request format)
 		return s.handleForwardClose(encap, cipData)
 	}
@@ -568,10 +569,10 @@ func (s *Server) handleSendRRData(encap enip.ENIPEncapsulation, remoteAddr strin
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
-	if cipReq.Service == protocol.CIPServiceUnconnectedSend {
+	if cipReq.Service == spec.CIPServiceUnconnectedSend {
 		return s.handleUnconnectedSend(encap, cipReq)
 	}
-	if cipReq.Service == protocol.CIPServiceMultipleService {
+	if cipReq.Service == spec.CIPServiceMultipleService {
 		return s.handleMultipleService(encap, cipReq)
 	}
 
@@ -778,7 +779,7 @@ func (s *Server) handleUnconnectedSend(encap enip.ENIPEncapsulation, cipReq prot
 }
 
 func (s *Server) handleMultipleService(encap enip.ENIPEncapsulation, cipReq protocol.CIPRequest) []byte {
-	if cipReq.Path.Class != cipclient.CIPClassMessageRouter || cipReq.Path.Instance != 0x0001 {
+	if cipReq.Path.Class != spec.CIPClassMessageRouter || cipReq.Path.Instance != 0x0001 {
 		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x05, Path: cipReq.Path}
 		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
@@ -861,7 +862,7 @@ func (s *Server) handleIdentityRequest(req protocol.CIPRequest) (protocol.CIPRes
 	}
 
 	switch req.Service {
-	case protocol.CIPServiceGetAttributeSingle:
+	case spec.CIPServiceGetAttributeSingle:
 		payload, ok := s.identityAttributePayload(req.Path.Attribute)
 		if !ok {
 			return protocol.CIPResponse{
@@ -876,7 +877,7 @@ func (s *Server) handleIdentityRequest(req protocol.CIPRequest) (protocol.CIPRes
 			Path:    req.Path,
 			Payload: payload,
 		}, true
-	case protocol.CIPServiceGetAttributeAll:
+	case spec.CIPServiceGetAttributeAll:
 		payload := s.identityAllPayload()
 		return protocol.CIPResponse{
 			Service: req.Service,
@@ -1061,7 +1062,7 @@ func parseGenericKey(key string) (uint16, uint16, uint16, bool) {
 }
 
 func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResponse, bool) {
-	if s.personality != nil && s.personality.GetName() == "adapter" && req.Path.Class == cipclient.CIPClassAssembly {
+	if s.personality != nil && s.personality.GetName() == "adapter" && req.Path.Class == spec.CIPClassAssembly {
 		return protocol.CIPResponse{}, false
 	}
 	if !s.isGenericClass(req.Path.Class) {
@@ -1069,14 +1070,14 @@ func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResp
 	}
 
 	switch req.Service {
-	case protocol.CIPServiceExecutePCCC,
-		protocol.CIPServiceReadTag,
-		protocol.CIPServiceWriteTag,
-		protocol.CIPServiceReadModifyWrite,
-		protocol.CIPServiceUploadTransfer,
-		protocol.CIPServiceDownloadTransfer,
-		protocol.CIPServiceClearFile:
-		if isEnergyBaseClass(req.Path.Class) && (req.Service == protocol.CIPServiceExecutePCCC || req.Service == protocol.CIPServiceReadTag) {
+	case spec.CIPServiceExecutePCCC,
+		spec.CIPServiceReadTag,
+		spec.CIPServiceWriteTag,
+		spec.CIPServiceReadModifyWrite,
+		spec.CIPServiceUploadTransfer,
+		spec.CIPServiceDownloadTransfer,
+		spec.CIPServiceClearFile:
+		if isEnergyBaseClass(req.Path.Class) && (req.Service == spec.CIPServiceExecutePCCC || req.Service == spec.CIPServiceReadTag) {
 			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x00,
@@ -1096,7 +1097,7 @@ func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResp
 			Path:    req.Path,
 		}, true
 
-	case protocol.CIPServiceGetAttributeSingle:
+	case spec.CIPServiceGetAttributeSingle:
 		payload, ok := s.genericStore.get(req.Path.Class, req.Path.Instance, req.Path.Attribute)
 		if !ok {
 			payload = []byte{0x00}
@@ -1108,7 +1109,7 @@ func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResp
 			Payload: payload,
 		}, true
 
-	case protocol.CIPServiceSetAttributeSingle:
+	case spec.CIPServiceSetAttributeSingle:
 		s.genericStore.set(req.Path.Class, req.Path.Instance, req.Path.Attribute, req.Payload)
 		return protocol.CIPResponse{
 			Service: req.Service,
@@ -1116,7 +1117,7 @@ func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResp
 			Path:    req.Path,
 		}, true
 
-	case protocol.CIPServiceGetAttributeAll:
+	case spec.CIPServiceGetAttributeAll:
 		attrs := s.genericStore.listAttributes(req.Path.Class, req.Path.Instance)
 		payload := flattenAttributes(attrs)
 		return protocol.CIPResponse{
@@ -1125,14 +1126,14 @@ func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResp
 			Path:    req.Path,
 			Payload: payload,
 		}, true
-	case protocol.CIPServiceSetAttributeList:
+	case spec.CIPServiceSetAttributeList:
 		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, true
 
-	case protocol.CIPServiceGetAttributeList:
+	case spec.CIPServiceGetAttributeList:
 		payload, ok := buildAttributeListResponse(req, s.genericStore)
 		status := uint8(0x00)
 		if !ok {
@@ -1145,25 +1146,25 @@ func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResp
 			Payload: payload,
 		}, true
 
-	case protocol.CIPServiceReset:
+	case spec.CIPServiceReset:
 		s.genericStore.clearInstance(req.Path.Class, req.Path.Instance)
 		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, true
-	case protocol.CIPServiceStart,
-		protocol.CIPServiceStop,
-		protocol.CIPServiceCreate,
-		protocol.CIPServiceDelete,
-		protocol.CIPServiceRestore,
-		protocol.CIPServiceSave,
-		protocol.CIPServiceGetMember,
-		protocol.CIPServiceSetMember,
-		protocol.CIPServiceInsertMember,
-		protocol.CIPServiceRemoveMember,
-		protocol.CIPServiceReadTagFragmented,
-		protocol.CIPServiceForwardOpen:
+	case spec.CIPServiceStart,
+		spec.CIPServiceStop,
+		spec.CIPServiceCreate,
+		spec.CIPServiceDelete,
+		spec.CIPServiceRestore,
+		spec.CIPServiceSave,
+		spec.CIPServiceGetMember,
+		spec.CIPServiceSetMember,
+		spec.CIPServiceInsertMember,
+		spec.CIPServiceRemoveMember,
+		spec.CIPServiceReadTagFragmented,
+		spec.CIPServiceForwardOpen:
 		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
@@ -1185,12 +1186,12 @@ func (s *Server) isGenericClass(class uint16) bool {
 	switch class {
 	case 0x0066, 0x00F4, 0x00F5, 0x0100, 0x00F6, 0x3700, 0x0002, 0x0064, 0x00AC, 0x008E, 0x1A00, 0x0004, 0x0005, 0x0006:
 		return true
-	case cipclient.CIPClassFileObject,
-		cipclient.CIPClassSymbolObject,
-		cipclient.CIPClassTemplateObject,
-		cipclient.CIPClassEventLog,
-		cipclient.CIPClassTimeSync,
-		cipclient.CIPClassModbus:
+	case spec.CIPClassFileObject,
+		spec.CIPClassSymbolObject,
+		spec.CIPClassTemplateObject,
+		spec.CIPClassEventLog,
+		spec.CIPClassTimeSync,
+		spec.CIPClassModbus:
 		return true
 	default:
 		return false
@@ -1198,27 +1199,27 @@ func (s *Server) isGenericClass(class uint16) bool {
 }
 
 func isEnergyBaseClass(class uint16) bool {
-	return class == cipclient.CIPClassEnergyBase
+	return class == spec.CIPClassEnergyBase
 }
 
 func isFileObjectClass(class uint16) bool {
-	return class == cipclient.CIPClassFileObject
+	return class == spec.CIPClassFileObject
 }
 
 func isSymbolicClass(class uint16) bool {
-	return class == cipclient.CIPClassSymbolObject || class == cipclient.CIPClassTemplateObject
+	return class == spec.CIPClassSymbolObject || class == spec.CIPClassTemplateObject
 }
 
 func isModbusClass(class uint16) bool {
-	return class == cipclient.CIPClassModbus
+	return class == spec.CIPClassModbus
 }
 
 func isMotionAxisClass(class uint16) bool {
-	return class == cipclient.CIPClassMotionAxis
+	return class == spec.CIPClassMotionAxis
 }
 
 func isSafetyClass(class uint16) bool {
-	return class == cipclient.CIPClassSafetySupervisor || class == cipclient.CIPClassSafetyValidator
+	return class == spec.CIPClassSafetySupervisor || class == spec.CIPClassSafetyValidator
 }
 
 func flattenAttributes(attrs map[uint16][]byte) []byte {

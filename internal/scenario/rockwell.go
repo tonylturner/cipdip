@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
@@ -139,18 +140,18 @@ func (s *RockwellScenario) Run(ctx context.Context, client cipclient.Client, cfg
 
 func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 	allowedServices := map[uint8]bool{
-		uint8(protocol.CIPServiceExecutePCCC):          true,
-		uint8(protocol.CIPServiceReadTag):              true,
-		uint8(protocol.CIPServiceWriteTag):             true,
-		uint8(protocol.CIPServiceReadModifyWrite):      true,
-		uint8(protocol.CIPServiceReadTagFragmented):    true,
-		uint8(protocol.CIPServiceWriteTagFragmented):   true,
-		uint8(protocol.CIPServiceGetInstanceAttrList):  true,
-		uint8(protocol.CIPServiceGetConnectionData):    true,
-		uint8(protocol.CIPServiceSearchConnectionData): true,
-		uint8(protocol.CIPServiceGetConnectionOwner):   true,
-		uint8(protocol.CIPServiceLargeForwardOpen):     true,
-		0x51: true, // Unknown service observed in ENBT/PCAPs
+		uint8(spec.CIPServiceExecutePCCC):          true,
+		uint8(spec.CIPServiceReadTag):              true,
+		uint8(spec.CIPServiceWriteTag):             true,
+		uint8(spec.CIPServiceReadModifyWrite):      true,
+		uint8(spec.CIPServiceReadTagFragmented):    true,
+		uint8(spec.CIPServiceWriteTagFragmented):   true,
+		uint8(spec.CIPServiceGetInstanceAttrList):  true,
+		uint8(spec.CIPServiceGetConnectionData):    true,
+		uint8(spec.CIPServiceSearchConnectionData): true,
+		uint8(spec.CIPServiceGetConnectionOwner):   true,
+		uint8(spec.CIPServiceLargeForwardOpen):     true,
+		0x51:                                       true, // Unknown service observed in ENBT/PCAPs
 	}
 
 	filtered := make([]config.EdgeTarget, 0, len(cfg.EdgeTargets))
@@ -171,7 +172,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:            "Rockwell_Execute_PCCC",
 			Service:         config.ServiceCustom,
-			ServiceCode:     uint8(protocol.CIPServiceExecutePCCC),
+			ServiceCode:     uint8(spec.CIPServiceExecutePCCC),
 			Class:           0x0067,
 			Instance:        0x0001,
 			Attribute:       0x0000,
@@ -180,7 +181,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:              "Rockwell_Read_Tag",
 			Service:           config.ServiceCustom,
-			ServiceCode:       uint8(protocol.CIPServiceReadTag),
+			ServiceCode:       uint8(spec.CIPServiceReadTag),
 			Class:             0x0067,
 			Instance:          0x0001,
 			Attribute:         0x0000,
@@ -190,7 +191,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:              "Rockwell_Write_Tag",
 			Service:           config.ServiceCustom,
-			ServiceCode:       uint8(protocol.CIPServiceWriteTag),
+			ServiceCode:       uint8(spec.CIPServiceWriteTag),
 			Class:             0x0067,
 			Instance:          0x0001,
 			Attribute:         0x0000,
@@ -200,7 +201,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:              "Rockwell_Read_Tag_Fragmented",
 			Service:           config.ServiceCustom,
-			ServiceCode:       uint8(protocol.CIPServiceReadTagFragmented),
+			ServiceCode:       uint8(spec.CIPServiceReadTagFragmented),
 			Class:             0x0067,
 			Instance:          0x0001,
 			Attribute:         0x0000,
@@ -210,7 +211,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:              "Rockwell_Write_Tag_Fragmented",
 			Service:           config.ServiceCustom,
-			ServiceCode:       uint8(protocol.CIPServiceWriteTagFragmented),
+			ServiceCode:       uint8(spec.CIPServiceWriteTagFragmented),
 			Class:             0x0067,
 			Instance:          0x0001,
 			Attribute:         0x0000,
@@ -220,7 +221,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:            "Rockwell_Get_Instance_Attribute_List",
 			Service:         config.ServiceCustom,
-			ServiceCode:     uint8(protocol.CIPServiceGetInstanceAttrList),
+			ServiceCode:     uint8(spec.CIPServiceGetInstanceAttrList),
 			Class:           0x0067,
 			Instance:        0x0001,
 			Attribute:       0x0000,
@@ -238,7 +239,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:            "ConnMgr_Get_Connection_Data",
 			Service:         config.ServiceCustom,
-			ServiceCode:     uint8(protocol.CIPServiceGetConnectionData),
+			ServiceCode:     uint8(spec.CIPServiceGetConnectionData),
 			Class:           0x0006,
 			Instance:        0x0001,
 			Attribute:       0x0000,
@@ -247,7 +248,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:            "ConnMgr_Search_Connection_Data",
 			Service:         config.ServiceCustom,
-			ServiceCode:     uint8(protocol.CIPServiceSearchConnectionData),
+			ServiceCode:     uint8(spec.CIPServiceSearchConnectionData),
 			Class:           0x0006,
 			Instance:        0x0001,
 			Attribute:       0x0000,
@@ -256,7 +257,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:            "ConnMgr_Get_Connection_Owner",
 			Service:         config.ServiceCustom,
-			ServiceCode:     uint8(protocol.CIPServiceGetConnectionOwner),
+			ServiceCode:     uint8(spec.CIPServiceGetConnectionOwner),
 			Class:           0x0006,
 			Instance:        0x0001,
 			Attribute:       0x0000,
@@ -265,7 +266,7 @@ func buildRockwellTargets(cfg *config.Config) []config.EdgeTarget {
 		{
 			Name:            "ConnMgr_Large_Forward_Open",
 			Service:         config.ServiceCustom,
-			ServiceCode:     uint8(protocol.CIPServiceLargeForwardOpen),
+			ServiceCode:     uint8(spec.CIPServiceLargeForwardOpen),
 			Class:           0x0006,
 			Instance:        0x0001,
 			Attribute:       0x0000,

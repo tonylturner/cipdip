@@ -21,6 +21,7 @@ package cipclient
 
 import (
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 	"testing"
 )
@@ -569,22 +570,22 @@ func TestCIPServiceCodeCompliance(t *testing.T) {
 		name     string
 		odvaSpec string
 	}{
-		protocol.CIPServiceGetAttributeAll:    {0x01, "Get_Attribute_All", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceSetAttributeAll:    {0x02, "Set_Attribute_All", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceGetAttributeList:   {0x03, "Get_Attribute_List", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceSetAttributeList:   {0x04, "Set_Attribute_List", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceReset:              {0x05, "Reset", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceStart:              {0x06, "Start", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceStop:               {0x07, "Stop", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceCreate:             {0x08, "Create", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceDelete:             {0x09, "Delete", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceMultipleService:    {0x0A, "Multiple_Service", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceApplyAttributes:    {0x0D, "Apply_Attributes", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceGetAttributeSingle: {0x0E, "Get_Attribute_Single", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceSetAttributeSingle: {0x10, "Set_Attribute_Single", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceFindNextObjectInst: {0x11, "Find_Next_Object_Instance", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceForwardOpen:        {0x54, "Forward_Open", "Volume 1, Table 3-5.1"},
-		protocol.CIPServiceForwardClose:       {0x4E, "Forward_Close", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceGetAttributeAll:    {0x01, "Get_Attribute_All", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceSetAttributeAll:    {0x02, "Set_Attribute_All", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceGetAttributeList:   {0x03, "Get_Attribute_List", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceSetAttributeList:   {0x04, "Set_Attribute_List", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceReset:              {0x05, "Reset", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceStart:              {0x06, "Start", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceStop:               {0x07, "Stop", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceCreate:             {0x08, "Create", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceDelete:             {0x09, "Delete", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceMultipleService:    {0x0A, "Multiple_Service", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceApplyAttributes:    {0x0D, "Apply_Attributes", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceGetAttributeSingle: {0x0E, "Get_Attribute_Single", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceSetAttributeSingle: {0x10, "Set_Attribute_Single", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceFindNextObjectInst: {0x11, "Find_Next_Object_Instance", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceForwardOpen:        {0x54, "Forward_Open", "Volume 1, Table 3-5.1"},
+		spec.CIPServiceForwardClose:       {0x4E, "Forward_Close", "Volume 1, Table 3-5.1"},
 	}
 
 	for code, expected := range serviceCodes {
@@ -622,8 +623,8 @@ func TestForwardOpenCompliance(t *testing.T) {
 
 	// ForwardOpen structure per ODVA CIP Connection Management Specification:
 	// - Service code (1 byte): MUST be 0x54 (ODVA standard)
-	if forwardOpenData[0] != uint8(protocol.CIPServiceForwardOpen) {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardOpenData[0], uint8(protocol.CIPServiceForwardOpen))
+	if forwardOpenData[0] != uint8(spec.CIPServiceForwardOpen) {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardOpenData[0], uint8(spec.CIPServiceForwardOpen))
 	}
 
 	// - Connection Manager path: class 0x06, instance 0x01 (ODVA standard path)
@@ -680,8 +681,8 @@ func TestForwardCloseCompliance(t *testing.T) {
 
 	// ForwardClose structure per ODVA CIP Connection Management Specification:
 	// - Service code (1 byte): MUST be 0x4E (ODVA standard)
-	if forwardCloseData[0] != uint8(protocol.CIPServiceForwardClose) {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardCloseData[0], uint8(protocol.CIPServiceForwardClose))
+	if forwardCloseData[0] != uint8(spec.CIPServiceForwardClose) {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", forwardCloseData[0], uint8(spec.CIPServiceForwardClose))
 	}
 
 	// - Connection Manager path (class 0x06, instance 0x01)
@@ -761,7 +762,7 @@ func TestDecodeENIPErrorHandling(t *testing.T) {
 func TestCIPRequestEncoding(t *testing.T) {
 	profile := CurrentProtocolProfile()
 	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceGetAttributeSingle,
+		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x04,
 			Instance:  0x65,
@@ -785,8 +786,8 @@ func TestCIPRequestEncoding(t *testing.T) {
 	}
 
 	// Verify service code
-	if data[0] != uint8(protocol.CIPServiceGetAttributeSingle) {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", data[0], uint8(protocol.CIPServiceGetAttributeSingle))
+	if data[0] != uint8(spec.CIPServiceGetAttributeSingle) {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", data[0], uint8(spec.CIPServiceGetAttributeSingle))
 	}
 
 	// Verify EPATH follows

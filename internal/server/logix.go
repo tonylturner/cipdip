@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math"
 	"math/rand"
 	"sync"
@@ -95,7 +96,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 	// For now, we'll support Get_Attribute_Single on a generic tag structure
 
 	switch req.Service {
-	case protocol.CIPServiceExecutePCCC:
+	case spec.CIPServiceExecutePCCC:
 		if req.Path.Class != 0 && req.Path.Class != 0x0067 && req.Path.Class != 0x00A1 {
 			return protocol.CIPResponse{
 				Service: req.Service,
@@ -108,7 +109,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 			Path:    req.Path,
 		}, nil
 
-	case protocol.CIPServiceReadTag:
+	case spec.CIPServiceReadTag:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
 			return protocol.CIPResponse{
@@ -118,7 +119,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 		}
 		return lp.handleReadTag(tag, req)
 
-	case protocol.CIPServiceReadTagFragmented:
+	case spec.CIPServiceReadTagFragmented:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
 			return protocol.CIPResponse{
@@ -128,7 +129,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 		}
 		return lp.handleReadTagFragmented(tag, req)
 
-	case protocol.CIPServiceWriteTag:
+	case spec.CIPServiceWriteTag:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
 			return protocol.CIPResponse{
@@ -138,7 +139,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 		}
 		return lp.handleWriteTag(tag, req)
 
-	case protocol.CIPServiceWriteTagFragmented:
+	case spec.CIPServiceWriteTagFragmented:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
 			return protocol.CIPResponse{
@@ -155,7 +156,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 			Path:    req.Path,
 		}, nil
 
-	case protocol.CIPServiceGetAttributeSingle:
+	case spec.CIPServiceGetAttributeSingle:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
 			return protocol.CIPResponse{
@@ -166,7 +167,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 
 		return lp.handleGetAttributeSingle(tag, req)
 
-	case protocol.CIPServiceSetAttributeSingle:
+	case spec.CIPServiceSetAttributeSingle:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
 			return protocol.CIPResponse{
@@ -181,7 +182,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08, // Service not supported
-		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), req.Service)
+		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), spec.ServiceName(req.Service))
 	}
 }
 
