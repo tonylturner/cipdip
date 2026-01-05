@@ -1,4 +1,4 @@
-package server
+package rockwell
 
 // Logix personality - tag-style interface (ControlLogix-like)
 
@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 )
@@ -509,5 +509,3 @@ func getTagTypeSize(tagType string) int {
 		return 4 // Default to DINT size
 	}
 }
-
-

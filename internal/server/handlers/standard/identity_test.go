@@ -1,10 +1,10 @@
-package server
+package standard
 
 import (
-	"github.com/tturner/cipdip/internal/cip/spec"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 )
 
@@ -21,9 +21,9 @@ func TestIdentityGetAttributeSingle(t *testing.T) {
 			IdentityProductName: "CIPDIP",
 		},
 	}
-	s := &Server{config: cfg}
+	handler := NewIdentityHandler(cfg)
 
-	resp, ok := s.handleIdentityRequest(protocol.CIPRequest{
+	resp, err := handler.HandleCIPRequest(nil, protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x0001,
@@ -31,8 +31,8 @@ func TestIdentityGetAttributeSingle(t *testing.T) {
 			Attribute: 1,
 		},
 	})
-	if !ok {
-		t.Fatalf("expected identity handler")
+	if err != nil {
+		t.Fatalf("HandleCIPRequest failed: %v", err)
 	}
 	if resp.Status != 0x00 {
 		t.Fatalf("expected status 0, got 0x%02X", resp.Status)
@@ -58,9 +58,9 @@ func TestIdentityGetAttributeAllIncludesName(t *testing.T) {
 			IdentityProductName: "TestProduct",
 		},
 	}
-	s := &Server{config: cfg}
+	handler := NewIdentityHandler(cfg)
 
-	resp, ok := s.handleIdentityRequest(protocol.CIPRequest{
+	resp, err := handler.HandleCIPRequest(nil, protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeAll,
 		Path: protocol.CIPPath{
 			Class:     0x0001,
@@ -68,8 +68,8 @@ func TestIdentityGetAttributeAllIncludesName(t *testing.T) {
 			Attribute: 0,
 		},
 	})
-	if !ok {
-		t.Fatalf("expected identity handler")
+	if err != nil {
+		t.Fatalf("HandleCIPRequest failed: %v", err)
 	}
 	if resp.Status != 0x00 {
 		t.Fatalf("expected status 0, got 0x%02X", resp.Status)
