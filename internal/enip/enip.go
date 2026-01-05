@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sync"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
 )
 
 // Options controls ENIP encoding and CPF usage.
@@ -100,22 +102,22 @@ func EncodeENIP(encap ENIPEncapsulation) []byte {
 	order := currentENIPByteOrder()
 
 	// Command (2 bytes, per ENIP byte order)
-	order.PutUint16(header[0:2], encap.Command)
+	codec.PutUint16(order, header[0:2], encap.Command)
 
 	// Length (2 bytes) - length of data field
-	order.PutUint16(header[2:4], uint16(len(encap.Data)))
+	codec.PutUint16(order, header[2:4], uint16(len(encap.Data)))
 
 	// Session Handle (4 bytes)
-	order.PutUint32(header[4:8], encap.SessionID)
+	codec.PutUint32(order, header[4:8], encap.SessionID)
 
 	// Status (4 bytes)
-	order.PutUint32(header[8:12], encap.Status)
+	codec.PutUint32(order, header[8:12], encap.Status)
 
 	// Sender Context (8 bytes)
 	copy(header[12:20], encap.SenderContext[:])
 
 	// Options (4 bytes)
-	order.PutUint32(header[20:24], encap.Options)
+	codec.PutUint32(order, header[20:24], encap.Options)
 
 	// Append data
 	packet := append(header, encap.Data...)
@@ -189,8 +191,8 @@ func BuildRegisterSession(senderContext [8]byte) []byte {
 
 	var regData []byte
 	order := currentENIPByteOrder()
-	regData = appendUint16(order, regData, 1) // Protocol version
-	regData = appendUint16(order, regData, 0) // Option flags
+	regData = codec.AppendUint16(order, regData, 1) // Protocol version
+	regData = codec.AppendUint16(order, regData, 0) // Option flags
 
 	encap := ENIPEncapsulation{
 		Command:       ENIPCommandRegisterSession,
@@ -241,8 +243,8 @@ func BuildSendRRDataPayload(cipData []byte) []byte {
 	order := currentENIPByteOrder()
 	opts := CurrentOptions()
 
-	sendData = appendUint32(order, sendData, 0) // Interface handle
-	sendData = appendUint16(order, sendData, 0) // Timeout
+	sendData = codec.AppendUint32(order, sendData, 0) // Interface handle
+	sendData = codec.AppendUint16(order, sendData, 0) // Timeout
 
 	if opts.UseCPF {
 		cpf := EncodeCPFItems([]CPFItem{
@@ -264,15 +266,15 @@ func BuildSendUnitDataPayload(connectionID uint32, cipData []byte) []byte {
 	opts := CurrentOptions()
 
 	if opts.UseCPF {
-		sendData = appendUint32(order, sendData, 0) // Interface handle
-		sendData = appendUint16(order, sendData, 0) // Timeout
+		sendData = codec.AppendUint32(order, sendData, 0) // Interface handle
+		sendData = codec.AppendUint16(order, sendData, 0) // Timeout
 		cpf := EncodeCPFItems([]CPFItem{
 			{TypeID: CPFItemConnectedAddress, Data: encodeConnectionID(connectionID)},
 			{TypeID: CPFItemConnectedData, Data: cipData},
 		})
 		sendData = append(sendData, cpf...)
 	} else {
-		sendData = appendUint32(order, sendData, connectionID)
+		sendData = codec.AppendUint32(order, sendData, connectionID)
 		sendData = append(sendData, cipData...)
 	}
 
@@ -366,10 +368,10 @@ func ParseSendUnitDataResponse(data []byte) ([]byte, error) {
 func EncodeCPFItems(items []CPFItem) []byte {
 	order := currentENIPByteOrder()
 	data := make([]byte, 0, 4*len(items)+2)
-	data = appendUint16(order, data, uint16(len(items)))
+	data = codec.AppendUint16(order, data, uint16(len(items)))
 	for _, item := range items {
-		data = appendUint16(order, data, item.TypeID)
-		data = appendUint16(order, data, uint16(len(item.Data)))
+		data = codec.AppendUint16(order, data, item.TypeID)
+		data = codec.AppendUint16(order, data, uint16(len(item.Data)))
 		data = append(data, item.Data...)
 	}
 	return data
@@ -406,18 +408,6 @@ func ParseCPFItems(data []byte) ([]CPFItem, error) {
 func encodeConnectionID(connectionID uint32) []byte {
 	order := currentENIPByteOrder()
 	var buf [4]byte
-	order.PutUint32(buf[:], connectionID)
+	codec.PutUint32(order, buf[:], connectionID)
 	return buf[:]
-}
-
-func appendUint16(order binary.ByteOrder, b []byte, v uint16) []byte {
-	var buf [2]byte
-	order.PutUint16(buf[:], v)
-	return append(b, buf[:]...)
-}
-
-func appendUint32(order binary.ByteOrder, b []byte, v uint32) []byte {
-	var buf [4]byte
-	order.PutUint32(buf[:], v)
-	return append(b, buf[:]...)
 }

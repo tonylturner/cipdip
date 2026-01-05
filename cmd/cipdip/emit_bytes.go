@@ -4,12 +4,13 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/ui"
@@ -358,11 +359,11 @@ func buildResponsePayload(req protocol.CIPRequest, params map[string]any, order 
 	case cipclient.CIPClassConnectionManager:
 		if req.Service == protocol.CIPServiceForwardOpen {
 			payload := make([]byte, 17)
-			order.PutUint32(payload[0:4], 0x12345678)
-			order.PutUint32(payload[4:8], 0x9ABCDEF0)
-			order.PutUint16(payload[8:10], 0x0001)
-			order.PutUint16(payload[10:12], 0x0001)
-			order.PutUint32(payload[12:16], 0x01020304)
+			codec.PutUint32(order, payload[0:4], 0x12345678)
+			codec.PutUint32(order, payload[4:8], 0x9ABCDEF0)
+			codec.PutUint16(order, payload[8:10], 0x0001)
+			codec.PutUint16(order, payload[10:12], 0x0001)
+			codec.PutUint32(order, payload[12:16], 0x01020304)
 			payload[16] = 0x03
 			return payload, nil
 		}
@@ -373,7 +374,7 @@ func buildResponsePayload(req protocol.CIPRequest, params map[string]any, order 
 		if req.Service == protocol.CIPServiceReadTag {
 			value, _ := protocol.EncodeCIPValue(protocol.CIPTypeDINT, int32(0))
 			payload := make([]byte, 2+len(value))
-			order.PutUint16(payload[0:2], uint16(protocol.CIPTypeDINT))
+			codec.PutUint16(order, payload[0:2], uint16(protocol.CIPTypeDINT))
 			copy(payload[2:], value)
 			return payload, nil
 		}
@@ -392,16 +393,16 @@ func buildResponsePayload(req protocol.CIPRequest, params map[string]any, order 
 			return append([]byte{byte(len(payload))}, payload...), nil
 		case 0x4F, 0x50:
 			payload := make([]byte, 4)
-			order.PutUint16(payload[0:2], addr)
-			order.PutUint16(payload[2:4], qty)
+			codec.PutUint16(order, payload[0:2], addr)
+			codec.PutUint16(order, payload[2:4], qty)
 			return payload, nil
 		}
 	case cipclient.CIPClassFileObject:
 		if req.Service == protocol.CIPServiceInitiateDownload {
 			payload := make([]byte, 12)
-			order.PutUint32(payload[0:4], 512)
-			order.PutUint32(payload[4:8], 100)
-			order.PutUint32(payload[8:12], 128)
+			codec.PutUint32(order, payload[0:4], 512)
+			codec.PutUint32(order, payload[4:8], 100)
+			codec.PutUint32(order, payload[8:12], 128)
 			return payload, nil
 		}
 	}

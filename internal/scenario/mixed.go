@@ -5,9 +5,10 @@ package scenario
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -213,7 +214,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			// Encode value to bytes (using 32-bit integer for now)
 			valueBytes := make([]byte, 4)
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(valueBytes, uint32(value))
+			codec.PutUint32(order, valueBytes, uint32(value))
 
 			start := time.Now()
 			resp, err := client.WriteAttribute(ctx, path, valueBytes)

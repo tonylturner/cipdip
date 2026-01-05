@@ -5,10 +5,11 @@ package scenario
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -154,7 +155,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				value := s.generateValue(target)
 				valueBytes := make([]byte, 4)
 				order := cipclient.CurrentProtocolProfile().CIPByteOrder
-				order.PutUint32(valueBytes, uint32(value))
+				codec.PutUint32(order, valueBytes, uint32(value))
 
 				start := time.Now()
 				resp, err := client.WriteAttribute(ctxVariant, path, valueBytes)

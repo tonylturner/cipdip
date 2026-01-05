@@ -1,9 +1,7 @@
 package validation
 
 import (
-	"encoding/binary"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +9,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/enip"
 )
@@ -504,10 +504,10 @@ func buildMultipleServiceRequest() protocol.CIPRequest {
 func buildAttributeListPayload(attrs []uint16) []byte {
 	order := cipclient.CurrentProtocolProfile().CIPByteOrder
 	buf := make([]byte, 2+len(attrs)*2)
-	order.PutUint16(buf[:2], uint16(len(attrs)))
+	codec.PutUint16(order, buf[:2], uint16(len(attrs)))
 	offset := 2
 	for _, attr := range attrs {
-		order.PutUint16(buf[offset:offset+2], attr)
+		codec.PutUint16(order, buf[offset:offset+2], attr)
 		offset += 2
 	}
 	return buf
@@ -519,9 +519,9 @@ func buildSetAttributeListPayload(attrs []uint16, values [][]byte) []byte {
 		return []byte{0x00, 0x00}
 	}
 	buf := make([]byte, 2)
-	order.PutUint16(buf[:2], uint16(len(attrs)))
+	codec.PutUint16(order, buf[:2], uint16(len(attrs)))
 	for i, attr := range attrs {
-		buf = appendUint16Local(order, buf, attr)
+		buf = codec.AppendUint16(order, buf, attr)
 		if i < len(values) && len(values[i]) > 0 {
 			buf = append(buf, values[i]...)
 		} else {
@@ -531,11 +531,7 @@ func buildSetAttributeListPayload(attrs []uint16, values [][]byte) []byte {
 	return buf
 }
 
-func appendUint16Local(order binary.ByteOrder, buf []byte, value uint16) []byte {
-	var tmp [2]byte
-	order.PutUint16(tmp[:], value)
-	return append(buf, tmp[:]...)
-}
+// append helpers moved to internal/cip/codec
 
 func buildPacketExpectation(reqSpec ValidationRequestSpec, direction string) PacketExpectation {
 	outcome := strings.TrimSpace(reqSpec.Outcome)

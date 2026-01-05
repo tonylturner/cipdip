@@ -2,7 +2,11 @@ package protocol
 
 // CIP (Common Industrial Protocol) Message Router encoding and decoding.
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/tturner/cipdip/internal/cip/codec"
+)
 
 // CIPServiceCode represents a CIP service code.
 type CIPServiceCode uint8
@@ -102,7 +106,7 @@ func EncodeEPATH(path CIPPath) []byte {
 		epath = append(epath, uint8(path.Class))
 	} else {
 		epath = append(epath, EPathSegmentClassID|0x01)
-		epath = appendUint16(order, epath, path.Class)
+		epath = codec.AppendUint16(order, epath, path.Class)
 	}
 
 	// Instance segment (8-bit instance ID).
@@ -111,7 +115,7 @@ func EncodeEPATH(path CIPPath) []byte {
 		epath = append(epath, uint8(path.Instance))
 	} else {
 		epath = append(epath, EPathSegmentInstanceID|0x01)
-		epath = appendUint16(order, epath, path.Instance)
+		epath = codec.AppendUint16(order, epath, path.Instance)
 	}
 
 	// Attribute segment (8-bit or 16-bit attribute ID).
@@ -120,7 +124,7 @@ func EncodeEPATH(path CIPPath) []byte {
 		epath = append(epath, uint8(path.Attribute))
 	} else {
 		epath = append(epath, EPathSegmentAttributeID|0x01)
-		epath = appendUint16(order, epath, path.Attribute)
+		epath = codec.AppendUint16(order, epath, path.Attribute)
 	}
 
 	return epath

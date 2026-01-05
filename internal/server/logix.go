@@ -6,12 +6,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
@@ -70,7 +71,7 @@ func NewLogixPersonality(cfg *config.ServerConfig, logger *logging.Logger) (*Log
 			// Initialize counter
 			if elementSize == 4 && tagCfg.ArrayLength > 0 {
 				order := cipclient.CurrentProtocolProfile().CIPByteOrder
-				order.PutUint32(tag.Data[0:4], 0)
+				codec.PutUint32(order, tag.Data[0:4], 0)
 			}
 		case "random":
 			lp.rng.Read(tag.Data)
@@ -268,8 +269,8 @@ func (lp *LogixPersonality) handleReadTag(tag *Tag, req protocol.CIPRequest) (pr
 	}
 
 	payload := make([]byte, 4+dataLen)
-	binary.LittleEndian.PutUint16(payload[0:2], uint16(protocol.CIPTypeCode(tag.Config.Type)))
-	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
+	codec.PutUint16(binary.LittleEndian, payload[0:2], uint16(protocol.CIPTypeCode(tag.Config.Type)))
+	codec.PutUint16(binary.LittleEndian, payload[2:4], elementCount)
 	copy(payload[4:], tag.Data[:dataLen])
 
 	return protocol.CIPResponse{
@@ -331,8 +332,8 @@ func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req protocol.CIPRe
 	}
 
 	payload := make([]byte, 4+chunkLen)
-	binary.LittleEndian.PutUint16(payload[0:2], uint16(protocol.CIPTypeCode(tag.Config.Type)))
-	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
+	codec.PutUint16(binary.LittleEndian, payload[0:2], uint16(protocol.CIPTypeCode(tag.Config.Type)))
+	codec.PutUint16(binary.LittleEndian, payload[2:4], elementCount)
 	if chunkLen > 0 {
 		copy(payload[4:], tag.Data[int(byteOffset):int(byteOffset)+chunkLen])
 	}
@@ -454,7 +455,7 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 		tag.Counter++
 		if elementSize == 4 && len(tag.Data) >= 4 {
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(tag.Data[0:4], tag.Counter)
+			codec.PutUint32(order, tag.Data[0:4], tag.Counter)
 		}
 
 	case "sine":
@@ -465,7 +466,7 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 		if elementSize == 4 && len(tag.Data) >= 4 {
 			val := math.Sin(tag.SinePhase)
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(tag.Data[0:4], math.Float32bits(float32(val)))
+			codec.PutUint32(order, tag.Data[0:4], math.Float32bits(float32(val)))
 		}
 
 	case "sawtooth":
@@ -475,7 +476,7 @@ func (lp *LogixPersonality) updateTagData(tag *Tag) {
 		}
 		if elementSize == 4 && len(tag.Data) >= 4 {
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(tag.Data[0:4], tag.Counter)
+			codec.PutUint32(order, tag.Data[0:4], tag.Counter)
 		}
 
 	case "random":
