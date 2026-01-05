@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"io"
 	"net"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 func TestServerIntegrationModes(t *testing.T) {
@@ -101,7 +103,7 @@ func runClientSession(t *testing.T, port int) error {
 	}
 	defer client.Disconnect(ctx)
 
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     0x04,
 		Instance:  0x65,
 		Attribute: 0x03,
@@ -136,7 +138,7 @@ func runRawRegisterSession(t *testing.T, port int) error {
 
 	_ = conn.SetDeadline(time.Now().Add(3 * time.Second))
 
-	payload := cipclient.BuildRegisterSession([8]byte{0x01})
+	payload := enip.BuildRegisterSession([8]byte{0x01})
 	if _, err := conn.Write(payload); err != nil {
 		return fmt.Errorf("write: %w", err)
 	}
@@ -154,14 +156,14 @@ func runRawRegisterSession(t *testing.T, port int) error {
 		}
 	}
 	packet := append(header, body...)
-	encap, err := cipclient.DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		return fmt.Errorf("decode: %w", err)
 	}
-	if encap.Command != cipclient.ENIPCommandRegisterSession {
+	if encap.Command != enip.ENIPCommandRegisterSession {
 		return fmt.Errorf("command: 0x%04X", encap.Command)
 	}
-	if encap.Status != cipclient.ENIPStatusSuccess {
+	if encap.Status != enip.ENIPStatusSuccess {
 		return fmt.Errorf("status: 0x%08X", encap.Status)
 	}
 	if encap.SessionID == 0 {

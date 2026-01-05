@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"strconv"
 	"strings"
 )
@@ -45,7 +46,7 @@ const (
 )
 
 // BuildServicePayload builds a payload (and optional raw EPATH) for a CIP request.
-func BuildServicePayload(req CIPRequest, spec PayloadSpec) (PayloadResult, error) {
+func BuildServicePayload(req protocol.CIPRequest, spec PayloadSpec) (PayloadResult, error) {
 	payloadType := strings.ToLower(strings.TrimSpace(spec.Type))
 	if payloadType == "" {
 		payloadType = string(inferPayloadType(req))
@@ -95,26 +96,26 @@ func BuildServicePayload(req CIPRequest, spec PayloadSpec) (PayloadResult, error
 	}
 }
 
-func inferPayloadType(req CIPRequest) PayloadType {
+func inferPayloadType(req protocol.CIPRequest) PayloadType {
 	switch req.Path.Class {
 	case CIPClassConnectionManager:
 		switch req.Service {
-		case CIPServiceForwardOpen:
+		case protocol.CIPServiceForwardOpen:
 			return PayloadForwardOpen
-		case CIPServiceForwardClose:
+		case protocol.CIPServiceForwardClose:
 			return PayloadForwardClose
-		case CIPServiceUnconnectedSend:
+		case protocol.CIPServiceUnconnectedSend:
 			return PayloadUnconnectedSend
 		}
 	case CIPClassSymbolObject:
 		switch req.Service {
-		case CIPServiceReadTag, CIPServiceWriteTag:
+		case protocol.CIPServiceReadTag, protocol.CIPServiceWriteTag:
 			return PayloadRockwellTag
-		case CIPServiceReadTagFragmented, CIPServiceWriteTagFragmented:
+		case protocol.CIPServiceReadTagFragmented, protocol.CIPServiceWriteTagFragmented:
 			return PayloadRockwellTagFrag
 		}
 	case CIPClassTemplateObject:
-		if req.Service == CIPServiceReadTag {
+		if req.Service == protocol.CIPServiceReadTag {
 			return PayloadRockwellTemplate
 		}
 	case CIPClassFileObject:
@@ -124,13 +125,13 @@ func inferPayloadType(req CIPRequest) PayloadType {
 	case CIPClassSafetySupervisor, CIPClassSafetyValidator:
 		return PayloadSafetyReset
 	}
-	if req.Service == CIPServiceExecutePCCC && req.Path.Class == CIPClassPCCCObject {
+	if req.Service == protocol.CIPServiceExecutePCCC && req.Path.Class == CIPClassPCCCObject {
 		return PayloadRockwellPCCC
 	}
 	return PayloadNone
 }
 
-func buildForwardOpenPayload(req CIPRequest, params PayloadParams) ([]byte, []byte, error) {
+func buildForwardOpenPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, []byte, error) {
 	connParams := ConnectionParams{
 		Priority:              params.getStringDefault("priority", "scheduled"),
 		OToTRPIMs:             params.getIntDefault("o_to_t_rpi_ms", 20),
@@ -151,7 +152,7 @@ func buildForwardOpenPayload(req CIPRequest, params PayloadParams) ([]byte, []by
 	return payload, rawPath, nil
 }
 
-func buildForwardClosePayload(req CIPRequest, params PayloadParams) ([]byte, []byte, error) {
+func buildForwardClosePayload(req protocol.CIPRequest, params PayloadParams) ([]byte, []byte, error) {
 	connID := uint32(params.getUintDefault("connection_id", 0))
 	if connID == 0 {
 		return nil, nil, fmt.Errorf("forward_close requires connection_id")
@@ -164,7 +165,7 @@ func buildForwardClosePayload(req CIPRequest, params PayloadParams) ([]byte, []b
 	return payload, rawPath, nil
 }
 
-func buildUnconnectedSendPayload(req CIPRequest, params PayloadParams) ([]byte, []byte, error) {
+func buildUnconnectedSendPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, []byte, error) {
 	message := params.getBytesHex("embedded_request_hex")
 	if len(message) == 0 {
 		message = params.getBytesHex("message_request_hex")
@@ -190,7 +191,7 @@ func buildUnconnectedSendPayload(req CIPRequest, params PayloadParams) ([]byte, 
 	return payload, rawPath, nil
 }
 
-func buildRockwellTagPayload(req CIPRequest, params PayloadParams, fragmented bool) ([]byte, []byte, error) {
+func buildRockwellTagPayload(req protocol.CIPRequest, params PayloadParams, fragmented bool) ([]byte, []byte, error) {
 	tagPath := params.getStringDefault("tag_path", "")
 	if tagPath == "" {
 		tagPath = params.getStringDefault("tag", "")
@@ -198,24 +199,24 @@ func buildRockwellTagPayload(req CIPRequest, params PayloadParams, fragmented bo
 	if tagPath == "" {
 		tagPath = "Tag1"
 	}
-	rawPath := BuildSymbolicEPATH(tagPath)
+	rawPath := protocol.BuildSymbolicEPATH(tagPath)
 
 	elements := uint16(params.getUintDefault("elements", 1))
 	offset := uint32(params.getUintDefault("offset", 0))
-	typeCode := params.getTypeCodeDefault("type", CIPTypeDINT)
+	typeCode := params.getTypeCodeDefault("type", protocol.CIPTypeDINT)
 	valueBytes, err := params.getValueBytes(typeCode, elements)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	switch req.Service {
-	case CIPServiceReadTag:
+	case protocol.CIPServiceReadTag:
 		return BuildReadTagPayload(elements), rawPath, nil
-	case CIPServiceWriteTag:
+	case protocol.CIPServiceWriteTag:
 		return BuildWriteTagPayload(uint16(typeCode), elements, valueBytes), rawPath, nil
-	case CIPServiceReadTagFragmented:
+	case protocol.CIPServiceReadTagFragmented:
 		return BuildReadTagFragmentedPayload(elements, offset), rawPath, nil
-	case CIPServiceWriteTagFragmented:
+	case protocol.CIPServiceWriteTagFragmented:
 		return BuildWriteTagFragmentedPayload(uint16(typeCode), elements, offset, valueBytes), rawPath, nil
 	default:
 		if fragmented {
@@ -225,7 +226,7 @@ func buildRockwellTagPayload(req CIPRequest, params PayloadParams, fragmented bo
 	}
 }
 
-func buildTemplatePayload(req CIPRequest, params PayloadParams) ([]byte, []byte, error) {
+func buildTemplatePayload(req protocol.CIPRequest, params PayloadParams) ([]byte, []byte, error) {
 	offset := uint32(params.getUintDefault("offset", 0))
 	length := uint16(params.getUintDefault("length", 0x40))
 	buf := make([]byte, 6)
@@ -235,7 +236,7 @@ func buildTemplatePayload(req CIPRequest, params PayloadParams) ([]byte, []byte,
 	return buf, rawPath, nil
 }
 
-func buildPCCCPayload(req CIPRequest, params PayloadParams) ([]byte, []byte, error) {
+func buildPCCCPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, []byte, error) {
 	if hexPayload := params.getBytesHex("pccc_hex"); len(hexPayload) > 0 {
 		return hexPayload, nil, nil
 	}
@@ -250,15 +251,15 @@ func buildPCCCPayload(req CIPRequest, params PayloadParams) ([]byte, []byte, err
 	return []byte{0x0F, 0x00, 0x00, 0x00, 0x00}, nil, nil
 }
 
-func buildFileObjectPayload(req CIPRequest, params PayloadParams) ([]byte, error) {
+func buildFileObjectPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, error) {
 	order := currentCIPByteOrder()
 	switch req.Service {
-	case CIPServiceInitiateUpload:
+	case protocol.CIPServiceInitiateUpload:
 		size := uint32(params.getUintDefault("file_size", 0))
 		buf := make([]byte, 4)
 		order.PutUint32(buf, size)
 		return buf, nil
-	case CIPServiceInitiateDownload:
+	case protocol.CIPServiceInitiateDownload:
 		total := uint32(params.getUintDefault("file_size", 0))
 		format := uint16(params.getUintDefault("format_version", 0))
 		rev := uint16(params.getUintDefault("file_revision", 0))
@@ -274,14 +275,14 @@ func buildFileObjectPayload(req CIPRequest, params PayloadParams) ([]byte, error
 		buf[8] = uint8(len(nameBytes))
 		copy(buf[9:], nameBytes)
 		return buf, nil
-	case CIPServiceInitiatePartialRead:
+	case protocol.CIPServiceInitiatePartialRead:
 		offset := uint32(params.getUintDefault("file_offset", 0))
 		length := uint16(params.getUintDefault("chunk", 0x40))
 		buf := make([]byte, 6)
 		order.PutUint32(buf[0:4], offset)
 		order.PutUint16(buf[4:6], length)
 		return buf, nil
-	case CIPServiceInitiatePartialWrite:
+	case protocol.CIPServiceInitiatePartialWrite:
 		offset := uint32(params.getUintDefault("file_offset", 0))
 		data := params.getBytesHex("data_hex")
 		buf := make([]byte, 6+len(data))
@@ -289,12 +290,12 @@ func buildFileObjectPayload(req CIPRequest, params PayloadParams) ([]byte, error
 		order.PutUint16(buf[4:6], uint16(len(data)))
 		copy(buf[6:], data)
 		return buf, nil
-	case CIPServiceUploadTransfer:
+	case protocol.CIPServiceUploadTransfer:
 		transfer := uint16(params.getUintDefault("transfer_number", 0))
 		buf := make([]byte, 2)
 		order.PutUint16(buf, transfer)
 		return buf, nil
-	case CIPServiceDownloadTransfer:
+	case protocol.CIPServiceDownloadTransfer:
 		transfer := uint16(params.getUintDefault("transfer_number", 0))
 		transferType := uint8(params.getUintDefault("transfer_type", 0))
 		data := params.getBytesHex("data_hex")
@@ -303,14 +304,14 @@ func buildFileObjectPayload(req CIPRequest, params PayloadParams) ([]byte, error
 		buf[2] = transferType
 		copy(buf[3:], data)
 		return buf, nil
-	case CIPServiceClearFile:
+	case protocol.CIPServiceClearFile:
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unsupported file object service 0x%02X", req.Service)
 	}
 }
 
-func buildModbusPayload(req CIPRequest, params PayloadParams) ([]byte, error) {
+func buildModbusPayload(req protocol.CIPRequest, params PayloadParams) ([]byte, error) {
 	order := currentCIPByteOrder()
 	addr := uint16(params.getUintDefault("modbus_addr", 0))
 	qty := uint16(params.getUintDefault("modbus_qty", 1))
@@ -431,7 +432,7 @@ func (p PayloadParams) getBytesHex(key string) []byte {
 	return nil
 }
 
-func (p PayloadParams) getTypeCodeDefault(key string, def CIPDataType) CIPDataType {
+func (p PayloadParams) getTypeCodeDefault(key string, def protocol.CIPDataType) protocol.CIPDataType {
 	if p.raw == nil {
 		return def
 	}
@@ -444,20 +445,20 @@ func (p PayloadParams) getTypeCodeDefault(key string, def CIPDataType) CIPDataTy
 		if v == "" {
 			return def
 		}
-		if dt, err := ParseCIPDataType(v); err == nil {
+		if dt, err := protocol.ParseCIPDataType(v); err == nil {
 			return dt
 		}
 	case int:
-		return CIPDataType(v)
+		return protocol.CIPDataType(v)
 	case uint16:
-		return CIPDataType(v)
+		return protocol.CIPDataType(v)
 	case uint32:
-		return CIPDataType(v)
+		return protocol.CIPDataType(v)
 	}
 	return def
 }
 
-func (p PayloadParams) getValueBytes(dt CIPDataType, elements uint16) ([]byte, error) {
+func (p PayloadParams) getValueBytes(dt protocol.CIPDataType, elements uint16) ([]byte, error) {
 	if p.raw == nil {
 		return []byte{}, nil
 	}
@@ -470,20 +471,20 @@ func (p PayloadParams) getValueBytes(dt CIPDataType, elements uint16) ([]byte, e
 		return []byte{}, nil
 	}
 	if elements <= 1 || len(values) == 1 {
-		v, err := ParseCIPValue(dt, values[0])
+		v, err := protocol.ParseCIPValue(dt, values[0])
 		if err != nil {
 			return nil, err
 		}
-		return EncodeCIPValue(dt, v)
+		return protocol.EncodeCIPValue(dt, v)
 	}
 	buf := make([]byte, 0)
 	for i := 0; i < int(elements); i++ {
 		val := values[i%len(values)]
-		parsed, err := ParseCIPValue(dt, val)
+		parsed, err := protocol.ParseCIPValue(dt, val)
 		if err != nil {
 			return nil, err
 		}
-		enc, err := EncodeCIPValue(dt, parsed)
+		enc, err := protocol.EncodeCIPValue(dt, parsed)
 		if err != nil {
 			return nil, err
 		}

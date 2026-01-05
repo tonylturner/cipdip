@@ -1,6 +1,9 @@
 package cipclient
 
-import "testing"
+import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"testing"
+)
 
 func TestBuildForwardOpenRequestIncludesPathSize(t *testing.T) {
 	prev := CurrentProtocolProfile()
@@ -25,7 +28,7 @@ func TestBuildForwardOpenRequestIncludesPathSize(t *testing.T) {
 	if len(req) < 10 {
 		t.Fatalf("unexpected request length: %d", len(req))
 	}
-	if req[0] != byte(CIPServiceForwardOpen) {
+	if req[0] != byte(protocol.CIPServiceForwardOpen) {
 		t.Fatalf("expected ForwardOpen service, got 0x%02X", req[0])
 	}
 	if req[1] != 0x02 {
@@ -45,7 +48,7 @@ func TestBuildForwardCloseRequestPadding(t *testing.T) {
 	if len(req) < 10 {
 		t.Fatalf("unexpected request length: %d", len(req))
 	}
-	if req[0] != byte(CIPServiceForwardClose) {
+	if req[0] != byte(protocol.CIPServiceForwardClose) {
 		t.Fatalf("expected ForwardClose service, got 0x%02X", req[0])
 	}
 	// path size byte at index 5 when strict mode enabled.

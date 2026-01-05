@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 func TestParseENIPStreamSplitAndCoalesce(t *testing.T) {
 	logger := createTestLogger()
-	frame1 := cipclient.BuildListIdentity([8]byte{0x01})
-	frame2 := cipclient.BuildRegisterSession([8]byte{0x02})
+	frame1 := enip.BuildListIdentity([8]byte{0x01})
+	frame2 := enip.BuildRegisterSession([8]byte{0x02})
 
 	// Split frame1 across two reads, frame2 coalesced.
 	buf := append([]byte{}, frame1[:10]...)
@@ -30,10 +30,10 @@ func TestParseENIPStreamSplitAndCoalesce(t *testing.T) {
 	if len(rem) != 0 {
 		t.Fatalf("expected no remainder, got %d bytes", len(rem))
 	}
-	if frames[0].Command != cipclient.ENIPCommandListIdentity {
+	if frames[0].Command != enip.ENIPCommandListIdentity {
 		t.Fatalf("expected ListIdentity first, got 0x%04X", frames[0].Command)
 	}
-	if frames[1].Command != cipclient.ENIPCommandRegisterSession {
+	if frames[1].Command != enip.ENIPCommandRegisterSession {
 		t.Fatalf("expected RegisterSession second, got 0x%04X", frames[1].Command)
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -68,7 +68,7 @@ func TestBaselineScenarioBasicExecution(t *testing.T) {
 
 	// Verify reads were performed
 	for _, target := range cfg.ReadTargets {
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -139,7 +139,7 @@ func TestBaselineScenarioIntervalHandling(t *testing.T) {
 	}
 
 	// Verify reads were performed (should be multiple iterations)
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -172,7 +172,7 @@ func TestBaselineScenarioContextCancellation(t *testing.T) {
 	}
 
 	// Verify some reads were performed before cancellation
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -191,7 +191,7 @@ func TestBaselineScenarioErrorHandling(t *testing.T) {
 	params := createTestParams()
 
 	// Set error for one target
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -227,13 +227,13 @@ func TestBaselineScenarioCIPErrorStatus(t *testing.T) {
 	params := createTestParams()
 
 	// Set error status response
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
 	}
-	client.SetReadResponse(path, cipclient.CIPResponse{
-		Service: cipclient.CIPServiceGetAttributeSingle,
+	client.SetReadResponse(path, protocol.CIPResponse{
+		Service: protocol.CIPServiceGetAttributeSingle,
 		Status:  0x01, // General error
 		Path:    path,
 	})

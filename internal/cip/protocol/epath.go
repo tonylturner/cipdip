@@ -1,4 +1,4 @@
-package cipclient
+package protocol
 
 import "fmt"
 
@@ -14,9 +14,9 @@ type EPATHInfo struct {
 
 // ParseEPATH parses a CIP EPATH and returns parsed path info and bytes consumed.
 // Note: Contextual service decoding uses (service, class) because vendor-specific
-// services in the 0x4B–0x63 range are ambiguous without object class context.
+// services in the 0x4B-0x63 range are ambiguous without object class context.
 func ParseEPATH(data []byte) (EPATHInfo, error) {
-	order := currentCIPByteOrder()
+	order := currentByteOrder()
 	info := EPATHInfo{}
 	offset := 0
 
@@ -83,6 +83,24 @@ func ParseEPATH(data []byte) (EPATHInfo, error) {
 
 	info.BytesConsumed = offset
 	return info, nil
+}
+
+// LooksLikeEPATH returns true if data looks like a valid EPATH prefix.
+func LooksLikeEPATH(data []byte) bool {
+	return looksLikeEPATH(data)
+}
+
+func looksLikeEPATH(data []byte) bool {
+	if len(data) < 2 {
+		return false
+	}
+	seg := data[0]
+	switch seg {
+	case 0x20, 0x21, 0x24, 0x25, 0x30, 0x31, 0x00:
+	default:
+		return false
+	}
+	return true
 }
 
 func isPortSegment(seg byte) bool {

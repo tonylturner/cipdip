@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
@@ -76,9 +77,9 @@ func (s *EdgeValidScenario) Run(ctx context.Context, client cipclient.Client, cf
 			if err != nil {
 				return err
 			}
-			req := cipclient.CIPRequest{
+			req := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,

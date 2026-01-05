@@ -1,13 +1,15 @@
-package cipclient
+package enip
 
 import (
+	"encoding/binary"
 	"testing"
 )
 
 func TestEncodeENIP(t *testing.T) {
-	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(StrictODVAProfile)
-	defer SetProtocolProfile(prevProfile)
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
+
 	encap := ENIPEncapsulation{
 		Command:       ENIPCommandRegisterSession,
 		Length:        4,
@@ -20,7 +22,7 @@ func TestEncodeENIP(t *testing.T) {
 
 	packet := EncodeENIP(encap)
 
-	// Should be 24 bytes (header) + 4 bytes (data) = 28 bytes
+	// Should be 24 bytes (header) + 4 bytes (data) = 28 bytes.
 	if len(packet) != 28 {
 		t.Errorf("packet length: got %d, want 28", len(packet))
 	}
@@ -38,10 +40,10 @@ func TestEncodeENIP(t *testing.T) {
 }
 
 func TestDecodeENIP(t *testing.T) {
-	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(StrictODVAProfile)
-	defer SetProtocolProfile(prevProfile)
-	// Create a test packet
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
+
 	encap := ENIPEncapsulation{
 		Command:       ENIPCommandRegisterSession,
 		Length:        4,
@@ -82,18 +84,18 @@ func TestDecodeENIPTooShort(t *testing.T) {
 }
 
 func TestBuildRegisterSession(t *testing.T) {
-	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(StrictODVAProfile)
-	defer SetProtocolProfile(prevProfile)
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
+
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
 	packet := BuildRegisterSession(senderContext)
 
-	// Should be 24 bytes (header) + 4 bytes (data) = 28 bytes
+	// Should be 24 bytes (header) + 4 bytes (data) = 28 bytes.
 	if len(packet) != 28 {
 		t.Errorf("packet length: got %d, want 28", len(packet))
 	}
 
-	// Decode and verify
 	encap, err := DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
@@ -113,16 +115,16 @@ func TestBuildRegisterSession(t *testing.T) {
 }
 
 func TestBuildSendRRData(t *testing.T) {
-	prevProfile := CurrentProtocolProfile()
-	SetProtocolProfile(StrictODVAProfile)
-	defer SetProtocolProfile(prevProfile)
+	prev := CurrentOptions()
+	SetOptions(Options{ByteOrder: binary.LittleEndian, UseCPF: true})
+	defer SetOptions(prev)
+
 	sessionID := uint32(0x12345678)
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03} // Get_Attribute_Single example
+	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x65, 0x30, 0x03}
 
 	packet := BuildSendRRData(sessionID, senderContext, cipData)
 
-	// Decode and verify
 	encap, err := DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
@@ -136,13 +138,11 @@ func TestBuildSendRRData(t *testing.T) {
 		t.Errorf("session ID: got 0x%08X, want 0x%08X", encap.SessionID, sessionID)
 	}
 
-	// Parse SendRRData response structure
 	cipRespData, err := ParseSendRRDataResponse(encap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataResponse failed: %v", err)
 	}
 
-	// Should skip 6 bytes (Interface Handle + Timeout) and return CIP data
 	if len(cipRespData) != len(cipData) {
 		t.Errorf("CIP data length: got %d, want %d", len(cipRespData), len(cipData))
 	}

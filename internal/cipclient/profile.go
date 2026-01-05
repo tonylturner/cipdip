@@ -3,6 +3,9 @@ package cipclient
 import (
 	"encoding/binary"
 	"sync"
+
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 // ProtocolProfile defines protocol encoding and framing behavior.
@@ -102,6 +105,15 @@ func SetProtocolProfile(profile ProtocolProfile) {
 	profileMu.Lock()
 	defer profileMu.Unlock()
 	currentProfile = profile
+	enip.SetOptions(enip.Options{
+		ByteOrder: profile.ENIPByteOrder,
+		UseCPF:    profile.UseCPF,
+	})
+	protocol.SetOptions(protocol.Options{
+		ByteOrder:           profile.CIPByteOrder,
+		IncludePathSize:     profile.IncludeCIPPathSize,
+		IncludeRespReserved: profile.IncludeCIPRespReserved,
+	})
 }
 
 // ResolveProtocolProfile resolves the profile based on mode, variant, and overrides.

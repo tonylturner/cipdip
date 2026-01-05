@@ -1,9 +1,11 @@
 package server
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 
 	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/logging"
 )
 
@@ -23,15 +25,15 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	embeddedReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	embeddedReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     cipclient.CIPClassIdentityObject,
 			Instance:  0x0001,
 			Attribute: 0x0001,
 		},
 	}
-	embeddedData, err := cipclient.EncodeCIPRequest(embeddedReq)
+	embeddedData, err := protocol.EncodeCIPRequest(embeddedReq)
 	if err != nil {
 		t.Fatalf("EncodeCIPRequest failed: %v", err)
 	}
@@ -40,17 +42,17 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 		t.Fatalf("BuildUnconnectedSendPayload failed: %v", err)
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceUnconnectedSend,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceUnconnectedSend,
+		Path: protocol.CIPPath{
 			Class:    cipclient.CIPClassConnectionManager,
 			Instance: 0x0001,
 		},
 		Payload: payload,
 	}
 
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		SessionID:     0x1234,
 		Status:        0,
 		SenderContext: [8]byte{0x01},
@@ -59,15 +61,15 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 	}
 
 	resp := srv.handleUnconnectedSend(encap, req)
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	cipPayload, err := cipclient.ParseSendRRDataResponse(respEncap.Data)
+	cipPayload, err := enip.ParseSendRRDataResponse(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataResponse failed: %v", err)
 	}
-	cipResp, err := cipclient.DecodeCIPResponse(cipPayload, req.Path)
+	cipResp, err := protocol.DecodeCIPResponse(cipPayload, req.Path)
 	if err != nil {
 		t.Fatalf("DecodeCIPResponse failed: %v", err)
 	}
@@ -75,11 +77,11 @@ func TestHandleUnconnectedSendSuccess(t *testing.T) {
 		t.Fatalf("expected status 0, got 0x%02X", cipResp.Status)
 	}
 
-	embeddedRespData, ok := cipclient.ParseUnconnectedSendResponsePayload(cipResp.Payload)
+	embeddedRespData, ok := protocol.ParseUnconnectedSendResponsePayload(cipResp.Payload)
 	if !ok {
 		t.Fatalf("ParseUnconnectedSendResponsePayload failed")
 	}
-	embeddedResp, err := cipclient.DecodeCIPResponse(embeddedRespData, embeddedReq.Path)
+	embeddedResp, err := protocol.DecodeCIPResponse(embeddedRespData, embeddedReq.Path)
 	if err != nil {
 		t.Fatalf("DecodeCIPResponse (embedded) failed: %v", err)
 	}
@@ -99,17 +101,17 @@ func TestHandleUnconnectedSendInvalidPayload(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceUnconnectedSend,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceUnconnectedSend,
+		Path: protocol.CIPPath{
 			Class:    cipclient.CIPClassConnectionManager,
 			Instance: 0x0001,
 		},
 		Payload: []byte{0x01},
 	}
 
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		SessionID:     0x1234,
 		Status:        0,
 		SenderContext: [8]byte{0x01},
@@ -118,15 +120,15 @@ func TestHandleUnconnectedSendInvalidPayload(t *testing.T) {
 	}
 
 	resp := srv.handleUnconnectedSend(encap, req)
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	cipPayload, err := cipclient.ParseSendRRDataResponse(respEncap.Data)
+	cipPayload, err := enip.ParseSendRRDataResponse(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataResponse failed: %v", err)
 	}
-	cipResp, err := cipclient.DecodeCIPResponse(cipPayload, req.Path)
+	cipResp, err := protocol.DecodeCIPResponse(cipPayload, req.Path)
 	if err != nil {
 		t.Fatalf("DecodeCIPResponse failed: %v", err)
 	}
@@ -143,18 +145,18 @@ func TestHandleMultipleService(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	reqs := []cipclient.CIPRequest{
+	reqs := []protocol.CIPRequest{
 		{
-			Service: cipclient.CIPServiceGetAttributeSingle,
-			Path: cipclient.CIPPath{
+			Service: protocol.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     cipclient.CIPClassIdentityObject,
 				Instance:  0x0001,
 				Attribute: 0x0001,
 			},
 		},
 		{
-			Service: cipclient.CIPServiceGetAttributeSingle,
-			Path: cipclient.CIPPath{
+			Service: protocol.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     cipclient.CIPClassIdentityObject,
 				Instance:  0x0001,
 				Attribute: 0x0002,
@@ -167,17 +169,17 @@ func TestHandleMultipleService(t *testing.T) {
 		t.Fatalf("BuildMultipleServiceRequestPayload failed: %v", err)
 	}
 
-	req := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceMultipleService,
-		Path: cipclient.CIPPath{
+	req := protocol.CIPRequest{
+		Service: protocol.CIPServiceMultipleService,
+		Path: protocol.CIPPath{
 			Class:    cipclient.CIPClassMessageRouter,
 			Instance: 0x0001,
 		},
 		Payload: payload,
 	}
 
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		SessionID:     0x1234,
 		Status:        0,
 		SenderContext: [8]byte{0x01},
@@ -186,15 +188,15 @@ func TestHandleMultipleService(t *testing.T) {
 	}
 
 	resp := srv.handleMultipleService(encap, req)
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	cipPayload, err := cipclient.ParseSendRRDataResponse(respEncap.Data)
+	cipPayload, err := enip.ParseSendRRDataResponse(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataResponse failed: %v", err)
 	}
-	cipResp, err := cipclient.DecodeCIPResponse(cipPayload, req.Path)
+	cipResp, err := protocol.DecodeCIPResponse(cipPayload, req.Path)
 	if err != nil {
 		t.Fatalf("DecodeCIPResponse failed: %v", err)
 	}

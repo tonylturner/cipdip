@@ -2,21 +2,22 @@ package cipclient
 
 import (
 	"context"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 )
 
 func TestFileObjectRequestValidation(t *testing.T) {
 	client := &ENIPClient{}
 
-	if _, err := client.fileObjectRequest(CIPServiceInitiateUpload, 0, nil); err == nil {
+	if _, err := client.fileObjectRequest(protocol.CIPServiceInitiateUpload, 0, nil); err == nil {
 		t.Fatalf("expected error for instance 0")
 	}
 
-	req, err := client.fileObjectRequest(CIPServiceInitiateUpload, 0x0001, []byte{0x01})
+	req, err := client.fileObjectRequest(protocol.CIPServiceInitiateUpload, 0x0001, []byte{0x01})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if req.Service != CIPServiceInitiateUpload {
+	if req.Service != protocol.CIPServiceInitiateUpload {
 		t.Fatalf("unexpected service: %v", req.Service)
 	}
 	if req.Path.Class != CIPClassFileObject || req.Path.Instance != 0x0001 {

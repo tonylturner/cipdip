@@ -1,4 +1,4 @@
-package cipclient
+package protocol
 
 import (
 	"encoding/binary"
@@ -150,7 +150,7 @@ func ParseCIPValue(dt CIPDataType, input string) (any, error) {
 
 // DecodeCIPValue decodes a single CIP value from bytes.
 func DecodeCIPValue(dt CIPDataType, data []byte) (any, int, error) {
-	order := CurrentProtocolProfile().CIPByteOrder
+	order := currentByteOrder()
 	switch dt {
 	case CIPTypeBOOL:
 		if len(data) < 1 {
@@ -203,7 +203,7 @@ func DecodeCIPValue(dt CIPDataType, data []byte) (any, int, error) {
 
 // EncodeCIPValue encodes a single CIP value to bytes.
 func EncodeCIPValue(dt CIPDataType, value any) ([]byte, error) {
-	order := CurrentProtocolProfile().CIPByteOrder
+	order := currentByteOrder()
 	switch dt {
 	case CIPTypeBOOL:
 		switch v := value.(type) {

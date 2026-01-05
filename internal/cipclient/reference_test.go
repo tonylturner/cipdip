@@ -1,6 +1,7 @@
 package cipclient
 
 import (
+	"github.com/tturner/cipdip/internal/enip"
 	"testing"
 )
 
@@ -37,7 +38,7 @@ func TestReferencePackets(t *testing.T) {
 		}
 
 		// Validate ENIP header structure
-		encap, err := DecodeENIP(ref.Data)
+		encap, err := enip.DecodeENIP(ref.Data)
 		if err != nil {
 			t.Errorf("Reference packet %s failed to decode: %v", key, err)
 			continue
@@ -49,7 +50,7 @@ func TestReferencePackets(t *testing.T) {
 		// so we skip session ID validation for reference packets
 		if err := validator.ValidateENIP(encap); err != nil {
 			// Check if error is about session ID (which is expected for normalized packets)
-			if encap.SessionID == 0 && (encap.Command == ENIPCommandSendRRData || encap.Command == ENIPCommandSendUnitData) {
+			if encap.SessionID == 0 && (encap.Command == enip.ENIPCommandSendRRData || encap.Command == enip.ENIPCommandSendUnitData) {
 				// This is expected for normalized reference packets
 				t.Logf("Reference packet %s has normalized session ID (expected for reference packets)", key)
 			} else {

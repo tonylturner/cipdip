@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
@@ -106,7 +107,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 			for _, target := range cfg.ReadTargets {
-				path := cipclient.CIPPath{
+				path := protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -131,7 +132,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 					TargetType:  params.TargetType,
 					Operation:   metrics.OperationRead,
 					TargetName:  target.Name,
-					ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+					ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
 					Success:     success,
 					RTTMs:       rtt,
 					JitterMs:    jitterMs,
@@ -143,7 +144,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			}
 
 			for _, target := range cfg.WriteTargets {
-				path := cipclient.CIPPath{
+				path := protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -173,7 +174,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 					TargetType:  params.TargetType,
 					Operation:   metrics.OperationWrite,
 					TargetName:  target.Name,
-					ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceSetAttributeSingle)),
+					ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceSetAttributeSingle)),
 					Success:     success,
 					RTTMs:       rtt,
 					JitterMs:    jitterMs,
@@ -189,9 +190,9 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				if err != nil {
 					return err
 				}
-				req := cipclient.CIPRequest{
+				req := protocol.CIPRequest{
 					Service: serviceCode,
-					Path: cipclient.CIPPath{
+					Path: protocol.CIPPath{
 						Class:     target.Class,
 						Instance:  target.Instance,
 						Attribute: target.Attribute,

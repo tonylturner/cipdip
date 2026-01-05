@@ -3,6 +3,7 @@ package cipclient
 // Response structure validation tests
 
 import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 )
 
@@ -28,15 +29,15 @@ func TestCIPResponseStructure(t *testing.T) {
 		}
 	}
 
-	path := CIPPath{
+	path := protocol.CIPPath{
 		Class:     0x04,
 		Instance:  0x65,
 		Attribute: 0x03,
 	}
 
-	resp, err := DecodeCIPResponse(responseData, path)
+	resp, err := protocol.DecodeCIPResponse(responseData, path)
 	if err != nil {
-		t.Fatalf("DecodeCIPResponse failed: %v", err)
+		t.Fatalf("protocol.DecodeCIPResponse failed: %v", err)
 	}
 
 	// Verify response structure
@@ -79,15 +80,15 @@ func TestCIPResponseWithError(t *testing.T) {
 		}
 	}
 
-	path := CIPPath{
+	path := protocol.CIPPath{
 		Class:     0x04,
 		Instance:  0x65,
 		Attribute: 0x03,
 	}
 
-	resp, err := DecodeCIPResponse(responseData, path)
+	resp, err := protocol.DecodeCIPResponse(responseData, path)
 	if err != nil {
-		t.Fatalf("DecodeCIPResponse failed: %v", err)
+		t.Fatalf("protocol.DecodeCIPResponse failed: %v", err)
 	}
 
 	// Verify error status
@@ -236,15 +237,15 @@ func TestCIPStatusCodes(t *testing.T) {
 			0x01, 0x02, // Payload
 		}
 	}
-	path := CIPPath{Class: 0x04, Instance: 0x65, Attribute: 0x03}
-	resp, err := DecodeCIPResponse(successData, path)
+	path := protocol.CIPPath{Class: 0x04, Instance: 0x65, Attribute: 0x03}
+	resp, err := protocol.DecodeCIPResponse(successData, path)
 	if err != nil {
-		t.Fatalf("DecodeCIPResponse failed: %v", err)
+		t.Fatalf("protocol.DecodeCIPResponse failed: %v", err)
 	}
 	if resp.Status != 0x00 {
 		t.Errorf("Success status: got 0x%02X, want 0x00", resp.Status)
 	}
-	if resp.Service != CIPServiceGetAttributeSingle {
-		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, CIPServiceGetAttributeSingle)
+	if resp.Service != protocol.CIPServiceGetAttributeSingle {
+		t.Errorf("Service code: got 0x%02X, want 0x%02X", resp.Service, protocol.CIPServiceGetAttributeSingle)
 	}
 }

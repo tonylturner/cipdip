@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"io"
 	"math/rand"
 	"net"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
+	"github.com/tturner/cipdip/internal/enip"
 	"github.com/tturner/cipdip/internal/logging"
 )
 
@@ -65,7 +67,7 @@ type ConnectionState struct {
 
 // Personality interface for different server behaviors
 type Personality interface {
-	HandleCIPRequest(ctx context.Context, req cipclient.CIPRequest) (cipclient.CIPResponse, error)
+	HandleCIPRequest(ctx context.Context, req protocol.CIPRequest) (protocol.CIPResponse, error)
 	GetName() string
 }
 
@@ -386,66 +388,66 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 }
 
 // handleENIPCommand handles an ENIP command and returns a response packet
-func (s *Server) handleENIPCommand(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
+func (s *Server) handleENIPCommand(encap enip.ENIPEncapsulation, remoteAddr string) []byte {
 	switch encap.Command {
-	case cipclient.ENIPCommandRegisterSession:
+	case enip.ENIPCommandRegisterSession:
 		if !s.enipSupport.registerSession {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleRegisterSession(encap, remoteAddr)
 
-	case cipclient.ENIPCommandUnregisterSession:
+	case enip.ENIPCommandUnregisterSession:
 		if !s.enipSupport.registerSession {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleUnregisterSession(encap)
 
-	case cipclient.ENIPCommandSendRRData:
+	case enip.ENIPCommandSendRRData:
 		if !s.enipSupport.sendRRData {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleSendRRData(encap, remoteAddr)
 
-	case cipclient.ENIPCommandSendUnitData:
+	case enip.ENIPCommandSendUnitData:
 		if !s.enipSupport.sendUnitData {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleSendUnitData(encap, remoteAddr)
 
-	case cipclient.ENIPCommandListIdentity:
+	case enip.ENIPCommandListIdentity:
 		if !s.enipSupport.listIdentity {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleListIdentity(encap, remoteAddr)
 
-	case cipclient.ENIPCommandListServices:
+	case enip.ENIPCommandListServices:
 		if !s.enipSupport.listServices {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleListServices(encap)
 
-	case cipclient.ENIPCommandListInterfaces:
+	case enip.ENIPCommandListInterfaces:
 		if !s.enipSupport.listInterfaces {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+			return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 		}
 		return s.handleListInterfaces(encap)
 
 	default:
 		s.logger.Error("Unsupported ENIP command 0x%04X from %s", encap.Command, remoteAddr)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusUnsupportedCommand)
+		return s.buildErrorResponse(encap, enip.ENIPStatusUnsupportedCommand)
 	}
 }
 
 // handleRegisterSession handles a RegisterSession request
-func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
+func (s *Server) handleRegisterSession(encap enip.ENIPEncapsulation, remoteAddr string) []byte {
 	// Validate request
 	if len(encap.Data) < 4 {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 
 	if err := s.enforceSessionLimits(remoteAddr); err != nil {
 		s.logger.Error("RegisterSession rejected from %s: %v", remoteAddr, err)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInsufficientMemory)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInsufficientMemory)
 	}
 
 	// Generate session ID
@@ -474,21 +476,21 @@ func (s *Server) handleRegisterSession(encap cipclient.ENIPEncapsulation, remote
 	fmt.Printf("[SERVER] Registered session %d\n", sessionID)
 
 	// Build response
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandRegisterSession,
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandRegisterSession,
 		Length:        4,
 		SessionID:     sessionID,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          encap.Data, // Echo back protocol version and flags
 	}
 
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }
 
 // handleUnregisterSession handles an UnregisterSession request
-func (s *Server) handleUnregisterSession(encap cipclient.ENIPEncapsulation) []byte {
+func (s *Server) handleUnregisterSession(encap enip.ENIPEncapsulation) []byte {
 	s.sessionsMu.Lock()
 	delete(s.sessions, encap.SessionID)
 	s.sessionsMu.Unlock()
@@ -497,24 +499,24 @@ func (s *Server) handleUnregisterSession(encap cipclient.ENIPEncapsulation) []by
 	fmt.Printf("[SERVER] Unregistered session %d\n", encap.SessionID)
 
 	// Build response
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandUnregisterSession,
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandUnregisterSession,
 		Length:        0,
 		SessionID:     encap.SessionID,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          nil,
 	}
 
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }
 
 // handleSendRRData handles a SendRRData request (UCMM)
-func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
+func (s *Server) handleSendRRData(encap enip.ENIPEncapsulation, remoteAddr string) []byte {
 	session, ok := s.requireSession(encap.SessionID, remoteAddr)
 	if !ok {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidSessionHandle)
 	}
 
 	// Update session activity
@@ -527,26 +529,26 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	cipData, err := s.parseSendRRData(encap.Data)
 	if err != nil {
 		s.logger.Error("Parse SendRRData error: %v", err)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 
 	// Check if this is a ForwardOpen request (service 0x54)
-	if len(cipData) > 0 && cipclient.CIPServiceCode(cipData[0]) == cipclient.CIPServiceForwardOpen {
+	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == protocol.CIPServiceForwardOpen {
 		// Handle ForwardOpen specially (it doesn't follow standard CIP request format)
 		return s.handleForwardOpen(encap, cipData, remoteAddr)
 	}
 
 	// Check if this is a ForwardClose request (service 0x4E)
-	if len(cipData) > 0 && cipclient.CIPServiceCode(cipData[0]) == cipclient.CIPServiceForwardClose {
+	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == protocol.CIPServiceForwardClose {
 		// Handle ForwardClose specially (it doesn't follow standard CIP request format)
 		return s.handleForwardClose(encap, cipData)
 	}
 
 	// Decode CIP request
-	cipReq, err := cipclient.DecodeCIPRequest(cipData)
+	cipReq, err := protocol.DecodeCIPRequest(cipData)
 	if err != nil {
 		s.logger.Error("Decode CIP request error: %v", err)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 
 	// Log incoming request
@@ -557,35 +559,35 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	}
 
 	if policyResp, ok := s.applyCIPPolicy(cipReq); ok {
-		cipRespData, err := cipclient.EncodeCIPResponse(policyResp)
+		cipRespData, err := protocol.EncodeCIPResponse(policyResp)
 		if err != nil {
 			s.logger.Error("Encode CIP response error: %v", err)
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+			return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 		}
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
-	if cipReq.Service == cipclient.CIPServiceUnconnectedSend {
+	if cipReq.Service == protocol.CIPServiceUnconnectedSend {
 		return s.handleUnconnectedSend(encap, cipReq)
 	}
-	if cipReq.Service == cipclient.CIPServiceMultipleService {
+	if cipReq.Service == protocol.CIPServiceMultipleService {
 		return s.handleMultipleService(encap, cipReq)
 	}
 
 	if identityResp, ok := s.handleIdentityRequest(cipReq); ok {
-		cipRespData, err := cipclient.EncodeCIPResponse(identityResp)
+		cipRespData, err := protocol.EncodeCIPResponse(identityResp)
 		if err != nil {
 			s.logger.Error("Encode CIP response error: %v", err)
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+			return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 		}
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
 	if genericResp, ok := s.handleGenericRequest(cipReq); ok {
-		cipRespData, err := cipclient.EncodeCIPResponse(genericResp)
+		cipRespData, err := protocol.EncodeCIPResponse(genericResp)
 		if err != nil {
 			s.logger.Error("Encode CIP response error: %v", err)
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+			return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 		}
 		return s.buildCIPResponse(encap, cipRespData)
 	}
@@ -596,7 +598,7 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 		s.logger.Error("Handle CIP request error: %v", err)
 		fmt.Printf("[SERVER] Request failed: %v\n", err)
 		// Return CIP error response
-		cipResp = cipclient.CIPResponse{
+		cipResp = protocol.CIPResponse{
 			Service: cipReq.Service,
 			Status:  0x01, // General error
 			Payload: nil,
@@ -612,17 +614,17 @@ func (s *Server) handleSendRRData(encap cipclient.ENIPEncapsulation, remoteAddr 
 	}
 
 	// Encode CIP response
-	cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+	cipRespData, err := protocol.EncodeCIPResponse(cipResp)
 	if err != nil {
 		s.logger.Error("Encode CIP response error: %v", err)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 
 	return s.buildCIPResponse(encap, cipRespData)
 }
 
 // handleForwardOpen handles a ForwardOpen request (I/O connection establishment)
-func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []byte, remoteAddr string) []byte {
+func (s *Server) handleForwardOpen(encap enip.ENIPEncapsulation, cipData []byte, remoteAddr string) []byte {
 	fmt.Printf("[SERVER] Received ForwardOpen request\n")
 
 	// ForwardOpen response structure:
@@ -659,13 +661,13 @@ func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []
 	order.PutUint32(respData[len(respData)-4:], 0x00000000) // Originator serial number
 	respData = append(respData, 0x01)                       // Connection timeout multiplier
 
-	sendData := cipclient.BuildSendRRDataPayload(respData)
+	sendData := enip.BuildSendRRDataPayload(respData)
 
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendData)),
 		SessionID:     encap.SessionID,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          sendData,
@@ -676,11 +678,11 @@ func (s *Server) handleForwardOpen(encap cipclient.ENIPEncapsulation, cipData []
 
 	fmt.Printf("[SERVER] ForwardOpen response: O->T=0x%08X T->O=0x%08X\n", oToTConnID, tToOConnID)
 
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }
 
 // handleForwardClose handles a ForwardClose request (I/O connection teardown)
-func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData []byte) []byte {
+func (s *Server) handleForwardClose(encap enip.ENIPEncapsulation, cipData []byte) []byte {
 	fmt.Printf("[SERVER] Received ForwardClose request\n")
 
 	if connID := parseForwardCloseConnectionID(cipData); connID != 0 {
@@ -696,13 +698,13 @@ func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData [
 	respData = append(respData, 0x00) // General status (success)
 	respData = append(respData, 0x00) // Additional status size
 
-	sendData := cipclient.BuildSendRRDataPayload(respData)
+	sendData := enip.BuildSendRRDataPayload(respData)
 
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendData)),
 		SessionID:     encap.SessionID,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          sendData,
@@ -710,41 +712,41 @@ func (s *Server) handleForwardClose(encap cipclient.ENIPEncapsulation, cipData [
 
 	fmt.Printf("[SERVER] ForwardClose response: success\n")
 
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }
 
-func (s *Server) handleUnconnectedSend(encap cipclient.ENIPEncapsulation, cipReq cipclient.CIPRequest) []byte {
-	embeddedReqData, _, ok := cipclient.ParseUnconnectedSendRequestPayload(cipReq.Payload)
+func (s *Server) handleUnconnectedSend(encap enip.ENIPEncapsulation, cipReq protocol.CIPRequest) []byte {
+	embeddedReqData, _, ok := protocol.ParseUnconnectedSendRequestPayload(cipReq.Payload)
 	if !ok {
-		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x13, Path: cipReq.Path}
-		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x13, Path: cipReq.Path}
+		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
-	embeddedReq, err := cipclient.DecodeCIPRequest(embeddedReqData)
+	embeddedReq, err := protocol.DecodeCIPRequest(embeddedReqData)
 	if err != nil {
-		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
-		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
 	if policyResp, ok := s.applyCIPPolicy(embeddedReq); ok {
-		embeddedRespData, err := cipclient.EncodeCIPResponse(policyResp)
+		embeddedRespData, err := protocol.EncodeCIPResponse(policyResp)
 		if err != nil {
-			cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
-			cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+			cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+			cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 			return s.buildCIPResponse(encap, cipRespData)
 		}
 		payload := cipclient.BuildUnconnectedSendResponsePayload(embeddedRespData)
-		cipResp := cipclient.CIPResponse{
+		cipResp := protocol.CIPResponse{
 			Service: cipReq.Service,
 			Status:  0x00,
 			Path:    cipReq.Path,
 			Payload: payload,
 		}
-		cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+		cipRespData, err := protocol.EncodeCIPResponse(cipResp)
 		if err != nil {
-			return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+			return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 		}
 		return s.buildCIPResponse(encap, cipRespData)
 	}
@@ -753,42 +755,42 @@ func (s *Server) handleUnconnectedSend(encap cipclient.ENIPEncapsulation, cipReq
 	if !ok {
 		embeddedResp = s.handleEmbeddedRequest(embeddedReq)
 	}
-	embeddedRespData, err := cipclient.EncodeCIPResponse(embeddedResp)
+	embeddedRespData, err := protocol.EncodeCIPResponse(embeddedResp)
 	if err != nil {
-		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
-		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
 	payload := cipclient.BuildUnconnectedSendResponsePayload(embeddedRespData)
-	cipResp := cipclient.CIPResponse{
+	cipResp := protocol.CIPResponse{
 		Service: cipReq.Service,
 		Status:  0x00,
 		Path:    cipReq.Path,
 		Payload: payload,
 	}
-	cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+	cipRespData, err := protocol.EncodeCIPResponse(cipResp)
 	if err != nil {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 	return s.buildCIPResponse(encap, cipRespData)
 }
 
-func (s *Server) handleMultipleService(encap cipclient.ENIPEncapsulation, cipReq cipclient.CIPRequest) []byte {
+func (s *Server) handleMultipleService(encap enip.ENIPEncapsulation, cipReq protocol.CIPRequest) []byte {
 	if cipReq.Path.Class != cipclient.CIPClassMessageRouter || cipReq.Path.Instance != 0x0001 {
-		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x05, Path: cipReq.Path}
-		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x05, Path: cipReq.Path}
+		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
 	embeddedReqs, err := cipclient.ParseMultipleServiceRequestPayload(cipReq.Payload)
 	if err != nil {
-		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x13, Path: cipReq.Path}
-		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x13, Path: cipReq.Path}
+		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
-	embeddedResps := make([]cipclient.CIPResponse, 0, len(embeddedReqs))
+	embeddedResps := make([]protocol.CIPResponse, 0, len(embeddedReqs))
 	for _, embeddedReq := range embeddedReqs {
 		if policyResp, ok := s.applyCIPPolicy(embeddedReq); ok {
 			embeddedResps = append(embeddedResps, policyResp)
@@ -799,25 +801,25 @@ func (s *Server) handleMultipleService(encap cipclient.ENIPEncapsulation, cipReq
 
 	payload, err := cipclient.BuildMultipleServiceResponsePayload(embeddedResps)
 	if err != nil {
-		cipResp := cipclient.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
-		cipRespData, _ := cipclient.EncodeCIPResponse(cipResp)
+		cipResp := protocol.CIPResponse{Service: cipReq.Service, Status: 0x01, Path: cipReq.Path}
+		cipRespData, _ := protocol.EncodeCIPResponse(cipResp)
 		return s.buildCIPResponse(encap, cipRespData)
 	}
 
-	cipResp := cipclient.CIPResponse{
+	cipResp := protocol.CIPResponse{
 		Service: cipReq.Service,
 		Status:  0x00,
 		Path:    cipReq.Path,
 		Payload: payload,
 	}
-	cipRespData, err := cipclient.EncodeCIPResponse(cipResp)
+	cipRespData, err := protocol.EncodeCIPResponse(cipResp)
 	if err != nil {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 	return s.buildCIPResponse(encap, cipRespData)
 }
 
-func (s *Server) handleEmbeddedRequest(req cipclient.CIPRequest) cipclient.CIPResponse {
+func (s *Server) handleEmbeddedRequest(req protocol.CIPRequest) protocol.CIPResponse {
 	if identityResp, ok := s.handleIdentityRequest(req); ok {
 		return identityResp
 	}
@@ -826,31 +828,31 @@ func (s *Server) handleEmbeddedRequest(req cipclient.CIPRequest) cipclient.CIPRe
 	}
 	resp, err := s.personality.HandleCIPRequest(s.ctx, req)
 	if err != nil {
-		return cipclient.CIPResponse{Service: req.Service, Status: 0x01, Path: req.Path}
+		return protocol.CIPResponse{Service: req.Service, Status: 0x01, Path: req.Path}
 	}
 	return resp
 }
 
-func (s *Server) buildCIPResponse(encap cipclient.ENIPEncapsulation, cipRespData []byte) []byte {
-	sendData := cipclient.BuildSendRRDataPayload(cipRespData)
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+func (s *Server) buildCIPResponse(encap enip.ENIPEncapsulation, cipRespData []byte) []byte {
+	sendData := enip.BuildSendRRDataPayload(cipRespData)
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendData)),
 		SessionID:     encap.SessionID,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          sendData,
 	}
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }
 
-func (s *Server) handleIdentityRequest(req cipclient.CIPRequest) (cipclient.CIPResponse, bool) {
+func (s *Server) handleIdentityRequest(req protocol.CIPRequest) (protocol.CIPResponse, bool) {
 	if req.Path.Class != 0x0001 {
-		return cipclient.CIPResponse{}, false
+		return protocol.CIPResponse{}, false
 	}
 	if req.Path.Instance != 0x0001 {
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x05, // Path destination unknown
 			Path:    req.Path,
@@ -858,31 +860,31 @@ func (s *Server) handleIdentityRequest(req cipclient.CIPRequest) (cipclient.CIPR
 	}
 
 	switch req.Service {
-	case cipclient.CIPServiceGetAttributeSingle:
+	case protocol.CIPServiceGetAttributeSingle:
 		payload, ok := s.identityAttributePayload(req.Path.Attribute)
 		if !ok {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x14, // Attribute not supported
 				Path:    req.Path,
 			}, true
 		}
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 			Payload: payload,
 		}, true
-	case cipclient.CIPServiceGetAttributeAll:
+	case protocol.CIPServiceGetAttributeAll:
 		payload := s.identityAllPayload()
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 			Payload: payload,
 		}, true
 	default:
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08, // Service not supported
 			Path:    req.Path,
@@ -1057,117 +1059,117 @@ func parseGenericKey(key string) (uint16, uint16, uint16, bool) {
 	return class, instance, attribute, err == nil
 }
 
-func (s *Server) handleGenericRequest(req cipclient.CIPRequest) (cipclient.CIPResponse, bool) {
+func (s *Server) handleGenericRequest(req protocol.CIPRequest) (protocol.CIPResponse, bool) {
 	if s.personality != nil && s.personality.GetName() == "adapter" && req.Path.Class == cipclient.CIPClassAssembly {
-		return cipclient.CIPResponse{}, false
+		return protocol.CIPResponse{}, false
 	}
 	if !s.isGenericClass(req.Path.Class) {
-		return cipclient.CIPResponse{}, false
+		return protocol.CIPResponse{}, false
 	}
 
 	switch req.Service {
-	case cipclient.CIPServiceExecutePCCC,
-		cipclient.CIPServiceReadTag,
-		cipclient.CIPServiceWriteTag,
-		cipclient.CIPServiceReadModifyWrite,
-		cipclient.CIPServiceUploadTransfer,
-		cipclient.CIPServiceDownloadTransfer,
-		cipclient.CIPServiceClearFile:
-		if isEnergyBaseClass(req.Path.Class) && (req.Service == cipclient.CIPServiceExecutePCCC || req.Service == cipclient.CIPServiceReadTag) {
-			return cipclient.CIPResponse{
+	case protocol.CIPServiceExecutePCCC,
+		protocol.CIPServiceReadTag,
+		protocol.CIPServiceWriteTag,
+		protocol.CIPServiceReadModifyWrite,
+		protocol.CIPServiceUploadTransfer,
+		protocol.CIPServiceDownloadTransfer,
+		protocol.CIPServiceClearFile:
+		if isEnergyBaseClass(req.Path.Class) && (req.Service == protocol.CIPServiceExecutePCCC || req.Service == protocol.CIPServiceReadTag) {
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x00,
 				Path:    req.Path,
 			}, true
 		}
 		if isFileObjectClass(req.Path.Class) || isSymbolicClass(req.Path.Class) || isModbusClass(req.Path.Class) || isMotionAxisClass(req.Path.Class) || isSafetyClass(req.Path.Class) {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x00,
 				Path:    req.Path,
 			}, true
 		}
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08,
 			Path:    req.Path,
 		}, true
 
-	case cipclient.CIPServiceGetAttributeSingle:
+	case protocol.CIPServiceGetAttributeSingle:
 		payload, ok := s.genericStore.get(req.Path.Class, req.Path.Instance, req.Path.Attribute)
 		if !ok {
 			payload = []byte{0x00}
 		}
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 			Payload: payload,
 		}, true
 
-	case cipclient.CIPServiceSetAttributeSingle:
+	case protocol.CIPServiceSetAttributeSingle:
 		s.genericStore.set(req.Path.Class, req.Path.Instance, req.Path.Attribute, req.Payload)
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, true
 
-	case cipclient.CIPServiceGetAttributeAll:
+	case protocol.CIPServiceGetAttributeAll:
 		attrs := s.genericStore.listAttributes(req.Path.Class, req.Path.Instance)
 		payload := flattenAttributes(attrs)
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 			Payload: payload,
 		}, true
-	case cipclient.CIPServiceSetAttributeList:
-		return cipclient.CIPResponse{
+	case protocol.CIPServiceSetAttributeList:
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, true
 
-	case cipclient.CIPServiceGetAttributeList:
+	case protocol.CIPServiceGetAttributeList:
 		payload, ok := buildAttributeListResponse(req, s.genericStore)
 		status := uint8(0x00)
 		if !ok {
 			status = 0x13
 		}
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  status,
 			Path:    req.Path,
 			Payload: payload,
 		}, true
 
-	case cipclient.CIPServiceReset:
+	case protocol.CIPServiceReset:
 		s.genericStore.clearInstance(req.Path.Class, req.Path.Instance)
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, true
-	case cipclient.CIPServiceStart,
-		cipclient.CIPServiceStop,
-		cipclient.CIPServiceCreate,
-		cipclient.CIPServiceDelete,
-		cipclient.CIPServiceRestore,
-		cipclient.CIPServiceSave,
-		cipclient.CIPServiceGetMember,
-		cipclient.CIPServiceSetMember,
-		cipclient.CIPServiceInsertMember,
-		cipclient.CIPServiceRemoveMember,
-		cipclient.CIPServiceReadTagFragmented,
-		cipclient.CIPServiceForwardOpen:
-		return cipclient.CIPResponse{
+	case protocol.CIPServiceStart,
+		protocol.CIPServiceStop,
+		protocol.CIPServiceCreate,
+		protocol.CIPServiceDelete,
+		protocol.CIPServiceRestore,
+		protocol.CIPServiceSave,
+		protocol.CIPServiceGetMember,
+		protocol.CIPServiceSetMember,
+		protocol.CIPServiceInsertMember,
+		protocol.CIPServiceRemoveMember,
+		protocol.CIPServiceReadTagFragmented,
+		protocol.CIPServiceForwardOpen:
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, true
 	default:
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08,
 			Path:    req.Path,
@@ -1235,7 +1237,7 @@ func flattenAttributes(attrs map[uint16][]byte) []byte {
 	return payload
 }
 
-func buildAttributeListResponse(req cipclient.CIPRequest, store *genericAttributeStore) ([]byte, bool) {
+func buildAttributeListResponse(req protocol.CIPRequest, store *genericAttributeStore) ([]byte, bool) {
 	if len(req.Payload) < 2 {
 		return nil, false
 	}
@@ -1276,39 +1278,39 @@ func buildProfileClassSet(profiles []string, overrides map[string][]uint16) map[
 }
 
 // handleSendUnitData handles a SendUnitData request (connected messaging)
-func (s *Server) handleSendUnitData(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
+func (s *Server) handleSendUnitData(encap enip.ENIPEncapsulation, remoteAddr string) []byte {
 	if _, ok := s.requireSession(encap.SessionID, remoteAddr); !ok {
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidSessionHandle)
 	}
 
 	connectionID, cipData, err := s.parseSendUnitData(encap.Data)
 	if err != nil {
 		s.logger.Error("Parse SendUnitData error: %v", err)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidLength)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
 	}
 
 	if !s.isConnectionActive(connectionID, encap.SessionID) {
 		s.logger.Error("SendUnitData for inactive connection %d from %s", connectionID, remoteAddr)
-		return s.buildErrorResponse(encap, cipclient.ENIPStatusInvalidSessionHandle)
+		return s.buildErrorResponse(encap, enip.ENIPStatusInvalidSessionHandle)
 	}
 	s.touchConnection(connectionID)
 
 	s.logger.Debug("SendUnitData: connection %d, data length %d", connectionID, len(cipData))
 	fmt.Printf("[SERVER] Received I/O data: connection=0x%08X size=%d bytes\n", connectionID, len(cipData))
 
-	sendData := cipclient.BuildSendUnitDataPayload(connectionID, cipData)
+	sendData := enip.BuildSendUnitDataPayload(connectionID, cipData)
 
-	response := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendUnitData,
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendUnitData,
 		Length:        uint16(len(sendData)),
 		SessionID:     encap.SessionID,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          sendData,
 	}
 
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }
 
 // handleUDP handles UDP I/O packets
@@ -1343,14 +1345,14 @@ func (s *Server) handleUDP() {
 		}
 
 		// Decode ENIP header
-		encap, err := cipclient.DecodeENIP(buffer[:n])
+		encap, err := enip.DecodeENIP(buffer[:n])
 		if err != nil {
 			s.logger.Debug("UDP decode error from %s: %v", addr.String(), err)
 			continue
 		}
 
 		// Handle SendUnitData on UDP (I/O data)
-		if encap.Command == cipclient.ENIPCommandSendUnitData && s.enipSupport.sendUnitData {
+		if encap.Command == enip.ENIPCommandSendUnitData && s.enipSupport.sendUnitData {
 			resp := s.handleSendUnitData(encap, addr.String())
 			if resp != nil {
 				// Send response back to client
@@ -1360,7 +1362,7 @@ func (s *Server) handleUDP() {
 					s.logger.Debug("UDP I/O response sent to %s: %d bytes", addr.String(), len(resp))
 				}
 			}
-		} else if encap.Command == cipclient.ENIPCommandListIdentity && s.enipSupport.listIdentity {
+		} else if encap.Command == enip.ENIPCommandListIdentity && s.enipSupport.listIdentity {
 			resp := s.handleListIdentity(encap, addr.String())
 			if resp != nil {
 				if _, err := s.udpListener.WriteToUDP(resp, addr); err != nil {
@@ -1533,7 +1535,7 @@ func boolValue(value *bool, def bool) bool {
 	return *value
 }
 
-func (s *Server) handleListIdentity(encap cipclient.ENIPEncapsulation, remoteAddr string) []byte {
+func (s *Server) handleListIdentity(encap enip.ENIPEncapsulation, remoteAddr string) []byte {
 	vendorID, deviceType, productCode, revMajor, revMinor, status, serial, productName := s.identityValues()
 	order := cipclient.CurrentProtocolProfile().ENIPByteOrder
 
@@ -1561,42 +1563,42 @@ func (s *Server) handleListIdentity(encap cipclient.ENIPEncapsulation, remoteAdd
 	data = append(data, []byte(productName)...)
 	data = append(data, 0x03)
 
-	resp := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandListIdentity,
+	resp := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandListIdentity,
 		Length:        uint16(len(data)),
 		SessionID:     0,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          data,
 	}
-	return cipclient.EncodeENIP(resp)
+	return enip.EncodeENIP(resp)
 }
 
-func (s *Server) handleListServices(encap cipclient.ENIPEncapsulation) []byte {
-	resp := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandListServices,
+func (s *Server) handleListServices(encap enip.ENIPEncapsulation) []byte {
+	resp := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandListServices,
 		Length:        0,
 		SessionID:     0,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          nil,
 	}
-	return cipclient.EncodeENIP(resp)
+	return enip.EncodeENIP(resp)
 }
 
-func (s *Server) handleListInterfaces(encap cipclient.ENIPEncapsulation) []byte {
-	resp := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandListInterfaces,
+func (s *Server) handleListInterfaces(encap enip.ENIPEncapsulation) []byte {
+	resp := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandListInterfaces,
 		Length:        0,
 		SessionID:     0,
-		Status:        cipclient.ENIPStatusSuccess,
+		Status:        enip.ENIPStatusSuccess,
 		SenderContext: encap.SenderContext,
 		Options:       0,
 		Data:          nil,
 	}
-	return cipclient.EncodeENIP(resp)
+	return enip.EncodeENIP(resp)
 }
 
 func (s *Server) startMetricsListener() error {
@@ -1810,42 +1812,7 @@ func resolveCIPPolicy(cfg *config.ServerConfig) cipPolicyConfig {
 	}
 }
 
-func resolveFaultPolicy(cfg *config.ServerConfig) faultPolicy {
-	seed := cfg.Server.RNGSeed
-	if seed == 0 {
-		seed = time.Now().UTC().UnixNano()
-	}
-
-	chunkMin := cfg.Faults.TCP.ChunkMin
-	if chunkMin <= 0 {
-		chunkMin = 1
-	}
-	chunkMax := cfg.Faults.TCP.ChunkMax
-	if chunkMax < chunkMin {
-		chunkMax = chunkMin
-	}
-
-	return faultPolicy{
-		enabled:       cfg.Faults.Enable,
-		latencyBase:   time.Duration(cfg.Faults.Latency.BaseDelayMs) * time.Millisecond,
-		latencyJitter: time.Duration(cfg.Faults.Latency.JitterMs) * time.Millisecond,
-		spikeEveryN:   cfg.Faults.Latency.SpikeEveryN,
-		spikeDelay:    time.Duration(cfg.Faults.Latency.SpikeDelayMs) * time.Millisecond,
-		dropEveryN:    cfg.Faults.Reliability.DropResponseEveryN,
-		dropPct:       cfg.Faults.Reliability.DropResponsePct,
-		closeEveryN:   cfg.Faults.Reliability.CloseConnectionEveryN,
-		stallEveryN:   cfg.Faults.Reliability.StallResponseEveryN,
-		chunkWrites:   cfg.Faults.TCP.ChunkWrites,
-		chunkMin:      chunkMin,
-		chunkMax:      chunkMax,
-		interChunkDelay: time.Duration(cfg.Faults.TCP.InterChunkDelayMs) *
-			time.Millisecond,
-		coalesce: cfg.Faults.TCP.CoalesceResponses,
-		rng:      rand.New(rand.NewSource(seed)),
-	}
-}
-
-func (s *Server) applyCIPPolicy(req cipclient.CIPRequest) (cipclient.CIPResponse, bool) {
+func (s *Server) applyCIPPolicy(req protocol.CIPRequest) (protocol.CIPResponse, bool) {
 	if s.cipPolicy.strictPaths && req.Path.Class == 0 && req.Path.Name == "" {
 		return s.policyReject(req), true
 	}
@@ -1859,16 +1826,16 @@ func (s *Server) applyCIPPolicy(req cipclient.CIPRequest) (cipclient.CIPResponse
 	if len(s.cipPolicy.allowRules) > 0 {
 		for _, rule := range s.cipPolicy.allowRules {
 			if ruleMatches(rule, req) {
-				return cipclient.CIPResponse{}, false
+				return protocol.CIPResponse{}, false
 			}
 		}
 		return s.policyReject(req), true
 	}
 
-	return cipclient.CIPResponse{}, false
+	return protocol.CIPResponse{}, false
 }
 
-func (s *Server) policyReject(req cipclient.CIPRequest) cipclient.CIPResponse {
+func (s *Server) policyReject(req protocol.CIPRequest) protocol.CIPResponse {
 	status := s.cipPolicy.defaultStatus
 	for _, override := range s.cipPolicy.denyStatusOverride {
 		if overrideMatches(override, req) {
@@ -1876,7 +1843,7 @@ func (s *Server) policyReject(req cipclient.CIPRequest) cipclient.CIPResponse {
 			break
 		}
 	}
-	resp := cipclient.CIPResponse{
+	resp := protocol.CIPResponse{
 		Service: req.Service,
 		Status:  status,
 		Path:    req.Path,
@@ -1890,7 +1857,7 @@ func (s *Server) policyReject(req cipclient.CIPRequest) cipclient.CIPResponse {
 	return resp
 }
 
-func ruleMatches(rule config.ServerCIPRule, req cipclient.CIPRequest) bool {
+func ruleMatches(rule config.ServerCIPRule, req protocol.CIPRequest) bool {
 	if rule.Service != 0 && rule.Service != uint8(req.Service) {
 		return false
 	}
@@ -1906,7 +1873,7 @@ func ruleMatches(rule config.ServerCIPRule, req cipclient.CIPRequest) bool {
 	return true
 }
 
-func overrideMatches(rule config.ServerCIPStatusOverride, req cipclient.CIPRequest) bool {
+func overrideMatches(rule config.ServerCIPStatusOverride, req protocol.CIPRequest) bool {
 	if rule.Service != 0 && rule.Service != uint8(req.Service) {
 		return false
 	}
@@ -1922,10 +1889,10 @@ func overrideMatches(rule config.ServerCIPStatusOverride, req cipclient.CIPReque
 	return true
 }
 
-func parseENIPStream(buffer []byte, logger *logging.Logger) ([]cipclient.ENIPEncapsulation, []byte) {
+func parseENIPStream(buffer []byte, logger *logging.Logger) ([]enip.ENIPEncapsulation, []byte) {
 	const headerSize = 24
 	order := cipclient.CurrentProtocolProfile().ENIPByteOrder
-	frames := make([]cipclient.ENIPEncapsulation, 0)
+	frames := make([]enip.ENIPEncapsulation, 0)
 	offset := 0
 
 	for len(buffer[offset:]) >= headerSize {
@@ -1941,7 +1908,7 @@ func parseENIPStream(buffer []byte, logger *logging.Logger) ([]cipclient.ENIPEnc
 		}
 
 		frame := buffer[offset : offset+total]
-		encap, err := cipclient.DecodeENIP(frame)
+		encap, err := enip.DecodeENIP(frame)
 		if err != nil {
 			logger.Debug("Decode ENIP error: %v", err)
 			offset++
@@ -1961,13 +1928,13 @@ func parseENIPStream(buffer []byte, logger *logging.Logger) ([]cipclient.ENIPEnc
 
 func isValidENIPCommand(cmd uint16) bool {
 	switch cmd {
-	case cipclient.ENIPCommandRegisterSession,
-		cipclient.ENIPCommandUnregisterSession,
-		cipclient.ENIPCommandSendRRData,
-		cipclient.ENIPCommandSendUnitData,
-		cipclient.ENIPCommandListIdentity,
-		cipclient.ENIPCommandListServices,
-		cipclient.ENIPCommandListInterfaces:
+	case enip.ENIPCommandRegisterSession,
+		enip.ENIPCommandUnregisterSession,
+		enip.ENIPCommandSendRRData,
+		enip.ENIPCommandSendUnitData,
+		enip.ENIPCommandListIdentity,
+		enip.ENIPCommandListServices,
+		enip.ENIPCommandListInterfaces:
 		return true
 	default:
 		return false
@@ -1984,7 +1951,7 @@ func (s *Server) parseSendRRData(data []byte) ([]byte, error) {
 	allowExtra := boolValue(s.config.ENIP.CPF.AllowExtraItems, false)
 	allowReorder := boolValue(s.config.ENIP.CPF.AllowItemReorder, true)
 
-	items, err := cipclient.ParseCPFItems(payload)
+	items, err := enip.ParseCPFItems(payload)
 	if err != nil {
 		if !cpfStrict && allowMissing {
 			return payload, nil
@@ -2001,12 +1968,12 @@ func (s *Server) parseSendRRData(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("unexpected CPF item count: %d", len(items))
 	}
 	if !allowReorder {
-		if len(items) < 2 || items[0].TypeID != cipclient.CPFItemNullAddress || items[1].TypeID != cipclient.CPFItemUnconnectedData {
+		if len(items) < 2 || items[0].TypeID != enip.CPFItemNullAddress || items[1].TypeID != enip.CPFItemUnconnectedData {
 			return nil, fmt.Errorf("CPF items out of order")
 		}
 	}
 	for _, item := range items {
-		if item.TypeID == cipclient.CPFItemUnconnectedData {
+		if item.TypeID == enip.CPFItemUnconnectedData {
 			return item.Data, nil
 		}
 	}
@@ -2029,7 +1996,7 @@ func (s *Server) parseSendUnitData(data []byte) (uint32, []byte, error) {
 	if len(data) >= 6 {
 		payload = data[6:]
 	}
-	items, err := cipclient.ParseCPFItems(payload)
+	items, err := enip.ParseCPFItems(payload)
 	if err != nil {
 		if !cpfStrict && allowMissing {
 			connID := cipclient.CurrentProtocolProfile().ENIPByteOrder.Uint32(data[:4])
@@ -2048,7 +2015,7 @@ func (s *Server) parseSendUnitData(data []byte) (uint32, []byte, error) {
 		return 0, nil, fmt.Errorf("unexpected CPF item count: %d", len(items))
 	}
 	if !allowReorder {
-		if len(items) < 2 || items[0].TypeID != cipclient.CPFItemConnectedAddress || items[1].TypeID != cipclient.CPFItemConnectedData {
+		if len(items) < 2 || items[0].TypeID != enip.CPFItemConnectedAddress || items[1].TypeID != enip.CPFItemConnectedData {
 			return 0, nil, fmt.Errorf("CPF items out of order")
 		}
 	}
@@ -2058,12 +2025,12 @@ func (s *Server) parseSendUnitData(data []byte) (uint32, []byte, error) {
 	order := cipclient.CurrentProtocolProfile().ENIPByteOrder
 	for _, item := range items {
 		switch item.TypeID {
-		case cipclient.CPFItemConnectedAddress:
+		case enip.CPFItemConnectedAddress:
 			if len(item.Data) < 4 {
 				return 0, nil, fmt.Errorf("connected address item too short")
 			}
 			connID = order.Uint32(item.Data[:4])
-		case cipclient.CPFItemConnectedData:
+		case enip.CPFItemConnectedData:
 			cipData = item.Data
 		}
 	}
@@ -2087,8 +2054,8 @@ func parseForwardCloseConnectionID(cipData []byte) uint32 {
 }
 
 // buildErrorResponse builds an error response
-func (s *Server) buildErrorResponse(encap cipclient.ENIPEncapsulation, status uint32) []byte {
-	response := cipclient.ENIPEncapsulation{
+func (s *Server) buildErrorResponse(encap enip.ENIPEncapsulation, status uint32) []byte {
+	response := enip.ENIPEncapsulation{
 		Command:       encap.Command,
 		Length:        0,
 		SessionID:     encap.SessionID,
@@ -2098,5 +2065,5 @@ func (s *Server) buildErrorResponse(encap cipclient.ENIPEncapsulation, status ui
 		Data:          nil,
 	}
 
-	return cipclient.EncodeENIP(response)
+	return enip.EncodeENIP(response)
 }

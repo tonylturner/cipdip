@@ -1,17 +1,20 @@
 package cipclient
 
-import "testing"
+import (
+	"github.com/tturner/cipdip/internal/enip"
+	"testing"
+)
 
 func TestBuildListServices(t *testing.T) {
 	senderContext := [8]byte{0x01, 0x02, 0x03}
 	packet := BuildListServices(senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	if encap.Command != ENIPCommandListServices {
-		t.Fatalf("command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandListServices)
+	if encap.Command != enip.ENIPCommandListServices {
+		t.Fatalf("command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandListServices)
 	}
 	if encap.Length != 0 {
 		t.Fatalf("length: got %d, want 0", encap.Length)
@@ -34,12 +37,12 @@ func TestBuildListInterfaces(t *testing.T) {
 	senderContext := [8]byte{0x04, 0x05, 0x06}
 	packet := BuildListInterfaces(senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	if encap.Command != ENIPCommandListInterfaces {
-		t.Fatalf("command: got 0x%04X, want 0x%04X", encap.Command, ENIPCommandListInterfaces)
+	if encap.Command != enip.ENIPCommandListInterfaces {
+		t.Fatalf("command: got 0x%04X, want 0x%04X", encap.Command, enip.ENIPCommandListInterfaces)
 	}
 	if encap.Length != 0 {
 		t.Fatalf("length: got %d, want 0", encap.Length)
@@ -59,19 +62,19 @@ func TestBuildListInterfaces(t *testing.T) {
 }
 
 func TestParseListServicesResponse(t *testing.T) {
-	items := []CPFItem{
+	items := []enip.CPFItem{
 		{TypeID: 0x0100, Data: []byte{0x01, 0x02}},
 		{TypeID: 0x0101, Data: []byte{0xAA}},
 	}
-	payload := EncodeCPFItems(items)
-	encap := ENIPEncapsulation{
-		Command:   ENIPCommandListServices,
+	payload := enip.EncodeCPFItems(items)
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandListServices,
 		Length:    uint16(len(payload)),
 		SessionID: 0,
-		Status:    ENIPStatusSuccess,
+		Status:    enip.ENIPStatusSuccess,
 		Data:      payload,
 	}
-	packet := EncodeENIP(encap)
+	packet := enip.EncodeENIP(encap)
 
 	parsed, err := ParseListServicesResponse(packet)
 	if err != nil {
@@ -86,18 +89,18 @@ func TestParseListServicesResponse(t *testing.T) {
 }
 
 func TestParseListInterfacesResponse(t *testing.T) {
-	items := []CPFItem{
+	items := []enip.CPFItem{
 		{TypeID: 0x0200, Data: []byte{0x10, 0x20}},
 	}
-	payload := EncodeCPFItems(items)
-	encap := ENIPEncapsulation{
-		Command:   ENIPCommandListInterfaces,
+	payload := enip.EncodeCPFItems(items)
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandListInterfaces,
 		Length:    uint16(len(payload)),
 		SessionID: 0,
-		Status:    ENIPStatusSuccess,
+		Status:    enip.ENIPStatusSuccess,
 		Data:      payload,
 	}
-	packet := EncodeENIP(encap)
+	packet := enip.EncodeENIP(encap)
 
 	parsed, err := ParseListInterfacesResponse(packet)
 	if err != nil {
@@ -113,35 +116,35 @@ func TestParseListInterfacesResponse(t *testing.T) {
 
 func TestParseListResponseErrors(t *testing.T) {
 	t.Run("wrong command", func(t *testing.T) {
-		encap := ENIPEncapsulation{
-			Command: ENIPCommandListServices,
-			Status:  ENIPStatusSuccess,
+		encap := enip.ENIPEncapsulation{
+			Command: enip.ENIPCommandListServices,
+			Status:  enip.ENIPStatusSuccess,
 		}
-		packet := EncodeENIP(encap)
+		packet := enip.EncodeENIP(encap)
 		if _, err := ParseListInterfacesResponse(packet); err == nil {
 			t.Fatalf("expected error for wrong command")
 		}
 	})
 
 	t.Run("error status", func(t *testing.T) {
-		encap := ENIPEncapsulation{
-			Command: ENIPCommandListServices,
-			Status:  ENIPStatusInvalidCommand,
+		encap := enip.ENIPEncapsulation{
+			Command: enip.ENIPCommandListServices,
+			Status:  enip.ENIPStatusInvalidCommand,
 		}
-		packet := EncodeENIP(encap)
+		packet := enip.EncodeENIP(encap)
 		if _, err := ParseListServicesResponse(packet); err == nil {
 			t.Fatalf("expected error for error status")
 		}
 	})
 
 	t.Run("invalid cpf data", func(t *testing.T) {
-		encap := ENIPEncapsulation{
-			Command: ENIPCommandListServices,
+		encap := enip.ENIPEncapsulation{
+			Command: enip.ENIPCommandListServices,
 			Length:  1,
-			Status:  ENIPStatusSuccess,
+			Status:  enip.ENIPStatusSuccess,
 			Data:    []byte{0x00},
 		}
-		packet := EncodeENIP(encap)
+		packet := enip.EncodeENIP(encap)
 		if _, err := ParseListServicesResponse(packet); err == nil {
 			t.Fatalf("expected error for invalid cpf data")
 		}

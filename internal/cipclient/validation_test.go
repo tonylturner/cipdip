@@ -1,6 +1,9 @@
 package cipclient
 
-import "testing"
+import (
+	"github.com/tturner/cipdip/internal/enip"
+	"testing"
+)
 
 func TestValidateSendRRDataStrictCPF(t *testing.T) {
 	prev := CurrentProtocolProfile()
@@ -8,8 +11,8 @@ func TestValidateSendRRDataStrictCPF(t *testing.T) {
 	defer SetProtocolProfile(prev)
 
 	validator := NewPacketValidator(true)
-	encap := ENIPEncapsulation{
-		Command:       ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        6,
 		SessionID:     0x12345678,
 		Status:        0,
@@ -28,8 +31,8 @@ func TestValidateSendUnitDataStrictCPF(t *testing.T) {
 	defer SetProtocolProfile(prev)
 
 	validator := NewPacketValidator(true)
-	encap := ENIPEncapsulation{
-		Command:       ENIPCommandSendUnitData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendUnitData,
 		Length:        6,
 		SessionID:     0x12345678,
 		Status:        0,
@@ -50,8 +53,8 @@ func TestValidateSendRRDataLegacyNoCPF(t *testing.T) {
 	validator := NewPacketValidator(false)
 	cipData := []byte{0x0E, 0x20, 0x04, 0x24, 0x01, 0x30, 0x01}
 	payload := append(make([]byte, 6), cipData...)
-	encap := ENIPEncapsulation{
-		Command:   ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandSendRRData,
 		Length:    uint16(len(payload)),
 		SessionID: 0x12345678,
 		Status:    0,
@@ -70,9 +73,9 @@ func TestValidateSendRRDataStrictWithCPF(t *testing.T) {
 
 	validator := NewPacketValidator(true)
 	cipPayload := []byte{0x0E, 0x00, 0x20, 0x04, 0x24, 0x01, 0x30, 0x01}
-	sendData := BuildSendRRDataPayload(cipPayload)
-	encap := ENIPEncapsulation{
-		Command:       ENIPCommandSendRRData,
+	sendData := enip.BuildSendRRDataPayload(cipPayload)
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		Length:        uint16(len(sendData)),
 		SessionID:     0x12345678,
 		Status:        0,
@@ -95,8 +98,8 @@ func TestValidateSendUnitDataLegacyConnID(t *testing.T) {
 		0x78, 0x56, 0x34, 0x12, // connection ID
 		0x01, 0x02, 0x03,
 	}
-	encap := ENIPEncapsulation{
-		Command:   ENIPCommandSendUnitData,
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandSendUnitData,
 		Length:    uint16(len(payload)),
 		SessionID: 0x12345678,
 		Status:    0,

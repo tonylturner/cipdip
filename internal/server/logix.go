@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math"
 	"math/rand"
 	"sync"
@@ -87,76 +88,76 @@ func (lp *LogixPersonality) GetName() string {
 }
 
 // HandleCIPRequest handles a CIP request
-func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	// For logix-like, we'll use a simplified tag lookup
 	// In a full implementation, this would parse tag names from the path
 	// For now, we'll support Get_Attribute_Single on a generic tag structure
 
 	switch req.Service {
-	case cipclient.CIPServiceExecutePCCC:
+	case protocol.CIPServiceExecutePCCC:
 		if req.Path.Class != 0 && req.Path.Class != 0x0067 && req.Path.Class != 0x00A1 {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x08, // Service not supported
 			}, fmt.Errorf("Execute_PCCC unsupported for class 0x%04X", req.Path.Class)
 		}
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x00,
 			Path:    req.Path,
 		}, nil
 
-	case cipclient.CIPServiceReadTag:
+	case protocol.CIPServiceReadTag:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x05,
 			}, err
 		}
 		return lp.handleReadTag(tag, req)
 
-	case cipclient.CIPServiceReadTagFragmented:
+	case protocol.CIPServiceReadTagFragmented:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x05,
 			}, err
 		}
 		return lp.handleReadTagFragmented(tag, req)
 
-	case cipclient.CIPServiceWriteTag:
+	case protocol.CIPServiceWriteTag:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x05,
 			}, err
 		}
 		return lp.handleWriteTag(tag, req)
 
-	case cipclient.CIPServiceWriteTagFragmented:
+	case protocol.CIPServiceWriteTagFragmented:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x05,
 			}, err
 		}
 		return lp.handleWriteTagFragmented(tag, req)
 
-	case cipclient.CIPServiceCode(0x51):
-		return cipclient.CIPResponse{
+	case protocol.CIPServiceCode(0x51):
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08,
 			Path:    req.Path,
 		}, nil
 
-	case cipclient.CIPServiceGetAttributeSingle:
+	case protocol.CIPServiceGetAttributeSingle:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x01, // General error
 			}, err
@@ -164,10 +165,10 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.
 
 		return lp.handleGetAttributeSingle(tag, req)
 
-	case cipclient.CIPServiceSetAttributeSingle:
+	case protocol.CIPServiceSetAttributeSingle:
 		tag, err := lp.tagForRequest(req)
 		if err != nil {
-			return cipclient.CIPResponse{
+			return protocol.CIPResponse{
 				Service: req.Service,
 				Status:  0x01,
 			}, err
@@ -176,7 +177,7 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req cipclient.
 		return lp.handleSetAttributeSingle(tag, req)
 
 	default:
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x08, // Service not supported
 		}, fmt.Errorf("unsupported service: 0x%02X (%s)", uint8(req.Service), req.Service)
@@ -198,7 +199,7 @@ func (lp *LogixPersonality) findTag(name string) *Tag {
 	return lp.tags[name]
 }
 
-func (lp *LogixPersonality) tagForRequest(req cipclient.CIPRequest) (*Tag, error) {
+func (lp *LogixPersonality) tagForRequest(req protocol.CIPRequest) (*Tag, error) {
 	if req.Path.Name != "" {
 		tag := lp.findTag(req.Path.Name)
 		if tag == nil {
@@ -214,7 +215,7 @@ func (lp *LogixPersonality) tagForRequest(req cipclient.CIPRequest) (*Tag, error
 }
 
 // handleGetAttributeSingle handles Get_Attribute_Single
-func (lp *LogixPersonality) handleGetAttributeSingle(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) handleGetAttributeSingle(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	tag.mu.Lock()
 	defer tag.mu.Unlock()
 
@@ -225,7 +226,7 @@ func (lp *LogixPersonality) handleGetAttributeSingle(tag *Tag, req cipclient.CIP
 		tag.LastUpdate = now
 	}
 
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  0x00,
 		Path:    req.Path,
@@ -234,7 +235,7 @@ func (lp *LogixPersonality) handleGetAttributeSingle(tag *Tag, req cipclient.CIP
 }
 
 // handleReadTag handles Read_Tag (0x4C).
-func (lp *LogixPersonality) handleReadTag(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) handleReadTag(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	tag.mu.Lock()
 	defer tag.mu.Unlock()
 
@@ -267,11 +268,11 @@ func (lp *LogixPersonality) handleReadTag(tag *Tag, req cipclient.CIPRequest) (c
 	}
 
 	payload := make([]byte, 4+dataLen)
-	binary.LittleEndian.PutUint16(payload[0:2], uint16(cipclient.CIPTypeCode(tag.Config.Type)))
+	binary.LittleEndian.PutUint16(payload[0:2], uint16(protocol.CIPTypeCode(tag.Config.Type)))
 	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
 	copy(payload[4:], tag.Data[:dataLen])
 
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  0x00,
 		Path:    req.Path,
@@ -279,7 +280,7 @@ func (lp *LogixPersonality) handleReadTag(tag *Tag, req cipclient.CIPRequest) (c
 	}, nil
 }
 
-func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	tag.mu.Lock()
 	defer tag.mu.Unlock()
 
@@ -296,7 +297,7 @@ func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req cipclient.CIPR
 	}
 
 	if len(req.Payload) < 6 {
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x13,
 			Path:    req.Path,
@@ -330,7 +331,7 @@ func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req cipclient.CIPR
 	}
 
 	payload := make([]byte, 4+chunkLen)
-	binary.LittleEndian.PutUint16(payload[0:2], uint16(cipclient.CIPTypeCode(tag.Config.Type)))
+	binary.LittleEndian.PutUint16(payload[0:2], uint16(protocol.CIPTypeCode(tag.Config.Type)))
 	binary.LittleEndian.PutUint16(payload[2:4], elementCount)
 	if chunkLen > 0 {
 		copy(payload[4:], tag.Data[int(byteOffset):int(byteOffset)+chunkLen])
@@ -341,7 +342,7 @@ func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req cipclient.CIPR
 		status = 0x06 // Reply data too large (more fragments expected)
 	}
 
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  status,
 		Path:    req.Path,
@@ -350,12 +351,12 @@ func (lp *LogixPersonality) handleReadTagFragmented(tag *Tag, req cipclient.CIPR
 }
 
 // handleWriteTag handles Write_Tag (0x4D).
-func (lp *LogixPersonality) handleWriteTag(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) handleWriteTag(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	tag.mu.Lock()
 	defer tag.mu.Unlock()
 
 	if len(req.Payload) < 4 {
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x13, // Not enough data
 			Path:    req.Path,
@@ -371,19 +372,19 @@ func (lp *LogixPersonality) handleWriteTag(tag *Tag, req cipclient.CIPRequest) (
 		copy(tag.Data[:copyLen], data[:copyLen])
 	}
 
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  0x00,
 		Path:    req.Path,
 	}, nil
 }
 
-func (lp *LogixPersonality) handleWriteTagFragmented(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) handleWriteTagFragmented(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	tag.mu.Lock()
 	defer tag.mu.Unlock()
 
 	if len(req.Payload) < 8 {
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x13,
 			Path:    req.Path,
@@ -392,16 +393,16 @@ func (lp *LogixPersonality) handleWriteTagFragmented(tag *Tag, req cipclient.CIP
 
 	byteOffset := binary.LittleEndian.Uint32(req.Payload[4:8])
 	typeCode := binary.LittleEndian.Uint16(req.Payload[0:2])
-	if cipclient.CIPDataType(typeCode) != cipclient.CIPTypeCode(tag.Config.Type) {
-		return cipclient.CIPResponse{
+	if protocol.CIPDataType(typeCode) != protocol.CIPTypeCode(tag.Config.Type) {
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x13,
 			Path:    req.Path,
-		}, fmt.Errorf("write tag fragmented type mismatch: got %s", cipclient.CIPTypeName(cipclient.CIPDataType(typeCode)))
+		}, fmt.Errorf("write tag fragmented type mismatch: got %s", protocol.CIPTypeName(protocol.CIPDataType(typeCode)))
 	}
 	data := req.Payload[8:]
 	if int(byteOffset) >= len(tag.Data) {
-		return cipclient.CIPResponse{
+		return protocol.CIPResponse{
 			Service: req.Service,
 			Status:  0x05,
 			Path:    req.Path,
@@ -416,7 +417,7 @@ func (lp *LogixPersonality) handleWriteTagFragmented(tag *Tag, req cipclient.CIP
 		copy(tag.Data[int(byteOffset):int(byteOffset)+copyLen], data[:copyLen])
 	}
 
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  0x00,
 		Path:    req.Path,
@@ -424,7 +425,7 @@ func (lp *LogixPersonality) handleWriteTagFragmented(tag *Tag, req cipclient.CIP
 }
 
 // handleSetAttributeSingle handles Set_Attribute_Single
-func (lp *LogixPersonality) handleSetAttributeSingle(tag *Tag, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (lp *LogixPersonality) handleSetAttributeSingle(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	tag.mu.Lock()
 	defer tag.mu.Unlock()
 
@@ -437,7 +438,7 @@ func (lp *LogixPersonality) handleSetAttributeSingle(tag *Tag, req cipclient.CIP
 		copy(tag.Data[:copyLen], req.Payload[:copyLen])
 	}
 
-	return cipclient.CIPResponse{
+	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  0x00,
 		Path:    req.Path,

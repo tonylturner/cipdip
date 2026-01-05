@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"strconv"
 	"strings"
@@ -71,7 +72,7 @@ func runPcapDump(flags *pcapDumpFlags) error {
 		if dataType != "unconnected" || len(cipData) == 0 {
 			continue
 		}
-		info, err := cipclient.ParseCIPMessage(cipData)
+		info, err := protocol.ParseCIPMessage(cipData)
 		if err != nil {
 			continue
 		}

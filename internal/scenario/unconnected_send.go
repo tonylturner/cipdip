@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
@@ -87,9 +88,9 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 				return err
 			}
 
-			embeddedReq := cipclient.CIPRequest{
+			embeddedReq := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -139,7 +140,7 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 				TargetType:      params.TargetType,
 				Operation:       metrics.OperationCustom,
 				TargetName:      target.Name,
-				ServiceCode:     fmt.Sprintf("0x%02X->0x%02X", uint8(cipclient.CIPServiceUnconnectedSend), uint8(serviceCode)),
+				ServiceCode:     fmt.Sprintf("0x%02X->0x%02X", uint8(protocol.CIPServiceUnconnectedSend), uint8(serviceCode)),
 				Success:         success,
 				RTTMs:           rtt,
 				JitterMs:        jitterMs,

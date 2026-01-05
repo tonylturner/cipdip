@@ -5,6 +5,7 @@ package cipclient
 
 import (
 	"context"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 	"time"
 )
@@ -35,7 +36,7 @@ func TestClientServerIntegration(t *testing.T) {
 	defer client.Disconnect(ctx)
 
 	// Test ReadAttribute
-	path := CIPPath{
+	path := protocol.CIPPath{
 		Class:     0x04,
 		Instance:  0x65,
 		Attribute: 0x03,

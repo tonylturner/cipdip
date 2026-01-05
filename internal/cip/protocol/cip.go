@@ -1,15 +1,13 @@
-package cipclient
+package protocol
 
-// CIP (Common Industrial Protocol) encoding and decoding
+// CIP (Common Industrial Protocol) Message Router encoding and decoding.
 
-import (
-	"fmt"
-)
+import "fmt"
 
-// CIPServiceCode represents a CIP service code
+// CIPServiceCode represents a CIP service code.
 type CIPServiceCode uint8
 
-// Common CIP service codes
+// Common CIP service codes.
 const (
 	CIPServiceGetAttributeAll      CIPServiceCode = 0x01
 	CIPServiceSetAttributeAll      CIPServiceCode = 0x02
@@ -61,7 +59,7 @@ const (
 	CIPServiceInitiatePartialWrite CIPServiceCode = CIPServiceReadModifyWrite
 )
 
-// CIPPath represents a CIP logical path (class/instance/attribute)
+// CIPPath represents a CIP logical path (class/instance/attribute).
 type CIPPath struct {
 	Class     uint16
 	Instance  uint16
@@ -69,7 +67,7 @@ type CIPPath struct {
 	Name      string // from config, for logging
 }
 
-// CIPRequest represents a CIP service request
+// CIPRequest represents a CIP service request.
 type CIPRequest struct {
 	Service CIPServiceCode
 	Path    CIPPath
@@ -77,7 +75,7 @@ type CIPRequest struct {
 	Payload []byte // raw CIP request body (no service/path)
 }
 
-// CIPResponse represents a CIP service response
+// CIPResponse represents a CIP service response.
 type CIPResponse struct {
 	Service   CIPServiceCode
 	Path      CIPPath
@@ -86,65 +84,62 @@ type CIPResponse struct {
 	Payload   []byte // raw response data
 }
 
-// EPATH segment types
+// EPATH segment types.
 const (
 	EPathSegmentClassID     = 0x20
 	EPathSegmentInstanceID  = 0x24
 	EPathSegmentAttributeID = 0x30
 )
 
-// EncodeEPATH encodes a CIP path into EPATH format
-// EPATH format: segment type (1 byte) + segment data (variable length)
+// EncodeEPATH encodes a CIP path into EPATH format.
 func EncodeEPATH(path CIPPath) []byte {
 	var epath []byte
-	order := currentCIPByteOrder()
+	order := currentByteOrder()
 
-	// Class segment (8-bit class ID)
+	// Class segment (8-bit class ID).
 	if path.Class <= 0xFF {
-		epath = append(epath, EPathSegmentClassID|0x00) // 8-bit format
+		epath = append(epath, EPathSegmentClassID|0x00)
 		epath = append(epath, uint8(path.Class))
 	} else {
-		// 16-bit class ID
-		epath = append(epath, EPathSegmentClassID|0x01) // 16-bit format
+		epath = append(epath, EPathSegmentClassID|0x01)
 		epath = appendUint16(order, epath, path.Class)
 	}
 
-	// Instance segment (8-bit instance ID)
+	// Instance segment (8-bit instance ID).
 	if path.Instance <= 0xFF {
-		epath = append(epath, EPathSegmentInstanceID|0x00) // 8-bit format
+		epath = append(epath, EPathSegmentInstanceID|0x00)
 		epath = append(epath, uint8(path.Instance))
 	} else {
-		// 16-bit instance ID
-		epath = append(epath, EPathSegmentInstanceID|0x01) // 16-bit format
+		epath = append(epath, EPathSegmentInstanceID|0x01)
 		epath = appendUint16(order, epath, path.Instance)
 	}
 
-	// Attribute segment (8-bit or 16-bit attribute ID)
+	// Attribute segment (8-bit or 16-bit attribute ID).
 	if path.Attribute <= 0xFF {
-		epath = append(epath, EPathSegmentAttributeID|0x00) // 8-bit format
+		epath = append(epath, EPathSegmentAttributeID|0x00)
 		epath = append(epath, uint8(path.Attribute))
 	} else {
-		epath = append(epath, EPathSegmentAttributeID|0x01) // 16-bit format
+		epath = append(epath, EPathSegmentAttributeID|0x01)
 		epath = appendUint16(order, epath, path.Attribute)
 	}
 
 	return epath
 }
 
-// EncodeCIPRequest encodes a CIP request into bytes
+// EncodeCIPRequest encodes a CIP request into bytes.
 func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	var data []byte
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 
-	// Service code
+	// Service code.
 	data = append(data, uint8(req.Service))
 
-	// EPATH
+	// EPATH.
 	epath := req.RawPath
 	if len(epath) == 0 {
 		epath = EncodeEPATH(req.Path)
 	}
-	if profile.IncludeCIPPathSize {
+	if opts.IncludePathSize {
 		pathSizeWords := len(epath) / 2
 		if len(epath)%2 != 0 {
 			epath = append(epath, 0x00)
@@ -154,7 +149,7 @@ func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	}
 	data = append(data, epath...)
 
-	// Payload
+	// Payload.
 	if len(req.Payload) > 0 {
 		data = append(data, req.Payload...)
 	}
@@ -162,7 +157,7 @@ func EncodeCIPRequest(req CIPRequest) ([]byte, error) {
 	return data, nil
 }
 
-// DecodeCIPRequest decodes a CIP request from bytes
+// DecodeCIPRequest decodes a CIP request from bytes.
 func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 	if len(data) < 1 {
 		return CIPRequest{}, fmt.Errorf("request too short")
@@ -172,9 +167,9 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 		Service: CIPServiceCode(data[0]),
 	}
 
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 	offset := 1
-	if profile.IncludeCIPPathSize {
+	if opts.IncludePathSize {
 		if len(data) < 2 {
 			return req, fmt.Errorf("missing path size")
 		}
@@ -219,7 +214,6 @@ func DecodeCIPRequest(data []byte) (CIPRequest, error) {
 	}
 
 payload:
-	// Remaining data is payload
 	if len(data) > offset {
 		req.Payload = data[offset:]
 	}
@@ -227,16 +221,16 @@ payload:
 	return req, nil
 }
 
-// EncodeCIPResponse encodes a CIP response into bytes
+// EncodeCIPResponse encodes a CIP response into bytes.
 func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 	var data []byte
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 
-	// Service code (echoed from request)
+	// Service code (echoed from request).
 	data = append(data, uint8(resp.Service))
 
-	if profile.IncludeCIPRespReserved {
-		// Reserved (1 byte) + status (1 byte) + ext status size (1 byte)
+	if opts.IncludeRespReserved {
+		// Reserved (1 byte) + status (1 byte) + ext status size (1 byte).
 		data = append(data, 0x00)
 		data = append(data, resp.Status)
 		extSizeWords := uint8(0)
@@ -251,16 +245,12 @@ func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 			}
 		}
 	} else {
-		// Status
 		data = append(data, resp.Status)
-
-		// Extended status (if present)
 		if len(resp.ExtStatus) > 0 {
 			data = append(data, resp.ExtStatus...)
 		}
 	}
 
-	// Payload
 	if len(resp.Payload) > 0 {
 		data = append(data, resp.Payload...)
 	}
@@ -268,15 +258,10 @@ func EncodeCIPResponse(resp CIPResponse) ([]byte, error) {
 	return data, nil
 }
 
-// DecodeCIPResponse decodes a CIP response from bytes
-// CIP response structure per ODVA spec:
-// - Byte 0: Service code (echoed from request)
-// - Byte 1: General status (0x00 = success)
-// - Bytes 2+: Extended status (if status != 0x00) + Additional status size byte
-// - Bytes N+: Response data (if status == 0x00)
+// DecodeCIPResponse decodes a CIP response from bytes.
 func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
-	profile := CurrentProtocolProfile()
-	if profile.IncludeCIPRespReserved {
+	opts := CurrentOptions()
+	if opts.IncludeRespReserved {
 		if len(data) < 4 {
 			return CIPResponse{}, fmt.Errorf("response too short: %d bytes (minimum 4: service + reserved + status + ext size)", len(data))
 		}
@@ -288,17 +273,12 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 		Path: path,
 	}
 
-	// Byte 0: Service code (echoed from request)
-	serviceCode := CIPServiceCode(data[0])
-	resp.Service = serviceCode
+	resp.Service = CIPServiceCode(data[0])
 
 	offset := 1
-	if profile.IncludeCIPRespReserved {
-		// Byte 1: Reserved
+	if opts.IncludeRespReserved {
 		offset++
-		// Byte 2: General status
 		resp.Status = data[2]
-		// Byte 3: Additional status size (in 16-bit words)
 		extSizeWords := int(data[3])
 		offset = 4
 		extLen := extSizeWords * 2
@@ -310,11 +290,8 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 			offset += extLen
 		}
 	} else {
-		// Byte 1: General status
 		resp.Status = data[1]
 		offset = 2
-
-		// Extended status (if status != 0x00)
 		if resp.Status != 0x00 {
 			if len(data) > offset {
 				extStatusSize := int(data[offset])
@@ -327,9 +304,7 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 		}
 	}
 
-	// Payload follows status bytes (if status == 0x00, payload is after status byte)
 	if resp.Status == 0x00 {
-		// Success: payload follows status byte
 		if len(data) > offset {
 			resp.Payload = data[offset:]
 		}
@@ -338,7 +313,7 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 	return resp, nil
 }
 
-// DecodeEPATH decodes an EPATH into a CIPPath.
+// DecodeEPATH decodes an EPATH into a Path.
 func DecodeEPATH(data []byte) (CIPPath, error) {
 	info, err := ParseEPATH(data)
 	if err != nil {
@@ -347,7 +322,7 @@ func DecodeEPATH(data []byte) (CIPPath, error) {
 	return info.Path, nil
 }
 
-// String returns a string representation of the service code
+// String returns a string representation of the service code.
 func (s CIPServiceCode) String() string {
 	switch s {
 	case CIPServiceGetAttributeAll:

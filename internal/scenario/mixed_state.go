@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
@@ -108,7 +109,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		for _, target := range cfg.ReadTargets {
-			path := cipclient.CIPPath{
+			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -133,7 +134,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationRead,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(protocol.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				JitterMs:    jitterMs,

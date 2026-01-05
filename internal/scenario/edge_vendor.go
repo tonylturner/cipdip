@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
@@ -41,17 +42,17 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 	defer client.Disconnect(ctx)
 
 	allowedServices := map[uint8]bool{
-		uint8(cipclient.CIPServiceExecutePCCC):          true,
-		uint8(cipclient.CIPServiceReadTag):              true,
-		uint8(cipclient.CIPServiceWriteTag):             true,
-		uint8(cipclient.CIPServiceReadModifyWrite):      true,
-		uint8(cipclient.CIPServiceReadTagFragmented):    true,
-		uint8(cipclient.CIPServiceWriteTagFragmented):   true,
-		uint8(cipclient.CIPServiceGetInstanceAttrList):  true,
-		uint8(cipclient.CIPServiceGetConnectionData):    true,
-		uint8(cipclient.CIPServiceSearchConnectionData): true,
-		uint8(cipclient.CIPServiceGetConnectionOwner):   true,
-		uint8(cipclient.CIPServiceLargeForwardOpen):     true,
+		uint8(protocol.CIPServiceExecutePCCC):          true,
+		uint8(protocol.CIPServiceReadTag):              true,
+		uint8(protocol.CIPServiceWriteTag):             true,
+		uint8(protocol.CIPServiceReadModifyWrite):      true,
+		uint8(protocol.CIPServiceReadTagFragmented):    true,
+		uint8(protocol.CIPServiceWriteTagFragmented):   true,
+		uint8(protocol.CIPServiceGetInstanceAttrList):  true,
+		uint8(protocol.CIPServiceGetConnectionData):    true,
+		uint8(protocol.CIPServiceSearchConnectionData): true,
+		uint8(protocol.CIPServiceGetConnectionOwner):   true,
+		uint8(protocol.CIPServiceLargeForwardOpen):     true,
 	}
 
 	filtered := make([]config.EdgeTarget, 0, len(cfg.EdgeTargets))
@@ -103,9 +104,9 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 			if err != nil {
 				return err
 			}
-			req := cipclient.CIPRequest{
+			req := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,

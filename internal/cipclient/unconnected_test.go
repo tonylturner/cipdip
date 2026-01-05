@@ -2,6 +2,7 @@ package cipclient
 
 import (
 	"bytes"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"testing"
 )
 
@@ -11,9 +12,9 @@ func TestUnconnectedSendPayloadRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildUnconnectedSendPayload failed: %v", err)
 	}
-	decoded, route, ok := ParseUnconnectedSendRequestPayload(payload)
+	decoded, route, ok := protocol.ParseUnconnectedSendRequestPayload(payload)
 	if !ok {
-		t.Fatalf("ParseUnconnectedSendRequestPayload failed")
+		t.Fatalf("protocol.ParseUnconnectedSendRequestPayload failed")
 	}
 	if len(route) != 0 {
 		t.Fatalf("Expected empty route path")
@@ -23,9 +24,9 @@ func TestUnconnectedSendPayloadRoundTrip(t *testing.T) {
 	}
 
 	respPayload := BuildUnconnectedSendResponsePayload(embedded)
-	respDecoded, ok := ParseUnconnectedSendResponsePayload(respPayload)
+	respDecoded, ok := protocol.ParseUnconnectedSendResponsePayload(respPayload)
 	if !ok {
-		t.Fatalf("ParseUnconnectedSendResponsePayload failed")
+		t.Fatalf("protocol.ParseUnconnectedSendResponsePayload failed")
 	}
 	if !bytes.Equal(respDecoded, embedded) {
 		t.Fatalf("Response embedded mismatch: got %x want %x", respDecoded, embedded)

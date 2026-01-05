@@ -1,20 +1,23 @@
 package cipclient
 
-import "testing"
+import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"testing"
+)
 
 func TestMultipleServicePayloadRoundTrip(t *testing.T) {
-	reqs := []CIPRequest{
+	reqs := []protocol.CIPRequest{
 		{
-			Service: CIPServiceGetAttributeSingle,
-			Path: CIPPath{
+			Service: protocol.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     CIPClassIdentityObject,
 				Instance:  0x0001,
 				Attribute: 0x0001,
 			},
 		},
 		{
-			Service: CIPServiceGetAttributeSingle,
-			Path: CIPPath{
+			Service: protocol.CIPServiceGetAttributeSingle,
+			Path: protocol.CIPPath{
 				Class:     CIPClassAssembly,
 				Instance:  0x0065,
 				Attribute: 0x0003,

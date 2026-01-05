@@ -1,6 +1,7 @@
 package cipclient
 
 import (
+	"github.com/tturner/cipdip/internal/enip"
 	"net"
 	"testing"
 )
@@ -16,9 +17,9 @@ var enipOrderDiscovery = currentENIPByteOrder()
 // - Sender Context: 8 bytes (client identifier)
 func TestBuildListIdentityODVACompliance(t *testing.T) {
 	senderContext := [8]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	packet := BuildListIdentity(senderContext)
+	packet := enip.BuildListIdentity(senderContext)
 
-	encap, err := DecodeENIP(packet)
+	encap, err := enip.DecodeENIP(packet)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
@@ -73,10 +74,10 @@ func TestParseListIdentityResponseODVACompliance(t *testing.T) {
 	response := make([]byte, 24+34+10) // ENIP header + minimum data + product name
 
 	// ENIP Header (24 bytes)
-	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity) // Command
-	enipOrderDiscovery.PutUint16(response[2:4], 34+10)                   // Length (data only)
-	enipOrderDiscovery.PutUint32(response[4:8], 0)                       // Session ID (0 for ListIdentity)
-	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)      // Status
+	enipOrderDiscovery.PutUint16(response[0:2], enip.ENIPCommandListIdentity) // Command
+	enipOrderDiscovery.PutUint16(response[2:4], 34+10)                        // Length (data only)
+	enipOrderDiscovery.PutUint32(response[4:8], 0)                            // Session ID (0 for ListIdentity)
+	enipOrderDiscovery.PutUint32(response[8:12], enip.ENIPStatusSuccess)      // Status
 	// Sender Context (8 bytes) - skip, not critical for parsing
 	enipOrderDiscovery.PutUint32(response[20:24], 0) // Options
 
@@ -167,10 +168,10 @@ func TestParseListIdentityResponseMinimalODVA(t *testing.T) {
 	response := make([]byte, 58)
 
 	// ENIP Header
-	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity)
+	enipOrderDiscovery.PutUint16(response[0:2], enip.ENIPCommandListIdentity)
 	enipOrderDiscovery.PutUint16(response[2:4], 34) // Minimum data length
 	enipOrderDiscovery.PutUint32(response[4:8], 0)
-	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)
+	enipOrderDiscovery.PutUint32(response[8:12], enip.ENIPStatusSuccess)
 
 	// ListIdentity Data (34 bytes minimum)
 	offset := 24
@@ -234,10 +235,10 @@ func TestParseListIdentityResponseInvalidCommandODVA(t *testing.T) {
 	response := make([]byte, 58)
 
 	// Set wrong command code
-	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandRegisterSession) // Wrong command
+	enipOrderDiscovery.PutUint16(response[0:2], enip.ENIPCommandRegisterSession) // Wrong command
 	enipOrderDiscovery.PutUint16(response[2:4], 34)
 	enipOrderDiscovery.PutUint32(response[4:8], 0)
-	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)
+	enipOrderDiscovery.PutUint32(response[8:12], enip.ENIPStatusSuccess)
 
 	// Fill minimum data
 	offset := 24
@@ -262,10 +263,10 @@ func TestParseListIdentityResponseErrorStatusODVA(t *testing.T) {
 	response := make([]byte, 58)
 
 	// Set error status
-	enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity)
+	enipOrderDiscovery.PutUint16(response[0:2], enip.ENIPCommandListIdentity)
 	enipOrderDiscovery.PutUint16(response[2:4], 34)
 	enipOrderDiscovery.PutUint32(response[4:8], 0)
-	enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusInvalidCommand) // Error status
+	enipOrderDiscovery.PutUint32(response[8:12], enip.ENIPStatusInvalidCommand) // Error status
 
 	// Fill minimum data
 	offset := 24
@@ -306,10 +307,10 @@ func TestParseListIdentityResponseProductNameLengthODVA(t *testing.T) {
 			response := make([]byte, totalLen)
 
 			// ENIP Header
-			enipOrderDiscovery.PutUint16(response[0:2], ENIPCommandListIdentity)
+			enipOrderDiscovery.PutUint16(response[0:2], enip.ENIPCommandListIdentity)
 			enipOrderDiscovery.PutUint16(response[2:4], uint16(34+tt.nameLen))
 			enipOrderDiscovery.PutUint32(response[4:8], 0)
-			enipOrderDiscovery.PutUint32(response[8:12], ENIPStatusSuccess)
+			enipOrderDiscovery.PutUint32(response[8:12], enip.ENIPStatusSuccess)
 
 			// ListIdentity Data
 			offset := 24

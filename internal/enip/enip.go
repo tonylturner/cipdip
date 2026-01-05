@@ -1,10 +1,47 @@
-package cipclient
-
-// EtherNet/IP (ENIP) protocol handling
+package enip
 
 import (
+	"encoding/binary"
 	"fmt"
+	"sync"
 )
+
+// Options controls ENIP encoding and CPF usage.
+type Options struct {
+	ByteOrder binary.ByteOrder
+	UseCPF    bool
+}
+
+var (
+	optionsMu      sync.RWMutex
+	currentOptions = Options{ByteOrder: binary.LittleEndian, UseCPF: true}
+)
+
+// SetOptions sets the global ENIP options.
+func SetOptions(opts Options) {
+	optionsMu.Lock()
+	defer optionsMu.Unlock()
+	if opts.ByteOrder == nil {
+		opts.ByteOrder = binary.LittleEndian
+	}
+	currentOptions = opts
+}
+
+// CurrentOptions returns the active ENIP options.
+func CurrentOptions() Options {
+	optionsMu.RLock()
+	defer optionsMu.RUnlock()
+	return currentOptions
+}
+
+func currentENIPByteOrder() binary.ByteOrder {
+	optionsMu.RLock()
+	defer optionsMu.RUnlock()
+	if currentOptions.ByteOrder == nil {
+		return binary.LittleEndian
+	}
+	return currentOptions.ByteOrder
+}
 
 // ENIP command codes
 const (
@@ -202,12 +239,12 @@ func BuildListIdentity(senderContext [8]byte) []byte {
 func BuildSendRRDataPayload(cipData []byte) []byte {
 	var sendData []byte
 	order := currentENIPByteOrder()
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 
 	sendData = appendUint32(order, sendData, 0) // Interface handle
 	sendData = appendUint16(order, sendData, 0) // Timeout
 
-	if profile.UseCPF {
+	if opts.UseCPF {
 		cpf := EncodeCPFItems([]CPFItem{
 			{TypeID: CPFItemNullAddress, Data: nil},
 			{TypeID: CPFItemUnconnectedData, Data: cipData},
@@ -224,9 +261,9 @@ func BuildSendRRDataPayload(cipData []byte) []byte {
 func BuildSendUnitDataPayload(connectionID uint32, cipData []byte) []byte {
 	var sendData []byte
 	order := currentENIPByteOrder()
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 
-	if profile.UseCPF {
+	if opts.UseCPF {
 		sendData = appendUint32(order, sendData, 0) // Interface handle
 		sendData = appendUint16(order, sendData, 0) // Timeout
 		cpf := EncodeCPFItems([]CPFItem{
@@ -248,9 +285,9 @@ func ParseSendRRDataRequest(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("SendRRData data too short: %d bytes (minimum 6)", len(data))
 	}
 
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 	payload := data[6:]
-	if !profile.UseCPF {
+	if !opts.UseCPF {
 		return payload, nil
 	}
 
@@ -270,10 +307,10 @@ func ParseSendRRDataRequest(data []byte) ([]byte, error) {
 
 // ParseSendUnitDataRequest extracts connection ID and data from a SendUnitData request.
 func ParseSendUnitDataRequest(data []byte) (uint32, []byte, error) {
-	profile := CurrentProtocolProfile()
+	opts := CurrentOptions()
 	order := currentENIPByteOrder()
 
-	if !profile.UseCPF {
+	if !opts.UseCPF {
 		if len(data) < 4 {
 			return 0, nil, fmt.Errorf("SendUnitData data too short: %d bytes (minimum 4)", len(data))
 		}
@@ -371,4 +408,16 @@ func encodeConnectionID(connectionID uint32) []byte {
 	var buf [4]byte
 	order.PutUint32(buf[:], connectionID)
 	return buf[:]
+}
+
+func appendUint16(order binary.ByteOrder, b []byte, v uint16) []byte {
+	var buf [2]byte
+	order.PutUint16(buf[:], v)
+	return append(b, buf[:]...)
+}
+
+func appendUint32(order binary.ByteOrder, b []byte, v uint32) []byte {
+	var buf [4]byte
+	order.PutUint32(buf[:], v)
+	return append(b, buf[:]...)
 }

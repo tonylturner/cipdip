@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 func TestHandleSendUnitDataInvalidSession(t *testing.T) {
@@ -16,8 +17,8 @@ func TestHandleSendUnitDataInvalidSession(t *testing.T) {
 		t.Fatalf("NewServer failed: %v", err)
 	}
 
-	encap := cipclient.ENIPEncapsulation{
-		Command:   cipclient.ENIPCommandSendUnitData,
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandSendUnitData,
 		SessionID: 0x9999,
 		Status:    0,
 		Options:   0,
@@ -25,11 +26,11 @@ func TestHandleSendUnitDataInvalidSession(t *testing.T) {
 	}
 
 	resp := srv.handleSendUnitData(encap, "127.0.0.1:1111")
-	decoded, err := cipclient.DecodeENIP(resp)
+	decoded, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	if decoded.Status != cipclient.ENIPStatusInvalidSessionHandle {
+	if decoded.Status != enip.ENIPStatusInvalidSessionHandle {
 		t.Fatalf("expected invalid session status, got 0x%08X", decoded.Status)
 	}
 }
@@ -49,9 +50,9 @@ func TestHandleSendUnitDataInactiveConnection(t *testing.T) {
 	srv.sessionsMu.Unlock()
 
 	cipPayload := []byte{0x01, 0x02}
-	sendData := cipclient.BuildSendUnitDataPayload(0xABCDEF01, cipPayload)
-	encap := cipclient.ENIPEncapsulation{
-		Command:   cipclient.ENIPCommandSendUnitData,
+	sendData := enip.BuildSendUnitDataPayload(0xABCDEF01, cipPayload)
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandSendUnitData,
 		Length:    uint16(len(sendData)),
 		SessionID: sessionID,
 		Status:    0,
@@ -60,11 +61,11 @@ func TestHandleSendUnitDataInactiveConnection(t *testing.T) {
 	}
 
 	resp := srv.handleSendUnitData(encap, "127.0.0.1:1111")
-	decoded, err := cipclient.DecodeENIP(resp)
+	decoded, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	if decoded.Status != cipclient.ENIPStatusInvalidSessionHandle {
+	if decoded.Status != enip.ENIPStatusInvalidSessionHandle {
 		t.Fatalf("expected invalid session status, got 0x%08X", decoded.Status)
 	}
 }
@@ -86,9 +87,9 @@ func TestHandleSendUnitDataActiveConnection(t *testing.T) {
 	srv.trackConnection(connID, sessionID, "127.0.0.1:1111")
 
 	cipPayload := []byte{0x01, 0x02, 0x03}
-	sendData := cipclient.BuildSendUnitDataPayload(connID, cipPayload)
-	encap := cipclient.ENIPEncapsulation{
-		Command:   cipclient.ENIPCommandSendUnitData,
+	sendData := enip.BuildSendUnitDataPayload(connID, cipPayload)
+	encap := enip.ENIPEncapsulation{
+		Command:   enip.ENIPCommandSendUnitData,
 		Length:    uint16(len(sendData)),
 		SessionID: sessionID,
 		Status:    0,
@@ -97,14 +98,14 @@ func TestHandleSendUnitDataActiveConnection(t *testing.T) {
 	}
 
 	resp := srv.handleSendUnitData(encap, "127.0.0.1:1111")
-	decoded, err := cipclient.DecodeENIP(resp)
+	decoded, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	if decoded.Status != cipclient.ENIPStatusSuccess {
+	if decoded.Status != enip.ENIPStatusSuccess {
 		t.Fatalf("expected success status, got 0x%08X", decoded.Status)
 	}
-	payload, err := cipclient.ParseSendUnitDataResponse(decoded.Data)
+	payload, err := enip.ParseSendUnitDataResponse(decoded.Data)
 	if err != nil {
 		t.Fatalf("ParseSendUnitDataResponse failed: %v", err)
 	}
@@ -151,8 +152,8 @@ func TestHandleForwardOpenTracksConnections(t *testing.T) {
 	}
 
 	sessionID := uint32(0x1234)
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		SessionID:     sessionID,
 		Status:        0,
 		SenderContext: [8]byte{0x01},
@@ -161,11 +162,11 @@ func TestHandleForwardOpenTracksConnections(t *testing.T) {
 	}
 
 	resp := srv.handleForwardOpen(encap, []byte{}, "127.0.0.1:1111")
-	respEncap, err := cipclient.DecodeENIP(resp)
+	respEncap, err := enip.DecodeENIP(resp)
 	if err != nil {
 		t.Fatalf("DecodeENIP failed: %v", err)
 	}
-	cipPayload, err := cipclient.ParseSendRRDataResponse(respEncap.Data)
+	cipPayload, err := enip.ParseSendRRDataResponse(respEncap.Data)
 	if err != nil {
 		t.Fatalf("ParseSendRRDataResponse failed: %v", err)
 	}
@@ -200,8 +201,8 @@ func TestHandleForwardCloseUntracksConnection(t *testing.T) {
 	srv.trackConnection(connID, sessionID, "127.0.0.1:1111")
 
 	cipData := []byte{0x34, 0x44, 0x33, 0x22, 0x11}
-	encap := cipclient.ENIPEncapsulation{
-		Command:       cipclient.ENIPCommandSendRRData,
+	encap := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
 		SessionID:     sessionID,
 		Status:        0,
 		SenderContext: [8]byte{0x01},

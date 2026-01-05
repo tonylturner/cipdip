@@ -3,6 +3,7 @@ package scenario
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func parseHexPayload(input string) ([]byte, error) {
 	return decoded, nil
 }
 
-func applyTargetPayload(req cipclient.CIPRequest, payloadType string, payloadParams map[string]any, payloadHex string) (cipclient.CIPRequest, error) {
+func applyTargetPayload(req protocol.CIPRequest, payloadType string, payloadParams map[string]any, payloadHex string) (protocol.CIPRequest, error) {
 	if payloadHex != "" {
 		payload, err := parseHexPayload(payloadHex)
 		if err != nil {
@@ -52,17 +53,17 @@ func applyTargetPayload(req cipclient.CIPRequest, payloadType string, payloadPar
 	return req, nil
 }
 
-func serviceCodeForTarget(service config.ServiceType, serviceCode uint8) (cipclient.CIPServiceCode, error) {
+func serviceCodeForTarget(service config.ServiceType, serviceCode uint8) (protocol.CIPServiceCode, error) {
 	switch service {
 	case config.ServiceGetAttributeSingle:
-		return cipclient.CIPServiceGetAttributeSingle, nil
+		return protocol.CIPServiceGetAttributeSingle, nil
 	case config.ServiceSetAttributeSingle:
-		return cipclient.CIPServiceSetAttributeSingle, nil
+		return protocol.CIPServiceSetAttributeSingle, nil
 	case config.ServiceCustom:
 		if serviceCode == 0 {
 			return 0, fmt.Errorf("custom service requires service_code")
 		}
-		return cipclient.CIPServiceCode(serviceCode), nil
+		return protocol.CIPServiceCode(serviceCode), nil
 	default:
 		return 0, fmt.Errorf("unsupported service type: %s", service)
 	}

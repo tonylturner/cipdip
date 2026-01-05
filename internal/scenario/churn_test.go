@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 )
 
 // TestChurnScenarioBasicExecution tests basic churn scenario execution
@@ -27,7 +27,7 @@ func TestChurnScenarioBasicExecution(t *testing.T) {
 
 	// Verify multiple connection cycles occurred
 	// Churn scenario connects/disconnects multiple times
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -57,7 +57,7 @@ func TestChurnScenarioConnectionCycles(t *testing.T) {
 	// Churn should perform multiple cycles
 	// Each cycle: connect, read 3 times per target, disconnect
 	expectedMinReads := 3 * len(cfg.ReadTargets) // At least one cycle
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,

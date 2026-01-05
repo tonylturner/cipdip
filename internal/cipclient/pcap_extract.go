@@ -3,6 +3,8 @@ package cipclient
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 	"io"
 	"sort"
 	"strings"
@@ -189,12 +191,12 @@ func extractENIPFrames(payload []byte, isToServer bool, meta *ENIPMetadata) ([]E
 		var isRequest bool
 		if command == 0x0065 {
 			isRequest = (status == 0 && sessionID == 0)
-		} else if command == ENIPCommandListIdentity {
+		} else if command == enip.ENIPCommandListIdentity {
 			isRequest = isToServer
 		} else {
 			isRequest = (status == 0)
 		}
-		if command == ENIPCommandSendRRData || command == ENIPCommandSendUnitData {
+		if command == enip.ENIPCommandSendRRData || command == enip.ENIPCommandSendUnitData {
 			cipData, _, dataType := extractCIPFromENIP(ENIPPacket{Data: data})
 			if dataType == "unconnected" && len(cipData) > 0 && cipData[0]&0x80 != 0 {
 				isRequest = false
@@ -368,23 +370,23 @@ func getReferenceKey(pkt ENIPPacket) string {
 			if len(cipData) > 0 {
 				serviceCode := cipData[0] &^ 0x80
 				isResponse := cipData[0]&0x80 != 0
-				switch CIPServiceCode(serviceCode) {
-				case CIPServiceGetAttributeSingle:
+				switch protocol.CIPServiceCode(serviceCode) {
+				case protocol.CIPServiceGetAttributeSingle:
 					if isResponse {
 						return "GetAttributeSingle_Response"
 					}
 					return "GetAttributeSingle_Request"
-				case CIPServiceSetAttributeSingle:
+				case protocol.CIPServiceSetAttributeSingle:
 					if isResponse {
 						return "SetAttributeSingle_Response"
 					}
 					return "SetAttributeSingle_Request"
-				case CIPServiceForwardOpen:
+				case protocol.CIPServiceForwardOpen:
 					if isResponse {
 						return "ForwardOpen_Response"
 					}
 					return "ForwardOpen_Request"
-				case CIPServiceForwardClose:
+				case protocol.CIPServiceForwardClose:
 					if isResponse {
 						return "ForwardClose_Response"
 					}
@@ -614,7 +616,7 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 
 func updateVendorInfo(packets []ENIPPacket, summary *PCAPSummary) {
 	for _, pkt := range packets {
-		if pkt.Command != ENIPCommandListIdentity || len(pkt.Data) == 0 {
+		if pkt.Command != enip.ENIPCommandListIdentity || len(pkt.Data) == 0 {
 			continue
 		}
 		if pkt.IsRequest {
@@ -691,7 +693,7 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 		}
 		summary.Commands[commandName(pkt.Command)]++
 
-		if pkt.Command != ENIPCommandSendRRData && pkt.Command != ENIPCommandSendUnitData {
+		if pkt.Command != enip.ENIPCommandSendRRData && pkt.Command != enip.ENIPCommandSendUnitData {
 			continue
 		}
 
@@ -713,7 +715,7 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 		}
 
 		summary.CIPPayloads++
-		msgInfo, err := parseCIPMessage(cipData)
+		msgInfo, err := protocol.ParseCIPMessage(cipData)
 		if err != nil {
 			continue
 		}
@@ -761,15 +763,15 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 			var embedded []byte
 			if msgInfo.IsResponse {
 				if msgInfo.RequestData != nil {
-					embedded, _ = parseUnconnectedSendResponse(msgInfo.RequestData)
+					embedded, _ = protocol.ParseUnconnectedSendResponsePayload(msgInfo.RequestData)
 				}
 			} else {
 				if msgInfo.DataOffset > 0 && msgInfo.DataOffset <= len(cipData) {
-					embedded, _ = parseUnconnectedSendRequest(cipData[msgInfo.DataOffset:])
+					embedded, _, _ = protocol.ParseUnconnectedSendRequestPayload(cipData[msgInfo.DataOffset:])
 				}
 			}
 			if len(embedded) > 0 {
-				embeddedInfo, err := parseCIPMessage(embedded)
+				embeddedInfo, err := protocol.ParseCIPMessage(embedded)
 				if err == nil {
 					embeddedLabel, _ := labelCIPService(embeddedInfo.BaseService, embeddedInfo.PathInfo.Path, embeddedInfo.IsResponse)
 					summary.EmbeddedServices[embeddedLabel]++
@@ -810,7 +812,7 @@ func summarizePackets(packets []ENIPPacket, summary *PCAPSummary, pathCounts map
 		}
 
 		summary.RequestValidationTotal++
-		req, err := DecodeCIPRequest(cipData)
+		req, err := protocol.DecodeCIPRequest(cipData)
 		if err != nil {
 			summary.RequestValidationFailed++
 			key := fmt.Sprintf("%s: decode error: %v", serviceLabel, err)
@@ -855,9 +857,9 @@ func extractCIPFromENIP(pkt ENIPPacket) ([]byte, bool, string) {
 		return payload, false, "raw"
 	}
 	for _, item := range items {
-		if item.TypeID == CPFItemUnconnectedData || item.TypeID == CPFItemConnectedData {
+		if item.TypeID == enip.CPFItemUnconnectedData || item.TypeID == enip.CPFItemConnectedData {
 			dataType := "connected"
-			if item.TypeID == CPFItemUnconnectedData {
+			if item.TypeID == enip.CPFItemUnconnectedData {
 				dataType = "unconnected"
 			}
 			return item.Data, true, dataType
@@ -871,13 +873,13 @@ func ExtractCIPFromENIPPacket(pkt ENIPPacket) ([]byte, bool, string) {
 	return extractCIPFromENIP(pkt)
 }
 
-func parseCPFItemsLE(data []byte) ([]CPFItem, error) {
+func parseCPFItemsLE(data []byte) ([]enip.CPFItem, error) {
 	if len(data) < 2 {
 		return nil, fmt.Errorf("CPF data too short")
 	}
 	count := int(binary.LittleEndian.Uint16(data[0:2]))
 	offset := 2
-	items := make([]CPFItem, 0, count)
+	items := make([]enip.CPFItem, 0, count)
 	for i := 0; i < count; i++ {
 		if len(data) < offset+4 {
 			return nil, fmt.Errorf("CPF item header too short")
@@ -890,7 +892,7 @@ func parseCPFItemsLE(data []byte) ([]CPFItem, error) {
 		}
 		itemData := data[offset : offset+length]
 		offset += length
-		items = append(items, CPFItem{TypeID: typeID, Data: itemData})
+		items = append(items, enip.CPFItem{TypeID: typeID, Data: itemData})
 	}
 	return items, nil
 }
@@ -927,25 +929,25 @@ func looksLikeEPATH(data []byte) bool {
 	default:
 		return false
 	}
-	_, err := ParseEPATH(data)
+	_, err := protocol.ParseEPATH(data)
 	return err == nil
 }
 
 func commandName(command uint16) string {
 	switch command {
-	case ENIPCommandRegisterSession:
+	case enip.ENIPCommandRegisterSession:
 		return "RegisterSession"
-	case ENIPCommandUnregisterSession:
+	case enip.ENIPCommandUnregisterSession:
 		return "UnregisterSession"
-	case ENIPCommandSendRRData:
+	case enip.ENIPCommandSendRRData:
 		return "SendRRData"
-	case ENIPCommandSendUnitData:
+	case enip.ENIPCommandSendUnitData:
 		return "SendUnitData"
-	case ENIPCommandListIdentity:
+	case enip.ENIPCommandListIdentity:
 		return "ListIdentity"
-	case ENIPCommandListServices:
+	case enip.ENIPCommandListServices:
 		return "ListServices"
-	case ENIPCommandListInterfaces:
+	case enip.ENIPCommandListInterfaces:
 		return "ListInterfaces"
 	default:
 		return fmt.Sprintf("Unknown(0x%04X)", command)

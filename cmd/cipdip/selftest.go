@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"os"
 	"time"
 
@@ -127,7 +128,7 @@ func runSelfTest(flags *selfTestFlags) error {
 
 	validator := cipclient.NewPacketValidator(true)
 	if flags.personality == "adapter" {
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     cipclient.CIPClassAssembly,
 			Instance:  0x65,
 			Attribute: 0x03,
@@ -136,7 +137,7 @@ func runSelfTest(flags *selfTestFlags) error {
 		if err != nil {
 			return fmt.Errorf("read attribute: %w", err)
 		}
-		if err := validator.ValidateCIPResponse(readResp, cipclient.CIPServiceGetAttributeSingle); err != nil {
+		if err := validator.ValidateCIPResponse(readResp, protocol.CIPServiceGetAttributeSingle); err != nil {
 			return fmt.Errorf("validate read response: %w", err)
 		}
 
@@ -144,14 +145,14 @@ func runSelfTest(flags *selfTestFlags) error {
 		if err != nil {
 			return fmt.Errorf("write attribute: %w", err)
 		}
-		if err := validator.ValidateCIPResponse(writeResp, cipclient.CIPServiceSetAttributeSingle); err != nil {
+		if err := validator.ValidateCIPResponse(writeResp, protocol.CIPServiceSetAttributeSingle); err != nil {
 			return fmt.Errorf("validate write response: %w", err)
 		}
 	}
 
-	embeddedReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
+	embeddedReq := protocol.CIPRequest{
+		Service: protocol.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
 			Class:     cipclient.CIPClassIdentityObject,
 			Instance:  0x01,
 			Attribute: 0x01,
@@ -161,10 +162,10 @@ func runSelfTest(flags *selfTestFlags) error {
 	if err != nil {
 		return fmt.Errorf("invoke unconnected send: %w", err)
 	}
-	if err := validator.ValidateCIPResponse(ucmmResp, cipclient.CIPServiceUnconnectedSend); err != nil {
+	if err := validator.ValidateCIPResponse(ucmmResp, protocol.CIPServiceUnconnectedSend); err != nil {
 		return fmt.Errorf("validate unconnected send response: %w", err)
 	}
-	if err := validator.ValidateCIPResponse(embeddedResp, cipclient.CIPServiceGetAttributeSingle); err != nil {
+	if err := validator.ValidateCIPResponse(embeddedResp, protocol.CIPServiceGetAttributeSingle); err != nil {
 		return fmt.Errorf("validate embedded response: %w", err)
 	}
 

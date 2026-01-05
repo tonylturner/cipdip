@@ -1,6 +1,9 @@
 package cipclient
 
-import "testing"
+import (
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"testing"
+)
 
 func TestDecodeCIPRequestStrictPathSizeRequired(t *testing.T) {
 	prev := CurrentProtocolProfile()
@@ -8,7 +11,7 @@ func TestDecodeCIPRequestStrictPathSizeRequired(t *testing.T) {
 	defer SetProtocolProfile(prev)
 
 	// Service only, missing path size.
-	if _, err := DecodeCIPRequest([]byte{0x0E}); err == nil {
+	if _, err := protocol.DecodeCIPRequest([]byte{0x0E}); err == nil {
 		t.Fatalf("expected missing path size error")
 	}
 }
@@ -24,9 +27,9 @@ func TestDecodeCIPRequestLegacyNoPathSize(t *testing.T) {
 		0x24, 0x01, // instance
 		0x30, 0x01, // attribute
 	}
-	req, err := DecodeCIPRequest(data)
+	req, err := protocol.DecodeCIPRequest(data)
 	if err != nil {
-		t.Fatalf("DecodeCIPRequest error: %v", err)
+		t.Fatalf("protocol.DecodeCIPRequest error: %v", err)
 	}
 	if req.Path.Class != 0x04 || req.Path.Instance != 0x01 || req.Path.Attribute != 0x01 {
 		t.Fatalf("unexpected path: %#v", req.Path)
@@ -43,7 +46,7 @@ func TestDecodeCIPRequestStrictIncompletePath(t *testing.T) {
 		0x02,       // path size words -> 4 bytes expected
 		0x20, 0x04, // only 2 bytes provided
 	}
-	if _, err := DecodeCIPRequest(data); err == nil {
+	if _, err := protocol.DecodeCIPRequest(data); err == nil {
 		t.Fatalf("expected incomplete EPATH error")
 	}
 }

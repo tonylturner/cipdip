@@ -46,18 +46,18 @@ type ProtocolConfig struct {
 
 // CIPTarget represents a CIP target (read, write, or custom)
 type CIPTarget struct {
-	Name              string      `yaml:"name"`
-	Service           ServiceType `yaml:"service"`
-	ServiceCode       uint8       `yaml:"service_code,omitempty"` // used for custom services
-	Class             uint16      `yaml:"class"`
-	Instance          uint16      `yaml:"instance"`
-	Attribute         uint16      `yaml:"attribute"`
-	Pattern           string      `yaml:"pattern,omitempty"` // "increment", "toggle", "constant"
-	InitialValue      int64       `yaml:"initial_value,omitempty"`
-	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
-	PayloadType       string      `yaml:"payload_type,omitempty"`
+	Name              string         `yaml:"name"`
+	Service           ServiceType    `yaml:"service"`
+	ServiceCode       uint8          `yaml:"service_code,omitempty"` // used for custom services
+	Class             uint16         `yaml:"class"`
+	Instance          uint16         `yaml:"instance"`
+	Attribute         uint16         `yaml:"attribute"`
+	Pattern           string         `yaml:"pattern,omitempty"` // "increment", "toggle", "constant"
+	InitialValue      int64          `yaml:"initial_value,omitempty"`
+	RequestPayloadHex string         `yaml:"request_payload_hex,omitempty"` // raw hex string for request body
+	PayloadType       string         `yaml:"payload_type,omitempty"`
 	PayloadParams     map[string]any `yaml:"payload_params,omitempty"`
-	Tags              []string    `yaml:"tags,omitempty"`
+	Tags              []string       `yaml:"tags,omitempty"`
 }
 
 // IOConnectionConfig represents configuration for a connected I/O connection
@@ -78,18 +78,18 @@ type IOConnectionConfig struct {
 
 // EdgeTarget represents a protocol-valid edge case target.
 type EdgeTarget struct {
-	Name              string      `yaml:"name"`
-	Service           ServiceType `yaml:"service"`
-	ServiceCode       uint8       `yaml:"service_code,omitempty"`
-	Class             uint16      `yaml:"class"`
-	Instance          uint16      `yaml:"instance"`
-	Attribute         uint16      `yaml:"attribute"`
-	RequestPayloadHex string      `yaml:"request_payload_hex,omitempty"`
-	PayloadType       string      `yaml:"payload_type,omitempty"`
+	Name              string         `yaml:"name"`
+	Service           ServiceType    `yaml:"service"`
+	ServiceCode       uint8          `yaml:"service_code,omitempty"`
+	Class             uint16         `yaml:"class"`
+	Instance          uint16         `yaml:"instance"`
+	Attribute         uint16         `yaml:"attribute"`
+	RequestPayloadHex string         `yaml:"request_payload_hex,omitempty"`
+	PayloadType       string         `yaml:"payload_type,omitempty"`
 	PayloadParams     map[string]any `yaml:"payload_params,omitempty"`
-	ExpectedOutcome   string      `yaml:"expected_outcome,omitempty"` // "success", "error", "timeout", or "any"
-	ForceStatus       *uint8      `yaml:"force_status,omitempty"`     // optional metrics override in unconnected_send
-	Tags              []string    `yaml:"tags,omitempty"`
+	ExpectedOutcome   string         `yaml:"expected_outcome,omitempty"` // "success", "error", "timeout", or "any"
+	ForceStatus       *uint8         `yaml:"force_status,omitempty"`     // optional metrics override in unconnected_send
+	Tags              []string       `yaml:"tags,omitempty"`
 }
 
 // Config represents the client configuration

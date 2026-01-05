@@ -2,6 +2,8 @@ package cipclient
 
 import (
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 // PacketValidator validates packets for ODVA compliance
@@ -15,7 +17,7 @@ func NewPacketValidator(strict bool) *PacketValidator {
 }
 
 // ValidateENIP validates an ENIP encapsulation packet
-func (v *PacketValidator) ValidateENIP(encap ENIPEncapsulation) error {
+func (v *PacketValidator) ValidateENIP(encap enip.ENIPEncapsulation) error {
 	// Validate command code
 	if !isValidENIPCommand(encap.Command) {
 		return fmt.Errorf("invalid ENIP command: 0x%04X", encap.Command)
@@ -27,14 +29,14 @@ func (v *PacketValidator) ValidateENIP(encap ENIPEncapsulation) error {
 	}
 
 	// Validate session ID (most commands require non-zero session ID)
-	if encap.Command != ENIPCommandRegisterSession && encap.Command != ENIPCommandListIdentity {
+	if encap.Command != enip.ENIPCommandRegisterSession && encap.Command != enip.ENIPCommandListIdentity {
 		if encap.SessionID == 0 {
 			return fmt.Errorf("session ID must be non-zero for command 0x%04X", encap.Command)
 		}
 	}
 
 	// Validate status (must be 0 in requests)
-	if encap.Status != 0 && encap.Command != ENIPCommandRegisterSession {
+	if encap.Status != 0 && encap.Command != enip.ENIPCommandRegisterSession {
 		// RegisterSession response has status, but requests should be 0
 		// This is a request validation, so status should be 0
 		if v.strict {
@@ -63,11 +65,11 @@ func (v *PacketValidator) ValidateENIP(encap ENIPEncapsulation) error {
 
 	// Command-specific validation
 	switch encap.Command {
-	case ENIPCommandRegisterSession:
+	case enip.ENIPCommandRegisterSession:
 		return v.validateRegisterSession(encap)
-	case ENIPCommandSendRRData:
+	case enip.ENIPCommandSendRRData:
 		return v.validateSendRRData(encap)
-	case ENIPCommandSendUnitData:
+	case enip.ENIPCommandSendUnitData:
 		return v.validateSendUnitData(encap)
 	}
 
@@ -75,7 +77,7 @@ func (v *PacketValidator) ValidateENIP(encap ENIPEncapsulation) error {
 }
 
 // ValidateCIPRequest validates a CIP request
-func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
+func (v *PacketValidator) ValidateCIPRequest(req protocol.CIPRequest) error {
 	// Validate service code
 	if !isValidCIPService(req.Service) {
 		return fmt.Errorf("invalid CIP service code: 0x%02X", req.Service)
@@ -84,7 +86,7 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 		if uint8(req.Service)&0x80 != 0 {
 			return fmt.Errorf("response service code not allowed in request: 0x%02X", req.Service)
 		}
-		if req.Service == CIPServiceErrorResponse {
+		if req.Service == protocol.CIPServiceErrorResponse {
 			return fmt.Errorf("error response service not allowed in request")
 		}
 	}
@@ -101,7 +103,7 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 
 	// Service-specific validation (non-overlapping codes first)
 	switch req.Service {
-	case CIPServiceMultipleService:
+	case protocol.CIPServiceMultipleService:
 		if v.strict {
 			if req.Path.Class != CIPClassMessageRouter || req.Path.Instance != 0x0001 {
 				return fmt.Errorf("Multiple_Service_Packet requires Message Router class 0x0002/instance 0x0001")
@@ -110,27 +112,27 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 				return fmt.Errorf("Multiple_Service_Packet payload too short")
 			}
 		}
-	case CIPServiceGetAttributeSingle:
+	case protocol.CIPServiceGetAttributeSingle:
 		// Get_Attribute_Single should not have payload
 		if len(req.Payload) > 0 && v.strict {
 			return fmt.Errorf("Get_Attribute_Single should not have payload")
 		}
-	case CIPServiceSetAttributeSingle:
+	case protocol.CIPServiceSetAttributeSingle:
 		// Set_Attribute_Single should have payload
 		if len(req.Payload) == 0 {
 			return fmt.Errorf("Set_Attribute_Single requires payload")
 		}
-	case CIPServiceUnconnectedSend:
+	case protocol.CIPServiceUnconnectedSend:
 		if req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 4 && v.strict {
 				return fmt.Errorf("Unconnected_Send requires payload")
 			}
 			if v.strict {
-				embedded, _, ok := ParseUnconnectedSendRequestPayload(req.Payload)
+				embedded, _, ok := protocol.ParseUnconnectedSendRequestPayload(req.Payload)
 				if !ok || len(embedded) == 0 {
 					return fmt.Errorf("Unconnected_Send requires embedded CIP request")
 				}
-				if embeddedReq, err := DecodeCIPRequest(embedded); err == nil {
+				if embeddedReq, err := protocol.DecodeCIPRequest(embedded); err == nil {
 					if err := v.ValidateCIPRequest(embeddedReq); err != nil {
 						return fmt.Errorf("embedded CIP request invalid: %w", err)
 					}
@@ -144,26 +146,26 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 				return fmt.Errorf("Read_Tag_Fragmented requires element count + byte offset")
 			}
 		}
-	case CIPServiceWriteTag, CIPServiceWriteTagFragmented, CIPServiceSetMember, CIPServiceInsertMember, CIPServiceRemoveMember:
+	case protocol.CIPServiceWriteTag, protocol.CIPServiceWriteTagFragmented, protocol.CIPServiceSetMember, protocol.CIPServiceInsertMember, protocol.CIPServiceRemoveMember:
 		if len(req.Payload) == 0 && v.strict {
 			return fmt.Errorf("%s requires payload", req.Service)
 		}
-		if req.Service == CIPServiceWriteTagFragmented && v.strict && len(req.Payload) < 8 {
+		if req.Service == protocol.CIPServiceWriteTagFragmented && v.strict && len(req.Payload) < 8 {
 			return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and byte offset")
 		}
-	case CIPServiceForwardOpen:
+	case protocol.CIPServiceForwardOpen:
 		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 20 {
 				return fmt.Errorf("Forward_Open payload too short")
 			}
 		}
-	case CIPServiceForwardClose:
+	case protocol.CIPServiceForwardClose:
 		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 3 {
 				return fmt.Errorf("Forward_Close payload too short")
 			}
 		}
-	case CIPServiceExecutePCCC:
+	case protocol.CIPServiceExecutePCCC:
 		if v.strict && len(req.Payload) == 0 {
 			return fmt.Errorf("Execute_PCCC requires payload")
 		}
@@ -172,19 +174,19 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 	// Tag services (symbol object path)
 	if req.Path.Class == CIPClassSymbolObject {
 		switch req.Service {
-		case CIPServiceReadTag:
+		case protocol.CIPServiceReadTag:
 			if v.strict && len(req.Payload) < 2 {
 				return fmt.Errorf("Read_Tag requires element count")
 			}
-		case CIPServiceWriteTag:
+		case protocol.CIPServiceWriteTag:
 			if v.strict && len(req.Payload) < 4 {
 				return fmt.Errorf("Write_Tag requires type and element count")
 			}
-		case CIPServiceReadTagFragmented:
+		case protocol.CIPServiceReadTagFragmented:
 			if v.strict && len(req.Payload) < 6 {
 				return fmt.Errorf("Read_Tag_Fragmented requires element count and offset")
 			}
-		case CIPServiceWriteTagFragmented:
+		case protocol.CIPServiceWriteTagFragmented:
 			if v.strict && len(req.Payload) < 8 {
 				return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and offset")
 			}
@@ -194,12 +196,12 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 	// File object services (class 0x37)
 	if req.Path.Class == CIPClassFileObject {
 		switch req.Service {
-		case CIPServiceInitiateUpload, CIPServiceInitiateDownload, CIPServiceInitiatePartialRead,
-			CIPServiceInitiatePartialWrite, CIPServiceUploadTransfer, CIPServiceDownloadTransfer:
+		case protocol.CIPServiceInitiateUpload, protocol.CIPServiceInitiateDownload, protocol.CIPServiceInitiatePartialRead,
+			protocol.CIPServiceInitiatePartialWrite, protocol.CIPServiceUploadTransfer, protocol.CIPServiceDownloadTransfer:
 			if v.strict && len(req.Payload) == 0 {
 				return fmt.Errorf("File Object service 0x%02X requires payload", req.Service)
 			}
-		case CIPServiceClearFile:
+		case protocol.CIPServiceClearFile:
 			// Clear file may have no payload.
 		}
 	}
@@ -207,7 +209,7 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 	// Event Log member operations (class 0x41)
 	if req.Path.Class == CIPClassEventLog {
 		switch req.Service {
-		case CIPServiceGetMember, CIPServiceSetMember, CIPServiceInsertMember, CIPServiceRemoveMember:
+		case protocol.CIPServiceGetMember, protocol.CIPServiceSetMember, protocol.CIPServiceInsertMember, protocol.CIPServiceRemoveMember:
 			if v.strict && len(req.Payload) == 0 {
 				return fmt.Errorf("Event Log member service requires payload")
 			}
@@ -234,7 +236,7 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 }
 
 // ValidateCIPResponse validates a CIP response
-func (v *PacketValidator) ValidateCIPResponse(resp CIPResponse, expectedService CIPServiceCode) error {
+func (v *PacketValidator) ValidateCIPResponse(resp protocol.CIPResponse, expectedService protocol.CIPServiceCode) error {
 	// Validate service code matches request
 	if resp.Service != expectedService {
 		return fmt.Errorf("service code mismatch: expected 0x%02X, got 0x%02X", expectedService, resp.Service)
@@ -255,20 +257,20 @@ func (v *PacketValidator) ValidateCIPResponse(resp CIPResponse, expectedService 
 
 	// Validate payload structure based on service
 	switch resp.Service {
-	case CIPServiceGetAttributeSingle:
+	case protocol.CIPServiceGetAttributeSingle:
 		if resp.Status == 0x00 && len(resp.Payload) == 0 {
 			// Success response should have payload (attribute value)
 			if v.strict {
 				return fmt.Errorf("Get_Attribute_Single success response should have payload")
 			}
 		}
-	case CIPServiceForwardOpen:
+	case protocol.CIPServiceForwardOpen:
 		if v.strict && resp.Status == 0x00 && len(resp.Payload) < 17 {
 			return fmt.Errorf("Forward_Open success response payload too short")
 		}
-	case CIPServiceUnconnectedSend:
+	case protocol.CIPServiceUnconnectedSend:
 		if v.strict && resp.Status == 0x00 {
-			embedded, ok := ParseUnconnectedSendResponsePayload(resp.Payload)
+			embedded, ok := protocol.ParseUnconnectedSendResponsePayload(resp.Payload)
 			if !ok || len(embedded) == 0 {
 				return fmt.Errorf("Unconnected_Send response missing embedded payload")
 			}
@@ -302,7 +304,7 @@ func (v *PacketValidator) ValidateConnectionSize(size int) error {
 }
 
 // validateRegisterSession validates RegisterSession structure
-func (v *PacketValidator) validateRegisterSession(encap ENIPEncapsulation) error {
+func (v *PacketValidator) validateRegisterSession(encap enip.ENIPEncapsulation) error {
 	if len(encap.Data) < 4 {
 		return fmt.Errorf("RegisterSession data too short: %d bytes (minimum 4)", len(encap.Data))
 	}
@@ -323,7 +325,7 @@ func (v *PacketValidator) validateRegisterSession(encap ENIPEncapsulation) error
 }
 
 // validateSendRRData validates SendRRData structure
-func (v *PacketValidator) validateSendRRData(encap ENIPEncapsulation) error {
+func (v *PacketValidator) validateSendRRData(encap enip.ENIPEncapsulation) error {
 	if len(encap.Data) < 6 {
 		return fmt.Errorf("SendRRData data too short: %d bytes (minimum 6)", len(encap.Data))
 	}
@@ -336,7 +338,7 @@ func (v *PacketValidator) validateSendRRData(encap ENIPEncapsulation) error {
 
 	profile := CurrentProtocolProfile()
 	if profile.UseCPF {
-		if _, err := ParseCPFItems(encap.Data[6:]); err != nil {
+		if _, err := enip.ParseCPFItems(encap.Data[6:]); err != nil {
 			return fmt.Errorf("invalid CPF items: %w", err)
 		}
 	}
@@ -345,19 +347,19 @@ func (v *PacketValidator) validateSendRRData(encap ENIPEncapsulation) error {
 }
 
 // validateSendUnitData validates SendUnitData structure
-func (v *PacketValidator) validateSendUnitData(encap ENIPEncapsulation) error {
+func (v *PacketValidator) validateSendUnitData(encap enip.ENIPEncapsulation) error {
 	profile := CurrentProtocolProfile()
 	if profile.UseCPF {
 		if len(encap.Data) < 6 {
 			return fmt.Errorf("SendUnitData data too short: %d bytes (minimum 6)", len(encap.Data))
 		}
-		items, err := ParseCPFItems(encap.Data[6:])
+		items, err := enip.ParseCPFItems(encap.Data[6:])
 		if err != nil {
 			return fmt.Errorf("invalid CPF items: %w", err)
 		}
 		connID := uint32(0)
 		for _, item := range items {
-			if item.TypeID == CPFItemConnectedAddress && len(item.Data) >= 4 {
+			if item.TypeID == enip.CPFItemConnectedAddress && len(item.Data) >= 4 {
 				connID = currentENIPByteOrder().Uint32(item.Data[0:4])
 				break
 			}
@@ -379,7 +381,7 @@ func (v *PacketValidator) validateSendUnitData(encap ENIPEncapsulation) error {
 }
 
 // validateCIPPath validates a CIP path
-func (v *PacketValidator) validateCIPPath(path CIPPath) error {
+func (v *PacketValidator) validateCIPPath(path protocol.CIPPath) error {
 	// Class 0 is typically invalid (reserved)
 	if path.Class == 0 && path.Name == "" && v.strict {
 		return fmt.Errorf("CIP class 0 is reserved")
@@ -398,59 +400,59 @@ func (v *PacketValidator) validateCIPPath(path CIPPath) error {
 
 func isValidENIPCommand(cmd uint16) bool {
 	switch cmd {
-	case ENIPCommandRegisterSession,
-		ENIPCommandUnregisterSession,
-		ENIPCommandSendRRData,
-		ENIPCommandSendUnitData,
-		ENIPCommandListIdentity,
-		ENIPCommandListServices,
-		ENIPCommandListInterfaces:
+	case enip.ENIPCommandRegisterSession,
+		enip.ENIPCommandUnregisterSession,
+		enip.ENIPCommandSendRRData,
+		enip.ENIPCommandSendUnitData,
+		enip.ENIPCommandListIdentity,
+		enip.ENIPCommandListServices,
+		enip.ENIPCommandListInterfaces:
 		return true
 	default:
 		return false
 	}
 }
 
-func isValidCIPService(svc CIPServiceCode) bool {
+func isValidCIPService(svc protocol.CIPServiceCode) bool {
 	switch svc {
-	case CIPServiceGetAttributeAll,
-		CIPServiceSetAttributeAll,
-		CIPServiceGetAttributeList,
-		CIPServiceSetAttributeList,
-		CIPServiceReset,
-		CIPServiceStart,
-		CIPServiceStop,
-		CIPServiceCreate,
-		CIPServiceDelete,
-		CIPServiceMultipleService,
-		CIPServiceApplyAttributes,
-		CIPServiceGetAttributeSingle,
-		CIPServiceSetAttributeSingle,
-		CIPServiceFindNextObjectInst,
-		CIPServiceErrorResponse,
-		CIPServiceRestore,
-		CIPServiceSave,
-		CIPServiceNoOp,
-		CIPServiceGetMember,
-		CIPServiceSetMember,
-		CIPServiceInsertMember,
-		CIPServiceRemoveMember,
-		CIPServiceGroupSync,
-		CIPServiceExecutePCCC,
-		CIPServiceReadTag,
-		CIPServiceWriteTag,
-		CIPServiceUploadTransfer,
-		CIPServiceDownloadTransfer,
-		CIPServiceClearFile,
-		CIPServiceWriteTagFragmented,
-		CIPServiceGetInstanceAttrList,
-		CIPServiceUnconnectedSend,
-		CIPServiceGetConnectionData,
-		CIPServiceSearchConnectionData,
-		CIPServiceGetConnectionOwner,
-		CIPServiceLargeForwardOpen,
-		CIPServiceForwardOpen,
-		CIPServiceForwardClose:
+	case protocol.CIPServiceGetAttributeAll,
+		protocol.CIPServiceSetAttributeAll,
+		protocol.CIPServiceGetAttributeList,
+		protocol.CIPServiceSetAttributeList,
+		protocol.CIPServiceReset,
+		protocol.CIPServiceStart,
+		protocol.CIPServiceStop,
+		protocol.CIPServiceCreate,
+		protocol.CIPServiceDelete,
+		protocol.CIPServiceMultipleService,
+		protocol.CIPServiceApplyAttributes,
+		protocol.CIPServiceGetAttributeSingle,
+		protocol.CIPServiceSetAttributeSingle,
+		protocol.CIPServiceFindNextObjectInst,
+		protocol.CIPServiceErrorResponse,
+		protocol.CIPServiceRestore,
+		protocol.CIPServiceSave,
+		protocol.CIPServiceNoOp,
+		protocol.CIPServiceGetMember,
+		protocol.CIPServiceSetMember,
+		protocol.CIPServiceInsertMember,
+		protocol.CIPServiceRemoveMember,
+		protocol.CIPServiceGroupSync,
+		protocol.CIPServiceExecutePCCC,
+		protocol.CIPServiceReadTag,
+		protocol.CIPServiceWriteTag,
+		protocol.CIPServiceUploadTransfer,
+		protocol.CIPServiceDownloadTransfer,
+		protocol.CIPServiceClearFile,
+		protocol.CIPServiceWriteTagFragmented,
+		protocol.CIPServiceGetInstanceAttrList,
+		protocol.CIPServiceUnconnectedSend,
+		protocol.CIPServiceGetConnectionData,
+		protocol.CIPServiceSearchConnectionData,
+		protocol.CIPServiceGetConnectionOwner,
+		protocol.CIPServiceLargeForwardOpen,
+		protocol.CIPServiceForwardOpen,
+		protocol.CIPServiceForwardClose:
 		return true
 	default:
 		return false
