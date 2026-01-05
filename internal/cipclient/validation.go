@@ -99,7 +99,7 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 		return fmt.Errorf("payload size (%d) exceeds maximum (65535)", len(req.Payload))
 	}
 
-	// Service-specific validation
+	// Service-specific validation (non-overlapping codes first)
 	switch req.Service {
 	case CIPServiceMultipleService:
 		if v.strict {
@@ -125,6 +125,17 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 			if len(req.Payload) < 4 && v.strict {
 				return fmt.Errorf("Unconnected_Send requires payload")
 			}
+			if v.strict {
+				embedded, _, ok := ParseUnconnectedSendRequestPayload(req.Payload)
+				if !ok || len(embedded) == 0 {
+					return fmt.Errorf("Unconnected_Send requires embedded CIP request")
+				}
+				if embeddedReq, err := DecodeCIPRequest(embedded); err == nil {
+					if err := v.ValidateCIPRequest(embeddedReq); err != nil {
+						return fmt.Errorf("embedded CIP request invalid: %w", err)
+					}
+				}
+			}
 		} else {
 			if len(req.Payload) == 0 && v.strict {
 				return fmt.Errorf("Read_Tag_Fragmented requires payload")
@@ -139,6 +150,83 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 		}
 		if req.Service == CIPServiceWriteTagFragmented && v.strict && len(req.Payload) < 8 {
 			return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and byte offset")
+		}
+	case CIPServiceForwardOpen:
+		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
+			if len(req.Payload) < 20 {
+				return fmt.Errorf("Forward_Open payload too short")
+			}
+		}
+	case CIPServiceForwardClose:
+		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
+			if len(req.Payload) < 3 {
+				return fmt.Errorf("Forward_Close payload too short")
+			}
+		}
+	case CIPServiceExecutePCCC:
+		if v.strict && len(req.Payload) == 0 {
+			return fmt.Errorf("Execute_PCCC requires payload")
+		}
+	}
+
+	// Tag services (symbol object path)
+	if req.Path.Class == CIPClassSymbolObject {
+		switch req.Service {
+		case CIPServiceReadTag:
+			if v.strict && len(req.Payload) < 2 {
+				return fmt.Errorf("Read_Tag requires element count")
+			}
+		case CIPServiceWriteTag:
+			if v.strict && len(req.Payload) < 4 {
+				return fmt.Errorf("Write_Tag requires type and element count")
+			}
+		case CIPServiceReadTagFragmented:
+			if v.strict && len(req.Payload) < 6 {
+				return fmt.Errorf("Read_Tag_Fragmented requires element count and offset")
+			}
+		case CIPServiceWriteTagFragmented:
+			if v.strict && len(req.Payload) < 8 {
+				return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and offset")
+			}
+		}
+	}
+
+	// File object services (class 0x37)
+	if req.Path.Class == CIPClassFileObject {
+		switch req.Service {
+		case CIPServiceInitiateUpload, CIPServiceInitiateDownload, CIPServiceInitiatePartialRead,
+			CIPServiceInitiatePartialWrite, CIPServiceUploadTransfer, CIPServiceDownloadTransfer:
+			if v.strict && len(req.Payload) == 0 {
+				return fmt.Errorf("File Object service 0x%02X requires payload", req.Service)
+			}
+		case CIPServiceClearFile:
+			// Clear file may have no payload.
+		}
+	}
+
+	// Event Log member operations (class 0x41)
+	if req.Path.Class == CIPClassEventLog {
+		switch req.Service {
+		case CIPServiceGetMember, CIPServiceSetMember, CIPServiceInsertMember, CIPServiceRemoveMember:
+			if v.strict && len(req.Payload) == 0 {
+				return fmt.Errorf("Event Log member service requires payload")
+			}
+		}
+	}
+
+	// Modbus object services (class 0x44)
+	if req.Path.Class == CIPClassModbus {
+		switch req.Service {
+		case 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51:
+			if v.strict {
+				minLen := 4
+				if req.Service == 0x51 {
+					minLen = 1
+				}
+				if len(req.Payload) < minLen {
+					return fmt.Errorf("Modbus object service 0x%02X requires payload", req.Service)
+				}
+			}
 		}
 	}
 
@@ -172,6 +260,17 @@ func (v *PacketValidator) ValidateCIPResponse(resp CIPResponse, expectedService 
 			// Success response should have payload (attribute value)
 			if v.strict {
 				return fmt.Errorf("Get_Attribute_Single success response should have payload")
+			}
+		}
+	case CIPServiceForwardOpen:
+		if v.strict && resp.Status == 0x00 && len(resp.Payload) < 17 {
+			return fmt.Errorf("Forward_Open success response payload too short")
+		}
+	case CIPServiceUnconnectedSend:
+		if v.strict && resp.Status == 0x00 {
+			embedded, ok := ParseUnconnectedSendResponsePayload(resp.Payload)
+			if !ok || len(embedded) == 0 {
+				return fmt.Errorf("Unconnected_Send response missing embedded payload")
 			}
 		}
 	}

@@ -1,0 +1,119 @@
+{
+  "pcap": "validation_safety_energy_motion.pcap",
+  "packets": [
+    {
+      "id": "safety_reset/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "safety_reset",
+      "traffic_mode": "client_only",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "safety_reset/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "safety_reset",
+      "traffic_mode": "client_only",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "energy_start_metering/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "payload",
+      "traffic_mode": "client_only",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "energy_start_metering/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "payload",
+      "traffic_mode": "client_only",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "motion_axis_list/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "payload",
+      "traffic_mode": "client_only",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "motion_axis_list/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "payload",
+      "traffic_mode": "client_only",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    }
+  ]
+}

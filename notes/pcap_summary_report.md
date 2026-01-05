@@ -1,6 +1,6 @@
 # PCAP Summary Report
 
-Generated: 2026-01-01T21:29:36-05:00
+Generated: 2026-01-04T17:26:06-05:00
 
 ## CL5000EIP-Change-Date-Attempt.pcap
 
@@ -60,6 +60,8 @@ CIP Service Counts:
   Get_Attribute_All_Response: 2
   Set_Attribute_Single: 1
   Set_Attribute_Single_Response: 1
+
+CIP Request Validation (strict): 8 total, 0 failed
 
 Top Paths:
   0x00F5/0x0000/0x0001 (1)
@@ -130,12 +132,17 @@ CIP Service Counts:
   Get_Attribute_List_Response: 9
   Forward_Close: 5
   Forward_Open: 5
-  Forward_Open_Response: 5
   Read_Modify_Write_Response: 5
+  Unknown(0x54)_Response: 5
+
+CIP Request Validation (strict): 31 total, 0 failed
 
 Embedded CIP Service Counts:
   Get_Attribute_All: 12
   Get_Attribute_List: 9
+
+Unknown CIP Service Details:
+  Unknown(0x54): count=5 responses=5 status=[0x00:5]
 
 Top Paths:
   0x0006/0x0001/0x0000 (31)
@@ -173,6 +180,8 @@ CIP Service Counts:
   Unknown(0x4B): 1
   Unknown(0x51): 1
   Unknown(0x51)_Response: 1
+
+CIP Request Validation (strict): 5250 total, 0 failed
 
 Unknown CIP Service Details:
   Unknown(0x51): count=2 responses=1 classes=[0x00A1:1] instances=[0x0001:1] status=[0x08:1]
@@ -228,6 +237,8 @@ CIP Service Counts:
   Unknown(0x51): 1
   Unknown(0x51)_Response: 1
 
+CIP Request Validation (strict): 5258 total, 0 failed
+
 Unknown CIP Service Details:
   Unknown(0x51): count=2 responses=1 classes=[0x00A1:1] instances=[0x0001:1] status=[0x08:1]
   Unknown(0x4B): count=1 responses=0 classes=[0x00A1:1] instances=[0x0001:1]
@@ -281,6 +292,8 @@ CIP Service Counts:
   Get_Attribute_Single_Response: 129
   Unknown(0x52)_Response: 51
   Get_Attribute_All: 31
+
+CIP Request Validation (strict): 471 total, 0 failed
 
 Embedded CIP Service Counts:
   Get_Attribute_All: 311
@@ -353,13 +366,18 @@ CIP Service Counts:
   Get_Attribute_All_Response: 12
   Get_Attribute_List_Response: 9
   Forward_Open: 5
-  Forward_Open_Response: 5
+  Unknown(0x54)_Response: 5
   Forward_Close: 4
   Read_Modify_Write_Response: 4
+
+CIP Request Validation (strict): 30 total, 0 failed
 
 Embedded CIP Service Counts:
   Get_Attribute_All: 12
   Get_Attribute_List: 9
+
+Unknown CIP Service Details:
+  Unknown(0x54): count=5 responses=5 status=[0x00:5]
 
 Top Paths:
   0x0006/0x0001/0x0000 (30)
@@ -422,13 +440,18 @@ CIP Service Counts:
   Get_Attribute_All_Response: 12
   Get_Attribute_List_Response: 9
   Forward_Open: 5
-  Forward_Open_Response: 5
+  Unknown(0x54)_Response: 5
   Forward_Close: 4
   Read_Modify_Write_Response: 4
+
+CIP Request Validation (strict): 30 total, 0 failed
 
 Embedded CIP Service Counts:
   Get_Attribute_All: 12
   Get_Attribute_List: 9
+
+Unknown CIP Service Details:
+  Unknown(0x54): count=5 responses=5 status=[0x00:5]
 
 Top Paths:
   0x0006/0x0001/0x0000 (30)
@@ -464,14 +487,19 @@ CIP Service Counts:
   Unconnected_Send: 18
   Get_Attribute_All_Response: 11
   Forward_Open: 7
-  Forward_Open_Response: 7
   Get_Attribute_List_Response: 7
+  Unknown(0x54)_Response: 7
   Forward_Close: 6
   Read_Modify_Write_Response: 6
+
+CIP Request Validation (strict): 31 total, 0 failed
 
 Embedded CIP Service Counts:
   Get_Attribute_All: 11
   Get_Attribute_List: 7
+
+Unknown CIP Service Details:
+  Unknown(0x54): count=7 responses=7 status=[0x00:7]
 
 Top Paths:
   0x0006/0x0001/0x0000 (31)
@@ -532,6 +560,8 @@ Command Counts:
 CIP Service Counts:
   Get_Attribute_All_Response: 219
   Unconnected_Send: 219
+
+CIP Request Validation (strict): 219 total, 0 failed
 
 Embedded CIP Service Counts:
   Get_Attribute_All: 219
@@ -651,6 +681,8 @@ CIP Service Counts:
   Get_Attribute_All_Response: 219
   Unconnected_Send: 219
 
+CIP Request Validation (strict): 219 total, 0 failed
+
 Embedded CIP Service Counts:
   Get_Attribute_All: 219
 
@@ -689,8 +721,13 @@ CIP Service Counts:
   Execute_PCCC_Response: 4631
   Forward_Open: 5
   Forward_Close: 4
-  Forward_Open_Response: 4
   Read_Modify_Write_Response: 4
+  Unknown(0x54)_Response: 4
+
+CIP Request Validation (strict): 4673 total, 0 failed
+
+Unknown CIP Service Details:
+  Unknown(0x54): count=4 responses=4 status=[0x00:4]
 
 Top Paths:
   0x0067/0x0001/0x0000 (4664)
@@ -913,7 +950,7 @@ CIP Service Counts:
   Unconnected_Send: 279
   Get_Attribute_All_Response: 256
   Forward_Open: 32
-  Forward_Open_Response: 29
+  Unknown(0x54)_Response: 29
   Forward_Close: 27
   Read_Modify_Write_Response: 27
   Get_Attribute_List_Response: 25
@@ -927,11 +964,14 @@ CIP Service Counts:
   Reset_Response: 1
   Set_Attribute_Single_Response: 1
 
+CIP Request Validation (strict): 24838 total, 0 failed
+
 Embedded CIP Service Counts:
   Get_Attribute_All: 254
   Get_Attribute_List: 25
 
 Unknown CIP Service Details:
+  Unknown(0x54): count=29 responses=29 status=[0x00:29]
   Unknown(0x51): count=4 responses=2 classes=[0x00A1:2] instances=[0x0001:2] status=[0x08:2]
   Unknown(0x4B): count=2 responses=0 classes=[0x00A1:2] instances=[0x0001:2]
 
@@ -984,8 +1024,13 @@ CIP Service Counts:
   Execute_PCCC_Response: 9262
   Forward_Open: 10
   Forward_Close: 8
-  Forward_Open_Response: 8
   Read_Modify_Write_Response: 8
+  Unknown(0x54)_Response: 8
+
+CIP Request Validation (strict): 9346 total, 0 failed
+
+Unknown CIP Service Details:
+  Unknown(0x54): count=8 responses=8 status=[0x00:8]
 
 Top Paths:
   0x0067/0x0001/0x0000 (9328)

@@ -1,0 +1,10 @@
+{
+  "status": "failed",
+  "command": [
+    "cipdip",
+    "baseline"
+  ],
+  "started_at": "2026-01-03T08:00:50Z",
+  "finished_at": "2026-01-03T08:01:01Z",
+  "exit_code": 3221225786
+}

@@ -1,0 +1,5 @@
+error: connect: Failed to communicate with device at 192.168.10.11:44818
+  Reason: Connection timeout - device may be offline or unreachable
+  Hint: Device may not be a CIP/EtherNet-IP device, or there may be a network connectivity issue
+  Try: cipdip test --ip 192.168.10.11 --port 44818
+  Details: dial TCP: dial tcp 192.168.10.11:44818: i/o timeout

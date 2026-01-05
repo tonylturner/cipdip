@@ -77,10 +77,6 @@ func (s *RockwellScenario) Run(ctx context.Context, client cipclient.Client, cfg
 			if err != nil {
 				return err
 			}
-			payload, err := parseHexPayload(target.RequestPayloadHex)
-			if err != nil {
-				return fmt.Errorf("rockwell target %s payload: %w", target.Name, err)
-			}
 
 			req := cipclient.CIPRequest{
 				Service: serviceCode,
@@ -90,7 +86,10 @@ func (s *RockwellScenario) Run(ctx context.Context, client cipclient.Client, cfg
 					Attribute: target.Attribute,
 					Name:      target.Name,
 				},
-				Payload: payload,
+			}
+			req, err = applyTargetPayload(req, target.PayloadType, target.PayloadParams, target.RequestPayloadHex)
+			if err != nil {
+				return fmt.Errorf("rockwell target %s payload: %w", target.Name, err)
 			}
 
 			jitterMs := computeJitterMs(&lastOp, params.Interval)
