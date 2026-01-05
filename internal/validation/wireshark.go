@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,14 +34,19 @@ func NewWiresharkValidator(tsharkPath string) *WiresharkValidator {
 
 // ValidateResult represents the result of Wireshark validation
 type ValidateResult struct {
-	Valid      bool              // Whether the packet was successfully parsed
-	Command    string            // ENIP command code (hex) - if extracted
-	Status     string            // ENIP status (hex) - if extracted
-	CIPService string            // CIP service code (if applicable)
-	Warnings   []string          // Any warnings from tshark
-	Errors     []string          // Any errors from tshark
-	Fields     map[string]string // Extracted protocol fields
-	Message    string            // Validation message
+	Valid          bool              // Whether tshark parsed the packet
+	Command        string            // ENIP command code (hex) - if extracted
+	Status         string            // ENIP status (hex) - if extracted
+	CIPService     string            // CIP service code (if applicable)
+	Warnings       []string          // Any warnings from tshark
+	Errors         []string          // Any errors from tshark
+	Fields         map[string]string // Extracted protocol fields
+	Message        string            // Validation message
+	Layers         []string          // Protocol layers (frame.protocols)
+	Malformed      bool              // tshark expert says malformed
+	ExpertMessages []string          // tshark expert messages
+	SeverityMax    string            // max expert severity
+	Internal       *InternalPacketInfo
 }
 
 // ValidatePacket validates a single ENIP packet using Wireshark
@@ -98,10 +104,6 @@ func (v *WiresharkValidator) validatePCAPInternal(pcapFile string) ([]ValidateRe
 	cmd := exec.Command(v.tsharkPath,
 		"-r", pcapFile,
 		"-T", "json",
-		"-e", "frame.number",
-		"-e", "tcp.port",
-		"-e", "udp.port",
-		"-e", "frame.protocols",
 	)
 	output, err := cmd.Output()
 	if err != nil {
@@ -135,65 +137,287 @@ func (v *WiresharkValidator) validatePCAPInternal(pcapFile string) ([]ValidateRe
 
 	results := make([]ValidateResult, 0, len(tsharkOutput))
 	for _, packet := range tsharkOutput {
-		result := ValidateResult{
-			Valid:  false,
-			Fields: make(map[string]string),
-		}
-		if layers, ok := packet["_source"].(map[string]interface{}); ok {
-			if layerData, ok := layers["layers"].(map[string]interface{}); ok {
-				port44818 := false
-				if tcpPort, ok := layerData["tcp.port"].([]interface{}); ok {
-					for _, p := range tcpPort {
-						if portStr, ok := p.(string); ok && (portStr == "44818" || portStr == "2222") {
-							port44818 = true
-							result.Fields["tcp.port"] = portStr
-							break
-						}
-					}
-				}
-				if udpPort, ok := layerData["udp.port"].([]interface{}); ok {
-					for _, p := range udpPort {
-						if portStr, ok := p.(string); ok && (portStr == "44818" || portStr == "2222") {
-							port44818 = true
-							result.Fields["udp.port"] = portStr
-							break
-						}
-					}
-				}
+		results = append(results, buildValidateResult(packet))
+	}
 
-				var protocolStr string
-				if protocols, ok := layerData["frame.protocols"].(string); ok {
-					protocolStr = protocols
-				} else if protocolsArr, ok := layerData["frame.protocols"].([]interface{}); ok {
-					parts := make([]string, 0, len(protocolsArr))
-					for _, p := range protocolsArr {
-						if s, ok := p.(string); ok {
-							parts = append(parts, s)
-						}
-					}
-					protocolStr = strings.Join(parts, ":")
-				}
-				if protocolStr != "" {
-					result.Fields["frame.protocols"] = protocolStr
-				}
-
-				if port44818 {
-					result.Valid = true
-					if containsProtocol(protocolStr, "enip") {
-						result.Message = "Packet validated: ENIP protocol recognized by Wireshark"
-					} else {
-						result.Message = "Packet validated: Correct port (44818/2222) and packet structure"
-						result.Warnings = append(result.Warnings, "ENIP not in protocol stack (may be normal)")
-					}
-				} else {
-					result.Errors = append(result.Errors, "Packet not on ENIP port (44818 or 2222)")
-				}
-			}
-		}
-		results = append(results, result)
+	internal, err := ParseInternalPCAP(pcapFile)
+	if err == nil {
+		attachInternalInfo(results, internal)
 	}
 
 	return results, output, nil
+}
+
+func buildValidateResult(packet map[string]interface{}) ValidateResult {
+	result := ValidateResult{
+		Valid:  true,
+		Fields: make(map[string]string),
+	}
+
+	layers, ok := packet["_source"].(map[string]interface{})
+	if !ok {
+		result.Valid = false
+		result.Errors = append(result.Errors, "missing _source layers")
+		return result
+	}
+	layerData, ok := layers["layers"].(map[string]interface{})
+	if !ok {
+		result.Valid = false
+		result.Errors = append(result.Errors, "missing layers map")
+		return result
+	}
+
+	flat := flattenLayerFields(layerData)
+	protocolStr, protocolLayers := parseProtocolLayers(layerData, flat)
+	if protocolStr != "" {
+		result.Fields["frame.protocols"] = protocolStr
+		result.Layers = protocolLayers
+	}
+
+	copyFieldAliases(result.Fields, flat, map[string][]string{
+		"enip.command":       {"enip.command"},
+		"enip.length":        {"enip.length"},
+		"enip.session":       {"enip.session", "enip.session_handle"},
+		"enip.status":        {"enip.status"},
+		"cip.service":        {"cip.service"},
+		"cip.path.class":     {"cip.class", "cip.path.class"},
+		"cip.path.instance":  {"cip.instance", "cip.path.instance"},
+		"cip.path.attribute": {"cip.attribute", "cip.path.attribute"},
+		"cip.general_status": {"cip.general_status", "cip.gen_status", "cip.status"},
+		"cip.extended_status": {"cip.extended_status", "cip.ext_status"},
+	})
+
+	if val := firstFieldValue(flat, "tcp.port"); val != "" {
+		result.Fields["tcp.port"] = val
+	}
+	if val := firstFieldValue(flat, "udp.port"); val != "" {
+		result.Fields["udp.port"] = val
+	}
+	if _, ok := result.Fields["cpf.item_count"]; !ok {
+		if val := findFieldContaining(flat, []string{"cpf", "count"}); val != "" {
+			result.Fields["cpf.item_count"] = val
+		}
+	}
+	if _, ok := result.Fields["cip.path.symbol"]; !ok {
+		if val := findFieldContaining(flat, []string{"symbol"}); val != "" {
+			result.Fields["cip.path.symbol"] = val
+		}
+	}
+
+	result.Malformed, result.ExpertMessages, result.SeverityMax = parseExpertMessages(layerData)
+	if result.Malformed {
+		result.Warnings = append(result.Warnings, "tshark reported malformed packet")
+	}
+
+	return result
+}
+
+func attachInternalInfo(results []ValidateResult, internal []InternalPacketInfo) {
+	limit := len(results)
+	if len(internal) < limit {
+		limit = len(internal)
+	}
+	for i := 0; i < limit; i++ {
+		results[i].Internal = &internal[i]
+	}
+}
+
+func parseProtocolLayers(layerData map[string]interface{}, flat map[string]interface{}) (string, []string) {
+	var protocolStr string
+	if protocols, ok := flat["frame.protocols"].(string); ok {
+		protocolStr = protocols
+	} else if protocolsArr, ok := flat["frame.protocols"].([]interface{}); ok {
+		parts := make([]string, 0, len(protocolsArr))
+		for _, p := range protocolsArr {
+			if s, ok := p.(string); ok {
+				parts = append(parts, s)
+			}
+		}
+		protocolStr = strings.Join(parts, ":")
+	}
+
+	if protocolStr == "" {
+		parts := make([]string, 0, len(layerData))
+		for key := range layerData {
+			parts = append(parts, strings.ToLower(key))
+		}
+		if len(parts) == 0 {
+			return "", nil
+		}
+		return strings.Join(parts, ":"), parts
+	}
+	layers := strings.Split(protocolStr, ":")
+	return protocolStr, layers
+}
+
+func copyFieldAliases(out map[string]string, layerData map[string]interface{}, aliases map[string][]string) {
+	for canonical, keys := range aliases {
+		if val := firstFieldValue(layerData, keys...); val != "" {
+			out[canonical] = val
+		}
+	}
+}
+
+func firstFieldValue(layerData map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if val, ok := layerData[key]; ok {
+			if str := firstStringValue(val); str != "" {
+				return str
+			}
+		}
+	}
+	return ""
+}
+
+func findFieldContaining(layerData map[string]interface{}, fragments []string) string {
+	for key, val := range layerData {
+		lower := strings.ToLower(key)
+		match := true
+		for _, frag := range fragments {
+			if !strings.Contains(lower, frag) {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+		if str := firstStringValue(val); str != "" {
+			return str
+		}
+	}
+	return ""
+}
+
+func firstStringValue(val interface{}) string {
+	switch v := val.(type) {
+	case string:
+		return v
+	case []interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				return s
+			}
+		}
+	case map[string]interface{}:
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func parseExpertMessages(layerData map[string]interface{}) (bool, []string, string) {
+	messages := []string{}
+	maxSeverity := ""
+	malformed := false
+	severityRank := map[string]int{"error": 3, "warning": 2, "note": 1}
+	maxRank := 0
+
+	var walk func(key string, val interface{})
+	walk = func(key string, val interface{}) {
+		switch v := val.(type) {
+		case map[string]interface{}:
+			for k, child := range v {
+				walk(k, child)
+			}
+		case []interface{}:
+			for _, child := range v {
+				walk(key, child)
+			}
+		default:
+			lowerKey := strings.ToLower(key)
+			str := firstStringValue(v)
+			if str == "" {
+				return
+			}
+			lowerVal := strings.ToLower(str)
+			if strings.Contains(lowerKey, "malformed") {
+				if strings.Contains(lowerVal, "malformed") || strings.Contains(lowerVal, "invalid") {
+					malformed = true
+				}
+			}
+			if strings.Contains(lowerKey, "expert") {
+				if strings.Contains(lowerKey, "message") || strings.Contains(lowerKey, "summary") {
+					messages = append(messages, str)
+				}
+				if strings.Contains(lowerKey, "severity") {
+					sev := strings.ToLower(str)
+					if rank, ok := severityRank[sev]; ok && rank > maxRank {
+						maxRank = rank
+						maxSeverity = sev
+					}
+					if valNum, err := parseSeverityNumber(sev); err == nil {
+						sevName, rank := severityNameFromNumber(valNum)
+						if rank > maxRank {
+							maxRank = rank
+							maxSeverity = sevName
+						}
+					}
+				}
+				if strings.Contains(lowerVal, "malformed") || strings.Contains(lowerVal, "invalid") {
+					malformed = true
+				}
+			}
+		}
+	}
+
+	for key, val := range layerData {
+		walk(key, val)
+	}
+
+	if maxRank > 0 && maxRank >= severityRank["error"] {
+		// Keep severity for reporting, but don't force malformed unless message text indicates it.
+	}
+
+	return malformed, messages, maxSeverity
+}
+
+func parseSeverityNumber(value string) (int, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, fmt.Errorf("empty severity")
+	}
+	if strings.HasPrefix(value, "0x") {
+		num, err := strconv.ParseInt(value[2:], 16, 64)
+		return int(num), err
+	}
+	num, err := strconv.ParseInt(value, 10, 64)
+	return int(num), err
+}
+
+func severityNameFromNumber(val int) (string, int) {
+	switch {
+	case val >= 0x800000:
+		return "error", 3
+	case val >= 0x400000:
+		return "warning", 2
+	case val >= 0x200000:
+		return "note", 1
+	default:
+		return "", 0
+	}
+}
+
+func flattenLayerFields(layerData map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{})
+	for _, val := range layerData {
+		if nested, ok := val.(map[string]interface{}); ok {
+			flattenNested(out, nested)
+		}
+	}
+	return out
+}
+
+func flattenNested(out map[string]interface{}, nested map[string]interface{}) {
+	for key, val := range nested {
+		out[key] = val
+		if deeper, ok := val.(map[string]interface{}); ok {
+			flattenNested(out, deeper)
+		}
+	}
 }
 
 func resolveTsharkPath(explicit string) (string, error) {
@@ -224,6 +448,25 @@ func resolveTsharkPath(explicit string) (string, error) {
 	}
 
 	return "", tsharkNotFoundError()
+}
+
+// ResolveTsharkPath returns the resolved tshark path using the same lookup logic as the validator.
+func ResolveTsharkPath(explicit string) (string, error) {
+	return resolveTsharkPath(explicit)
+}
+
+// GetTsharkVersion returns the tshark version string.
+func GetTsharkVersion(explicit string) (string, error) {
+	path, err := resolveTsharkPath(explicit)
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command(path, "-v")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("tshark -v failed: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func defaultTsharkWindows() string {

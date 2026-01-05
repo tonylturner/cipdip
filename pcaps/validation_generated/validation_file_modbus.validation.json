@@ -1,0 +1,365 @@
+{
+  "pcap": "validation_file_modbus.pcap",
+  "packets": [
+    {
+      "id": "file_initiate_upload/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_initiate_upload/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "file_initiate_download/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_initiate_download/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "file_partial_read/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_partial_read/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "file_partial_write/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_partial_write/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "file_upload_transfer/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_upload_transfer/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "file_download_transfer/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_download_transfer/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "file_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "file_clear/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "none",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "file_clear/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "none",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "modbus_read_discrete_inputs/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "modbus_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "modbus_read_discrete_inputs/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "modbus_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "modbus_write_holding_registers/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "modbus_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "modbus_write_holding_registers/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "modbus_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "modbus_passthrough/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "modbus_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "modbus_passthrough/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "modbus_object",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    }
+  ]
+}

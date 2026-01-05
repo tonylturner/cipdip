@@ -1,0 +1,185 @@
+{
+  "pcap": "validation_core.pcap",
+  "packets": [
+    {
+      "id": "get_attribute_single/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "none",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "get_attribute_single/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "none",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "set_attribute_single/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "write",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "set_attribute_single/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "write",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "forward_open/request",
+      "outcome": "invalid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "forward_open",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "forward_open/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "forward_open",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "forward_close/request",
+      "outcome": "invalid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "forward_close",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "forward_close/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "forward_close",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "unconnected_send/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "unconnected_send",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "unconnected_send/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "unconnected_send",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "pcap": "validation_rockwell.pcap",
+  "packets": [
+    {
+      "id": "read_tag/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "rockwell_tag",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_symbol": true
+    },
+    {
+      "id": "read_tag/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "rockwell_tag",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "write_tag/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "rockwell_tag",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_symbol": true
+    },
+    {
+      "id": "write_tag/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "rockwell_tag",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "read_tag_fragmented/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "rockwell_tag_fragmented",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_symbol": true
+    },
+    {
+      "id": "read_tag_fragmented/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "rockwell_tag_fragmented",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "write_tag_fragmented/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "rockwell_tag_fragmented",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_symbol": true
+    },
+    {
+      "id": "write_tag_fragmented/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "rockwell_tag_fragmented",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "execute_pccc/request",
+      "outcome": "invalid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "rockwell_pccc",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "execute_pccc/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "rockwell_pccc",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    },
+    {
+      "id": "template_read/request",
+      "outcome": "valid",
+      "direction": "request",
+      "packet_type": "explicit_request",
+      "service_shape": "rockwell_template",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_cip_path": true
+    },
+    {
+      "id": "template_read/response",
+      "outcome": "valid",
+      "direction": "response",
+      "packet_type": "explicit_response",
+      "service_shape": "rockwell_template",
+      "expect_layers": [
+        "eth",
+        "ip",
+        "tcp",
+        "enip",
+        "cip"
+      ],
+      "expect_enip": true,
+      "expect_cpf": true,
+      "expect_cip": true,
+      "expect_status": true
+    }
+  ]
+}
