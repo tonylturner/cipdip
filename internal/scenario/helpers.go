@@ -26,6 +26,32 @@ func parseHexPayload(input string) ([]byte, error) {
 	return decoded, nil
 }
 
+func applyTargetPayload(req cipclient.CIPRequest, payloadType string, payloadParams map[string]any, payloadHex string) (cipclient.CIPRequest, error) {
+	if payloadHex != "" {
+		payload, err := parseHexPayload(payloadHex)
+		if err != nil {
+			return req, err
+		}
+		req.Payload = payload
+		return req, nil
+	}
+	if payloadType == "" && len(payloadParams) == 0 {
+		return req, nil
+	}
+	result, err := cipclient.BuildServicePayload(req, cipclient.PayloadSpec{
+		Type:   payloadType,
+		Params: payloadParams,
+	})
+	if err != nil {
+		return req, err
+	}
+	req.Payload = result.Payload
+	if len(result.RawPath) > 0 {
+		req.RawPath = result.RawPath
+	}
+	return req, nil
+}
+
 func serviceCodeForTarget(service config.ServiceType, serviceCode uint8) (cipclient.CIPServiceCode, error) {
 	switch service {
 	case config.ServiceGetAttributeSingle:

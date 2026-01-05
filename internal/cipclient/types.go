@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 )
 
 // CIPDataType encodes CIP primitive data types used by CIPDIP.
@@ -65,6 +67,84 @@ func CIPTypeCode(tagType string) CIPDataType {
 		return CIPTypeSTR
 	default:
 		return CIPTypeDINT
+	}
+}
+
+// ParseCIPDataType parses a CIP data type from hex or alias name.
+func ParseCIPDataType(input string) (CIPDataType, error) {
+	clean := strings.TrimSpace(input)
+	if clean == "" {
+		return 0, fmt.Errorf("data type is required")
+	}
+	if val, err := strconv.ParseUint(clean, 0, 16); err == nil {
+		return CIPDataType(val), nil
+	}
+	switch strings.ToUpper(clean) {
+	case "BOOL":
+		return CIPTypeBOOL, nil
+	case "SINT":
+		return CIPTypeSINT, nil
+	case "INT":
+		return CIPTypeINT, nil
+	case "DINT":
+		return CIPTypeDINT, nil
+	case "LINT":
+		return CIPTypeLINT, nil
+	case "REAL":
+		return CIPTypeREAL, nil
+	case "LREAL":
+		return CIPTypeLREAL, nil
+	case "STRING":
+		return CIPTypeSTR, nil
+	default:
+		return 0, fmt.Errorf("unsupported data type %q", input)
+	}
+}
+
+// ParseCIPValue parses a string into a CIP value based on data type.
+func ParseCIPValue(dt CIPDataType, input string) (any, error) {
+	clean := strings.TrimSpace(input)
+	if clean == "" {
+		return nil, fmt.Errorf("value is required")
+	}
+	switch dt {
+	case CIPTypeBOOL:
+		switch strings.ToLower(clean) {
+		case "true", "1", "yes", "on":
+			return true, nil
+		case "false", "0", "no", "off":
+			return false, nil
+		default:
+			return nil, fmt.Errorf("invalid BOOL value %q", input)
+		}
+	case CIPTypeSINT, CIPTypeINT, CIPTypeDINT, CIPTypeLINT:
+		val, err := strconv.ParseInt(clean, 0, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid integer value %q", input)
+		}
+		switch dt {
+		case CIPTypeSINT:
+			return int8(val), nil
+		case CIPTypeINT:
+			return int16(val), nil
+		case CIPTypeDINT:
+			return int32(val), nil
+		default:
+			return val, nil
+		}
+	case CIPTypeREAL, CIPTypeLREAL:
+		val, err := strconv.ParseFloat(clean, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid float value %q", input)
+		}
+		if dt == CIPTypeREAL {
+			return float32(val), nil
+		}
+		return val, nil
+	case CIPTypeSTR:
+		return clean, nil
+	default:
+		return nil, fmt.Errorf("unsupported type 0x%04X", uint16(dt))
 	}
 }
 

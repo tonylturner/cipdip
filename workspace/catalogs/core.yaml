@@ -1,0 +1,15 @@
+version: 1
+name: core
+entries:
+    - key: identity.vendor_id
+      name: Vendor ID
+      service: "0x0E"
+      class: "0x01"
+      instance: "0x01"
+      attribute: "0x01"
+    - key: identity.product_name
+      name: Product Name
+      service: "0x0E"
+      class: "0x01"
+      instance: "0x01"
+      attribute: "0x07"

@@ -89,6 +89,13 @@ func writePcapSummary(w io.Writer, summary *cipclient.PCAPSummary) {
 		fmt.Fprintf(w, "\nCIP Service Counts:\n")
 		printCounts(w, summary.CIPServices)
 	}
+	if summary.RequestValidationTotal > 0 {
+		fmt.Fprintf(w, "\nCIP Request Validation (strict): %d total, %d failed\n", summary.RequestValidationTotal, summary.RequestValidationFailed)
+		if len(summary.RequestValidationErrors) > 0 {
+			fmt.Fprintf(w, "\nCIP Request Validation Errors:\n")
+			printValidationErrors(w, summary.RequestValidationErrors)
+		}
+	}
 	if len(summary.EmbeddedServices) > 0 {
 		fmt.Fprintf(w, "\nEmbedded CIP Service Counts:\n")
 		printCounts(w, summary.EmbeddedServices)
@@ -236,4 +243,27 @@ func topUnknownPairs(values map[string]int, max int) []string {
 		out = append(out, fmt.Sprintf("%s (%d)", item.Key, item.Value))
 	}
 	return out
+}
+
+func printValidationErrors(w io.Writer, errors map[string]int) {
+	type kv struct {
+		Key   string
+		Value int
+	}
+	list := make([]kv, 0, len(errors))
+	for k, v := range errors {
+		list = append(list, kv{Key: k, Value: v})
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Value == list[j].Value {
+			return list[i].Key < list[j].Key
+		}
+		return list[i].Value > list[j].Value
+	})
+	if len(list) > 10 {
+		list = list[:10]
+	}
+	for _, item := range list {
+		fmt.Fprintf(w, "  %s (%d)\n", item.Key, item.Value)
+	}
 }

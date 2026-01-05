@@ -86,10 +86,6 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 			if err != nil {
 				return err
 			}
-			payload, err := parseHexPayload(target.RequestPayloadHex)
-			if err != nil {
-				return fmt.Errorf("edge target %s payload: %w", target.Name, err)
-			}
 
 			embeddedReq := cipclient.CIPRequest{
 				Service: serviceCode,
@@ -99,7 +95,10 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 					Attribute: target.Attribute,
 					Name:      target.Name,
 				},
-				Payload: payload,
+			}
+			embeddedReq, err = applyTargetPayload(embeddedReq, target.PayloadType, target.PayloadParams, target.RequestPayloadHex)
+			if err != nil {
+				return fmt.Errorf("edge target %s payload: %w", target.Name, err)
 			}
 
 			jitterMs := computeJitterMs(&lastOp, params.Interval)

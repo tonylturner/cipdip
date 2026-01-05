@@ -1,0 +1,6376 @@
+{
+  "generated_at": "2026-01-05T07:20:20Z",
+  "cipdip_version": "0.1",
+  "cipdip_commit": "unknown",
+  "cipdip_date": "unknown",
+  "expert_policy": "balanced",
+  "conversation_mode": "basic",
+  "profile": "client_wire",
+  "pcaps": [
+    {
+      "pcap": "emit_bytes.pcap",
+      "packet_count": 46,
+      "pass": true,
+      "invalid_count": 0,
+      "packets": [
+        {
+          "packet_index": 1,
+          "expected": {
+            "id": "identity.vendor_id/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.vendor_id",
+            "request_index": 1,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0001",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "1"
+            }
+          }
+        },
+        {
+          "packet_index": 2,
+          "expected": {
+            "id": "identity.product_name/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.product_name",
+            "request_index": 2,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0007",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "7"
+            }
+          }
+        },
+        {
+          "packet_index": 3,
+          "expected": {
+            "id": "identity.device_type/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.device_type",
+            "request_index": 3,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0002",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "2"
+            }
+          }
+        },
+        {
+          "packet_index": 4,
+          "expected": {
+            "id": "identity.product_code/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.product_code",
+            "request_index": 4,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0003",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "3"
+            }
+          }
+        },
+        {
+          "packet_index": 5,
+          "expected": {
+            "id": "identity.revision/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.revision",
+            "request_index": 5,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0004",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "4"
+            }
+          }
+        },
+        {
+          "packet_index": 6,
+          "expected": {
+            "id": "identity.status/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.status",
+            "request_index": 6,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0005",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "5"
+            }
+          }
+        },
+        {
+          "packet_index": 7,
+          "expected": {
+            "id": "identity.serial_number/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.serial_number",
+            "request_index": 7,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0001",
+              "attribute": "0x0006",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "6"
+            }
+          }
+        },
+        {
+          "packet_index": 8,
+          "expected": {
+            "id": "identity.class_revision/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.class_revision",
+            "request_index": 8,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0001",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "1"
+            }
+          }
+        },
+        {
+          "packet_index": 9,
+          "expected": {
+            "id": "identity.max_instance/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.max_instance",
+            "request_index": 9,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0002",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "2"
+            }
+          }
+        },
+        {
+          "packet_index": 10,
+          "expected": {
+            "id": "identity.number_of_instances/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.number_of_instances",
+            "request_index": 10,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0003",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "3"
+            }
+          }
+        },
+        {
+          "packet_index": 11,
+          "expected": {
+            "id": "identity.optional_attribute_list/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.optional_attribute_list",
+            "request_index": 11,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0004",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "4"
+            }
+          }
+        },
+        {
+          "packet_index": 12,
+          "expected": {
+            "id": "identity.optional_service_list/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.optional_service_list",
+            "request_index": 12,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0005",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "5"
+            }
+          }
+        },
+        {
+          "packet_index": 13,
+          "expected": {
+            "id": "identity.max_id_number_class_attributes/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.max_id_number_class_attributes",
+            "request_index": 13,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0006",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "6"
+            }
+          }
+        },
+        {
+          "packet_index": 14,
+          "expected": {
+            "id": "identity.max_id_number_instance_attributes/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "identity.max_id_number_instance_attributes",
+            "request_index": 14,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x0E",
+              "class": "0x0001",
+              "instance": "0x0000",
+              "attribute": "0x0007",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "7"
+            }
+          }
+        },
+        {
+          "packet_index": 15,
+          "expected": {
+            "id": "connection_manager.forward_open/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "forward_open",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": false,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": false,
+              "details": "policy=balanced failures=cip:warning"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=46"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "Null Forward Open",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "connection_manager.forward_open",
+            "request_index": 15,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 1,
+            "transport_expert_count": 1
+          },
+          "pass_category": "fail",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "68",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 52
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x54",
+              "class": "0x0006",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 2,
+              "service_data_len": 46
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "Null Forward Open",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_instance": "0x01"
+            }
+          }
+        },
+        {
+          "packet_index": 16,
+          "expected": {
+            "id": "connection_manager.forward_close/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "forward_close",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": false,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": false
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=17"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "Malformed Packet (Exception occurred)",
+              "severity": "error",
+              "severity_rank": 3,
+              "layer": "unknown",
+              "group": "117440512"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "connection_manager.forward_close",
+            "request_index": 16,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "fail",
+          "grade": "A_fail",
+          "failure_labels": [
+            "TSHARK_MALFORMED"
+          ],
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "39",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 23
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4E",
+              "class": "0x0006",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 2,
+              "service_data_len": 17
+            },
+            "tshark": {
+              "malformed": true,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "Malformed Packet (Exception occurred)",
+                  "severity": "error",
+                  "severity_rank": 3,
+                  "layer": "unknown",
+                  "group": "117440512"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_instance": "0x01"
+            }
+          }
+        },
+        {
+          "packet_index": 17,
+          "expected": {
+            "id": "connection_manager.unconnected_send/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "unconnected_send",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "embedded_len=8"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "connection_manager.unconnected_send",
+            "request_index": 17,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "38",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 22
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x52",
+              "class": "0x0006",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 2,
+              "service_data_len": 16
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_instance": "0x01",
+              "path_attribute": "1"
+            }
+          }
+        },
+        {
+          "packet_index": 18,
+          "expected": {
+            "id": "file_object.initiate_upload/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "file_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=4"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.initiate_upload",
+            "request_index": 18,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4B",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 4
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 19,
+          "expected": {
+            "id": "file_object.initiate_download/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "file_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=9"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.initiate_download",
+            "request_index": 19,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "33",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 17
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4C",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 9
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 20,
+          "expected": {
+            "id": "file_object.initiate_partial_read/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "file_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=6"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.initiate_partial_read",
+            "request_index": 20,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "30",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 14
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4D",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 6
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 21,
+          "expected": {
+            "id": "file_object.initiate_partial_write/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "file_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=6"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.initiate_partial_write",
+            "request_index": 21,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "30",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 14
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4E",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 6
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 22,
+          "expected": {
+            "id": "file_object.upload_transfer/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "file_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=2"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.upload_transfer",
+            "request_index": 22,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "26",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 10
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4F",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 2
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 23,
+          "expected": {
+            "id": "file_object.download_transfer/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "file_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=3"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.download_transfer",
+            "request_index": 23,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "27",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 11
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x50",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 24,
+          "expected": {
+            "id": "file_object.clear_file/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "file_object.clear_file",
+            "request_index": 24,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x51",
+              "class": "0x0037",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 25,
+          "expected": {
+            "id": "modbus.read_discrete_inputs/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=4"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.read_discrete_inputs",
+            "request_index": 25,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4B",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 4
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 26,
+          "expected": {
+            "id": "modbus.read_coils/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=4"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.read_coils",
+            "request_index": 26,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4C",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 4
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 27,
+          "expected": {
+            "id": "modbus.read_input_registers/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=4"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.read_input_registers",
+            "request_index": 27,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4D",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 4
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 28,
+          "expected": {
+            "id": "modbus.read_holding_registers/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=4"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.read_holding_registers",
+            "request_index": 28,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4E",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 4
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 29,
+          "expected": {
+            "id": "modbus.write_coils/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=6"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.write_coils",
+            "request_index": 29,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "30",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 14
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4F",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 6
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 30,
+          "expected": {
+            "id": "modbus.write_holding_registers/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=7"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.write_holding_registers",
+            "request_index": 30,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "31",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 15
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x50",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 7
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 31,
+          "expected": {
+            "id": "modbus.passthrough/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "modbus_object",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=6"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "modbus.passthrough",
+            "request_index": 31,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "30",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 14
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x51",
+              "class": "0x0044",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 6
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 32,
+          "expected": {
+            "id": "motion.get_axis_attributes_list/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "motion.get_axis_attributes_list",
+            "request_index": 32,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4B",
+              "class": "0x0042",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 33,
+          "expected": {
+            "id": "motion.set_axis_attributes_list/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "motion.set_axis_attributes_list",
+            "request_index": 33,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4C",
+              "class": "0x0042",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 34,
+          "expected": {
+            "id": "motion.get_motor_test_data/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "motion.get_motor_test_data",
+            "request_index": 34,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x50",
+              "class": "0x0042",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 35,
+          "expected": {
+            "id": "motion.get_inertia_test_data/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            }
+          ],
+          "pairing": {
+            "base_id": "motion.get_inertia_test_data",
+            "request_index": 35,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x52",
+              "class": "0x0042",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 36,
+          "expected": {
+            "id": "motion.get_hookup_test_data/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "motion.get_hookup_test_data",
+            "request_index": 36,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x54",
+              "class": "0x0042",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 37,
+          "expected": {
+            "id": "energy.start_metering/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "energy.start_metering",
+            "request_index": 37,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4B",
+              "class": "0x004E",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 38,
+          "expected": {
+            "id": "energy.stop_metering/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "none",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "energy.stop_metering",
+            "request_index": 38,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "24",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 8
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4C",
+              "class": "0x004E",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 39,
+          "expected": {
+            "id": "safety.supervisor_reset/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "safety_reset",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=27"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "safety.supervisor_reset",
+            "request_index": 39,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "51",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 35
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x54",
+              "class": "0x0039",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 27
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 40,
+          "expected": {
+            "id": "safety.validator_reset_errors/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "safety_reset",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=27"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "safety.validator_reset_errors",
+            "request_index": 40,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "51",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 35
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4B",
+              "class": "0x003A",
+              "instance": "0x0000",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 27
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 41,
+          "expected": {
+            "id": "rockwell.execute_pccc/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "rockwell_pccc",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": false,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": false
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=5"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            },
+            {
+              "message": "Malformed Packet (Exception occurred)",
+              "severity": "error",
+              "severity_rank": 3,
+              "layer": "unknown",
+              "group": "117440512"
+            }
+          ],
+          "pairing": {
+            "base_id": "rockwell.execute_pccc",
+            "request_index": 41,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "fail",
+          "grade": "A_fail",
+          "failure_labels": [
+            "TSHARK_MALFORMED"
+          ],
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "29",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 13
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4B",
+              "class": "0x0067",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 3,
+              "service_data_len": 5
+            },
+            "tshark": {
+              "malformed": true,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                },
+                {
+                  "message": "Malformed Packet (Exception occurred)",
+                  "severity": "error",
+                  "severity_rank": 3,
+                  "layer": "unknown",
+                  "group": "117440512"
+                }
+              ],
+              "path_attribute": "0"
+            }
+          }
+        },
+        {
+          "packet_index": 42,
+          "expected": {
+            "id": "rockwell.read_tag/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "rockwell_tag",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_symbol": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_symbol",
+              "pass": true
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=2"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "rockwell.read_tag",
+            "request_index": 42,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "26",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 10
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4C",
+              "class": "0x0000",
+              "instance": "0x0000",
+              "attribute": "0x0000",
+              "symbol": "Tag1",
+              "path_size_words": 3,
+              "service_data_len": 2
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_symbol": "Tag1"
+            }
+          }
+        },
+        {
+          "packet_index": 43,
+          "expected": {
+            "id": "rockwell.write_tag/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "rockwell_tag",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_symbol": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_symbol",
+              "pass": true
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=4"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "rockwell.write_tag",
+            "request_index": 43,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4D",
+              "class": "0x0000",
+              "instance": "0x0000",
+              "attribute": "0x0000",
+              "symbol": "Tag1",
+              "path_size_words": 3,
+              "service_data_len": 4
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_symbol": "Tag1"
+            }
+          }
+        },
+        {
+          "packet_index": 44,
+          "expected": {
+            "id": "rockwell.read_tag_fragmented/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "rockwell_tag_fragmented",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_symbol": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_symbol",
+              "pass": true
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=6"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "rockwell.read_tag_fragmented",
+            "request_index": 44,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "30",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 14
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x52",
+              "class": "0x0000",
+              "instance": "0x0000",
+              "attribute": "0x0000",
+              "symbol": "Tag1",
+              "path_size_words": 3,
+              "service_data_len": 6
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_symbol": "Tag1"
+            }
+          }
+        },
+        {
+          "packet_index": 45,
+          "expected": {
+            "id": "rockwell.write_tag_fragmented/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "rockwell_tag_fragmented",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_symbol": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_symbol",
+              "pass": true
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=8"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "rockwell.write_tag_fragmented",
+            "request_index": 45,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "32",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 16
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x53",
+              "class": "0x0000",
+              "instance": "0x0000",
+              "attribute": "0x0000",
+              "symbol": "Tag1",
+              "path_size_words": 3,
+              "service_data_len": 8
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_symbol": "Tag1"
+            }
+          }
+        },
+        {
+          "packet_index": 46,
+          "expected": {
+            "id": "rockwell.template_read/request",
+            "outcome": "valid",
+            "direction": "request",
+            "packet_type": "explicit_request",
+            "service_shape": "rockwell_template",
+            "traffic_mode": "client_only",
+            "expect_layers": [
+              "eth",
+              "ip",
+              "tcp",
+              "enip",
+              "cip"
+            ],
+            "expect_enip": true,
+            "expect_cpf": true,
+            "expect_cip": true,
+            "expect_cip_path": true
+          },
+          "pass": true,
+          "scenarios": [
+            {
+              "name": "layers",
+              "pass": true
+            },
+            {
+              "name": "enip",
+              "pass": true
+            },
+            {
+              "name": "cpf",
+              "pass": true,
+              "details": "item_count=2"
+            },
+            {
+              "name": "cip",
+              "pass": true
+            },
+            {
+              "name": "cip_path",
+              "pass": true,
+              "details": "tshark=true internal=true"
+            },
+            {
+              "name": "malformed",
+              "pass": true
+            },
+            {
+              "name": "experts",
+              "pass": true,
+              "details": "policy=balanced"
+            },
+            {
+              "name": "service_data",
+              "pass": true,
+              "details": "payload_len=6"
+            }
+          ],
+          "tshark_experts": [
+            {
+              "message": "TCP Zero Window segment",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "tcp",
+              "group": "33554432"
+            },
+            {
+              "message": "CIP request without a response",
+              "severity": "warning",
+              "severity_rank": 2,
+              "layer": "cip",
+              "group": "150994944"
+            }
+          ],
+          "pairing": {
+            "base_id": "rockwell.template_read",
+            "request_index": 46,
+            "response_index": 1,
+            "required": false,
+            "pass": false
+          },
+          "expert_summary": {
+            "expected_expert_count": 1,
+            "unexpected_expert_count": 0,
+            "transport_expert_count": 1
+          },
+          "pass_category": "pass_with_expected_experts",
+          "grade": "A_pass",
+          "extracted_fields": {
+            "enip": {
+              "command": "0x006F",
+              "length": "28",
+              "session": "0x12345678",
+              "status": "0x00000000"
+            },
+            "cpf": {
+              "item_count": 2,
+              "items": [
+                {
+                  "type_id": "0x0000",
+                  "length": 0
+                },
+                {
+                  "type_id": "0x00b2",
+                  "length": 12
+                }
+              ]
+            },
+            "cip": {
+              "service": "0x4C",
+              "class": "0x006C",
+              "instance": "0x0001",
+              "attribute": "0x0000",
+              "path_size_words": 2,
+              "service_data_len": 6
+            },
+            "tshark": {
+              "malformed": false,
+              "experts": [
+                {
+                  "message": "TCP Zero Window segment",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "tcp",
+                  "group": "33554432"
+                },
+                {
+                  "message": "CIP request without a response",
+                  "severity": "warning",
+                  "severity_rank": 2,
+                  "layer": "cip",
+                  "group": "150994944"
+                }
+              ],
+              "path_instance": "0x01"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
