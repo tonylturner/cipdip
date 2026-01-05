@@ -63,6 +63,10 @@
 - [x] Add pcap-validate modes (structural/tshark-only/internal-only) and negative policy control.
 - [x] Add pcap-validate JSON report output and verbose per-packet diagnostics.
 - [x] Add pcap-validate tests that evaluate manifest expectations.
+- [x] Add client_wire Grade-A guardrail test (tshark-backed) to prevent regression.
+- [x] Add emit-bytes `--responses-only` for server_wire response fixtures.
+- [x] Add server_wire response payload builders (Forward Open/Close, Rockwell read/write tag, Modbus read/write, File Initiate Download).
+- [x] Add server_wire Grade-A validation shape checks for responses.
 
 ### Protocol compliance + modes
 - [x] Document "strict_odva" default mode and define behavior flags for each layer (ENIP, CIP, I/O).

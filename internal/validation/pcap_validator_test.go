@@ -69,6 +69,16 @@ func TestGeneratedPCAPsValidateWithTshark(t *testing.T) {
 				if !eval.Pass {
 					t.Fatalf("validation failed %s #%d (%s): %+v", spec.Name, i, eval.Expected.ID, eval.Scenarios)
 				}
+				if strings.EqualFold(eval.Expected.Outcome, "valid") && eval.Expected.Direction == "request" {
+					if eval.Grade != GradePass {
+						t.Fatalf("grade-a regression %s #%d (%s): grade=%s labels=%v", spec.Name, i, eval.Expected.ID, eval.Grade, eval.FailureLabels)
+					}
+				}
+				if strings.EqualFold(eval.Expected.Outcome, "invalid") && eval.Expected.Direction == "request" {
+					if eval.Grade != GradeExpectedInvalid {
+						t.Fatalf("expected-invalid regression %s #%d (%s): grade=%s", spec.Name, i, eval.Expected.ID, eval.Grade)
+					}
+				}
 			}
 		})
 	}
