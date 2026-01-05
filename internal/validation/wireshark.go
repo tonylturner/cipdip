@@ -76,6 +76,126 @@ func (v *WiresharkValidator) ValidatePacket(packet []byte) (*ValidateResult, err
 	return result, nil
 }
 
+// ValidatePCAP validates all packets in a PCAP using tshark.
+func (v *WiresharkValidator) ValidatePCAP(pcapFile string) ([]ValidateResult, error) {
+	results, _, err := v.validatePCAPInternal(pcapFile)
+	return results, err
+}
+
+// ValidatePCAPRaw validates a PCAP and returns raw tshark JSON output.
+func (v *WiresharkValidator) ValidatePCAPRaw(pcapFile string) ([]byte, []ValidateResult, error) {
+	results, raw, err := v.validatePCAPInternal(pcapFile)
+	return raw, results, err
+}
+
+func (v *WiresharkValidator) validatePCAPInternal(pcapFile string) ([]ValidateResult, []byte, error) {
+	tsharkPath, err := resolveTsharkPath(v.tsharkPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	v.tsharkPath = tsharkPath
+
+	cmd := exec.Command(v.tsharkPath,
+		"-r", pcapFile,
+		"-T", "json",
+		"-e", "frame.number",
+		"-e", "tcp.port",
+		"-e", "udp.port",
+		"-e", "frame.protocols",
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			stderr := string(exitErr.Stderr)
+			return []ValidateResult{{
+				Valid:  false,
+				Errors: []string{fmt.Sprintf("tshark exited with code %d: %s", exitErr.ExitCode(), stderr)},
+			}}, output, nil
+		}
+		return nil, nil, fmt.Errorf("execute tshark: %w", err)
+	}
+
+	if len(output) == 0 {
+		return []ValidateResult{{
+			Valid:  false,
+			Errors: []string{"tshark produced no output - packet may be malformed"},
+		}}, output, nil
+	}
+
+	var tsharkOutput []map[string]interface{}
+	if err := json.Unmarshal(output, &tsharkOutput); err != nil {
+		return nil, nil, fmt.Errorf("parse tshark JSON: %w", err)
+	}
+	if len(tsharkOutput) == 0 {
+		return []ValidateResult{{
+			Valid:  false,
+			Errors: []string{"no packets found in PCAP"},
+		}}, output, nil
+	}
+
+	results := make([]ValidateResult, 0, len(tsharkOutput))
+	for _, packet := range tsharkOutput {
+		result := ValidateResult{
+			Valid:  false,
+			Fields: make(map[string]string),
+		}
+		if layers, ok := packet["_source"].(map[string]interface{}); ok {
+			if layerData, ok := layers["layers"].(map[string]interface{}); ok {
+				port44818 := false
+				if tcpPort, ok := layerData["tcp.port"].([]interface{}); ok {
+					for _, p := range tcpPort {
+						if portStr, ok := p.(string); ok && (portStr == "44818" || portStr == "2222") {
+							port44818 = true
+							result.Fields["tcp.port"] = portStr
+							break
+						}
+					}
+				}
+				if udpPort, ok := layerData["udp.port"].([]interface{}); ok {
+					for _, p := range udpPort {
+						if portStr, ok := p.(string); ok && (portStr == "44818" || portStr == "2222") {
+							port44818 = true
+							result.Fields["udp.port"] = portStr
+							break
+						}
+					}
+				}
+
+				var protocolStr string
+				if protocols, ok := layerData["frame.protocols"].(string); ok {
+					protocolStr = protocols
+				} else if protocolsArr, ok := layerData["frame.protocols"].([]interface{}); ok {
+					parts := make([]string, 0, len(protocolsArr))
+					for _, p := range protocolsArr {
+						if s, ok := p.(string); ok {
+							parts = append(parts, s)
+						}
+					}
+					protocolStr = strings.Join(parts, ":")
+				}
+				if protocolStr != "" {
+					result.Fields["frame.protocols"] = protocolStr
+				}
+
+				if port44818 {
+					result.Valid = true
+					if containsProtocol(protocolStr, "enip") {
+						result.Message = "Packet validated: ENIP protocol recognized by Wireshark"
+					} else {
+						result.Message = "Packet validated: Correct port (44818/2222) and packet structure"
+						result.Warnings = append(result.Warnings, "ENIP not in protocol stack (may be normal)")
+					}
+				} else {
+					result.Errors = append(result.Errors, "Packet not on ENIP port (44818 or 2222)")
+				}
+			}
+		}
+		results = append(results, result)
+	}
+
+	return results, output, nil
+}
+
 func resolveTsharkPath(explicit string) (string, error) {
 	if explicit == "" {
 		explicit = os.Getenv("TSHARK")

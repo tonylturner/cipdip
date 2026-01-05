@@ -152,19 +152,13 @@ func (v *PacketValidator) ValidateCIPRequest(req CIPRequest) error {
 			return fmt.Errorf("Write_Tag_Fragmented requires type, element count, and byte offset")
 		}
 	case CIPServiceForwardOpen:
-		if v.strict {
-			if req.Path.Class != CIPClassConnectionManager || req.Path.Instance != 0x0001 {
-				return fmt.Errorf("Forward_Open requires Connection Manager class 0x0006/instance 0x0001")
-			}
+		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 20 {
 				return fmt.Errorf("Forward_Open payload too short")
 			}
 		}
 	case CIPServiceForwardClose:
-		if v.strict {
-			if req.Path.Class != CIPClassConnectionManager || req.Path.Instance != 0x0001 {
-				return fmt.Errorf("Forward_Close requires Connection Manager class 0x0006/instance 0x0001")
-			}
+		if v.strict && req.Path.Class == CIPClassConnectionManager && req.Path.Instance == 0x0001 {
 			if len(req.Payload) < 3 {
 				return fmt.Errorf("Forward_Close payload too short")
 			}
@@ -266,6 +260,17 @@ func (v *PacketValidator) ValidateCIPResponse(resp CIPResponse, expectedService 
 			// Success response should have payload (attribute value)
 			if v.strict {
 				return fmt.Errorf("Get_Attribute_Single success response should have payload")
+			}
+		}
+	case CIPServiceForwardOpen:
+		if v.strict && resp.Status == 0x00 && len(resp.Payload) < 17 {
+			return fmt.Errorf("Forward_Open success response payload too short")
+		}
+	case CIPServiceUnconnectedSend:
+		if v.strict && resp.Status == 0x00 {
+			embedded, ok := ParseUnconnectedSendResponsePayload(resp.Payload)
+			if !ok || len(embedded) == 0 {
+				return fmt.Errorf("Unconnected_Send response missing embedded payload")
 			}
 		}
 	}

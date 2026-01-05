@@ -28,6 +28,12 @@ func TestRequiredFlagsErrors(t *testing.T) {
 			wantErr: "required flag --input not set",
 		},
 		{
+			name:    "pcap-validate missing input",
+			cmd:     newPcapValidateCmd,
+			args:    nil,
+			wantErr: "required flag --input or --pcap-dir not set",
+		},
+		{
 			name:    "single missing ip",
 			cmd:     newSingleCmd,
 			args:    nil,

@@ -118,3 +118,45 @@ func TestValidateCIPRequestUnconnectedSendEmbedded(t *testing.T) {
 		t.Fatalf("ValidateCIPRequest(Unconnected_Send) error: %v", err)
 	}
 }
+
+func TestValidateCIPResponseForwardOpenPayload(t *testing.T) {
+	validator := NewPacketValidator(true)
+	resp := CIPResponse{
+		Service: CIPServiceForwardOpen,
+		Status:  0x00,
+		Payload: make([]byte, 16),
+	}
+	if err := validator.ValidateCIPResponse(resp, CIPServiceForwardOpen); err == nil {
+		t.Fatalf("expected error for short Forward_Open response payload")
+	}
+
+	resp.Payload = make([]byte, 17)
+	if err := validator.ValidateCIPResponse(resp, CIPServiceForwardOpen); err != nil {
+		t.Fatalf("unexpected error for Forward_Open response payload: %v", err)
+	}
+}
+
+func TestValidateCIPResponseUnconnectedSendPayload(t *testing.T) {
+	validator := NewPacketValidator(true)
+	resp := CIPResponse{
+		Service: CIPServiceUnconnectedSend,
+		Status:  0x00,
+		Payload: []byte{0x00},
+	}
+	if err := validator.ValidateCIPResponse(resp, CIPServiceUnconnectedSend); err == nil {
+		t.Fatalf("expected error for missing Unconnected_Send embedded payload")
+	}
+
+	embeddedResp, err := EncodeCIPResponse(CIPResponse{
+		Service: CIPServiceGetAttributeSingle,
+		Status:  0x00,
+		Payload: []byte{0x01},
+	})
+	if err != nil {
+		t.Fatalf("EncodeCIPResponse error: %v", err)
+	}
+	resp.Payload = BuildUnconnectedSendResponsePayload(embeddedResp)
+	if err := validator.ValidateCIPResponse(resp, CIPServiceUnconnectedSend); err != nil {
+		t.Fatalf("unexpected error for Unconnected_Send response payload: %v", err)
+	}
+}

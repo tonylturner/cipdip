@@ -212,6 +212,17 @@ func (s *Server) Start() error {
 	return nil
 }
 
+// TCPAddr returns the bound TCP address after Start.
+func (s *Server) TCPAddr() *net.TCPAddr {
+	if s.tcpListener == nil {
+		return nil
+	}
+	if addr, ok := s.tcpListener.Addr().(*net.TCPAddr); ok {
+		return addr
+	}
+	return nil
+}
+
 // Stop stops the server
 func (s *Server) Stop() error {
 	// Cancel context to signal all goroutines to stop
