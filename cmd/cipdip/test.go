@@ -1,15 +1,8 @@
 package main
 
-// Test connectivity command
-
 import (
-	"context"
-	"fmt"
-	"os"
-	"time"
-
 	"github.com/spf13/cobra"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/app"
 )
 
 type testFlags struct {
@@ -64,34 +57,8 @@ If the test fails, troubleshooting tips are displayed to help diagnose the issue
 }
 
 func runTest(flags *testFlags) error {
-	fmt.Fprintf(os.Stdout, "Testing connectivity to %s:%d...\n", flags.ip, flags.port)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	client := cipclient.NewClient()
-
-	// Attempt connection
-	err := client.Connect(ctx, flags.ip, flags.port)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Connection failed: %v\n", err)
-		fmt.Fprintf(os.Stderr, "\nTroubleshooting tips:\n")
-		fmt.Fprintf(os.Stderr, "  - Verify the device IP address is correct\n")
-		fmt.Fprintf(os.Stderr, "  - Check network connectivity (ping %s)\n", flags.ip)
-		fmt.Fprintf(os.Stderr, "  - Verify the device is powered on and connected\n")
-		fmt.Fprintf(os.Stderr, "  - Check firewall rules (port %d should be open)\n", flags.port)
-		fmt.Fprintf(os.Stderr, "  - Try: cipdip discover --timeout 5s\n")
-		return fmt.Errorf("connectivity test failed")
-	}
-
-	// Success
-	fmt.Fprintf(os.Stdout, "Connection successful\n")
-	fmt.Fprintf(os.Stdout, "  Session registered successfully\n")
-
-	// Clean disconnect
-	_ = client.Disconnect(ctx)
-
-	return nil
+	return app.RunConnectivityTest(app.TestOptions{
+		IP:   flags.ip,
+		Port: flags.port,
+	})
 }
-
-

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"fmt"
-	"net"
-	"os"
-
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/app"
 )
 
 type arpFlags struct {
@@ -47,34 +44,10 @@ Useful for validating L2 reachability before raw/tcpreplay replays.`,
 }
 
 func runArp(flags *arpFlags) error {
-	targetIP := net.ParseIP(flags.targetIP)
-	if targetIP == nil {
-		return fmt.Errorf("invalid target-ip: %s", flags.targetIP)
-	}
-	iface, err := net.InterfaceByName(flags.iface)
-	if err != nil {
-		return fmt.Errorf("lookup interface: %w", err)
-	}
-	srcIP, err := firstIPv4Addr(iface)
-	if err != nil {
-		return err
-	}
-
-	var mac string
-	for i := 0; i < maxInt(1, flags.retries); i++ {
-		var resolved []byte
-		resolved, err = resolveARP(flags.iface, srcIP, targetIP, flags.timeoutMs)
-		if err != nil {
-			continue
-		}
-		if len(resolved) > 0 {
-			mac = net.HardwareAddr(resolved).String()
-			break
-		}
-	}
-	if mac == "" {
-		return fmt.Errorf("ARP resolution failed for %s", flags.targetIP)
-	}
-	fmt.Fprintf(os.Stdout, "Resolved %s -> %s\n", flags.targetIP, mac)
-	return nil
+	return app.RunARP(app.ARPOptions{
+		Iface:     flags.iface,
+		TargetIP:  flags.targetIP,
+		TimeoutMs: flags.timeoutMs,
+		Retries:   flags.retries,
+	})
 }

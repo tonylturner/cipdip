@@ -1,4 +1,4 @@
-﻿# Reference Packet Library
+# Reference Packet Library
 
 The reference packet library contains CIP/ENIP packets extracted from PCAP files. These packets are used for structural validation, regression checks, and comparisons to ensure CIPDIP generates consistent traffic.
 
@@ -31,7 +31,7 @@ See `docs/COMPLIANCE_TESTING.md` for reference coverage limitations.
 - `RegisterSession_Response`
 
 Last extraction run:
-`cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`
+`cipdip extract-reference --real-world-dir pcaps --output internal/reference/reference_packets_gen.go`
 
 Last extraction run (UTC): `2026-01-02T22:36:14.3456981Z`
 Results:
@@ -51,7 +51,7 @@ To extract reference packets from PCAP files:
 cipdip extract-reference
 
 # Extract and generate Go source file
-cipdip extract-reference --output internal/cipclient/reference_packets_gen.go
+cipdip extract-reference --output internal/reference/reference_packets_gen.go
 
 # Extract from custom directories
 cipdip extract-reference --baseline-dir ./my_captures --real-world-dir ./real_pcaps
@@ -102,14 +102,14 @@ This normalization allows reference packets to be used for structural validation
 2. **Save PCAP files** to `baseline_captures/` (regression), `pcaps/normal/`, or `pcaps/stress/` (real-world)
 3. **Run extraction**:
    ```bash
-   cipdip extract-reference --output internal/cipclient/reference_packets_gen.go
+   cipdip extract-reference --output internal/reference/reference_packets_gen.go
    ```
 4. **Verify** the generated file contains the new packets
 5. **Test** using `go test ./internal/cipclient/... -run TestReferencePackets`
 
 ## Testing
 
-Reference packets are validated in `internal/cipclient/reference_test.go`:
+Reference packets are validated in `internal/reference/reference_test.go`:
 
 ```bash
 # Run reference packet tests
@@ -121,8 +121,8 @@ go test ./internal/cipclient/... -run TestCompareWithReference -v
 
 ## File Structure
 
-- `internal/cipclient/reference.go` - Reference packet definitions and comparison functions
-- `internal/cipclient/reference_packets_gen.go` - Generated file with actual packet data (auto-generated)
+- `internal/reference/reference.go` - Reference packet definitions and comparison functions
+- `internal/reference/reference_packets_gen.go` - Generated file with actual packet data (auto-generated)
 - `internal/cipclient/pcap_extract.go` - PCAP extraction utilities
 - `cmd/cipdip/extract_reference.go` - CLI command for extraction
 
@@ -136,3 +136,4 @@ go test ./internal/cipclient/... -run TestCompareWithReference -v
 ## See Also
 
 - `internal/cipclient/validation.go` - Packet validation layer
+
