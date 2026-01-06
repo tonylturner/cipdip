@@ -1,6 +1,6 @@
 module github.com/tturner/cipdip
 
-go 1.24.3
+go 1.25.5
 
 require (
 	github.com/atotto/clipboard v0.1.4
@@ -35,8 +35,8 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
-	golang.org/x/sync v0.8.0 // indirect
-	golang.org/x/sys v0.24.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 )
