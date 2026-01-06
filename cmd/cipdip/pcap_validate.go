@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/pcap"
 	"github.com/tturner/cipdip/internal/report"
 	"github.com/tturner/cipdip/internal/validation"
 )
@@ -112,7 +113,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	case flags.inputFile != "":
 		pcaps = append(pcaps, flags.inputFile)
 	case flags.pcapDir != "":
-		found, err := collectPcapFiles(flags.pcapDir)
+		found, err := pcap.CollectPcapFiles(flags.pcapDir)
 		if err != nil {
 			return err
 		}
