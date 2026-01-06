@@ -1,14 +1,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tturner/cipdip/internal/report"
 	"github.com/tturner/cipdip/internal/validation"
+	"github.com/tturner/cipdip/internal/validation/fixtures"
 )
 
 type pcapValidateFlags struct {
@@ -104,7 +106,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	var pcaps []string
 	switch {
 	case flags.generateTestPcaps:
-		generated, err := validation.GenerateValidationPCAPs(flags.outputDir)
+		generated, err := fixtures.GenerateValidationPCAPs(flags.outputDir)
 		if err != nil {
 			return fmt.Errorf("generate validation pcaps: %w", err)
 		}
@@ -112,7 +114,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	case flags.inputFile != "":
 		pcaps = append(pcaps, flags.inputFile)
 	case flags.pcapDir != "":
-		found, err := collectPcapFiles(flags.pcapDir)
+		found, err := pcap.CollectPcapFiles(flags.pcapDir)
 		if err != nil {
 			return err
 		}
@@ -133,7 +135,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	totalGradePass := 0
 	totalGradeFail := 0
 	totalGradeExpected := 0
-	report := validation.ValidationReport{
+	validationReport := report.ValidationReport{
 		GeneratedAt:      time.Now().UTC().Format(time.RFC3339),
 		CIPDIPVersion:    version,
 		CIPDIPCommit:     commit,
@@ -144,10 +146,10 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	}
 	if mode != "internal-only" {
 		if tsharkPath, err := validation.ResolveTsharkPath(flags.tsharkPath); err == nil {
-			report.TsharkPath = tsharkPath
+			validationReport.TsharkPath = tsharkPath
 		}
 		if tsharkVersion, err := validation.GetTsharkVersion(flags.tsharkPath); err == nil {
-			report.TsharkVersion = tsharkVersion
+			validationReport.TsharkVersion = tsharkVersion
 		}
 	}
 
@@ -272,7 +274,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 			}
 		}
 
-		report.PCAPs = append(report.PCAPs, validation.PCAPReport{
+		validationReport.PCAPs = append(validationReport.PCAPs, report.PCAPReport{
 			PCAP:         pcapPath,
 			PacketCount:  len(results),
 			Pass:         fileInvalid == 0,
@@ -288,8 +290,12 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 		fmt.Fprintf(os.Stdout, "Grade A: A_pass=%d A_fail=%d expected_invalid=%d\n",
 			totalGradePass, totalGradeFail, totalGradeExpected)
 	}
-	if flags.reportJSON != "" {
-		if err := writeReportJSON(flags.reportJSON, report); err != nil {
+	reportPath, err := resolveReportPath(flags.reportJSON)
+	if err != nil {
+		return err
+	}
+	if reportPath != "" {
+		if err := report.WriteJSONFile(reportPath, validationReport); err != nil {
 			return err
 		}
 	}
@@ -421,15 +427,4 @@ func internalPayloadLength(result validation.ValidateResult, eval validation.Pac
 		return 0
 	}
 	return len(req.Payload)
-}
-
-func writeReportJSON(path string, report validation.ValidationReport) error {
-	data, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal validation report: %w", err)
-	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write validation report: %w", err)
-	}
-	return nil
 }

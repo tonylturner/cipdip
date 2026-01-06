@@ -11,30 +11,32 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 func TestHasPerFlowTCPHandshake(t *testing.T) {
 	pcapPath := writeTestPCAP(t, buildHandshakePCAPPackets(t, true))
-	ok, stats, err := hasPerFlowTCPHandshake(pcapPath)
+	ok, stats, err := pcap.HasPerFlowTCPHandshake(pcapPath)
 	if err != nil {
 		t.Fatalf("hasPerFlowTCPHandshake error: %v", err)
 	}
 	if !ok {
 		t.Fatalf("expected per-flow handshake to be true")
 	}
-	if stats == nil || stats.total != 1 || stats.complete != 1 {
+	if stats == nil || stats.Total != 1 || stats.Complete != 1 {
 		t.Fatalf("unexpected stats: %#v", stats)
 	}
 
 	pcapPath = writeTestPCAP(t, buildHandshakePCAPPackets(t, false))
-	ok, stats, err = hasPerFlowTCPHandshake(pcapPath)
+	ok, stats, err = pcap.HasPerFlowTCPHandshake(pcapPath)
 	if err != nil {
 		t.Fatalf("hasPerFlowTCPHandshake error (missing ack): %v", err)
 	}
 	if ok {
 		t.Fatalf("expected per-flow handshake to be false for missing ack")
 	}
-	if stats == nil || stats.total != 1 || stats.complete != 0 {
+	if stats == nil || stats.Total != 1 || stats.Complete != 0 {
 		t.Fatalf("unexpected stats (missing ack): %#v", stats)
 	}
 }
@@ -45,30 +47,30 @@ func TestSummarizePcapForReplay(t *testing.T) {
 	packets = append(packets, buildENIPDataPacket(t, "10.0.0.2", "10.0.0.1", 44818, 12000, buildENIPRegisterSession(false))...)
 
 	pcapPath := writeTestPCAP(t, packets)
-	summary, err := summarizePcapForReplay(pcapPath)
+	summary, err := pcap.SummarizePcapForReplay(pcapPath)
 	if err != nil {
 		t.Fatalf("summarizePcapForReplay error: %v", err)
 	}
-	if summary.total != 5 {
-		t.Fatalf("expected total packets 5, got %d", summary.total)
+	if summary.Total != 5 {
+		t.Fatalf("expected total packets 5, got %d", summary.Total)
 	}
-	if summary.enip != 2 || summary.requests != 1 || summary.responses != 1 {
-		t.Fatalf("unexpected ENIP counts: enip=%d req=%d resp=%d", summary.enip, summary.requests, summary.responses)
+	if summary.Enip != 2 || summary.Requests != 1 || summary.Responses != 1 {
+		t.Fatalf("unexpected ENIP counts: enip=%d req=%d resp=%d", summary.Enip, summary.Requests, summary.Responses)
 	}
-	if summary.missingResponse != 0 {
-		t.Fatalf("expected missingResponse 0, got %d", summary.missingResponse)
+	if summary.MissingResponse != 0 {
+		t.Fatalf("expected missingResponse 0, got %d", summary.MissingResponse)
 	}
-	if !summary.handshakeAny || !summary.handshakeFlows {
-		t.Fatalf("expected handshake flags to be true, got any=%t flows=%t", summary.handshakeAny, summary.handshakeFlows)
+	if !summary.HandshakeAny || !summary.HandshakeFlows {
+		t.Fatalf("expected handshake flags to be true, got any=%t flows=%t", summary.HandshakeAny, summary.HandshakeFlows)
 	}
-	if summary.flowsTotal != 1 || summary.flowsComplete != 1 {
-		t.Fatalf("unexpected flow stats: total=%d complete=%d", summary.flowsTotal, summary.flowsComplete)
+	if summary.FlowsTotal != 1 || summary.FlowsComplete != 1 {
+		t.Fatalf("unexpected flow stats: total=%d complete=%d", summary.FlowsTotal, summary.FlowsComplete)
 	}
 }
 
 func TestCanonicalFlowKey(t *testing.T) {
-	key1 := canonicalFlowKey("10.0.0.1", 12000, "10.0.0.2", 44818)
-	key2 := canonicalFlowKey("10.0.0.2", 44818, "10.0.0.1", 12000)
+	key1 := pcap.CanonicalFlowKey("10.0.0.1", 12000, "10.0.0.2", 44818)
+	key2 := pcap.CanonicalFlowKey("10.0.0.2", 44818, "10.0.0.1", 12000)
 	if key1 != key2 {
 		t.Fatalf("expected canonical flow keys to match: %s vs %s", key1, key2)
 	}
@@ -138,10 +140,10 @@ func buildENIPRegisterSession(isRequest bool) []byte {
 		sessionID = 0x11223344
 	}
 	header := make([]byte, 24+len(data))
-	binary.LittleEndian.PutUint16(header[0:2], 0x0065)
-	binary.LittleEndian.PutUint16(header[2:4], uint16(len(data)))
-	binary.LittleEndian.PutUint32(header[4:8], sessionID)
-	binary.LittleEndian.PutUint32(header[8:12], 0)
+	codec.PutUint16(binary.LittleEndian, header[0:2], 0x0065)
+	codec.PutUint16(binary.LittleEndian, header[2:4], uint16(len(data)))
+	codec.PutUint32(binary.LittleEndian, header[4:8], sessionID)
+	codec.PutUint32(binary.LittleEndian, header[8:12], 0)
 	copy(header[24:], data)
 	return header
 }

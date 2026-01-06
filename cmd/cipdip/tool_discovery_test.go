@@ -5,13 +5,16 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/tturner/cipdip/internal/app"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 func TestResolveTsharkPath(t *testing.T) {
 	t.Run("explicit path", func(t *testing.T) {
 		path := writeDummyTool(t, "tshark_explicit")
 		t.Setenv("TSHARK", path)
-		got, err := resolveTsharkPath("")
+		got, err := pcap.ResolveTsharkPath("")
 		if err != nil {
 			t.Fatalf("resolveTsharkPath failed: %v", err)
 		}
@@ -25,7 +28,7 @@ func TestResolveTsharkPath(t *testing.T) {
 		path := writeDummyTool(t, name)
 		t.Setenv("TSHARK", name)
 		t.Setenv("PATH", filepath.Dir(path)+string(os.PathListSeparator)+os.Getenv("PATH"))
-		got, err := resolveTsharkPath("")
+		got, err := pcap.ResolveTsharkPath("")
 		if err != nil {
 			t.Fatalf("resolveTsharkPath failed: %v", err)
 		}
@@ -38,7 +41,7 @@ func TestResolveTsharkPath(t *testing.T) {
 func TestResolveExternalPath(t *testing.T) {
 	t.Run("explicit path", func(t *testing.T) {
 		path := writeDummyTool(t, "tcpreplay_explicit")
-		got, err := resolveExternalPath(path, "TCPREPLAY", "tcpreplay")
+		got, err := app.ResolveExternalPath(path, "TCPREPLAY", "tcpreplay")
 		if err != nil {
 			t.Fatalf("resolveExternalPath failed: %v", err)
 		}
@@ -52,7 +55,7 @@ func TestResolveExternalPath(t *testing.T) {
 		path := writeDummyTool(t, name)
 		t.Setenv("TCPREPLAY", name)
 		t.Setenv("PATH", filepath.Dir(path)+string(os.PathListSeparator)+os.Getenv("PATH"))
-		got, err := resolveExternalPath("", "TCPREPLAY", "tcpreplay")
+		got, err := app.ResolveExternalPath("", "TCPREPLAY", "tcpreplay")
 		if err != nil {
 			t.Fatalf("resolveExternalPath failed: %v", err)
 		}

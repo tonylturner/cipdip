@@ -101,7 +101,7 @@ func runUI(flags *uiFlags) error {
 		return fmt.Errorf("use either --workspace or --new-workspace, not both")
 	}
 	if flags.workspace == "" && flags.newWorkspace == "" {
-		flags.workspace = "workspace"
+		flags.workspace = filepath.Join("workspaces", "workspace")
 	}
 	if flags.newWorkspace != "" {
 		_, err := ui.CreateWorkspace(flags.newWorkspace, "")

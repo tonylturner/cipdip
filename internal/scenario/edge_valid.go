@@ -5,10 +5,11 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -76,9 +77,9 @@ func (s *EdgeValidScenario) Run(ctx context.Context, client cipclient.Client, cf
 			if err != nil {
 				return err
 			}
-			req := cipclient.CIPRequest{
+			req := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -141,3 +142,5 @@ func (s *EdgeValidScenario) Run(ctx context.Context, client cipclient.Client, cf
 
 	return nil
 }
+
+

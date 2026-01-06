@@ -5,10 +5,12 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -41,17 +43,17 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 	defer client.Disconnect(ctx)
 
 	allowedServices := map[uint8]bool{
-		uint8(cipclient.CIPServiceExecutePCCC):          true,
-		uint8(cipclient.CIPServiceReadTag):              true,
-		uint8(cipclient.CIPServiceWriteTag):             true,
-		uint8(cipclient.CIPServiceReadModifyWrite):      true,
-		uint8(cipclient.CIPServiceReadTagFragmented):    true,
-		uint8(cipclient.CIPServiceWriteTagFragmented):   true,
-		uint8(cipclient.CIPServiceGetInstanceAttrList):  true,
-		uint8(cipclient.CIPServiceGetConnectionData):    true,
-		uint8(cipclient.CIPServiceSearchConnectionData): true,
-		uint8(cipclient.CIPServiceGetConnectionOwner):   true,
-		uint8(cipclient.CIPServiceLargeForwardOpen):     true,
+		uint8(spec.CIPServiceExecutePCCC):          true,
+		uint8(spec.CIPServiceReadTag):              true,
+		uint8(spec.CIPServiceWriteTag):             true,
+		uint8(spec.CIPServiceReadModifyWrite):      true,
+		uint8(spec.CIPServiceReadTagFragmented):    true,
+		uint8(spec.CIPServiceWriteTagFragmented):   true,
+		uint8(spec.CIPServiceGetInstanceAttrList):  true,
+		uint8(spec.CIPServiceGetConnectionData):    true,
+		uint8(spec.CIPServiceSearchConnectionData): true,
+		uint8(spec.CIPServiceGetConnectionOwner):   true,
+		uint8(spec.CIPServiceLargeForwardOpen):     true,
 	}
 
 	filtered := make([]config.EdgeTarget, 0, len(cfg.EdgeTargets))
@@ -103,9 +105,9 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 			if err != nil {
 				return err
 			}
-			req := cipclient.CIPRequest{
+			req := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -160,3 +162,5 @@ func (s *EdgeVendorScenario) Run(ctx context.Context, client cipclient.Client, c
 
 	return nil
 }
+
+

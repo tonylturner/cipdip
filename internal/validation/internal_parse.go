@@ -6,7 +6,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/enip"
 )
 
 // InternalPacketInfo captures minimal internal parsing hints for a frame.
@@ -91,7 +92,7 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 		}
 
 		if len(payload) >= 24 {
-			encap, err := cipclient.DecodeENIP(payload)
+			encap, err := enip.DecodeENIP(payload)
 			if err != nil {
 				info.ENIPParseError = err.Error()
 			} else {
@@ -102,8 +103,8 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 				info.ENIPDataLen = len(encap.Data)
 				info.ENIPLengthMismatch = encap.Length != uint16(len(encap.Data))
 				info.Layers = append(info.Layers, "enip")
-				if (encap.Command == cipclient.ENIPCommandSendRRData || encap.Command == cipclient.ENIPCommandSendUnitData) && len(encap.Data) >= 6 {
-					if items, err := cipclient.ParseCPFItems(encap.Data[6:]); err == nil {
+				if (encap.Command == enip.ENIPCommandSendRRData || encap.Command == enip.ENIPCommandSendUnitData) && len(encap.Data) >= 6 {
+					if items, err := enip.ParseCPFItems(encap.Data[6:]); err == nil {
 						info.CPFItemCount = len(items)
 						info.CPFItems = make([]CPFItem, 0, len(items))
 						for _, item := range items {
@@ -116,7 +117,10 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 						info.CPFParseError = err.Error()
 					}
 				}
-				cipData, _, dataType := cipclient.ExtractCIPFromENIPPacket(cipclient.ENIPPacket{Data: encap.Data})
+				cipData, dataType, err := extractCIPFromENIP(encap)
+				if err != nil {
+					info.CIPParseError = err.Error()
+				}
 				if len(cipData) > 0 {
 					info.HasCIP = true
 					info.CIPData = cipData
@@ -125,7 +129,7 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 					info.CIPService = cipData[0]
 					info.CIPIsResponse = (cipData[0] & 0x80) != 0
 					if info.CIPIsResponse {
-						resp, err := cipclient.DecodeCIPResponse(cipData, cipclient.CIPPath{})
+						resp, err := protocol.DecodeCIPResponse(cipData, protocol.CIPPath{})
 						if err != nil {
 							info.CIPParseError = err.Error()
 						} else {
@@ -133,7 +137,7 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 							info.CIPServiceDataLen = len(resp.Payload)
 						}
 					} else {
-						req, err := cipclient.DecodeCIPRequest(cipData)
+						req, err := protocol.DecodeCIPRequest(cipData)
 						if err != nil {
 							info.CIPParseError = err.Error()
 						} else {
@@ -152,6 +156,33 @@ func ParseInternalPCAP(pcapFile string) ([]InternalPacketInfo, error) {
 	}
 
 	return results, nil
+}
+
+func extractCIPFromENIP(encap enip.ENIPEncapsulation) ([]byte, string, error) {
+	switch encap.Command {
+	case enip.ENIPCommandSendRRData:
+		payload, err := enip.ParseSendRRDataRequest(encap.Data)
+		if err != nil && len(encap.Data) >= 6 {
+			payload = encap.Data[6:]
+			err = nil
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return payload, "ucmm", nil
+	case enip.ENIPCommandSendUnitData:
+		_, payload, err := enip.ParseSendUnitDataRequest(encap.Data)
+		if err != nil && len(encap.Data) >= 4 {
+			payload = encap.Data[4:]
+			err = nil
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return payload, "connected", nil
+	default:
+		return nil, "", nil
+	}
 }
 
 // ValidatePCAPInternalOnly builds ValidateResult entries using internal parsing only.

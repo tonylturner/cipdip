@@ -233,7 +233,7 @@ not the numeric width of the class/instance/attribute shown in Top Paths.
 Generate a multi-file report (no `tshark` required):
 
 ```bash
-cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
+cipdip pcap-report --pcap-dir pcaps --output notes/pcap/pcap_summary_report.md
 ```
 
 ## PCAP Coverage
@@ -241,7 +241,7 @@ cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
 Summarize CIP request coverage across all PCAPs:
 
 ```bash
-cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap_coverage.md
+cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap/pcap_coverage.md
 ```
 
 ## PCAP Classification
@@ -379,5 +379,5 @@ cipdip pcap-rewrite --input capture.pcap --output rewritten.pcap \
 
 ## See Also
 
-- `docs/COMPLIANCE.md` - Protocol compliance documentation
+- `docs/COMPLIANCE_TESTING.md` - Compliance testing workflow
 

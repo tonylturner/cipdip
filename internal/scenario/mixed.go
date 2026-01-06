@@ -5,9 +5,12 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -79,7 +82,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 		// Perform reads for all read targets
 		for _, target := range cfg.ReadTargets {
-			path := cipclient.CIPPath{
+			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -122,7 +125,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationRead,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				Status:      resp.Status,
@@ -133,7 +136,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			params.Logger.LogOperation(
 				"READ",
 				target.Name,
-				fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+				fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				success,
 				rtt,
 				resp.Status,
@@ -146,9 +149,9 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			if err != nil {
 				return err
 			}
-			req := cipclient.CIPRequest{
+			req := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -199,7 +202,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 		// Perform writes for all write targets
 		for _, target := range cfg.WriteTargets {
-			path := cipclient.CIPPath{
+			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -212,7 +215,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			// Encode value to bytes (using 32-bit integer for now)
 			valueBytes := make([]byte, 4)
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(valueBytes, uint32(value))
+			codec.PutUint32(order, valueBytes, uint32(value))
 
 			start := time.Now()
 			resp, err := client.WriteAttribute(ctx, path, valueBytes)
@@ -246,7 +249,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationWrite,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceSetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				Status:      resp.Status,
@@ -257,7 +260,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 			params.Logger.LogOperation(
 				"WRITE",
 				target.Name,
-				fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceSetAttributeSingle)),
+				fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 				success,
 				rtt,
 				resp.Status,
@@ -305,3 +308,5 @@ func (s *MixedScenario) generateValue(target config.CIPTarget) int64 {
 		return val
 	}
 }
+
+

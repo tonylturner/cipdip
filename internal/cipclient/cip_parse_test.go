@@ -1,6 +1,10 @@
 package cipclient
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/tturner/cipdip/internal/cip/protocol"
+)
 
 func TestParseUnconnectedSendRequest(t *testing.T) {
 	embedded := []byte{
@@ -13,7 +17,7 @@ func TestParseUnconnectedSendRequest(t *testing.T) {
 	cip = append(cip, embedded...)
 	cip = append(cip, 0x00, 0x00)
 
-	info, err := parseCIPMessage(cip)
+	info, err := protocol.ParseCIPMessage(cip)
 	if err != nil {
 		t.Fatalf("parseCIPMessage failed: %v", err)
 	}
@@ -23,11 +27,11 @@ func TestParseUnconnectedSendRequest(t *testing.T) {
 	if info.PathInfo.Path.Class != 0x06 || info.PathInfo.Path.Instance != 0x01 {
 		t.Fatalf("Unexpected path: class=0x%04X instance=0x%04X", info.PathInfo.Path.Class, info.PathInfo.Path.Instance)
 	}
-	embeddedData, ok := parseUnconnectedSendRequest(cip[info.DataOffset:])
+	embeddedData, _, ok := protocol.ParseUnconnectedSendRequestPayload(cip[info.DataOffset:])
 	if !ok {
 		t.Fatalf("parseUnconnectedSendRequest failed")
 	}
-	embeddedInfo, err := parseCIPMessage(embeddedData)
+	embeddedInfo, err := protocol.ParseCIPMessage(embeddedData)
 	if err != nil {
 		t.Fatalf("parseCIPMessage (embedded) failed: %v", err)
 	}

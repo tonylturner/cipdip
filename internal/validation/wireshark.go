@@ -46,7 +46,7 @@ type ValidateResult struct {
 	Malformed      bool              // tshark expert says malformed
 	ExpertMessages []string          // tshark expert messages
 	SeverityMax    string            // max expert severity
-	Experts        []ExpertInfo       // parsed expert items
+	Experts        []ExpertInfo      // parsed expert items
 	CPFItemCount   int               // CPF item count
 	CPFItems       []CPFItem         // CPF items
 	Internal       *InternalPacketInfo
@@ -193,15 +193,15 @@ func buildValidateResult(packet map[string]interface{}) ValidateResult {
 	}
 
 	copyFieldAliases(result.Fields, flat, map[string][]string{
-		"enip.command":       {"enip.command"},
-		"enip.length":        {"enip.length"},
-		"enip.session":       {"enip.session", "enip.session_handle"},
-		"enip.status":        {"enip.status"},
-		"cip.service":        {"cip.service"},
-		"cip.path.class":     {"cip.class", "cip.path.class"},
-		"cip.path.instance":  {"cip.instance", "cip.path.instance"},
-		"cip.path.attribute": {"cip.attribute", "cip.path.attribute"},
-		"cip.general_status": {"cip.general_status", "cip.gen_status", "cip.status"},
+		"enip.command":        {"enip.command"},
+		"enip.length":         {"enip.length"},
+		"enip.session":        {"enip.session", "enip.session_handle"},
+		"enip.status":         {"enip.status"},
+		"cip.service":         {"cip.service"},
+		"cip.path.class":      {"cip.class", "cip.path.class"},
+		"cip.path.instance":   {"cip.instance", "cip.path.instance"},
+		"cip.path.attribute":  {"cip.attribute", "cip.path.attribute"},
+		"cip.general_status":  {"cip.general_status", "cip.gen_status", "cip.status"},
 		"cip.extended_status": {"cip.extended_status", "cip.ext_status"},
 	})
 

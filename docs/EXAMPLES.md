@@ -310,5 +310,5 @@ cipdip pcap-dump --input pcaps/stress/ENIP.pcap --service 0x51 --max 5 --payload
 
 - `README.md` - Main documentation
 - `docs/PCAP_USAGE.md` - Packet analysis guide
-- `docs/COMPLIANCE.md` - Protocol compliance
+- `docs/COMPLIANCE_TESTING.md` - Compliance testing workflow
 

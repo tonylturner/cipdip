@@ -5,10 +5,13 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -108,7 +111,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		for _, target := range cfg.ReadTargets {
-			path := cipclient.CIPPath{
+			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -133,7 +136,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationRead,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				JitterMs:    jitterMs,
@@ -151,7 +154,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			oToTData := make([]byte, connCfg.OToTSizeBytes)
 			if len(oToTData) >= 4 {
 				order := cipclient.CurrentProtocolProfile().CIPByteOrder
-				order.PutUint32(oToTData[0:4], counter)
+				codec.PutUint32(order, oToTData[0:4], counter)
 			} else {
 				oToTData[0] = byte(counter)
 			}
@@ -210,3 +213,5 @@ func errorString(err error) string {
 	}
 	return err.Error()
 }
+
+

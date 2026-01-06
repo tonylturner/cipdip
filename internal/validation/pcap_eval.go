@@ -3,11 +3,12 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 )
 
 const (
@@ -319,14 +320,14 @@ func evaluateServiceShape(expect PacketExpectation, result ValidateResult) Scena
 			return ScenarioResult{Name: "service_data", Pass: false, Details: err.Error()}
 		}
 		payloadLen := len(resp.Payload)
-		baseService := cipclient.CIPServiceCode(uint8(resp.Service) & 0x7F)
+		baseService := protocol.CIPServiceCode(uint8(resp.Service) & 0x7F)
 		switch expect.ServiceShape {
 		case ServiceShapeNone, ServiceShapeForwardClose:
 			return ScenarioResult{Name: "service_data", Pass: payloadLen == 0, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
 		case ServiceShapeForwardOpen:
 			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 17, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
 		case ServiceShapeRockwellTag, ServiceShapeRead:
-			if baseService == cipclient.CIPServiceWriteTag || baseService == cipclient.CIPServiceWriteTagFragmented {
+			if baseService == spec.CIPServiceWriteTag || baseService == spec.CIPServiceWriteTagFragmented {
 				return ScenarioResult{Name: "service_data", Pass: payloadLen == 0, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
 			}
 			return ScenarioResult{Name: "service_data", Pass: payloadLen >= 2, Details: fmt.Sprintf("payload_len=%d", payloadLen)}
@@ -392,34 +393,34 @@ func internalCIPPathPresent(result ValidateResult) bool {
 	return req.Path.Class != 0 || req.Path.Instance != 0 || req.Path.Attribute != 0
 }
 
-func decodeRequestForExpectation(cipData []byte) (cipclient.CIPRequest, error) {
-	req, err := cipclient.DecodeCIPRequest(cipData)
+func decodeRequestForExpectation(cipData []byte) (protocol.CIPRequest, error) {
+	req, err := protocol.DecodeCIPRequest(cipData)
 	if err != nil {
-		return cipclient.CIPRequest{}, err
+		return protocol.CIPRequest{}, err
 	}
 	return req, nil
 }
 
-func decodeResponseForExpectation(cipData []byte) (cipclient.CIPResponse, error) {
-	resp, err := cipclient.DecodeCIPResponse(cipData, cipclient.CIPPath{})
+func decodeResponseForExpectation(cipData []byte) (protocol.CIPResponse, error) {
+	resp, err := protocol.DecodeCIPResponse(cipData, protocol.CIPPath{})
 	if err != nil {
-		return cipclient.CIPResponse{}, err
+		return protocol.CIPResponse{}, err
 	}
 	return resp, nil
 }
 
 // DecodeRequestForReport exposes CIP request decoding for report helpers.
-func DecodeRequestForReport(cipData []byte) (cipclient.CIPRequest, error) {
+func DecodeRequestForReport(cipData []byte) (protocol.CIPRequest, error) {
 	return decodeRequestForExpectation(cipData)
 }
 
 // DecodeResponseForReport exposes CIP response decoding for report helpers.
-func DecodeResponseForReport(cipData []byte) (cipclient.CIPResponse, error) {
+func DecodeResponseForReport(cipData []byte) (protocol.CIPResponse, error) {
 	return decodeResponseForExpectation(cipData)
 }
 
 func parseUnconnectedSendPayload(payload []byte) ([]byte, []byte, bool) {
-	embedded, route, ok := cipclient.ParseUnconnectedSendRequestPayload(payload)
+	embedded, route, ok := protocol.ParseUnconnectedSendRequestPayload(payload)
 	return embedded, route, ok
 }
 

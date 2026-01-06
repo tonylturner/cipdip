@@ -5,11 +5,14 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 )
@@ -208,7 +211,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 
 	for _, target := range reads {
 		applyScenarioJitter(jitterMs, rng)
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -232,7 +235,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 			TargetType:  params.TargetType,
 			Operation:   metrics.OperationRead,
 			TargetName:  target.Name,
-			ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+			ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 			Success:     success,
 			RTTMs:       rtt,
 			JitterMs:    computeJitterMs(&lastOp, params.Interval),
@@ -248,9 +251,9 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 		if err != nil {
 			return err
 		}
-		req := cipclient.CIPRequest{
+		req := protocol.CIPRequest{
 			Service: serviceCode,
-			Path: cipclient.CIPPath{
+			Path: protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -292,7 +295,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 
 	for _, target := range writes {
 		applyScenarioJitter(jitterMs, rng)
-		path := cipclient.CIPPath{
+		path := protocol.CIPPath{
 			Class:     target.Class,
 			Instance:  target.Instance,
 			Attribute: target.Attribute,
@@ -302,7 +305,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 
 		valueBytes := make([]byte, 4)
 		order := cipclient.CurrentProtocolProfile().CIPByteOrder
-		order.PutUint32(valueBytes, uint32(value))
+		codec.PutUint32(order, valueBytes, uint32(value))
 
 		start := time.Now()
 		resp, err := client.WriteAttribute(ctx, path, valueBytes)
@@ -322,7 +325,7 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 			TargetType:  params.TargetType,
 			Operation:   metrics.OperationWrite,
 			TargetName:  target.Name,
-			ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceSetAttributeSingle)),
+			ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 			Success:     success,
 			RTTMs:       rtt,
 			JitterMs:    computeJitterMs(&lastOp, params.Interval),
@@ -338,9 +341,9 @@ func runFirewallRequests(ctx context.Context, client cipclient.Client, reads, wr
 		if err != nil {
 			return err
 		}
-		req := cipclient.CIPRequest{
+		req := protocol.CIPRequest{
 			Service: serviceCode,
-			Path: cipclient.CIPPath{
+			Path: protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -429,7 +432,7 @@ func runFirewallIO(ctx context.Context, client cipclient.Client, ioConns []confi
 		oToTData := make([]byte, connCfg.OToTSizeBytes)
 		if len(oToTData) >= 4 {
 			order := cipclient.CurrentProtocolProfile().CIPByteOrder
-			order.PutUint32(oToTData, uint32(time.Now().UnixNano()))
+			codec.PutUint32(order, oToTData, uint32(time.Now().UnixNano()))
 		} else if len(oToTData) > 0 {
 			oToTData[0] = byte(time.Now().UnixNano())
 		}
@@ -581,3 +584,5 @@ func hasTags(tags []string, required []string, vendor string) bool {
 	}
 	return true
 }
+
+

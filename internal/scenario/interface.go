@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/metrics"
@@ -74,3 +74,5 @@ type UnknownScenarioError struct {
 func (e *UnknownScenarioError) Error() string {
 	return "unknown scenario: " + e.Name
 }
+
+

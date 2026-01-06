@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -28,7 +29,7 @@ func buildWizardFormWithDefaults(workspaceRoot string, entry CatalogEntry) *huh.
 	input := findFirstPcap(workspaceRoot)
 	preset := ""
 	mode := "raw"
-	outputDir := "workspace/runs"
+	outputDir := filepath.Join(workspaceRoot, "runs")
 	duration := "60"
 	serverMode := "baseline"
 	target := ""

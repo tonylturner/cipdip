@@ -8,7 +8,7 @@ import (
 // BuildPairingResults builds request/response pairing results for manifest-driven PCAPs.
 func BuildPairingResults(manifest ValidationManifest, results []ValidateResult) map[string]*PairingResult {
 	type idx struct {
-		req int
+		req  int
 		resp int
 	}
 	indexes := map[string]idx{}
@@ -71,7 +71,7 @@ func BuildPairingResults(manifest ValidationManifest, results []ValidateResult) 
 				req.Internal.SrcPort == resp.Internal.DstPort &&
 				req.Internal.DstPort == resp.Internal.SrcPort
 			if req.Internal.CIPService != 0 && resp.Internal.CIPService != 0 {
-				serviceMatch = resp.Internal.CIPService == (req.Internal.CIPService|0x80)
+				serviceMatch = resp.Internal.CIPService == (req.Internal.CIPService | 0x80)
 			}
 			statusPresent = resp.Internal.CIPStatusPresent
 		}
