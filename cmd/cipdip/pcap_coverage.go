@@ -24,14 +24,14 @@ func newPcapCoverageCmd() *cobra.Command {
 		Long: `Summarize CIP request coverage (service + class/instance/attribute)
 across all PCAPs under the specified directory.`,
 		Example: `  # Build a coverage report from all pcaps
-  cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap_coverage.md`,
+  cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap/pcap_coverage.md`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPcapCoverage(flags)
 		},
 	}
 
 	cmd.Flags().StringVar(&flags.pcapDir, "pcap-dir", "pcaps", "Directory containing PCAP files")
-	cmd.Flags().StringVar(&flags.outputFile, "output", "notes/pcap_coverage.md", "Output Markdown report path")
+	cmd.Flags().StringVar(&flags.outputFile, "output", "notes/pcap/pcap_coverage.md", "Output Markdown report path")
 
 	return cmd
 }

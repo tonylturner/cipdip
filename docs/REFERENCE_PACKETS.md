@@ -40,6 +40,18 @@ Results:
 - Real-world captures: 64 packets
 - Still missing: `RegisterSession_Response`
 
+## Support Analysis (Summary)
+
+Reference extraction accepts only little-endian ENIP headers and merges duplicates across PCAPs.
+Use these commands to keep coverage visible:
+
+```bash
+cipdip pcap-summary --input pcaps/stress/ENIP.pcap
+cipdip pcap-report --pcap-dir pcaps --output notes/pcap/pcap_summary_report.md
+```
+
+Missing reference packets are treated as coverage gaps, not protocol support failures.
+
 ## Usage
 
 ### Extracting Reference Packets
@@ -60,19 +72,19 @@ cipdip extract-reference --baseline-dir ./my_captures --real-world-dir ./real_pc
 ### Comparing Generated Packets
 
 ```go
-import "github.com/tturner/cipdip/internal/cipclient"
+import "github.com/tturner/cipdip/internal/cip/client"
 
 // Generate a packet
-packet := cipclient.BuildRegisterSession(senderContext)
+packet := client.BuildRegisterSession(senderContext)
 
 // Compare with reference
-match, err := cipclient.CompareWithReference("RegisterSession_Request", packet)
+match, err := client.CompareWithReference("RegisterSession_Request", packet)
 if err != nil {
     return err
 }
 if !match {
     // Find differences
-    offset, genByte, refByte := cipclient.FindFirstDifference(packet, ref.Data)
+    offset, genByte, refByte := client.FindFirstDifference(packet, ref.Data)
     fmt.Printf("Difference at offset %d: generated 0x%02X, reference 0x%02X\n", 
         offset, genByte, refByte)
 }
@@ -82,7 +94,7 @@ if !match {
 
 ```go
 // Validate packet structure matches expected
-err := cipclient.ValidatePacketStructure(packet, "RegisterSession_Response")
+err := client.ValidatePacketStructure(packet, "RegisterSession_Response")
 if err != nil {
     return fmt.Errorf("packet structure invalid: %w", err)
 }
@@ -105,7 +117,7 @@ This normalization allows reference packets to be used for structural validation
    cipdip extract-reference --output internal/reference/reference_packets_gen.go
    ```
 4. **Verify** the generated file contains the new packets
-5. **Test** using `go test ./internal/cipclient/... -run TestReferencePackets`
+5. **Test** using `go test ./internal/cip/client/... -run TestReferencePackets`
 
 ## Testing
 
@@ -113,17 +125,17 @@ Reference packets are validated in `internal/reference/reference_test.go`:
 
 ```bash
 # Run reference packet tests
-go test ./internal/cipclient/... -run TestReferencePackets -v
+go test ./internal/cip/client/... -run TestReferencePackets -v
 
 # Test comparison functions
-go test ./internal/cipclient/... -run TestCompareWithReference -v
+go test ./internal/cip/client/... -run TestCompareWithReference -v
 ```
 
 ## File Structure
 
 - `internal/reference/reference.go` - Reference packet definitions and comparison functions
 - `internal/reference/reference_packets_gen.go` - Generated file with actual packet data (auto-generated)
-- `internal/cipclient/pcap_extract.go` - PCAP extraction utilities
+- `internal/pcap/extract_reference.go` - PCAP extraction utilities
 - `cmd/cipdip/extract_reference.go` - CLI command for extraction
 
 ## Future Work
@@ -135,5 +147,6 @@ go test ./internal/cipclient/... -run TestCompareWithReference -v
 
 ## See Also
 
-- `internal/cipclient/validation.go` - Packet validation layer
+- `internal/cip/client/validation.go` - Packet validation layer
+- `docs/COMPLIANCE_TESTING.md` - Compliance testing workflow
 

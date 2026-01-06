@@ -107,7 +107,7 @@ cipdip pcap --input packet.bin --format json
   cipdip pcap-summary --input pcaps/stress/ENIP.pcap
 
   # Summarize CIP request coverage across PCAPs
-  cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap_coverage.md
+  cipdip pcap-coverage --pcap-dir pcaps --output notes/pcap/pcap_coverage.md
 ```
 
 ### Reference Extraction
