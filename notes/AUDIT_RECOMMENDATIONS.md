@@ -583,7 +583,7 @@ func ValidatePacketAgainstReference(generated []byte, reference []byte) error {
 
 **Recommendation:**
 ```go
-// internal/cipclient/reference/reference.go
+// internal/reference/reference.go
 package reference
 
 // Reference packets from real ODVA-compliant devices
@@ -900,4 +900,5 @@ The highest-impact improvements are:
 - Reference packet library and Wireshark integration (Compliance confidence)
 
 These improvements will make CIPDIP more reliable, easier to use, and provide higher confidence in ODVA compliance.
+
 

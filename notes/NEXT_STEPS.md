@@ -45,7 +45,7 @@ Extract remaining packets from PCAPs:
 **Action:**
 ```bash
 # Re-run extraction and check for responses
-cipdip extract-reference --output internal/cipclient/reference_packets_gen.go
+cipdip extract-reference --output internal/reference/reference_packets_gen.go
 ```
 
 ### 3. ✅ Better Default Behavior (1-2 hours) - COMPLETED
@@ -241,7 +241,7 @@ Add `--parallel` flag:
 # Edit: internal/scenario/baseline.go, mixed.go, stress.go, churn.go, io.go
 
 # 2. Extract missing packets
-cipdip extract-reference --output internal/cipclient/reference_packets_gen.go
+cipdip extract-reference --output internal/reference/reference_packets_gen.go
 
 # 3. Test everything
 go test ./...

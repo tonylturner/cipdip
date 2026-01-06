@@ -202,7 +202,7 @@
 - [ ] Evaluate byte buffer pooling for ENIP/CIP encoding after refactor; add only if profiling shows allocation pressure.
 - [ ] Hardware validation test suite (requires lab devices; confirm scope and add fixtures when available).
 - [ ] Fix ForwardOpen/ForwardClose ODVA compliance audit failures (tick time, timeout, RPI units, connection path size, byte order).
-- [ ] Move reference packet library out of `internal/cipclient` so `internal/pcap` does not depend on the legacy package.
+- [x] Move reference packet library out of `internal/cipclient` so `internal/pcap` does not depend on the legacy package.
 - [ ] Unify client `PacketValidator` with `internal/validation.Validator` so spec rules stay authoritative and avoid drift.
 - [ ] Add spec rules for Multiple Service Packet and any remaining class-specific payload shapes (beyond current min-length checks).
 - [x] Phase 11: move remaining PCAP CLI logic (classify analysis, replay preset resolution) into `internal/pcap` so commands stay thin.
@@ -222,7 +222,7 @@
 - Unknown CIP service 0x51 appears on class 0x00A1/instance 0x0001 with status 0x08 responses in CL5000EIP firmware-change pcaps and ENIP.pcap; evidence insufficient to map yet.
 - pcap-dump spot checks: 0x4B targets class 0x0067, 0x4E targets class 0x0006/instance 0x0001, 0x55 not observed in ENIP.pcap.
 - PCAP folders: `pcaps/normal` (compliance/regression), `pcaps/stress` (DPI stress), `pcaps/not_cip` (ignored).
-- Reference extraction run: `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`.
+- Reference extraction run: `cipdip extract-reference --real-world-dir pcaps --output internal/reference/reference_packets_gen.go`.
 - Reference extraction now filters for little-endian ENIP headers; `RegisterSession_Response` still missing from real-world captures.
 - Re-ran PCAP classification and summary reports for current `pcaps/` set (excluding baseline).
 

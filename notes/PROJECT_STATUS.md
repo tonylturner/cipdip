@@ -169,7 +169,7 @@ go test ./...
 ./cipdip server --personality adapter --listen-ip 0.0.0.0
 
 # Extract reference packets
-./cipdip extract-reference --output internal/cipclient/reference_packets_gen.go
+./cipdip extract-reference --output internal/reference/reference_packets_gen.go
 ```
 
 ## 📝 Notes for Resuming Work

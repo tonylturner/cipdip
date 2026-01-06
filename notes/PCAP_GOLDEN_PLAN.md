@@ -32,7 +32,7 @@ Workflow
 1) Add or update golden captures under `pcaps/*/golden/`.
 2) Run:
    - `cipdip pcap-summary --input <golden pcap>`
-   - `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go`
+   - `cipdip extract-reference --real-world-dir pcaps --output internal/reference/reference_packets_gen.go`
 3) Run tests:
    - `go test ./internal/cipclient -run ReferencePackets`
    - `go test ./...`

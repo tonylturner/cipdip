@@ -1,4 +1,4 @@
-﻿# Reference Packet Support Analysis
+# Reference Packet Support Analysis
 
 This document summarizes which reference packets are populated from PCAPs and what the client/server can generate or handle.
 
@@ -30,7 +30,7 @@ Baseline captures are used for regression only and are not considered compliance
 
 - `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` for single-file service/path counts.
 - `cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md` for multi-PCAP summaries.
-- `cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go` for reference packet population.
+- `cipdip extract-reference --real-world-dir pcaps --output internal/reference/reference_packets_gen.go` for reference packet population.
 
 ## Client Support Summary
 

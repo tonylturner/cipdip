@@ -110,7 +110,7 @@ if err := validator.ValidateCIPRequest(req); err != nil {
 
 ### 3. Reference Packet Library ✅ STRUCTURE CREATED
 
-**Location:** `internal/cipclient/reference.go`
+**Location:** `internal/reference/reference.go`
 
 **Features:**
 - `ReferencePacket` type for storing known-good packets
@@ -352,4 +352,5 @@ The audit has identified key areas for improvement and provided actionable recom
 **See Also:**
 - `notes/AUDIT_RECOMMENDATIONS.md` - Detailed recommendations and implementation guidance
 - `docs/IMPLEMENTATION_GUIDE.md` - Step-by-step implementation instructions
+
 

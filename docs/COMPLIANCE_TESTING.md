@@ -40,11 +40,11 @@ go test ./internal/cipclient
 ```
 
 ### 2) Reference Packet Validation
-Reference packets are extracted from PCAPs and stored in `internal/cipclient/reference_packets_gen.go`.
+Reference packets are extracted from PCAPs and stored in `internal/reference/reference_packets_gen.go`.
 
 Extraction:
 ```bash
-cipdip extract-reference --real-world-dir pcaps --output internal/cipclient/reference_packets_gen.go
+cipdip extract-reference --real-world-dir pcaps --output internal/reference/reference_packets_gen.go
 ```
 
 Validation:

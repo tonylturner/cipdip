@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/tturner/cipdip/internal/pcap"
 )
 
 func TestRewritePacketTCP(t *testing.T) {
@@ -14,13 +15,18 @@ func TestRewritePacketTCP(t *testing.T) {
 
 	srcIP := net.ParseIP("192.168.1.10")
 	dstIP := net.ParseIP("192.168.1.20")
-	srcMAC, _ := parseMAC("aa:bb:cc:dd:ee:ff")
-	dstMAC, _ := parseMAC("11:22:33:44:55:66")
+	srcMAC, _ := pcap.ParseMAC("aa:bb:cc:dd:ee:ff")
+	dstMAC, _ := pcap.ParseMAC("11:22:33:44:55:66")
 
-	data, err := rewritePacket(packet, srcIP, dstIP, srcMAC, dstMAC, 15000, 44819, gopacket.SerializeOptions{
-		FixLengths:       true,
-		ComputeChecksums: true,
-	}, nil)
+	data, err := pcap.RewritePacket(packet, pcap.RewriteOptions{
+		SrcIP:              srcIP,
+		DstIP:              dstIP,
+		SrcPort:            15000,
+		DstPort:            44819,
+		SrcMAC:             srcMAC,
+		DstMAC:             dstMAC,
+		RecomputeChecksums: true,
+	})
 	if err != nil {
 		t.Fatalf("rewritePacket error: %v", err)
 	}
@@ -46,7 +52,7 @@ func TestShouldRewriteENIPFilter(t *testing.T) {
 		layers.LayerTypeEthernet,
 		gopacket.Default,
 	)
-	if !shouldRewrite(tcpENIP, true) {
+	if !pcap.ShouldRewrite(tcpENIP, true) {
 		t.Fatalf("expected ENIP TCP packet to be rewriteable")
 	}
 
@@ -55,10 +61,10 @@ func TestShouldRewriteENIPFilter(t *testing.T) {
 		layers.LayerTypeEthernet,
 		gopacket.Default,
 	)
-	if shouldRewrite(tcpOther, true) {
+	if pcap.ShouldRewrite(tcpOther, true) {
 		t.Fatalf("expected non-ENIP TCP packet to be skipped")
 	}
-	if !shouldRewrite(tcpOther, false) {
+	if !pcap.ShouldRewrite(tcpOther, false) {
 		t.Fatalf("expected rewrite when onlyENIP is false")
 	}
 
@@ -67,7 +73,7 @@ func TestShouldRewriteENIPFilter(t *testing.T) {
 		layers.LayerTypeEthernet,
 		gopacket.Default,
 	)
-	if !shouldRewrite(udpENIP, true) {
+	if !pcap.ShouldRewrite(udpENIP, true) {
 		t.Fatalf("expected ENIP UDP packet to be rewriteable")
 	}
 }

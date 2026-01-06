@@ -114,7 +114,7 @@ cipdip pcap --input packet.bin --format json
 
 ```bash
 # Extract reference packets from PCAPs (pcaps/* by default)
-cipdip extract-reference --baseline-dir pcaps --output internal/cipclient/reference_packets_gen.go
+cipdip extract-reference --baseline-dir pcaps --output internal/reference/reference_packets_gen.go
 ```
 
 ## Configuration

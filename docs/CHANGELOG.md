@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ValidateRPIMicroseconds()` and `ValidateConnectionSize()` for parameter validation
   - Integrated into client operations for pre-send and post-receive validation
 
-- **Reference Packet Library** (`internal/cipclient/reference.go`)
+- **Reference Packet Library** (`internal/reference/reference.go`)
   - `ReferencePacket` type for storing known-good ODVA-compliant packets
   - `CompareWithReference()` for packet comparison
   - `FindFirstDifference()` for byte-level diff analysis
@@ -155,4 +155,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced extended status code parsing
 - Additional CIP service support
 - Performance optimizations
+
 
