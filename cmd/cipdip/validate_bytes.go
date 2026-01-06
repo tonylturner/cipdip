@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/report"
 	"github.com/tturner/cipdip/internal/validation"
 )
 
@@ -164,7 +165,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 		printVerboseEvaluations(results, evaluations, flags.includeRawHex)
 	}
 
-	report := validation.ValidationReport{
+	validationReport := report.ValidationReport{
 		GeneratedAt:      time.Now().UTC().Format(time.RFC3339),
 		CIPDIPVersion:    version,
 		CIPDIPCommit:     commit,
@@ -172,7 +173,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 		ExpertPolicy:     flags.expertPolicy,
 		ConversationMode: flags.conversationMode,
 		Profile:          flags.profile,
-		PCAPs: []validation.PCAPReport{{
+		PCAPs: []report.PCAPReport{{
 			PCAP:         filepath.Base(pcapPath),
 			PacketCount:  len(results),
 			Pass:         true,
@@ -181,7 +182,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 		}},
 	}
 	if flags.reportJSON != "" {
-		if err := writeReportJSON(flags.reportJSON, report); err != nil {
+		if err := report.WriteJSONFile(flags.reportJSON, validationReport); err != nil {
 			return err
 		}
 	}

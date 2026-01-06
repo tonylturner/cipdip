@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/report"
 	"github.com/tturner/cipdip/internal/validation"
 )
 
@@ -133,7 +133,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	totalGradePass := 0
 	totalGradeFail := 0
 	totalGradeExpected := 0
-	report := validation.ValidationReport{
+	validationReport := report.ValidationReport{
 		GeneratedAt:      time.Now().UTC().Format(time.RFC3339),
 		CIPDIPVersion:    version,
 		CIPDIPCommit:     commit,
@@ -144,10 +144,10 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	}
 	if mode != "internal-only" {
 		if tsharkPath, err := validation.ResolveTsharkPath(flags.tsharkPath); err == nil {
-			report.TsharkPath = tsharkPath
+			validationReport.TsharkPath = tsharkPath
 		}
 		if tsharkVersion, err := validation.GetTsharkVersion(flags.tsharkPath); err == nil {
-			report.TsharkVersion = tsharkVersion
+			validationReport.TsharkVersion = tsharkVersion
 		}
 	}
 
@@ -272,7 +272,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 			}
 		}
 
-		report.PCAPs = append(report.PCAPs, validation.PCAPReport{
+		validationReport.PCAPs = append(validationReport.PCAPs, report.PCAPReport{
 			PCAP:         pcapPath,
 			PacketCount:  len(results),
 			Pass:         fileInvalid == 0,
@@ -289,7 +289,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 			totalGradePass, totalGradeFail, totalGradeExpected)
 	}
 	if flags.reportJSON != "" {
-		if err := writeReportJSON(flags.reportJSON, report); err != nil {
+		if err := report.WriteJSONFile(flags.reportJSON, validationReport); err != nil {
 			return err
 		}
 	}
@@ -421,15 +421,4 @@ func internalPayloadLength(result validation.ValidateResult, eval validation.Pac
 		return 0
 	}
 	return len(req.Payload)
-}
-
-func writeReportJSON(path string, report validation.ValidationReport) error {
-	data, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal validation report: %w", err)
-	}
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return fmt.Errorf("write validation report: %w", err)
-	}
-	return nil
 }
