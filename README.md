@@ -1,9 +1,7 @@
 # CIPDIP
 
-[![Go](https://img.shields.io/badge/go-1.24.3-00ADD8?logo=go)](go.mod)
-[![CI](https://github.com/ORG/cipdip/actions/workflows/ci.yml/badge.svg)
-]
-[![License](https://img.shields.io/github/license/tturner/cipdip)](LICENSE)
+[![Go](https://img.shields.io/badge/go-1.24.3-00ADD8?logo=go)]
+[![License](https://img.shields.io/github/license/tturner/cipdip)]
 [![PCAP Validated](https://img.shields.io/badge/pcap-validated-brightgreen)]
 [![CIP](https://img.shields.io/badge/protocol-CIP%20%2F%20EtherNet%2FIP-blue)]
 
