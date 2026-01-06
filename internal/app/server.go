@@ -1,0 +1,194 @@
+package app
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/tturner/cipdip/internal/capture"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/config"
+	"github.com/tturner/cipdip/internal/logging"
+	"github.com/tturner/cipdip/internal/server"
+)
+
+type ServerOptions struct {
+	ListenIP    string
+	ListenPort  int
+	Personality string
+	ConfigPath  string
+	EnableUDPIO bool
+	PCAPFile    string
+	CIPProfile  string
+	Mode        string
+	Target      string
+	LogFormat   string
+	LogLevel    string
+	LogEvery    int
+}
+
+func RunServer(opts ServerOptions) error {
+	var pcapCapture *capture.Capture
+	if opts.PCAPFile != "" {
+		fmt.Fprintf(os.Stdout, "Starting packet capture: %s\n", opts.PCAPFile)
+		var err error
+		pcapCapture, err = capture.StartCaptureLoopback(opts.PCAPFile)
+		if err != nil {
+			return fmt.Errorf("start packet capture: %w", err)
+		}
+		defer pcapCapture.Stop()
+	}
+
+	fmt.Fprintf(os.Stdout, "CIPDIP Server starting...\n")
+	fmt.Fprintf(os.Stdout, "  Personality: %s\n", opts.Personality)
+	fmt.Fprintf(os.Stdout, "  Config: %s\n", opts.ConfigPath)
+	fmt.Fprintf(os.Stdout, "  Listening on: %s:%d\n", opts.ListenIP, opts.ListenPort)
+	if opts.EnableUDPIO {
+		fmt.Fprintf(os.Stdout, "  UDP I/O enabled on port 2222\n")
+	}
+	if opts.PCAPFile != "" {
+		fmt.Fprintf(os.Stdout, "  PCAP: %s\n", opts.PCAPFile)
+	}
+	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
+	os.Stdout.Sync()
+
+	if opts.Personality != "adapter" && opts.Personality != "logix_like" {
+		return fmt.Errorf("invalid personality '%s'; must be 'adapter' or 'logix_like'", opts.Personality)
+	}
+
+	cfg, err := config.LoadServerConfig(opts.ConfigPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to load server config: %v\n", err)
+		return fmt.Errorf("load server config: %w", err)
+	}
+	if opts.Target != "" {
+		if err := server.ApplyServerTarget(cfg, opts.Target); err != nil {
+			return err
+		}
+	}
+	if opts.Mode != "" {
+		if err := ApplyServerMode(cfg, opts.Mode); err != nil {
+			return err
+		}
+	}
+	if opts.CIPProfile != "" {
+		profiles := cipclient.NormalizeCIPProfiles(parseProfileFlag(opts.CIPProfile))
+		cfg.CIPProfiles = mergeProfiles(cfg.CIPProfiles, profiles)
+	}
+
+	profile := cipclient.ResolveProtocolProfile(
+		cfg.Protocol.Mode,
+		cfg.Protocol.Variant,
+		cfg.Protocol.Overrides.ENIPEndianness,
+		cfg.Protocol.Overrides.CIPEndianness,
+		cfg.Protocol.Overrides.CIPPathSize,
+		cfg.Protocol.Overrides.CIPResponseReserved,
+		cfg.Protocol.Overrides.UseCPF,
+		cfg.Protocol.Overrides.IOSequenceMode,
+	)
+	cipclient.SetProtocolProfile(profile)
+
+	if opts.ListenIP != "" {
+		cfg.Server.ListenIP = opts.ListenIP
+	}
+	if opts.ListenPort != 0 {
+		cfg.Server.TCPPort = opts.ListenPort
+	}
+	if opts.Personality != "" {
+		cfg.Server.Personality = opts.Personality
+	}
+	if opts.EnableUDPIO {
+		cfg.Server.EnableUDPIO = true
+	}
+	if opts.LogFormat != "" {
+		cfg.Logging.Format = opts.LogFormat
+	}
+	if opts.LogLevel != "" {
+		cfg.Logging.Level = opts.LogLevel
+	}
+	if opts.LogEvery > 0 {
+		cfg.Logging.LogEveryN = opts.LogEvery
+	}
+
+	logger, err := logging.NewLoggerWithOptions(logging.LogLevelInfo, cfg.Logging.LogFile, cfg.Logging.Format, cfg.Logging.LogEveryN)
+	if err != nil {
+		return fmt.Errorf("create logger: %w", err)
+	}
+	logger.SetLevel(parseLogLevel(cfg.Logging.Level))
+
+	srv, err := server.NewServer(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("create server: %w", err)
+	}
+
+	if err := srv.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Failed to start server: %v\n", err)
+		return fmt.Errorf("start server: %w", err)
+	}
+
+	fmt.Fprintf(os.Stdout, "Server started successfully\n")
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	<-sigChan
+
+	fmt.Fprintf(os.Stdout, "\nShutting down server...\n")
+
+	if err := srv.Stop(); err != nil {
+		return fmt.Errorf("stop server: %w", err)
+	}
+
+	if pcapCapture != nil {
+		pcapCapture.Stop()
+		packetCount := pcapCapture.GetPacketCount()
+		fmt.Fprintf(os.Stdout, "Packets captured: %d (%s)\n", packetCount, opts.PCAPFile)
+	}
+
+	return nil
+}
+
+func ApplyServerMode(cfg *config.ServerConfig, mode string) error {
+	switch mode {
+	case "baseline":
+		cfg.Faults.Enable = false
+		cfg.Logging.Level = "info"
+		cfg.Logging.LogEveryN = 1
+	case "realistic":
+		cfg.Faults.Enable = false
+		cfg.Logging.Level = "info"
+		cfg.Logging.LogEveryN = 1
+	case "dpi-torture":
+		cfg.Faults.Enable = true
+		cfg.Faults.Latency.BaseDelayMs = 5
+		cfg.Faults.Latency.JitterMs = 10
+		cfg.Faults.Latency.SpikeEveryN = 10
+		cfg.Faults.Latency.SpikeDelayMs = 25
+		cfg.Faults.Reliability.DropResponseEveryN = 25
+		cfg.Faults.Reliability.CloseConnectionEveryN = 50
+		cfg.Faults.TCP.ChunkWrites = true
+		cfg.Faults.TCP.ChunkMin = 2
+		cfg.Faults.TCP.ChunkMax = 4
+	case "perf":
+		cfg.Faults.Enable = false
+		cfg.Logging.Level = "error"
+		cfg.Logging.LogEveryN = 100
+	default:
+		return fmt.Errorf("unknown mode %q", mode)
+	}
+	return nil
+}
+
+func parseLogLevel(value string) logging.LogLevel {
+	switch value {
+	case "error":
+		return logging.LogLevelError
+	case "verbose":
+		return logging.LogLevelVerbose
+	case "debug":
+		return logging.LogLevelDebug
+	default:
+		return logging.LogLevelInfo
+	}
+}
