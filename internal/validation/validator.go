@@ -60,7 +60,7 @@ func (v *Validator) ValidateENIP(encap enip.ENIPEncapsulation) []Finding {
 		})
 	}
 
-	if v.Strict && requiresSession(encap.Command) && encap.SessionID == 0 {
+	if requiresSession(encap.Command) && encap.SessionID == 0 {
 		findings = append(findings, Finding{
 			Code:     "enip.session_missing",
 			Message:  fmt.Sprintf("session ID must be non-zero for command 0x%04X", encap.Command),
@@ -295,23 +295,21 @@ func (v *Validator) validateSendRRData(encap enip.ENIPEncapsulation) []Finding {
 		return findings
 	}
 
-	if v.Strict {
-		interfaceHandle := enip.CurrentOptions().ByteOrder.Uint32(encap.Data[0:4])
-		if interfaceHandle != 0 {
+	interfaceHandle := enip.CurrentOptions().ByteOrder.Uint32(encap.Data[0:4])
+	if interfaceHandle != 0 {
+		findings = append(findings, Finding{
+			Code:     "enip.send_rr_data_interface_handle",
+			Message:  fmt.Sprintf("SendRRData Interface Handle must be 0, got 0x%08X", interfaceHandle),
+			Severity: SeverityError,
+		})
+	}
+	if enip.CurrentOptions().UseCPF {
+		if _, err := enip.ParseCPFItems(encap.Data[6:]); err != nil {
 			findings = append(findings, Finding{
-				Code:     "enip.send_rr_data_interface_handle",
-				Message:  fmt.Sprintf("SendRRData Interface Handle must be 0, got 0x%08X", interfaceHandle),
+				Code:     "enip.cpf_parse_failed",
+				Message:  fmt.Sprintf("invalid CPF items: %v", err),
 				Severity: SeverityError,
 			})
-		}
-		if enip.CurrentOptions().UseCPF {
-			if _, err := enip.ParseCPFItems(encap.Data[6:]); err != nil {
-				findings = append(findings, Finding{
-					Code:     "enip.cpf_parse_failed",
-					Message:  fmt.Sprintf("invalid CPF items: %v", err),
-					Severity: SeverityError,
-				})
-			}
 		}
 	}
 
@@ -346,7 +344,7 @@ func (v *Validator) validateSendUnitData(encap enip.ENIPEncapsulation) []Finding
 				break
 			}
 		}
-		if v.Strict && connID == 0 {
+		if connID == 0 {
 			findings = append(findings, Finding{
 				Code:     "enip.send_unit_data_connid_missing",
 				Message:  "SendUnitData Connection ID must be non-zero",
@@ -364,15 +362,13 @@ func (v *Validator) validateSendUnitData(encap enip.ENIPEncapsulation) []Finding
 		})
 		return findings
 	}
-	if v.Strict {
-		connID := opts.ByteOrder.Uint32(encap.Data[0:4])
-		if connID == 0 {
-			findings = append(findings, Finding{
-				Code:     "enip.send_unit_data_connid_missing",
-				Message:  "SendUnitData Connection ID must be non-zero",
-				Severity: SeverityError,
-			})
-		}
+	connID := opts.ByteOrder.Uint32(encap.Data[0:4])
+	if connID == 0 {
+		findings = append(findings, Finding{
+			Code:     "enip.send_unit_data_connid_missing",
+			Message:  "SendUnitData Connection ID must be non-zero",
+			Severity: SeverityError,
+		})
 	}
 	return findings
 }

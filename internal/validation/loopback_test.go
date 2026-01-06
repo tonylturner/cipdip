@@ -1,4 +1,4 @@
-package validation
+package validation_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
+	"github.com/tturner/cipdip/internal/validation"
 )
 
 func TestLoopbackClientServerValidation(t *testing.T) {
@@ -75,7 +76,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	}
 	defer client.Disconnect(ctx)
 
-	validator := NewValidator(true, "server_wire", spec.DefaultRegistry())
+	validator := validation.NewValidator(true, "server_wire", spec.DefaultRegistry())
 
 	readPath := protocol.CIPPath{
 		Class:     spec.CIPClassAssembly,
@@ -86,7 +87,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAttribute error: %v", err)
 	}
-	if err := FindingsError(validator.ValidateCIPResponse(readResp, spec.CIPServiceGetAttributeSingle)); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(readResp, spec.CIPServiceGetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(ReadAttribute) error: %v", err)
 	}
 
@@ -94,7 +95,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteAttribute error: %v", err)
 	}
-	if err := FindingsError(validator.ValidateCIPResponse(writeResp, spec.CIPServiceSetAttributeSingle)); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(writeResp, spec.CIPServiceSetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(WriteAttribute) error: %v", err)
 	}
 
@@ -110,10 +111,10 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InvokeUnconnectedSend error: %v", err)
 	}
-	if err := FindingsError(validator.ValidateCIPResponse(ucmmResp, spec.CIPServiceUnconnectedSend)); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(ucmmResp, spec.CIPServiceUnconnectedSend)); err != nil {
 		t.Fatalf("ValidateCIPResponse(UnconnectedSend) error: %v", err)
 	}
-	if err := FindingsError(validator.ValidateCIPResponse(embeddedResp, spec.CIPServiceGetAttributeSingle)); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(embeddedResp, spec.CIPServiceGetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(Embedded) error: %v", err)
 	}
 

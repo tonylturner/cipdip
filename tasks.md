@@ -16,6 +16,36 @@
 - [ ] 6) Windows sanity pass: paths, file permissions, build/test commands.
 
 ## Work Items
+### Refactor follow-ups (file size splits)
+- [ ] Split `internal/ui/tui.go` (1647 LOC) into focused UI modules (home/palette/catalog/run/wizard).
+- [ ] Split `internal/cip/client/compliance_audit_test.go` (1016 LOC) into smaller test files by feature.
+- [ ] Split `internal/config/config.go` (940 LOC) into config sections (client/server/protocol/workspace).
+- [ ] Split `internal/validation/wireshark.go` (924 LOC) into discovery/exec/parse/report helpers.
+- [ ] Split `internal/cip/client/compliance_test.go` (859 LOC) into smaller test files by protocol area.
+- [ ] Split `internal/cip/client/client.go` (767 LOC) into session/requests/transport helpers.
+- [ ] Split `internal/validation/pcap_eval.go` (732 LOC) into evaluation/expectations/scoring helpers.
+- [ ] Split `internal/ui/wizard_form.go` (611 LOC) into wizard types/forms/shared widgets.
+- [ ] Split `internal/scenario/firewall.go` (588 LOC) into scenario stages/helpers.
+- [ ] Split `internal/app/emit_bytes.go` (552 LOC) into emit/build/report helpers.
+- [ ] Split `internal/cip/client/payload_builder.go` (549 LOC) into per-service payload builders.
+- [ ] Split `internal/server/core/protocol_compliance_test.go` (524 LOC) into smaller test files by area.
+- [ ] Split `internal/server/handlers/vendors/rockwell/logix.go` (511 LOC) into tag/pccc/template handlers.
+- [ ] Split `internal/validation/fixtures/specs.go` (503 LOC) into spec groups (core/rockwell/file/modbus).
+- [ ] Split `internal/app/client.go` (503 LOC) into scenario orchestration helpers.
+
+### Audit carryover (still relevant)
+- [ ] Add interactive `discover`/`test` modes (device selection + guided flows).
+- [ ] Improve config validation errors with field-specific hints/examples.
+- [ ] Add CLI command aliases (`c`, `s`, `d`, `t`) for common commands.
+- [ ] Add protocol state-machine validation (session/register/connected flow enforcement).
+- [ ] Create ODVA spec references doc (`docs/ODVA_SPEC_REFERENCES.md`).
+- [ ] Add compliance coverage report (what protocol features/tests cover).
+- [ ] Add automated compliance regression checks in CI (packet structure diffs).
+- [ ] Add quick-start config generation or `--quick-start` flow when config is missing.
+- [ ] Add progress indicators for long-running CLI/TUI operations (counts + ETA).
+- [ ] Improve user-facing error messages with hints and next-step suggestions.
+- [ ] Add parallel scenario execution option with rate limits.
+- [ ] Add fuzz/property tests for ENIP/CIP encode/decode to harden parsers.
 ### Test coverage plan (exhaustive)
 #### Phase 1: Protocol primitives + strictness (highest value)
 - [x] Test: ENIP encode/decode (headers, length, status, session, sender context).
@@ -203,7 +233,7 @@
 - [ ] Hardware validation test suite (requires lab devices; confirm scope and add fixtures when available).
 - [ ] Fix ForwardOpen/ForwardClose ODVA compliance audit failures (tick time, timeout, RPI units, connection path size, byte order).
 - [x] Move reference packet library out of `internal/cipclient` so `internal/pcap` does not depend on the legacy package.
-- [ ] Unify client `PacketValidator` with `internal/validation.Validator` so spec rules stay authoritative and avoid drift.
+- [x] Unify client `PacketValidator` with `internal/validation.Validator` so spec rules stay authoritative and avoid drift.
 - [ ] Add spec rules for Multiple Service Packet and any remaining class-specific payload shapes (beyond current min-length checks).
 - [x] Phase 11: move remaining PCAP CLI logic (classify analysis, replay preset resolution) into `internal/pcap` so commands stay thin.
 - [x] Phase 11: move client/server CLI orchestration into internal services for reuse by UI (no protocol parsing in commands).

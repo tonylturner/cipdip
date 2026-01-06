@@ -41,11 +41,15 @@ traffic on the network. Output is JSON for validate-bytes consumption.`,
 }
 
 func runEmitBytes(flags *emitBytesFlags) error {
+	outputPath, err := resolveReportPath(flags.outputPath)
+	if err != nil {
+		return err
+	}
 	return app.RunEmitBytes(app.EmitBytesOptions{
 		CatalogRoot:   flags.catalogRoot,
 		CatalogKeys:   flags.catalogKeys,
 		AllCatalog:    flags.allCatalog,
-		OutputPath:    flags.outputPath,
+		OutputPath:    outputPath,
 		ProfileName:   flags.profileName,
 		ResponsesOnly: flags.responsesOnly,
 	})
