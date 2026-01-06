@@ -489,7 +489,7 @@ func resolvePresetFiles(flags *pcapReplayFlags) ([]string, error) {
 		return nil, fmt.Errorf("preset is empty")
 	}
 
-	files, err := collectPcapFiles(flags.presetDir)
+	files, err := pcappkg.CollectPcapFiles(flags.presetDir)
 	if err != nil {
 		return nil, err
 	}

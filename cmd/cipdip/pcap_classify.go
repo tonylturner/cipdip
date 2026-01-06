@@ -14,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tturner/cipdip/internal/report"
 )
 
 type pcapClassifyFlags struct {
@@ -88,7 +90,7 @@ transport noise, malformed frames, and CIP error rates.`,
 }
 
 func runPcapClassify(flags *pcapClassifyFlags) error {
-	pcaps, err := collectPcapFiles(flags.pcapDir)
+	pcaps, err := pcap.CollectPcapFiles(flags.pcapDir)
 	if err != nil {
 		return err
 	}
@@ -544,7 +546,7 @@ Flagged sets:
   Ops bad: %d
 
 CSV: %s
-`, formatTimestamp(), pcapDir, tsharkPath, normal, noisy, anomalous, none, deform, fuzz, opsbad, outCSV)
+`, report.FormatTimestamp(), pcapDir, tsharkPath, normal, noisy, anomalous, none, deform, fuzz, opsbad, outCSV)
 	if err != nil {
 		return fmt.Errorf("write summary: %w", err)
 	}

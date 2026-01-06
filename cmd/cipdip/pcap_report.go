@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/pcap"
@@ -40,11 +37,11 @@ for every PCAP under the specified directory.`,
 }
 
 func runPcapReport(flags *pcapReportFlags) error {
-	pcaps, err := collectPcapFiles(flags.pcapDir)
+	entries, err := pcap.BuildSummaryEntries(flags.pcapDir)
 	if err != nil {
 		return err
 	}
-	if len(pcaps) == 0 {
+	if len(entries) == 0 {
 		return fmt.Errorf("no .pcap/.pcapng files found under %s", flags.pcapDir)
 	}
 
@@ -58,57 +55,28 @@ func runPcapReport(flags *pcapReportFlags) error {
 	}
 	defer f.Close()
 
-	if _, err := fmt.Fprintf(f, "# PCAP Summary Report\n\nGenerated: %s\n\n", formatTimestamp()); err != nil {
+	if _, err := fmt.Fprintf(f, "# PCAP Summary Report\n\nGenerated: %s\n\n", report.FormatTimestamp()); err != nil {
 		return fmt.Errorf("write report header: %w", err)
 	}
 
-	for _, pcapPath := range pcaps {
-		name := filepath.Base(pcapPath)
-		if _, err := fmt.Fprintf(f, "## %s\n\nSource: %s\n\n```text\n", name, pcapPath); err != nil {
-			return fmt.Errorf("write report header for %s: %w", name, err)
+	for _, entry := range entries {
+		if _, err := fmt.Fprintf(f, "## %s\n\nSource: %s\n\n```text\n", entry.Name, entry.Path); err != nil {
+			return fmt.Errorf("write report header for %s: %w", entry.Name, err)
 		}
 
-		summary, err := pcap.SummarizeENIPFromPCAP(pcapPath)
-		if err != nil {
-			if _, err := fmt.Fprintf(f, "Error: %v\n", err); err != nil {
-				return fmt.Errorf("write error for %s: %w", name, err)
+		if entry.Err != nil {
+			if _, err := fmt.Fprintf(f, "Error: %v\n", entry.Err); err != nil {
+				return fmt.Errorf("write error for %s: %w", entry.Name, err)
 			}
 		} else {
-			report.WritePCAPSummary(f, summary)
+			report.WritePCAPSummary(f, entry.Summary)
 		}
 
 		if _, err := fmt.Fprintf(f, "```\n\n"); err != nil {
-			return fmt.Errorf("close report block for %s: %w", name, err)
+			return fmt.Errorf("close report block for %s: %w", entry.Name, err)
 		}
 	}
 
 	fmt.Fprintf(os.Stdout, "PCAP summary report written: %s\n", flags.outputFile)
 	return nil
-}
-
-func collectPcapFiles(root string) ([]string, error) {
-	var pcaps []string
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		ext := strings.ToLower(filepath.Ext(path))
-		if ext == ".pcap" || ext == ".pcapng" {
-			pcaps = append(pcaps, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("walk pcaps: %w", err)
-	}
-
-	sort.Strings(pcaps)
-	return pcaps, nil
-}
-
-func formatTimestamp() string {
-	return time.Now().Format(time.RFC3339)
 }
