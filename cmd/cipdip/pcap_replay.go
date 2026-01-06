@@ -132,7 +132,7 @@ func newPcapReplayCmd() *cobra.Command {
 
 func runPcapReplay(flags *pcapReplayFlags) error {
 	if flags.preset != "" {
-		files, err := resolvePresetFiles(flags)
+		files, err := pcappkg.ResolveReplayPreset(flags.preset, flags.presetDir, flags.presetAll)
 		if err != nil {
 			return err
 		}
@@ -449,90 +449,21 @@ func runTcpreplay(flags *pcapReplayFlags) error {
 	args = append(args, flags.tcpreplayArgs...)
 	args = append(args, pcapPath)
 	if flags.report {
-		if summary, err := summarizePcapForReplay(flags.input); err == nil {
-			printReplaySummary("tcpreplay", summary)
+		if summary, err := pcappkg.SummarizePcapForReplay(flags.input); err == nil {
+			printReplaySummary("tcpreplay", replaySummaryFromPCAP(summary))
 		}
 	}
 	return runExternal(tcpreplayPath, args)
 }
 
-var pcapPresets = map[string][]string{
-	"cl5000eip:firmware-change":                   {"CL5000EIP-Firmware-Change.pcap"},
-	"cl5000eip:firmware-change-failure":           {"CL5000EIP-Firmware-Change-Failure.pcap"},
-	"cl5000eip:software-download":                 {"CL5000EIP-Software-Download.pcap"},
-	"cl5000eip:software-download-failure":         {"CL5000EIP-Software-Download-Failure.pcap"},
-	"cl5000eip:software-upload":                   {"CL5000EIP-Software-Upload.pcap"},
-	"cl5000eip:software-upload-failure":           {"CL5000EIP-Software-Upload-Failure.pcap"},
-	"cl5000eip:reboot-or-restart":                 {"CL5000EIP-Reboot-or-Restart.pcap"},
-	"cl5000eip:change-date-attempt":               {"CL5000EIP-Change-Date-Attempt.pcap"},
-	"cl5000eip:change-time-attempt":               {"CL5000EIP-Change-Time-Attempt.pcap"},
-	"cl5000eip:change-port-configuration-attempt": {"CL5000EIP-Change-Port-Configuration-Attempt.pcap"},
-	"cl5000eip:control-protocol-change-attempt":   {"CL5000EIP-Control-Protocol-Change-Attempt.pcap"},
-	"cl5000eip:ip-address-change-attempt":         {"CL5000EIP-IP-Address-Change-Attempt.pcap"},
-	"cl5000eip:lock-plc-attempt":                  {"CL5000EIP-Lock-PLC-Attempt.pcap"},
-	"cl5000eip:unlock-plc-attempt":                {"CL5000EIP-Unlock-PLC-Attempt.pcap"},
-	"cl5000eip:remote-mode-change-attempt":        {"CL5000EIP-Remote-Mode-Change-Attempt.pcap"},
-	"cl5000eip:view-device-status":                {"CL5000EIP-View-Device-Status.pcap"},
-}
-
 func printPcapPresets() {
 	fmt.Fprintln(os.Stdout, "Available presets:")
-	fmt.Fprintln(os.Stdout, "  cl5000eip")
-	for preset := range pcapPresets {
+	for _, group := range pcappkg.ReplayPresetGroups() {
+		fmt.Fprintf(os.Stdout, "  %s\n", group)
+	}
+	for _, preset := range pcappkg.ReplayPresetNames() {
 		fmt.Fprintf(os.Stdout, "  %s\n", preset)
 	}
-}
-
-func resolvePresetFiles(flags *pcapReplayFlags) ([]string, error) {
-	preset := strings.ToLower(strings.TrimSpace(flags.preset))
-	if preset == "" {
-		return nil, fmt.Errorf("preset is empty")
-	}
-
-	files, err := pcappkg.CollectPcapFiles(flags.presetDir)
-	if err != nil {
-		return nil, err
-	}
-
-	if preset == "cl5000eip" || preset == "cl5000eip:all" {
-		matches := filterPresetMatches(files, []string{"CL5000EIP-"}, true)
-		if len(matches) == 0 {
-			return nil, fmt.Errorf("no CL5000EIP pcaps found under %s", flags.presetDir)
-		}
-		return matches, nil
-	}
-
-	patterns, ok := pcapPresets[preset]
-	if !ok {
-		return nil, fmt.Errorf("unknown preset '%s'; use --list-presets", preset)
-	}
-
-	matches := filterPresetMatches(files, patterns, flags.presetAll)
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("preset '%s' not found under %s", preset, flags.presetDir)
-	}
-	return matches, nil
-}
-
-func filterPresetMatches(files []string, patterns []string, allowMultiple bool) []string {
-	matches := make([]string, 0, len(patterns))
-	for _, file := range files {
-		base := filepath.Base(file)
-		for _, pattern := range patterns {
-			if strings.HasPrefix(pattern, "CL5000EIP-") && strings.HasPrefix(base, pattern) {
-				matches = append(matches, file)
-				break
-			}
-			if strings.EqualFold(base, pattern) {
-				matches = append(matches, file)
-				break
-			}
-		}
-		if len(matches) > 0 && !allowMultiple {
-			return matches[:1]
-		}
-	}
-	return matches
 }
 
 func hasRewriteFlags(flags *pcapReplayFlags) bool {
@@ -561,14 +492,14 @@ func warnIfMissingHandshake(flags *pcapReplayFlags) error {
 	if mode == "app" {
 		return nil
 	}
-	ok, err := hasTCPHandshake(flags.input)
+	ok, err := pcappkg.HasTCPHandshake(flags.input)
 	if err != nil {
 		return err
 	}
 	if !ok {
 		fmt.Fprintln(os.Stdout, "Warning: PCAP does not include a full TCP handshake for 44818; stateful firewalls may drop replay.")
 	}
-	ok, _, err = hasPerFlowTCPHandshake(flags.input)
+	ok, _, err = pcappkg.HasPerFlowTCPHandshake(flags.input)
 	if err != nil {
 		return err
 	}
@@ -888,123 +819,6 @@ func startARPMonitor(flags *pcapReplayFlags, rewriteState *replayRewriteState) (
 	return cancel, errCh
 }
 
-func hasTCPHandshake(pcapFile string) (bool, error) {
-	handle, err := pcap.OpenOffline(pcapFile)
-	if err != nil {
-		return false, fmt.Errorf("open pcap: %w", err)
-	}
-	defer handle.Close()
-
-	var syn, synAck, ack bool
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		layer := packet.Layer(layers.LayerTypeTCP)
-		if layer == nil {
-			continue
-		}
-		tcp, _ := layer.(*layers.TCP)
-		if tcp == nil {
-			continue
-		}
-		if tcp.DstPort != 44818 && tcp.SrcPort != 44818 {
-			continue
-		}
-		if tcp.SYN && !tcp.ACK {
-			syn = true
-		} else if tcp.SYN && tcp.ACK {
-			synAck = true
-		} else if tcp.ACK && !tcp.SYN {
-			ack = true
-		}
-		if syn && synAck && ack {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-type handshakeState struct {
-	syn      bool
-	synAck   bool
-	ack      bool
-	complete bool
-}
-
-type flowHandshakeStats struct {
-	total    int
-	complete int
-}
-
-func hasPerFlowTCPHandshake(pcapFile string) (bool, *flowHandshakeStats, error) {
-	handle, err := pcap.OpenOffline(pcapFile)
-	if err != nil {
-		return false, nil, fmt.Errorf("open pcap: %w", err)
-	}
-	defer handle.Close()
-
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	flows := make(map[string]*handshakeState)
-
-	for packet := range packetSource.Packets() {
-		layer := packet.Layer(layers.LayerTypeTCP)
-		if layer == nil {
-			continue
-		}
-		tcp, _ := layer.(*layers.TCP)
-		if tcp == nil {
-			continue
-		}
-		if tcp.DstPort != 44818 && tcp.SrcPort != 44818 {
-			continue
-		}
-		netLayer := packet.NetworkLayer()
-		if netLayer == nil {
-			continue
-		}
-		src, dst := netLayer.NetworkFlow().Endpoints()
-		key := canonicalFlowKey(src.String(), uint16(tcp.SrcPort), dst.String(), uint16(tcp.DstPort))
-		state := flows[key]
-		if state == nil {
-			state = &handshakeState{}
-			flows[key] = state
-		}
-		if tcp.SYN && !tcp.ACK {
-			state.syn = true
-		} else if tcp.SYN && tcp.ACK {
-			state.synAck = true
-		} else if tcp.ACK && !tcp.SYN {
-			state.ack = true
-		}
-		if state.syn && state.synAck && state.ack {
-			state.complete = true
-		}
-	}
-
-	if len(flows) == 0 {
-		return false, &flowHandshakeStats{}, nil
-	}
-	stats := &flowHandshakeStats{total: len(flows)}
-	for _, state := range flows {
-		if state.complete {
-			stats.complete++
-		}
-	}
-	if stats.complete != stats.total {
-		return false, stats, nil
-	}
-	return true, stats, nil
-}
-
-func canonicalFlowKey(srcIP string, srcPort uint16, dstIP string, dstPort uint16) string {
-	leftIP, rightIP := srcIP, dstIP
-	leftPort, rightPort := srcPort, dstPort
-	if leftIP > rightIP || (leftIP == rightIP && leftPort > rightPort) {
-		leftIP, rightIP = rightIP, leftIP
-		leftPort, rightPort = rightPort, leftPort
-	}
-	return fmt.Sprintf("%s:%d<->%s:%d", leftIP, leftPort, rightIP, rightPort)
-}
-
 type replaySummary struct {
 	mode              string
 	total             int
@@ -1026,68 +840,6 @@ type replaySummary struct {
 	rewriteSkipped    int
 	rewritten         int
 	rewriteErrors     int
-}
-
-func summarizePcapForReplay(path string) (*replaySummary, error) {
-	total, err := countPcapPackets(path)
-	if err != nil {
-		return nil, err
-	}
-	packets, err := pcappkg.ExtractENIPFromPCAP(path)
-	if err != nil {
-		return nil, err
-	}
-	summary := &replaySummary{
-		total: total,
-		enip:  len(packets),
-	}
-	for _, pkt := range packets {
-		if pkt.IsRequest {
-			summary.requests++
-		} else {
-			summary.responses++
-		}
-		transport := strings.ToLower(pkt.Transport)
-		if transport == "" {
-			if pkt.DstPort == 2222 {
-				transport = "udp"
-			} else {
-				transport = "tcp"
-			}
-		}
-		switch transport {
-		case "udp":
-			summary.enipUDP++
-		default:
-			summary.enipTCP++
-		}
-	}
-	if summary.requests > summary.responses {
-		summary.missingResponse = summary.requests - summary.responses
-	}
-	handshakeAny, _ := hasTCPHandshake(path)
-	handshakeFlows, flowStats, _ := hasPerFlowTCPHandshake(path)
-	summary.handshakeAny = handshakeAny
-	summary.handshakeFlows = handshakeFlows
-	if flowStats != nil {
-		summary.flowsTotal = flowStats.total
-		summary.flowsComplete = flowStats.complete
-	}
-	return summary, nil
-}
-
-func countPcapPackets(path string) (int, error) {
-	handle, err := pcap.OpenOffline(path)
-	if err != nil {
-		return 0, fmt.Errorf("open pcap: %w", err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	total := 0
-	for range packetSource.Packets() {
-		total++
-	}
-	return total, nil
 }
 
 func printReplaySummary(mode string, summary *replaySummary) {
@@ -1114,8 +866,8 @@ func runPcapPreflight(flags *pcapReplayFlags) error {
 	}
 
 	if flags.report {
-		if summary, err := summarizePcapForReplay(flags.input); err == nil {
-			printReplaySummary("preflight", summary)
+		if summary, err := pcappkg.SummarizePcapForReplay(flags.input); err == nil {
+			printReplaySummary("preflight", replaySummaryFromPCAP(summary))
 		} else {
 			return err
 		}
@@ -1131,6 +883,25 @@ func runPcapPreflight(flags *pcapReplayFlags) error {
 	}
 
 	return nil
+}
+
+func replaySummaryFromPCAP(summary *pcappkg.ReplaySummary) *replaySummary {
+	if summary == nil {
+		return nil
+	}
+	return &replaySummary{
+		total:           summary.Total,
+		enip:            summary.Enip,
+		enipTCP:         summary.EnipTCP,
+		enipUDP:         summary.EnipUDP,
+		requests:        summary.Requests,
+		responses:       summary.Responses,
+		missingResponse: summary.MissingResponse,
+		handshakeAny:    summary.HandshakeAny,
+		handshakeFlows:  summary.HandshakeFlows,
+		flowsTotal:      summary.FlowsTotal,
+		flowsComplete:   summary.FlowsComplete,
+	}
 }
 
 func isENIPPacket(packet gopacket.Packet) bool {
