@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/report"
 	"github.com/tturner/cipdip/internal/validation"
+	"github.com/tturner/cipdip/internal/validation/fixtures"
 )
 
 type validateBytesFlags struct {
@@ -101,7 +103,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 		return fmt.Errorf("no packets in input")
 	}
 
-	packets := make([]validation.ValidationPacket, 0, len(payload.Packets))
+	packets := make([]fixtures.ValidationPacket, 0, len(payload.Packets))
 	expectations := make([]validation.PacketExpectation, 0, len(payload.Packets))
 	for i, pkt := range payload.Packets {
 		decoded, err := validation.DecodeHexBytes(pkt.ENIPHex)
@@ -109,7 +111,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 			return fmt.Errorf("decode packet %d: %w", i+1, err)
 		}
 		expect := ensureExpectationDefaults(pkt.Expect, i)
-		packets = append(packets, validation.ValidationPacket{Data: decoded, Expect: expect})
+		packets = append(packets, fixtures.ValidationPacket{Data: decoded, Expect: expect})
 		expectations = append(expectations, expect)
 	}
 
@@ -120,7 +122,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 	defer os.RemoveAll(tempDir)
 
 	pcapPath := filepath.Join(tempDir, "emit_bytes.pcap")
-	if err := validation.WriteENIPPCAP(pcapPath, packets); err != nil {
+	if err := fixtures.WriteENIPPCAP(pcapPath, packets); err != nil {
 		return fmt.Errorf("write pcap: %w", err)
 	}
 	manifestPath := validation.ValidationManifestPath(pcapPath)
@@ -164,7 +166,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 		printVerboseEvaluations(results, evaluations, flags.includeRawHex)
 	}
 
-	report := validation.ValidationReport{
+	validationReport := report.ValidationReport{
 		GeneratedAt:      time.Now().UTC().Format(time.RFC3339),
 		CIPDIPVersion:    version,
 		CIPDIPCommit:     commit,
@@ -172,7 +174,7 @@ func runValidateBytes(flags *validateBytesFlags) error {
 		ExpertPolicy:     flags.expertPolicy,
 		ConversationMode: flags.conversationMode,
 		Profile:          flags.profile,
-		PCAPs: []validation.PCAPReport{{
+		PCAPs: []report.PCAPReport{{
 			PCAP:         filepath.Base(pcapPath),
 			PacketCount:  len(results),
 			Pass:         true,
@@ -180,8 +182,12 @@ func runValidateBytes(flags *validateBytesFlags) error {
 			Packets:      evaluations,
 		}},
 	}
-	if flags.reportJSON != "" {
-		if err := writeReportJSON(flags.reportJSON, report); err != nil {
+	reportPath, err := resolveReportPath(flags.reportJSON)
+	if err != nil {
+		return err
+	}
+	if reportPath != "" {
+		if err := report.WriteJSONFile(reportPath, validationReport); err != nil {
 			return err
 		}
 	}

@@ -5,9 +5,11 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -72,7 +74,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 
 		// Perform reads for each target (serial, one after another)
 		for _, target := range cfg.ReadTargets {
-			path := cipclient.CIPPath{
+			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
 				Attribute: target.Attribute,
@@ -116,7 +118,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 				TargetType:  params.TargetType,
 				Operation:   metrics.OperationRead,
 				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
 				Status:      resp.Status,
@@ -129,7 +131,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 				params.Logger.LogOperation(
 					"READ",
 					target.Name,
-					fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+					fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 					success,
 					rtt,
 					resp.Status,
@@ -143,9 +145,9 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 			if err != nil {
 				return err
 			}
-			req := cipclient.CIPRequest{
+			req := protocol.CIPRequest{
 				Service: serviceCode,
-				Path: cipclient.CIPPath{
+				Path: protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -225,3 +227,5 @@ func contains(s, substr string) bool {
 	}
 	return false
 }
+
+

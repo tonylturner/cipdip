@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/metrics"
 )
 
@@ -26,7 +26,7 @@ func TestStressScenarioBasicExecution(t *testing.T) {
 	}
 
 	// Verify many reads were performed (stress = high frequency)
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -87,7 +87,7 @@ func TestStressScenarioHighFrequency(t *testing.T) {
 	}
 
 	// Verify high number of reads
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,
@@ -121,7 +121,7 @@ func TestStressScenarioContextCancellation(t *testing.T) {
 	}
 
 	// Verify some reads were performed
-	path := cipclient.CIPPath{
+	path := protocol.CIPPath{
 		Class:     cfg.ReadTargets[0].Class,
 		Instance:  cfg.ReadTargets[0].Instance,
 		Attribute: cfg.ReadTargets[0].Attribute,

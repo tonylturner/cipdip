@@ -22,6 +22,31 @@ This document is a **consolidated protocol reference** to guide implementation o
 
 ---
 
+## Public evidence (non-member sources)
+
+This section captures publicly accessible sources used to justify key protocol
+choices when ODVA member-only volumes are not available. Items marked as
+"dissector inferred" reflect de-facto behavior observed in Wireshark and real
+captures, not formal text in ODVA volumes.
+
+Key claims supported by public evidence:
+- ENIP encapsulation header is 24 bytes and little-endian (explicit docs).
+- EPATH supports 8-bit and 16-bit class/instance/attribute segments with little-endian
+  multi-byte values (public vendor docs, broadly implemented).
+- Forward Open RPIs are expressed in microseconds (public vendor docs).
+- CPF framing for SendRRData and SendUnitData is visible in dissector fields
+  and real-world captures (dissector inferred).
+- ListIdentity uses UDP 44818; requests may be broadcast or unicast (explicit docs).
+
+Public references:
+- https://www.odva.org/wp-content/uploads/2022/06/2014_ODVA_Conference_Byres_Schweigert_Thomas_Securing_EtherNetIP_with_DPI_FINAL.pdf
+- https://www.odva.org/wp-content/uploads/2020/05/PUB00213R0_EtherNetIP_Developers_Guide.pdf
+- https://www.odva.org/wp-content/uploads/2020/06/PUB00123R1_Common-Industrial_Protocol_and_Family_of_CIP_Networks.pdf
+- https://literature.rockwellautomation.com/idc/groups/literature/documents/pm/1756-pm020_-en-p.pdf
+- https://www.hilscher.com/fileadmin/cms_upload/de/Resources/pdf/EtherNetIP_Adapter_V3_Protocol_API_04_EN.pdf
+- https://www.wireshark.org/docs/dfref/e/enip.html
+- https://www.wireshark.org/docs/dfref/c/cipcm.html
+
 ## 2) ENIP Encapsulation Protocol
 
 ### Encapsulation header (conceptual)

@@ -24,7 +24,18 @@ go.work.sum
 # env file
 .env
 
-# Baseline test suite captures
-baseline_captures/
-*.pcap
-*.pcapng
+# Baseline/test capture outputs
+pcaps/
+pcaps/validation_generated/
+workspaces/**/pcaps/
+
+# Workspace run artifacts
+workspaces/**/runs/
+workspaces/**/reports/
+workspaces/**/tmp/
+
+# Non-workspace report outputs
+reports/
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.github/instructions/snyk_rules.instructions.md

@@ -1,14 +1,17 @@
-package validation
+package validation_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
+	"github.com/tturner/cipdip/internal/validation"
 )
 
 func TestLoopbackClientServerValidation(t *testing.T) {
@@ -25,7 +28,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 		AdapterAssemblies: []config.AdapterAssemblyConfig{
 			{
 				Name:          "TestAssembly",
-				Class:         cipclient.CIPClassAssembly,
+				Class:         spec.CIPClassAssembly,
 				Instance:      0x65,
 				Attribute:     0x03,
 				SizeBytes:     4,
@@ -73,10 +76,10 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	}
 	defer client.Disconnect(ctx)
 
-	validator := cipclient.NewPacketValidator(true)
+	validator := validation.NewValidator(true, "server_wire", spec.DefaultRegistry())
 
-	readPath := cipclient.CIPPath{
-		Class:     cipclient.CIPClassAssembly,
+	readPath := protocol.CIPPath{
+		Class:     spec.CIPClassAssembly,
 		Instance:  0x65,
 		Attribute: 0x03,
 	}
@@ -84,7 +87,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadAttribute error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(readResp, cipclient.CIPServiceGetAttributeSingle); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(readResp, spec.CIPServiceGetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(ReadAttribute) error: %v", err)
 	}
 
@@ -92,14 +95,14 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WriteAttribute error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(writeResp, cipclient.CIPServiceSetAttributeSingle); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(writeResp, spec.CIPServiceSetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(WriteAttribute) error: %v", err)
 	}
 
-	embeddedReq := cipclient.CIPRequest{
-		Service: cipclient.CIPServiceGetAttributeSingle,
-		Path: cipclient.CIPPath{
-			Class:     cipclient.CIPClassIdentityObject,
+	embeddedReq := protocol.CIPRequest{
+		Service: spec.CIPServiceGetAttributeSingle,
+		Path: protocol.CIPPath{
+			Class:     spec.CIPClassIdentityObject,
 			Instance:  0x01,
 			Attribute: 0x01,
 		},
@@ -108,10 +111,10 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InvokeUnconnectedSend error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(ucmmResp, cipclient.CIPServiceUnconnectedSend); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(ucmmResp, spec.CIPServiceUnconnectedSend)); err != nil {
 		t.Fatalf("ValidateCIPResponse(UnconnectedSend) error: %v", err)
 	}
-	if err := validator.ValidateCIPResponse(embeddedResp, cipclient.CIPServiceGetAttributeSingle); err != nil {
+	if err := validation.FindingsError(validator.ValidateCIPResponse(embeddedResp, spec.CIPServiceGetAttributeSingle)); err != nil {
 		t.Fatalf("ValidateCIPResponse(Embedded) error: %v", err)
 	}
 
@@ -123,7 +126,7 @@ func TestLoopbackClientServerValidation(t *testing.T) {
 		OToTSizeBytes:         8,
 		TToOSizeBytes:         8,
 		TransportClassTrigger: 3,
-		Class:                 cipclient.CIPClassAssembly,
+		Class:                 spec.CIPClassAssembly,
 		Instance:              0x65,
 	})
 	if err != nil {

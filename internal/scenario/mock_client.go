@@ -3,9 +3,11 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"sync"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 )
 
 // MockClient is a mock implementation of cipclient.Client for testing
@@ -13,9 +15,9 @@ type MockClient struct {
 	connected       bool
 	connectError    error
 	disconnectError error
-	readResponses   map[string]cipclient.CIPResponse
+	readResponses   map[string]protocol.CIPResponse
 	readErrors      map[string]error
-	writeResponses  map[string]cipclient.CIPResponse
+	writeResponses  map[string]protocol.CIPResponse
 	writeErrors     map[string]error
 	readCount       map[string]int
 	writeCount      map[string]int
@@ -32,9 +34,9 @@ type MockClient struct {
 // NewMockClient creates a new mock client
 func NewMockClient() *MockClient {
 	return &MockClient{
-		readResponses:  make(map[string]cipclient.CIPResponse),
+		readResponses:  make(map[string]protocol.CIPResponse),
 		readErrors:     make(map[string]error),
-		writeResponses: make(map[string]cipclient.CIPResponse),
+		writeResponses: make(map[string]protocol.CIPResponse),
 		writeErrors:    make(map[string]error),
 		readCount:      make(map[string]int),
 		writeCount:     make(map[string]int),
@@ -65,13 +67,13 @@ func (m *MockClient) Disconnect(ctx context.Context) error {
 }
 
 // InvokeService simulates service invocation
-func (m *MockClient) InvokeService(ctx context.Context, req cipclient.CIPRequest) (cipclient.CIPResponse, error) {
+func (m *MockClient) InvokeService(ctx context.Context, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	// Not used by scenarios directly, but implement for interface compliance
-	return cipclient.CIPResponse{}, nil
+	return protocol.CIPResponse{}, nil
 }
 
 // ReadAttribute simulates reading an attribute
-func (m *MockClient) ReadAttribute(ctx context.Context, path cipclient.CIPPath) (cipclient.CIPResponse, error) {
+func (m *MockClient) ReadAttribute(ctx context.Context, path protocol.CIPPath) (protocol.CIPResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -79,7 +81,7 @@ func (m *MockClient) ReadAttribute(ctx context.Context, path cipclient.CIPPath) 
 	m.readCount[key]++
 
 	if err, ok := m.readErrors[key]; ok {
-		return cipclient.CIPResponse{}, err
+		return protocol.CIPResponse{}, err
 	}
 
 	if resp, ok := m.readResponses[key]; ok {
@@ -87,8 +89,8 @@ func (m *MockClient) ReadAttribute(ctx context.Context, path cipclient.CIPPath) 
 	}
 
 	// Default success response
-	return cipclient.CIPResponse{
-		Service: cipclient.CIPServiceGetAttributeSingle,
+	return protocol.CIPResponse{
+		Service: spec.CIPServiceGetAttributeSingle,
 		Status:  0x00,
 		Path:    path,
 		Payload: make([]byte, 16),
@@ -96,7 +98,7 @@ func (m *MockClient) ReadAttribute(ctx context.Context, path cipclient.CIPPath) 
 }
 
 // WriteAttribute simulates writing an attribute
-func (m *MockClient) WriteAttribute(ctx context.Context, path cipclient.CIPPath, value []byte) (cipclient.CIPResponse, error) {
+func (m *MockClient) WriteAttribute(ctx context.Context, path protocol.CIPPath, value []byte) (protocol.CIPResponse, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -104,7 +106,7 @@ func (m *MockClient) WriteAttribute(ctx context.Context, path cipclient.CIPPath,
 	m.writeCount[key]++
 
 	if err, ok := m.writeErrors[key]; ok {
-		return cipclient.CIPResponse{}, err
+		return protocol.CIPResponse{}, err
 	}
 
 	if resp, ok := m.writeResponses[key]; ok {
@@ -112,17 +114,17 @@ func (m *MockClient) WriteAttribute(ctx context.Context, path cipclient.CIPPath,
 	}
 
 	// Default success response
-	return cipclient.CIPResponse{
-		Service: cipclient.CIPServiceSetAttributeSingle,
+	return protocol.CIPResponse{
+		Service: spec.CIPServiceSetAttributeSingle,
 		Status:  0x00,
 		Path:    path,
 	}, nil
 }
 
 // ReadTag simulates reading a tag via Read_Tag
-func (m *MockClient) ReadTag(ctx context.Context, path cipclient.CIPPath, elementCount uint16) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{
-		Service: cipclient.CIPServiceReadTag,
+func (m *MockClient) ReadTag(ctx context.Context, path protocol.CIPPath, elementCount uint16) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{
+		Service: spec.CIPServiceReadTag,
 		Status:  0x00,
 		Path:    path,
 		Payload: make([]byte, 4),
@@ -130,28 +132,28 @@ func (m *MockClient) ReadTag(ctx context.Context, path cipclient.CIPPath, elemen
 }
 
 // ReadTagByName simulates reading a tag by symbolic name.
-func (m *MockClient) ReadTagByName(ctx context.Context, tag string, elementCount uint16) (cipclient.CIPResponse, error) {
-	return m.ReadTag(ctx, cipclient.CIPPath{Name: tag}, elementCount)
+func (m *MockClient) ReadTagByName(ctx context.Context, tag string, elementCount uint16) (protocol.CIPResponse, error) {
+	return m.ReadTag(ctx, protocol.CIPPath{Name: tag}, elementCount)
 }
 
 // WriteTag simulates writing a tag via Write_Tag
-func (m *MockClient) WriteTag(ctx context.Context, path cipclient.CIPPath, typeCode uint16, elementCount uint16, data []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{
-		Service: cipclient.CIPServiceWriteTag,
+func (m *MockClient) WriteTag(ctx context.Context, path protocol.CIPPath, typeCode uint16, elementCount uint16, data []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{
+		Service: spec.CIPServiceWriteTag,
 		Status:  0x00,
 		Path:    path,
 	}, nil
 }
 
 // WriteTagByName simulates writing a tag by symbolic name.
-func (m *MockClient) WriteTagByName(ctx context.Context, tag string, typeCode uint16, elementCount uint16, data []byte) (cipclient.CIPResponse, error) {
-	return m.WriteTag(ctx, cipclient.CIPPath{Name: tag}, typeCode, elementCount, data)
+func (m *MockClient) WriteTagByName(ctx context.Context, tag string, typeCode uint16, elementCount uint16, data []byte) (protocol.CIPResponse, error) {
+	return m.WriteTag(ctx, protocol.CIPPath{Name: tag}, typeCode, elementCount, data)
 }
 
 // ReadTagFragmented simulates a fragmented tag read.
-func (m *MockClient) ReadTagFragmented(ctx context.Context, path cipclient.CIPPath, elementCount uint16, byteOffset uint32) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{
-		Service: cipclient.CIPServiceReadTagFragmented,
+func (m *MockClient) ReadTagFragmented(ctx context.Context, path protocol.CIPPath, elementCount uint16, byteOffset uint32) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{
+		Service: spec.CIPServiceReadTagFragmented,
 		Status:  0x00,
 		Path:    path,
 		Payload: make([]byte, 4),
@@ -159,67 +161,67 @@ func (m *MockClient) ReadTagFragmented(ctx context.Context, path cipclient.CIPPa
 }
 
 // ReadTagFragmentedByName simulates a fragmented tag read by symbolic name.
-func (m *MockClient) ReadTagFragmentedByName(ctx context.Context, tag string, elementCount uint16, byteOffset uint32) (cipclient.CIPResponse, error) {
-	return m.ReadTagFragmented(ctx, cipclient.CIPPath{Name: tag}, elementCount, byteOffset)
+func (m *MockClient) ReadTagFragmentedByName(ctx context.Context, tag string, elementCount uint16, byteOffset uint32) (protocol.CIPResponse, error) {
+	return m.ReadTagFragmented(ctx, protocol.CIPPath{Name: tag}, elementCount, byteOffset)
 }
 
 // WriteTagFragmented simulates a fragmented tag write.
-func (m *MockClient) WriteTagFragmented(ctx context.Context, path cipclient.CIPPath, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{
-		Service: cipclient.CIPServiceWriteTagFragmented,
+func (m *MockClient) WriteTagFragmented(ctx context.Context, path protocol.CIPPath, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{
+		Service: spec.CIPServiceWriteTagFragmented,
 		Status:  0x00,
 		Path:    path,
 	}, nil
 }
 
 // WriteTagFragmentedByName simulates a fragmented tag write by symbolic name.
-func (m *MockClient) WriteTagFragmentedByName(ctx context.Context, tag string, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (cipclient.CIPResponse, error) {
-	return m.WriteTagFragmented(ctx, cipclient.CIPPath{Name: tag}, typeCode, elementCount, byteOffset, data)
+func (m *MockClient) WriteTagFragmentedByName(ctx context.Context, tag string, typeCode uint16, elementCount uint16, byteOffset uint32, data []byte) (protocol.CIPResponse, error) {
+	return m.WriteTagFragmented(ctx, protocol.CIPPath{Name: tag}, typeCode, elementCount, byteOffset, data)
 }
 
 // FileInitiateUpload simulates a File Object initiate upload.
-func (m *MockClient) FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiateUpload, Status: 0x00}, nil
+func (m *MockClient) FileInitiateUpload(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiateUpload, Status: 0x00}, nil
 }
 
 // FileInitiateDownload simulates a File Object initiate download.
-func (m *MockClient) FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiateDownload, Status: 0x00}, nil
+func (m *MockClient) FileInitiateDownload(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiateDownload, Status: 0x00}, nil
 }
 
 // FileInitiatePartialRead simulates a File Object initiate partial read.
-func (m *MockClient) FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiatePartialRead, Status: 0x00}, nil
+func (m *MockClient) FileInitiatePartialRead(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiatePartialRead, Status: 0x00}, nil
 }
 
 // FileInitiatePartialWrite simulates a File Object initiate partial write.
-func (m *MockClient) FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceInitiatePartialWrite, Status: 0x00}, nil
+func (m *MockClient) FileInitiatePartialWrite(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceInitiatePartialWrite, Status: 0x00}, nil
 }
 
 // FileUploadTransfer simulates a File Object upload transfer.
-func (m *MockClient) FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceUploadTransfer, Status: 0x00}, nil
+func (m *MockClient) FileUploadTransfer(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceUploadTransfer, Status: 0x00}, nil
 }
 
 // FileDownloadTransfer simulates a File Object download transfer.
-func (m *MockClient) FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceDownloadTransfer, Status: 0x00}, nil
+func (m *MockClient) FileDownloadTransfer(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceDownloadTransfer, Status: 0x00}, nil
 }
 
 // FileClear simulates a File Object clear file.
-func (m *MockClient) FileClear(ctx context.Context, instance uint16, payload []byte) (cipclient.CIPResponse, error) {
-	return cipclient.CIPResponse{Service: cipclient.CIPServiceClearFile, Status: 0x00}, nil
+func (m *MockClient) FileClear(ctx context.Context, instance uint16, payload []byte) (protocol.CIPResponse, error) {
+	return protocol.CIPResponse{Service: spec.CIPServiceClearFile, Status: 0x00}, nil
 }
 
 // InvokeUnconnectedSend simulates an Unconnected Send with embedded response.
-func (m *MockClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq cipclient.CIPRequest, opts cipclient.UnconnectedSendOptions) (cipclient.CIPResponse, cipclient.CIPResponse, error) {
-	outer := cipclient.CIPResponse{
-		Service: cipclient.CIPServiceUnconnectedSend,
+func (m *MockClient) InvokeUnconnectedSend(ctx context.Context, embeddedReq protocol.CIPRequest, opts cipclient.UnconnectedSendOptions) (protocol.CIPResponse, protocol.CIPResponse, error) {
+	outer := protocol.CIPResponse{
+		Service: spec.CIPServiceUnconnectedSend,
 		Status:  0x00,
-		Path:    cipclient.CIPPath{Class: 0x0006, Instance: 0x0001},
+		Path:    protocol.CIPPath{Class: 0x0006, Instance: 0x0001},
 	}
-	embedded := cipclient.CIPResponse{
+	embedded := protocol.CIPResponse{
 		Service: embeddedReq.Service,
 		Status:  0x00,
 		Path:    embeddedReq.Path,
@@ -267,7 +269,7 @@ func (m *MockClient) ReceiveIOData(ctx context.Context, conn *cipclient.IOConnec
 }
 
 // SetReadResponse sets a response for a specific path
-func (m *MockClient) SetReadResponse(path cipclient.CIPPath, resp cipclient.CIPResponse) {
+func (m *MockClient) SetReadResponse(path protocol.CIPPath, resp protocol.CIPResponse) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := pathKey(path)
@@ -275,7 +277,7 @@ func (m *MockClient) SetReadResponse(path cipclient.CIPPath, resp cipclient.CIPR
 }
 
 // SetReadError sets an error for a specific path
-func (m *MockClient) SetReadError(path cipclient.CIPPath, err error) {
+func (m *MockClient) SetReadError(path protocol.CIPPath, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := pathKey(path)
@@ -283,7 +285,7 @@ func (m *MockClient) SetReadError(path cipclient.CIPPath, err error) {
 }
 
 // SetWriteResponse sets a response for a specific path
-func (m *MockClient) SetWriteResponse(path cipclient.CIPPath, resp cipclient.CIPResponse) {
+func (m *MockClient) SetWriteResponse(path protocol.CIPPath, resp protocol.CIPResponse) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := pathKey(path)
@@ -291,7 +293,7 @@ func (m *MockClient) SetWriteResponse(path cipclient.CIPPath, resp cipclient.CIP
 }
 
 // SetWriteError sets an error for a specific path
-func (m *MockClient) SetWriteError(path cipclient.CIPPath, err error) {
+func (m *MockClient) SetWriteError(path protocol.CIPPath, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	key := pathKey(path)
@@ -299,7 +301,7 @@ func (m *MockClient) SetWriteError(path cipclient.CIPPath, err error) {
 }
 
 // GetReadCount returns the number of reads for a path
-func (m *MockClient) GetReadCount(path cipclient.CIPPath) int {
+func (m *MockClient) GetReadCount(path protocol.CIPPath) int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	key := pathKey(path)
@@ -307,7 +309,7 @@ func (m *MockClient) GetReadCount(path cipclient.CIPPath) int {
 }
 
 // GetWriteCount returns the number of writes for a path
-func (m *MockClient) GetWriteCount(path cipclient.CIPPath) int {
+func (m *MockClient) GetWriteCount(path protocol.CIPPath) int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	key := pathKey(path)
@@ -315,6 +317,8 @@ func (m *MockClient) GetWriteCount(path cipclient.CIPPath) int {
 }
 
 // pathKey creates a unique key for a path
-func pathKey(path cipclient.CIPPath) string {
+func pathKey(path protocol.CIPPath) string {
 	return fmt.Sprintf("%04X:%04X:%04X", path.Class, path.Instance, path.Attribute)
 }
+
+

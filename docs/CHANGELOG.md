@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `WrapConfigError()` for configuration errors
   - Integrated throughout client, config, and CLI code
 
-- **Packet Validation Layer** (`internal/cipclient/validation.go`)
+- **Packet Validation Layer** (`internal/cip/client/validation.go`)
   - `PacketValidator` with strict/non-strict modes
   - `ValidateENIP()` for ENIP encapsulation validation
   - `ValidateCIPRequest()` for CIP request validation
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ValidateRPIMicroseconds()` and `ValidateConnectionSize()` for parameter validation
   - Integrated into client operations for pre-send and post-receive validation
 
-- **Reference Packet Library** (`internal/cipclient/reference.go`)
+- **Reference Packet Library** (`internal/reference/reference.go`)
   - `ReferencePacket` type for storing known-good ODVA-compliant packets
   - `CompareWithReference()` for packet comparison
   - `FindFirstDifference()` for byte-level diff analysis
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ready for integration into scenarios
 
 - **Documentation**
-  - Step-by-step implementation guide (`docs/IMPLEMENTATION_GUIDE.md`)
+  - Compliance testing guide (`docs/COMPLIANCE_TESTING.md`)
 
 ### Changed
 - **Error Handling**: All network, CIP, and config errors now use user-friendly wrappers
@@ -130,11 +130,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation**
   - README with usage examples
-  - Compliance documentation (docs/COMPLIANCE.md)
-  - Troubleshooting guide (docs/TROUBLESHOOTING.md)
-  - Hardware setup guide (docs/HARDWARE_SETUP.md)
-  - Packet analysis guide (docs/PCAP_USAGE.md)
-  - Usage examples (docs/EXAMPLES.md)
+  - Compliance testing guide (`docs/COMPLIANCE_TESTING.md`)
+  - Troubleshooting guide (`docs/TROUBLESHOOTING.md`)
+  - Hardware setup guide (`docs/HARDWARE_SETUP.md`)
+  - Packet analysis guide (`docs/PCAP_USAGE.md`)
+  - Usage examples (`docs/EXAMPLES.md`)
   - Example configuration files
 
 ### Technical Details
@@ -155,4 +155,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced extended status code parsing
 - Additional CIP service support
 - Performance optimizations
+
 

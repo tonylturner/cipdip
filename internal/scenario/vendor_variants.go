@@ -5,10 +5,13 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -106,7 +109,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 			for _, target := range cfg.ReadTargets {
-				path := cipclient.CIPPath{
+				path := protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -131,7 +134,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 					TargetType:  params.TargetType,
 					Operation:   metrics.OperationRead,
 					TargetName:  target.Name,
-					ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceGetAttributeSingle)),
+					ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 					Success:     success,
 					RTTMs:       rtt,
 					JitterMs:    jitterMs,
@@ -143,7 +146,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			}
 
 			for _, target := range cfg.WriteTargets {
-				path := cipclient.CIPPath{
+				path := protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
 					Attribute: target.Attribute,
@@ -153,7 +156,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				value := s.generateValue(target)
 				valueBytes := make([]byte, 4)
 				order := cipclient.CurrentProtocolProfile().CIPByteOrder
-				order.PutUint32(valueBytes, uint32(value))
+				codec.PutUint32(order, valueBytes, uint32(value))
 
 				start := time.Now()
 				resp, err := client.WriteAttribute(ctxVariant, path, valueBytes)
@@ -173,7 +176,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 					TargetType:  params.TargetType,
 					Operation:   metrics.OperationWrite,
 					TargetName:  target.Name,
-					ServiceCode: fmt.Sprintf("0x%02X", uint8(cipclient.CIPServiceSetAttributeSingle)),
+					ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 					Success:     success,
 					RTTMs:       rtt,
 					JitterMs:    jitterMs,
@@ -189,9 +192,9 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				if err != nil {
 					return err
 				}
-				req := cipclient.CIPRequest{
+				req := protocol.CIPRequest{
 					Service: serviceCode,
-					Path: cipclient.CIPPath{
+					Path: protocol.CIPPath{
 						Class:     target.Class,
 						Instance:  target.Instance,
 						Attribute: target.Attribute,
@@ -271,3 +274,5 @@ func (s *VendorVariantsScenario) generateValue(target config.CIPTarget) int64 {
 		return val
 	}
 }
+
+

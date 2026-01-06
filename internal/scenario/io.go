@@ -8,7 +8,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cipclient"
+	"github.com/tturner/cipdip/internal/cip/codec"
+	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
 	"github.com/tturner/cipdip/internal/progress"
@@ -155,7 +156,7 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 			oToTData := make([]byte, connCfg.OToTSizeBytes)
 			if len(oToTData) >= 4 {
 				order := cipclient.CurrentProtocolProfile().CIPByteOrder
-				order.PutUint32(oToTData, counter)
+				codec.PutUint32(order, oToTData, counter)
 			} else {
 				// For smaller payloads, just use the counter as a byte
 				oToTData[0] = byte(counter)
@@ -302,3 +303,5 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 
 	return nil
 }
+
+
