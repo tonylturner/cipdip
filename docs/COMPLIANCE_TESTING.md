@@ -120,6 +120,22 @@ If you need to validate PCAP fixtures:
 - Some vendor-specific services are context-dependent and need object class to label correctly.
 - Reference coverage depends on available PCAPs; missing samples remain open items.
 
+## Compliance Confidence and Assumptions
+
+What we can claim with high confidence:
+- Publicly documented values (encapsulation commands, service codes, EPATH segment types).
+- Wire shapes that match real-world captures and Wireshark dissector output.
+
+What remains assumption-driven:
+- Exact ForwardOpen field layout and some connection parameter bitfields.
+- Full protocol state-machine expectations and corner-case error handling.
+- Vendor-specific extensions and undocumented services.
+
+To increase confidence:
+- Use `tshark` validation where available.
+- Capture and compare packets from known devices.
+- Run hardware validation when lab devices are available.
+
 ## Updating This Guide
 
 When compliance tests change:
