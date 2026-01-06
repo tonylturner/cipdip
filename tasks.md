@@ -41,11 +41,20 @@
 - [ ] Create ODVA spec references doc (`docs/ODVA_SPEC_REFERENCES.md`).
 - [ ] Add compliance coverage report (what protocol features/tests cover).
 - [ ] Add automated compliance regression checks in CI (packet structure diffs).
-- [ ] Add quick-start config generation or `--quick-start` flow when config is missing.
-- [ ] Add progress indicators for long-running CLI/TUI operations (counts + ETA).
-- [ ] Improve user-facing error messages with hints and next-step suggestions.
+- [x] Add quick-start config generation or `--quick-start` flow when config is missing.
+- [x] Add progress indicators for long-running CLI/TUI operations (counts + ETA).
+- [x] Improve user-facing error messages with hints and next-step suggestions.
 - [ ] Add parallel scenario execution option with rate limits.
 - [ ] Add fuzz/property tests for ENIP/CIP encode/decode to harden parsers.
+- [ ] Add TUI progress indicators for long-running operations (runs, replays, validations).
+- [ ] Populate missing reference packets (e.g., RegisterSession_Response) so reference tests stop skipping.
+- [ ] Enhance Wireshark validator to extract more ENIP/CIP fields from tshark output.
+- [ ] Reduce code duplication by extracting shared error/config/connection helpers.
+- [x] Decide whether `workspace.yaml` should store default target IP/port/interface for TUI flows.
+- [ ] Implement workspace defaults for target IP/port/interface in `workspace.yaml` and consume in TUI flows.
+- [ ] Add explicit TUI feedback when external tools (tshark/tcpreplay) are missing or unavailable.
+- [x] Audit docs for stale paths/commands after refactor (e.g., internal/cipclient -> internal/cip/client, internal/pcap, internal/reference) and update as needed.
+- [x] Decide whether to keep `docs/WIRESHARK_INTEGRATION.md` or merge its content into `docs/COMPLIANCE_TESTING.md`, then update accordingly.
 ### Test coverage plan (exhaustive)
 #### Phase 1: Protocol primitives + strictness (highest value)
 - [x] Test: ENIP encode/decode (headers, length, status, session, sender context).
@@ -247,7 +256,7 @@
 - PCAP observations: CPF present in nearly all ENIP frames, CIP path size present in all UCMM requests, no 16-bit EPATH segments, heavy vendor-specific services (0x4B/0x4D/0x52/0x51).
 - Vendor identified from PCAP: Rockwell (Vendor ID 0x0001), Product 1756-ENBT/A. Use `rockwell_enbt` profile only when identity matches.
 - Re-evaluation run: `go test ./internal/cipclient` and `cipdip pcap-summary --input pcaps/stress/ENIP.pcap` (latest run successful).
-- New PCAP batch summaries generated in `notes/pcap_summary_report.md` and vendor rollup in `notes/pcap_vendor_summary.md`.
+- New PCAP batch summaries generated in `notes/pcap/pcap_summary_report.md` and vendor rollup in `notes/pcap/pcap_vendor_summary.md`.
 - PCAP classification: `cipdip pcap-classify` (tshark-based) and `cipdip pcap-report` (summary report, no tshark).
 - Unknown CIP service 0x51 appears on class 0x00A1/instance 0x0001 with status 0x08 responses in CL5000EIP firmware-change pcaps and ENIP.pcap; evidence insufficient to map yet.
 - pcap-dump spot checks: 0x4B targets class 0x0067, 0x4E targets class 0x0006/instance 0x0001, 0x55 not observed in ENIP.pcap.

@@ -36,7 +36,7 @@ Workflow
 3) Run tests:
    - `go test ./internal/cipclient -run ReferencePackets`
    - `go test ./...`
-4) Record summary deltas in `notes/pcap_summary_report.md`.
+4) Record summary deltas in `notes/pcap/pcap_summary_report.md`.
 
 Governance
 - Any new golden capture must document source, vendor identity, and intended behavior.

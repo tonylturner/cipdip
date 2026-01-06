@@ -25,7 +25,7 @@ Baseline captures in `baseline_captures/` are **regression artifacts** only. The
 ## Test Types
 
 ### 1) Unit Tests (Byte-Level)
-Located in `internal/cipclient/*_test.go` and `internal/cipclient/compliance_*_test.go`.
+Located in `internal/cip/client/*_test.go` and `internal/cip/client/compliance_*_test.go`.
 
 Coverage includes:
 - ENIP header structure and length checks
@@ -36,7 +36,7 @@ Coverage includes:
 
 Run:
 ```bash
-go test ./internal/cipclient
+go test ./internal/cip/client
 ```
 
 ### 2) Reference Packet Validation
@@ -49,7 +49,7 @@ cipdip extract-reference --real-world-dir pcaps --output internal/reference/refe
 
 Validation:
 ```bash
-go test ./internal/cipclient -run TestReferencePackets
+go test ./internal/cip/client -run TestReferencePackets
 ```
 
 If a reference packet is missing (e.g., `RegisterSession_Response`), treat that as **test coverage gap**, not protocol support failure.
@@ -58,13 +58,53 @@ If a reference packet is missing (e.g., `RegisterSession_Response`), treat that 
 Summarize real-world captures to validate service coverage and path parsing:
 ```bash
 cipdip pcap-summary --input pcaps/stress/ENIP.pcap
-cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md
+cipdip pcap-report --pcap-dir pcaps --output notes/pcap/pcap_summary_report.md
 ```
 
 ### 4) Optional Wireshark Validation
 If `tshark` is installed, validate captured packets via Wireshark:
 ```bash
 go test ./internal/validation
+```
+
+You can also point to a non-default `tshark` path:
+```bash
+TSHARK="C:\Program Files\Wireshark\tshark.exe" go test ./internal/validation
+```
+
+## Compliance Coverage (strict_odva)
+
+The strict profile enforces these baseline rules:
+- ENIP: 24-byte header, little-endian fields, valid command set.
+- CIP: path size included for UCMM requests, reserved/extended status size in responses.
+- CPF: required for SendRRData and SendUnitData (UCMM and connected messaging).
+- I/O: connected messaging uses sequence counts by default.
+
+Coverage validated by unit tests and audit tests includes:
+- RegisterSession/UnregisterSession framing and fields.
+- SendRRData/SendUnitData structure and length checks.
+- EPATH encoding (8-bit/16-bit segment types and endian rules).
+- CIP service code validation for implemented services.
+- ForwardOpen/ForwardClose structural checks and path validation.
+- Response status + additional status structure.
+
+## Grade A Validation Loop (Emit + Validate)
+
+Use the Grade A loop to tighten builders against strict validators:
+
+```powershell
+.\cipdip.exe emit-bytes --catalog-root workspaces\workspace --catalog-key identity.vendor_id --output reports\emit.json
+.\cipdip.exe validate-bytes --input reports\emit.json --profile client_wire --verbose --report-json reports\validation_report.json
+```
+
+Profiles:
+- `client_wire`: request validation without requiring responses.
+- `server_wire`: response validation with required status fields.
+- `pairing`: request/response correlation (optional).
+
+If you need to validate PCAP fixtures:
+```powershell
+.\cipdip.exe pcap-validate --generate-test-pcaps --output pcaps\validation_generated --profile client_wire --verbose
 ```
 
 ## Interpreting Results
@@ -89,6 +129,5 @@ When compliance tests change:
 
 ## See Also
 
-- `docs/COMPLIANCE.md` - Compliance checklist and test coverage
 - `docs/REFERENCE_PACKETS.md` - Current reference packet set
 - `docs/PCAP_USAGE.md` - PCAP summary/report commands

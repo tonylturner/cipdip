@@ -24,14 +24,14 @@ func newPcapReportCmd() *cobra.Command {
 		Long: `Generate a Markdown report by running the ENIP/CIP summary
 for every PCAP under the specified directory.`,
 		Example: `  # Build a summary report from all pcaps
-  cipdip pcap-report --pcap-dir pcaps --output notes/pcap_summary_report.md`,
+  cipdip pcap-report --pcap-dir pcaps --output notes/pcap/pcap_summary_report.md`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPcapReport(flags)
 		},
 	}
 
 	cmd.Flags().StringVar(&flags.pcapDir, "pcap-dir", "pcaps", "Directory containing PCAP files")
-	cmd.Flags().StringVar(&flags.outputFile, "output", "notes/pcap_summary_report.md", "Output Markdown report path")
+	cmd.Flags().StringVar(&flags.outputFile, "output", "notes/pcap/pcap_summary_report.md", "Output Markdown report path")
 
 	return cmd
 }
