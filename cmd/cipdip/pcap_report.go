@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tturner/cipdip/internal/report"
 )
 
 type pcapReportFlags struct {
@@ -73,7 +74,7 @@ func runPcapReport(flags *pcapReportFlags) error {
 				return fmt.Errorf("write error for %s: %w", name, err)
 			}
 		} else {
-			writePcapSummary(f, summary)
+			report.WritePCAPSummary(f, summary)
 		}
 
 		if _, err := fmt.Fprintf(f, "```\n\n"); err != nil {
