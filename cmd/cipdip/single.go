@@ -1,20 +1,10 @@
 package main
 
 import (
-	"context"
-	"encoding/hex"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tturner/cipdip/internal/app"
 )
 
 type singleFlags struct {
@@ -107,363 +97,44 @@ Use this for quick firewall/DPI checks on a specific service/class/instance/attr
 }
 
 func runSingle(flags *singleFlags) error {
-	entry, err := resolveCatalogEntry(flags)
-	if err != nil {
-		return err
-	}
-
-	serviceInput := firstNonEmpty(flags.service, entry.Service)
-	classInput := firstNonEmpty(flags.classID, entry.Class)
-	instanceInput := firstNonEmpty(flags.instanceID, entry.Instance)
-	attributeInput := firstNonEmpty(flags.attributeID, entry.Attribute)
-
-	if serviceInput == "" {
+	if flags.service == "" && flags.catalogKey == "" {
 		return fmt.Errorf("required flag --service or --catalog-key not set")
 	}
-	if classInput == "" {
+	if flags.classID == "" && flags.catalogKey == "" {
 		return fmt.Errorf("required flag --class or --catalog-key not set")
 	}
-	if instanceInput == "" {
+	if flags.instanceID == "" && flags.catalogKey == "" {
 		return fmt.Errorf("required flag --instance or --catalog-key not set")
 	}
-
-	serviceCode, err := parseServiceInput(serviceInput)
-	if err != nil {
-		return fmt.Errorf("parse service: %w", err)
-	}
-	classID, err := parseClassInput(classInput)
-	if err != nil {
-		return fmt.Errorf("parse class: %w", err)
-	}
-	instanceID, err := parseUint(instanceInput, 16)
-	if err != nil {
-		return fmt.Errorf("parse instance: %w", err)
-	}
-	attributeID := uint64(0)
-	if attributeInput != "" {
-		attributeID, err = parseUint(attributeInput, 16)
-		if err != nil {
-			return fmt.Errorf("parse attribute: %w", err)
-		}
-	}
-
-	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceCode(serviceCode),
-		Path: protocol.CIPPath{
-			Class:     uint16(classID),
-			Instance:  uint16(instanceID),
-			Attribute: uint16(attributeID),
-			Name:      "single",
-		},
-	}
-	req, err = applySinglePayload(req, entry, flags)
-	if err != nil {
-		return err
-	}
-	if flags.dryRun {
-		return printCIPRequest(req)
-	}
-
-	client := cipclient.NewClient()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := client.Connect(ctx, flags.ip, flags.port); err != nil {
-		return fmt.Errorf("connect: %w", err)
-	}
-	defer client.Disconnect(ctx)
-
-	start := time.Now()
-	resp, err := client.InvokeService(ctx, req)
-	rtt := time.Since(start).Seconds() * 1000
-
-	if err != nil {
-		return fmt.Errorf("invoke: %w", err)
-	}
-
-	fmt.Fprintf(os.Stdout, "CIP Response: status=0x%02X payload=%d bytes RTT=%.2fms\n", resp.Status, len(resp.Payload), rtt)
-	return nil
-}
-
-func parseServiceInput(input string) (uint64, error) {
-	if value, err := parseUint(input, 8); err == nil {
-		return value, nil
-	}
-	if code, ok := spec.ParseServiceAlias(input); ok {
-		return uint64(code), nil
-	}
-	return 0, fmt.Errorf("unknown service alias '%s'", input)
-}
-
-func parseClassInput(input string) (uint64, error) {
-	if value, err := parseUint(input, 16); err == nil {
-		return value, nil
-	}
-	if code, ok := spec.ParseClassAlias(input); ok {
-		return uint64(code), nil
-	}
-	return 0, fmt.Errorf("unknown class alias '%s'", input)
-}
-
-func parseUint(input string, bits int) (uint64, error) {
-	value, err := strconv.ParseUint(strings.TrimSpace(input), 0, bits)
-	if err != nil {
-		return 0, fmt.Errorf("invalid numeric value '%s'", input)
-	}
-	return value, nil
-}
-
-func parseHexPayload(input string) ([]byte, error) {
-	cleaned := strings.ReplaceAll(strings.TrimSpace(input), " ", "")
-	cleaned = strings.TrimPrefix(cleaned, "0x")
-	if cleaned == "" {
-		return nil, nil
-	}
-	if len(cleaned)%2 != 0 {
-		return nil, fmt.Errorf("hex payload must have even length")
-	}
-	decoded := make([]byte, len(cleaned)/2)
-	if _, err := hex.Decode(decoded, []byte(cleaned)); err != nil {
-		return nil, fmt.Errorf("decode hex payload: %w", err)
-	}
-	return decoded, nil
-}
-
-type catalogEntry struct {
-	Service    string
-	Class      string
-	Instance   string
-	Attribute  string
-	Payload    ui.CatalogPayload
-	PayloadHex string
-}
-
-func resolveCatalogEntry(flags *singleFlags) (catalogEntry, error) {
-	if flags.catalogKey == "" {
-		return catalogEntry{}, nil
-	}
-	root, err := resolveCatalogRoot(flags.catalogRoot)
-	if err != nil {
-		return catalogEntry{}, err
-	}
-	entries, err := ui.ListCatalogEntries(root)
-	if err != nil {
-		return catalogEntry{}, fmt.Errorf("load catalog entries: %w", err)
-	}
-	entry := ui.FindCatalogEntry(entries, flags.catalogKey)
-	if entry == nil {
-		return catalogEntry{}, fmt.Errorf("catalog key %q not found", flags.catalogKey)
-	}
-	return catalogEntry{
-		Service:    entry.Service,
-		Class:      entry.Class,
-		Instance:   entry.Instance,
-		Attribute:  entry.Attribute,
-		Payload:    entry.Payload,
-		PayloadHex: entry.PayloadHex,
-	}, nil
-}
-
-func resolveCatalogRoot(root string) (string, error) {
-	if root != "" {
-		return root, nil
-	}
-	if _, err := os.Stat(filepath.Join("workspace", "catalogs")); err == nil {
-		return "workspace", nil
-	}
-	if _, err := os.Stat("catalogs"); err == nil {
-		return ".", nil
-	}
-	return "", fmt.Errorf("catalog root not found (use --catalog-root)")
-}
-
-func applySinglePayload(req protocol.CIPRequest, entry catalogEntry, flags *singleFlags) (protocol.CIPRequest, error) {
-	if flags.payloadHex != "" {
-		payload, err := parseHexPayload(flags.payloadHex)
-		if err != nil {
-			return req, fmt.Errorf("parse payload: %w", err)
-		}
-		req.Payload = payload
-		return req, nil
-	}
-	if entry.PayloadHex != "" {
-		payload, err := parseHexPayload(entry.PayloadHex)
-		if err != nil {
-			return req, fmt.Errorf("parse payload: %w", err)
-		}
-		req.Payload = payload
-		return req, nil
-	}
-
-	payloadType := firstNonEmpty(flags.payloadType, entry.Payload.Type)
-	payloadParams := buildPayloadParams(entry, flags)
-	if payloadType == "" && len(payloadParams) == 0 {
-		return req, nil
-	}
-	result, err := cipclient.BuildServicePayload(req, cipclient.PayloadSpec{
-		Type:   payloadType,
-		Params: payloadParams,
+	return app.RunSingle(app.SingleOptions{
+		IP:            flags.ip,
+		Port:          flags.port,
+		Service:       flags.service,
+		ClassID:       flags.classID,
+		InstanceID:    flags.instanceID,
+		AttributeID:   flags.attributeID,
+		PayloadHex:    flags.payloadHex,
+		PayloadType:   flags.payloadType,
+		PayloadParams: flags.payloadParams,
+		Tag:           flags.tag,
+		TagPath:       flags.tagPath,
+		Elements:      flags.elements,
+		Offset:        flags.offset,
+		DataType:      flags.dataType,
+		Value:         flags.value,
+		FileOffset:    flags.fileOffset,
+		Chunk:         flags.chunk,
+		ModbusFC:      flags.modbusFC,
+		ModbusAddr:    flags.modbusAddr,
+		ModbusQty:     flags.modbusQty,
+		ModbusDataHex: flags.modbusDataHex,
+		PCCCHex:       flags.pcccHex,
+		RouteSlot:     flags.routeSlot,
+		UCMMWrap:      flags.ucmmWrap,
+		CatalogRoot:   flags.catalogRoot,
+		CatalogKey:    flags.catalogKey,
+		DryRun:        flags.dryRun,
+		Mutate:        flags.mutate,
+		MutateSeed:    flags.mutateSeed,
 	})
-	if err != nil {
-		return req, err
-	}
-	req.Payload = result.Payload
-	if len(result.RawPath) > 0 {
-		req.RawPath = result.RawPath
-	}
-	if flags.mutate != "" {
-		req.Payload = cipclient.ApplyPayloadMutation(req.Payload, cipclient.PayloadMutation{
-			Kind: flags.mutate,
-			Seed: flags.mutateSeed,
-		})
-	}
-	return req, nil
 }
-
-func buildPayloadParams(entry catalogEntry, flags *singleFlags) map[string]any {
-	params := map[string]any{}
-	for key, value := range entry.Payload.Params {
-		params[key] = value
-	}
-	for _, pair := range flags.payloadParams {
-		parts := strings.SplitN(pair, "=", 2)
-		if len(parts) == 2 {
-			params[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
-		}
-	}
-	if flags.tag != "" {
-		params["tag"] = flags.tag
-	}
-	if flags.tagPath != "" {
-		params["tag_path"] = flags.tagPath
-	}
-	if flags.elements != "" {
-		params["elements"] = flags.elements
-	}
-	if flags.offset != "" {
-		params["offset"] = flags.offset
-	}
-	if flags.dataType != "" {
-		params["type"] = flags.dataType
-	}
-	if flags.value != "" {
-		params["value"] = flags.value
-	}
-	if flags.fileOffset != "" {
-		params["file_offset"] = flags.fileOffset
-	}
-	if flags.chunk != "" {
-		params["chunk"] = flags.chunk
-	}
-	if flags.modbusFC != "" {
-		params["modbus_fc"] = flags.modbusFC
-	}
-	if flags.modbusAddr != "" {
-		params["modbus_addr"] = flags.modbusAddr
-	}
-	if flags.modbusQty != "" {
-		params["modbus_qty"] = flags.modbusQty
-	}
-	if flags.modbusDataHex != "" {
-		params["modbus_data_hex"] = flags.modbusDataHex
-	}
-	if flags.pcccHex != "" {
-		params["pccc_hex"] = flags.pcccHex
-	}
-	if flags.routeSlot != "" {
-		params["route_slot"] = flags.routeSlot
-	}
-
-	if flags.ucmmWrap != "" {
-		root, err := resolveCatalogRoot(flags.catalogRoot)
-		if err == nil {
-			entries, err := ui.ListCatalogEntries(root)
-			if err == nil {
-				if wrap := ui.FindCatalogEntry(entries, flags.ucmmWrap); wrap != nil {
-					embeddedReq, err := buildCatalogRequest(*wrap)
-					if err == nil {
-						if encoded, err := protocol.EncodeCIPRequest(embeddedReq); err == nil {
-							params["embedded_request_hex"] = encoded
-						}
-					}
-				}
-			}
-		}
-		params["ucmm_wrap"] = flags.ucmmWrap
-	}
-	return params
-}
-
-func buildCatalogRequest(entry ui.CatalogEntry) (protocol.CIPRequest, error) {
-	service, err := parseServiceInput(entry.Service)
-	if err != nil {
-		return protocol.CIPRequest{}, err
-	}
-	classID, err := parseClassInput(entry.Class)
-	if err != nil {
-		return protocol.CIPRequest{}, err
-	}
-	instanceID, err := parseUint(entry.Instance, 16)
-	if err != nil {
-		return protocol.CIPRequest{}, err
-	}
-	attributeID := uint64(0)
-	if entry.Attribute != "" {
-		attributeID, err = parseUint(entry.Attribute, 16)
-		if err != nil {
-			return protocol.CIPRequest{}, err
-		}
-	}
-	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceCode(service),
-		Path: protocol.CIPPath{
-			Class:     uint16(classID),
-			Instance:  uint16(instanceID),
-			Attribute: uint16(attributeID),
-			Name:      entry.Key,
-		},
-	}
-	if entry.PayloadHex != "" {
-		payload, err := parseHexPayload(entry.PayloadHex)
-		if err != nil {
-			return protocol.CIPRequest{}, err
-		}
-		req.Payload = payload
-		return req, nil
-	}
-	result, err := cipclient.BuildServicePayload(req, cipclient.PayloadSpec{
-		Type:   entry.Payload.Type,
-		Params: entry.Payload.Params,
-	})
-	if err != nil {
-		return protocol.CIPRequest{}, err
-	}
-	req.Payload = result.Payload
-	if len(result.RawPath) > 0 {
-		req.RawPath = result.RawPath
-	}
-	return req, nil
-}
-
-func printCIPRequest(req protocol.CIPRequest) error {
-	encoded, err := protocol.EncodeCIPRequest(req)
-	if err != nil {
-		return fmt.Errorf("encode request: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "CIP Request: service=0x%02X class=0x%04X instance=0x%04X attribute=0x%04X\n",
-		uint8(req.Service), req.Path.Class, req.Path.Instance, req.Path.Attribute)
-	fmt.Fprintf(os.Stdout, "Payload: %d bytes\n", len(req.Payload))
-	fmt.Fprintf(os.Stdout, "Bytes: %s\n", hex.EncodeToString(encoded))
-	return nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
-}
-
-
