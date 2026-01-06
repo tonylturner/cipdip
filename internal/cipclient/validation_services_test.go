@@ -26,7 +26,7 @@ func TestValidateCIPRequestConnectionManagerServices(t *testing.T) {
 			},
 		}
 		switch svc {
-		case spec.CIPServiceForwardOpen:
+		case spec.CIPServiceForwardOpen, spec.CIPServiceLargeForwardOpen:
 			payload, err := BuildForwardOpenPayload(ConnectionParams{
 				Priority:              "scheduled",
 				OToTRPIMs:             20,
@@ -127,6 +127,10 @@ func TestValidateCIPResponseForwardOpenPayload(t *testing.T) {
 	validator := NewPacketValidator(true)
 	resp := protocol.CIPResponse{
 		Service: spec.CIPServiceForwardOpen,
+		Path: protocol.CIPPath{
+			Class:    spec.CIPClassConnectionManager,
+			Instance: 0x0001,
+		},
 		Status:  0x00,
 		Payload: make([]byte, 16),
 	}
@@ -144,6 +148,10 @@ func TestValidateCIPResponseUnconnectedSendPayload(t *testing.T) {
 	validator := NewPacketValidator(true)
 	resp := protocol.CIPResponse{
 		Service: spec.CIPServiceUnconnectedSend,
+		Path: protocol.CIPPath{
+			Class:    spec.CIPClassConnectionManager,
+			Instance: 0x0001,
+		},
 		Status:  0x00,
 		Payload: []byte{0x00},
 	}

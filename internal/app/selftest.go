@@ -9,7 +9,6 @@ import (
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cip/spec"
-	legacy "github.com/tturner/cipdip/internal/cipclient"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server"
@@ -98,7 +97,7 @@ func RunSelfTest(opts SelfTestOptions) error {
 	}
 	defer client.Disconnect(ctx)
 
-	validator := legacy.NewPacketValidator(true)
+	validator := cipclient.NewPacketValidator(true)
 	if opts.Personality == "adapter" {
 		path := protocol.CIPPath{
 			Class:     spec.CIPClassAssembly,

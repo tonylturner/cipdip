@@ -5,19 +5,19 @@ This guide shows how to use cipdip’s Grade A validation to tighten packet buil
 ## 1) Emit bytes from catalog operations
 
 ```powershell
-.\cipdip.exe emit-bytes --catalog-root workspace --catalog-key identity.vendor_id --output emit.json
+.\cipdip.exe emit-bytes --catalog-root workspaces\workspace --catalog-key identity.vendor_id --output reports\emit.json
 ```
 
 To emit all catalog entries:
 
 ```powershell
-.\cipdip.exe emit-bytes --catalog-root workspace --all --output emit.json
+.\cipdip.exe emit-bytes --catalog-root workspaces\workspace --all --output reports\emit.json
 ```
 
 ## 2) Validate emitted bytes (Grade A)
 
 ```powershell
-.\cipdip.exe validate-bytes --input emit.json --profile client_wire --verbose --report-json validation_report.json
+.\cipdip.exe validate-bytes --input reports\emit.json --profile client_wire --verbose --report-json reports\validation_report.json
 ```
 
 - `client_wire` validates request packets without requiring responses.

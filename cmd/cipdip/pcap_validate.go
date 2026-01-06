@@ -10,6 +10,7 @@ import (
 	"github.com/tturner/cipdip/internal/pcap"
 	"github.com/tturner/cipdip/internal/report"
 	"github.com/tturner/cipdip/internal/validation"
+	"github.com/tturner/cipdip/internal/validation/fixtures"
 )
 
 type pcapValidateFlags struct {
@@ -105,7 +106,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 	var pcaps []string
 	switch {
 	case flags.generateTestPcaps:
-		generated, err := validation.GenerateValidationPCAPs(flags.outputDir)
+		generated, err := fixtures.GenerateValidationPCAPs(flags.outputDir)
 		if err != nil {
 			return fmt.Errorf("generate validation pcaps: %w", err)
 		}
@@ -289,8 +290,12 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 		fmt.Fprintf(os.Stdout, "Grade A: A_pass=%d A_fail=%d expected_invalid=%d\n",
 			totalGradePass, totalGradeFail, totalGradeExpected)
 	}
-	if flags.reportJSON != "" {
-		if err := report.WriteJSONFile(flags.reportJSON, validationReport); err != nil {
+	reportPath, err := resolveReportPath(flags.reportJSON)
+	if err != nil {
+		return err
+	}
+	if reportPath != "" {
+		if err := report.WriteJSONFile(reportPath, validationReport); err != nil {
 			return err
 		}
 	}
