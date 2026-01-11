@@ -33,10 +33,19 @@ type PCAPScreenModel struct {
 	// Dump options (when action is dump)
 	DumpService string // Service code to filter (e.g., "0x51")
 
+	// Diff options (when action is diff)
+	DiffBaseline    string  // Baseline PCAP file
+	DiffCompare     string  // Compare PCAP file
+	DiffExpectedRPI float64 // Expected RPI in ms
+	DiffSkipTiming  bool    // Skip timing analysis
+	DiffSkipRPI     bool    // Skip RPI analysis
+	DiffFocusField  int     // 0=baseline, 1=compare, 2=rpi
+
 	// File browser state
-	BrowserPath    string      // Current directory
-	BrowserEntries []FileEntry // Files/dirs in current directory
-	BrowserCursor  int         // Selected entry
+	BrowserPath       string      // Current directory
+	BrowserEntries    []FileEntry // Files/dirs in current directory
+	BrowserCursor     int         // Selected entry
+	BrowserSelectMode string      // "single", "baseline", "compare" - which file we're selecting
 
 	// UI state
 	focusIndex    int
@@ -74,6 +83,7 @@ var pcapActions = []struct {
 	{"4", "Replay", "Send packets to a target device"},
 	{"5", "Rewrite", "Modify IPs/MACs and save new capture"},
 	{"6", "Dump", "Hex dump of CIP packets by service code"},
+	{"7", "Diff", "Compare two PCAPs for service/timing differences"},
 }
 
 const (
@@ -104,6 +114,8 @@ func (m *PCAPScreenModel) Update(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
 		return m.updateDumpConfig(msg)
 	case 5:
 		return m.updateViewer(msg)
+	case 6:
+		return m.updateDiffConfig(msg)
 	default:
 		return m.updateMain(msg)
 	}
@@ -180,6 +192,58 @@ func (m *PCAPScreenModel) updateDumpConfig(msg tea.KeyMsg) (*PCAPScreenModel, te
 	return m, nil
 }
 
+func (m *PCAPScreenModel) updateDiffConfig(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.SubView = 0
+	case "enter":
+		if m.DiffBaseline != "" && m.DiffCompare != "" {
+			return m.runAction()
+		} else {
+			m.Status = "Both baseline and compare files are required"
+		}
+	case "tab", "down", "j":
+		m.DiffFocusField = (m.DiffFocusField + 1) % 5 // 0=baseline, 1=compare, 2=rpi, 3=skip-timing, 4=skip-rpi
+	case "shift+tab", "up", "k":
+		m.DiffFocusField--
+		if m.DiffFocusField < 0 {
+			m.DiffFocusField = 4
+		}
+	case "b":
+		// Open file browser for current field
+		if m.DiffFocusField == 0 {
+			m.BrowserSelectMode = "baseline"
+			m.openFileBrowser()
+		} else if m.DiffFocusField == 1 {
+			m.BrowserSelectMode = "compare"
+			m.openFileBrowser()
+		}
+	case " ":
+		// Toggle checkboxes
+		if m.DiffFocusField == 3 {
+			m.DiffSkipTiming = !m.DiffSkipTiming
+		} else if m.DiffFocusField == 4 {
+			m.DiffSkipRPI = !m.DiffSkipRPI
+		}
+	case "y":
+		cmd := m.buildCommand()
+		if err := copyToClipboard(cmd); err != nil {
+			m.Status = fmt.Sprintf("Copy failed: %v", err)
+		} else {
+			m.Status = "Command copied to clipboard"
+		}
+	case "+", "=":
+		if m.DiffFocusField == 2 {
+			m.DiffExpectedRPI += 1.0
+		}
+	case "-", "_":
+		if m.DiffFocusField == 2 && m.DiffExpectedRPI > 1.0 {
+			m.DiffExpectedRPI -= 1.0
+		}
+	}
+	return m, nil
+}
+
 func (m *PCAPScreenModel) updateCompleted(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
@@ -219,10 +283,18 @@ func (m *PCAPScreenModel) updateMain(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd)
 		// Open file browser
 		m.openFileBrowser()
 		return m, nil
-	case "1", "2", "3", "4", "5", "6":
+	case "1", "2", "3", "4", "5", "6", "7":
 		idx := int(msg.String()[0] - '1')
 		if idx >= 0 && idx < len(pcapActions) {
 			m.ActionIndex = idx
+			if idx == 6 { // Diff - doesn't need FilePath, has its own file selection
+				m.SubView = 6
+				m.DiffFocusField = 0
+				if m.DiffExpectedRPI == 0 {
+					m.DiffExpectedRPI = 20.0
+				}
+				return m, nil
+			}
 			if m.FilePath != "" {
 				// Go to action config for replay and dump, otherwise run directly
 				if idx == 3 { // Replay
@@ -436,11 +508,23 @@ func (m *PCAPScreenModel) updateFileBrowser(msg tea.KeyMsg) (*PCAPScreenModel, t
 				m.BrowserCursor = 0
 				m.loadDirectory()
 			} else {
-				// Select file
-				m.FilePath = entry.Path
-				m.updateFileInfo()
-				m.SubView = 0
-				m.Status = fmt.Sprintf("Selected: %s", entry.Name)
+				// Select file based on mode
+				switch m.BrowserSelectMode {
+				case "baseline":
+					m.DiffBaseline = entry.Path
+					m.SubView = 6 // Return to diff config
+					m.Status = fmt.Sprintf("Baseline: %s", entry.Name)
+				case "compare":
+					m.DiffCompare = entry.Path
+					m.SubView = 6 // Return to diff config
+					m.Status = fmt.Sprintf("Compare: %s", entry.Name)
+				default:
+					m.FilePath = entry.Path
+					m.updateFileInfo()
+					m.SubView = 0
+					m.Status = fmt.Sprintf("Selected: %s", entry.Name)
+				}
+				m.BrowserSelectMode = "" // Reset mode
 			}
 		}
 	case "h", "left":
@@ -471,7 +555,13 @@ func (m *PCAPScreenModel) updateFileBrowser(msg tea.KeyMsg) (*PCAPScreenModel, t
 }
 
 func (m *PCAPScreenModel) runAction() (*PCAPScreenModel, tea.Cmd) {
-	if m.FilePath == "" {
+	// Diff action has different requirements
+	if m.ActionIndex == 6 {
+		if m.DiffBaseline == "" || m.DiffCompare == "" {
+			m.Status = "Both baseline and compare files are required"
+			return m, nil
+		}
+	} else if m.FilePath == "" {
 		m.Status = "File path is required"
 		return m, nil
 	}
@@ -558,7 +648,8 @@ type pcapResultMsg struct {
 }
 
 func (m *PCAPScreenModel) buildCommandArgs() []string {
-	if m.FilePath == "" {
+	// Diff action uses DiffBaseline/DiffCompare, not FilePath
+	if m.ActionIndex != 6 && m.FilePath == "" {
 		return nil
 	}
 
@@ -596,6 +687,23 @@ func (m *PCAPScreenModel) buildCommandArgs() []string {
 		if m.DumpService != "" {
 			args = append(args, "--service", m.DumpService)
 		}
+	case 6: // Diff - uses --baseline and --compare
+		args = []string{"cipdip", "pcap-diff"}
+		if m.DiffBaseline != "" {
+			args = append(args, "--baseline", m.DiffBaseline)
+		}
+		if m.DiffCompare != "" {
+			args = append(args, "--compare", m.DiffCompare)
+		}
+		if m.DiffExpectedRPI > 0 && m.DiffExpectedRPI != 20.0 {
+			args = append(args, "--expected-rpi", fmt.Sprintf("%.1f", m.DiffExpectedRPI))
+		}
+		if m.DiffSkipTiming {
+			args = append(args, "--skip-timing")
+		}
+		if m.DiffSkipRPI {
+			args = append(args, "--skip-rpi")
+		}
 	}
 	return args
 }
@@ -621,6 +729,8 @@ func (m *PCAPScreenModel) View() string {
 		return m.viewDumpConfig()
 	case 5:
 		return m.viewViewer()
+	case 6:
+		return m.viewDiffConfig()
 	default:
 		return m.viewMain()
 	}
@@ -725,6 +835,97 @@ func (m *PCAPScreenModel) viewDumpConfig() string {
 	if m.DumpService == "" {
 		cmd = strings.Replace(cmd, "--service ", "--service ???", 1)
 	}
+	b.WriteString(dimStyle.Render(cmd))
+	b.WriteString("\n")
+
+	// Status
+	if m.Status != "" {
+		b.WriteString("\n")
+		b.WriteString(m.Status)
+	}
+
+	return borderStyle.Render(b.String())
+}
+
+func (m *PCAPScreenModel) viewDiffConfig() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(headerStyle.Render("PCAP > Diff"))
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString("\n\n")
+
+	// Baseline file
+	baselineLabel := "Baseline: "
+	baselineValue := m.DiffBaseline
+	if baselineValue == "" {
+		baselineValue = "[press 'b' to browse]"
+	} else {
+		baselineValue = filepath.Base(baselineValue)
+	}
+	if m.DiffFocusField == 0 {
+		b.WriteString(selectedStyle.Render(baselineLabel + baselineValue))
+	} else {
+		b.WriteString(baselineLabel + baselineValue)
+	}
+	b.WriteString("\n\n")
+
+	// Compare file
+	compareLabel := "Compare:  "
+	compareValue := m.DiffCompare
+	if compareValue == "" {
+		compareValue = "[press 'b' to browse]"
+	} else {
+		compareValue = filepath.Base(compareValue)
+	}
+	if m.DiffFocusField == 1 {
+		b.WriteString(selectedStyle.Render(compareLabel + compareValue))
+	} else {
+		b.WriteString(compareLabel + compareValue)
+	}
+	b.WriteString("\n\n")
+
+	// Expected RPI
+	rpiLabel := fmt.Sprintf("Expected RPI: %.1f ms", m.DiffExpectedRPI)
+	if m.DiffFocusField == 2 {
+		b.WriteString(selectedStyle.Render(rpiLabel + " (+/- to adjust)"))
+	} else {
+		b.WriteString(rpiLabel)
+	}
+	b.WriteString("\n\n")
+
+	// Skip options
+	skipTimingCheck := "[ ]"
+	if m.DiffSkipTiming {
+		skipTimingCheck = "[x]"
+	}
+	skipTimingLine := fmt.Sprintf("%s Skip timing analysis", skipTimingCheck)
+	if m.DiffFocusField == 3 {
+		b.WriteString(selectedStyle.Render(skipTimingLine))
+	} else {
+		b.WriteString(skipTimingLine)
+	}
+	b.WriteString("\n")
+
+	skipRPICheck := "[ ]"
+	if m.DiffSkipRPI {
+		skipRPICheck = "[x]"
+	}
+	skipRPILine := fmt.Sprintf("%s Skip RPI/jitter analysis", skipRPICheck)
+	if m.DiffFocusField == 4 {
+		b.WriteString(selectedStyle.Render(skipRPILine))
+	} else {
+		b.WriteString(skipRPILine)
+	}
+	b.WriteString("\n")
+
+	// Command preview
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString("\n\n")
+	b.WriteString("Command preview:\n")
+	cmd := m.buildCommand()
 	b.WriteString(dimStyle.Render(cmd))
 	b.WriteString("\n")
 
@@ -1030,8 +1231,10 @@ func (m *PCAPScreenModel) Footer() string {
 		return "Enter: run    y: copy command    Esc: back    m: menu"
 	case 5:
 		return "↑↓/j/k: scroll    Space/b: page    g/G: top/bottom    q/Esc: back"
+	case 6:
+		return "Tab: next    b: browse    Space: toggle    +/-: RPI    Enter: run    y: copy    Esc: back"
 	default:
-		return "b: browse files    1-6: select action    y: copy command    m: menu"
+		return "b: browse files    1-7: select action    y: copy command    m: menu"
 	}
 }
 
