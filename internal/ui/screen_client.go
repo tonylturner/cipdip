@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tturner/cipdip/internal/netdetect"
 )
 
 // ClientScreenModel handles the client configuration screen.
@@ -22,17 +23,23 @@ type ClientScreenModel struct {
 	ConfigPath string
 
 	// Advanced options
-	ShowAdvanced    bool
-	ModeIndex       int    // Index into modePresets
-	Duration        string // Custom duration in seconds
-	Interval        string // Custom interval in milliseconds
-	FirewallVendor  int    // Index into firewallVendors (when firewall scenario selected)
-	CIPProfiles     []bool // energy, safety, motion toggles
-	ProtocolVariant int    // Index into protocolVariants
-	PcapEnabled     bool
-	PcapFile        string
-	MetricsEnabled  bool
-	MetricsFile     string
+	ShowAdvanced     bool
+	ModeIndex        int    // Index into modePresets
+	Duration         string // Custom duration in seconds
+	Interval         string // Custom interval in milliseconds
+	FirewallVendor   int    // Index into firewallVendors (when firewall scenario selected)
+	CIPProfiles      []bool // energy, safety, motion toggles
+	ProtocolVariant  int    // Index into protocolVariants
+	PcapEnabled           bool
+	PcapFile              string
+	CaptureInterface      string // Network interface for PCAP (empty = auto-detect)
+	AutoDetectedInterface string // The auto-detected interface for display
+	MetricsEnabled   bool
+	MetricsFile      string
+
+	// Interface selector
+	InterfaceSelector       *InterfaceSelectorModel
+	InterfaceSelectorActive bool
 
 	// UI state
 	focusIndex int // Which field is focused
@@ -182,6 +189,20 @@ func NewClientScreenModel(state *AppState) *ClientScreenModel {
 	}
 }
 
+// updateAutoDetectedInterface detects the interface for the current target IP.
+func (m *ClientScreenModel) updateAutoDetectedInterface() {
+	if m.TargetIP == "" {
+		m.AutoDetectedInterface = ""
+		return
+	}
+	iface, err := netdetect.DetectInterfaceForTarget(m.TargetIP)
+	if err != nil {
+		m.AutoDetectedInterface = "unknown"
+	} else {
+		m.AutoDetectedInterface = iface
+	}
+}
+
 // generatePcapFilename creates a filename based on current settings
 func (m *ClientScreenModel) generatePcapFilename() string {
 	scenarios := allScenarios()
@@ -197,6 +218,24 @@ func (m *ClientScreenModel) generatePcapFilename() string {
 
 // Update handles input for the client screen.
 func (m *ClientScreenModel) Update(msg tea.KeyMsg) (*ClientScreenModel, tea.Cmd) {
+	// Handle interface selector if active
+	if m.InterfaceSelectorActive && m.InterfaceSelector != nil {
+		selector, cmd, done := m.InterfaceSelector.Update(msg)
+		m.InterfaceSelector = selector
+		if done {
+			m.InterfaceSelectorActive = false
+			if selector.Selected != "" || msg.String() == "enter" {
+				m.CaptureInterface = selector.Selected
+				if selector.Selected == "" {
+					m.Status = "Interface: auto-detect"
+				} else {
+					m.Status = fmt.Sprintf("Interface: %s", selector.Selected)
+				}
+			}
+		}
+		return m, cmd
+	}
+
 	if m.Running {
 		return m.updateRunning(msg)
 	}
@@ -369,6 +408,20 @@ read_targets:
 		switch msg.String() {
 		case " ":
 			m.PcapEnabled = !m.PcapEnabled
+			if m.PcapEnabled {
+				m.updateAutoDetectedInterface()
+			}
+		case "i":
+			// Open interface selector
+			if m.PcapEnabled {
+				m.InterfaceSelector = NewInterfaceSelectorModel()
+				m.InterfaceSelector.CurrentAutoDetected = m.AutoDetectedInterface
+				if err := m.InterfaceSelector.LoadInterfaces(); err != nil {
+					m.Status = fmt.Sprintf("Failed to load interfaces: %v", err)
+				} else {
+					m.InterfaceSelectorActive = true
+				}
+			}
 		}
 	case clientFieldMetrics:
 		switch msg.String() {
@@ -472,6 +525,10 @@ func (m *ClientScreenModel) handleBackspace() {
 	case clientFieldIP:
 		if len(m.TargetIP) > 0 {
 			m.TargetIP = m.TargetIP[:len(m.TargetIP)-1]
+			// Update auto-detected interface if PCAP is enabled
+			if m.PcapEnabled {
+				m.updateAutoDetectedInterface()
+			}
 		}
 	case clientFieldPort:
 		if len(m.Port) > 0 {
@@ -498,6 +555,10 @@ func (m *ClientScreenModel) handleCharInput(ch string) {
 		// Allow IP characters
 		if strings.ContainsAny(ch, "0123456789.") {
 			m.TargetIP += ch
+			// Update auto-detected interface if PCAP is enabled
+			if m.PcapEnabled {
+				m.updateAutoDetectedInterface()
+			}
 		}
 	case clientFieldPort:
 		// Allow port numbers
@@ -628,6 +689,9 @@ func (m *ClientScreenModel) buildCommandArgs() []string {
 	// PCAP capture
 	if m.PcapEnabled {
 		args = append(args, "--pcap", m.generatePcapFilename())
+		if m.CaptureInterface != "" {
+			args = append(args, "--capture-interface", m.CaptureInterface)
+		}
 	}
 
 	// Metrics file
@@ -649,6 +713,11 @@ func (m *ClientScreenModel) buildCommand() string {
 
 // View renders the client screen.
 func (m *ClientScreenModel) View() string {
+	// Show interface selector if active
+	if m.InterfaceSelectorActive && m.InterfaceSelector != nil {
+		return m.InterfaceSelector.View()
+	}
+
 	if m.Running {
 		return m.viewRunning()
 	}
@@ -752,7 +821,19 @@ func (m *ClientScreenModel) viewEditing() string {
 	}
 	pcapFullPath := m.generatePcapFilename()
 	pcapFilename := filepath.Base(pcapFullPath)
+	ifaceDisplay := "auto"
+	if m.CaptureInterface != "" {
+		ifaceDisplay = m.CaptureInterface
+	}
 	pcapLine := fmt.Sprintf("PCAP Capture: [%s] pcaps/%s", pcapCheck, pcapFilename)
+	if m.PcapEnabled {
+		// Show actual interface - either manual or auto-detected
+		displayIface := ifaceDisplay
+		if m.CaptureInterface == "" && m.AutoDetectedInterface != "" {
+			displayIface = m.AutoDetectedInterface + " (auto)"
+		}
+		pcapLine += fmt.Sprintf("  [i]nterface: %s", displayIface)
+	}
 	if m.focusIndex == clientFieldPcap {
 		b.WriteString(selectedStyle.Render(pcapLine))
 	} else {
@@ -1056,6 +1137,9 @@ func (m *ClientScreenModel) viewCompleted() string {
 
 // Footer returns the footer text for the client screen.
 func (m *ClientScreenModel) Footer() string {
+	if m.InterfaceSelectorActive && m.InterfaceSelector != nil {
+		return m.InterfaceSelector.Footer()
+	}
 	if m.Running {
 		return "x: stop    Space: pause/resume    l: show full log    m: menu"
 	}
@@ -1064,6 +1148,9 @@ func (m *ClientScreenModel) Footer() string {
 	}
 	if m.ShowAdvanced {
 		return "Tab: next    ←→: select    Enter: run    a: hide adv    e: edit    m: menu"
+	}
+	if m.focusIndex == clientFieldPcap && m.PcapEnabled {
+		return "Space: toggle    i: interface    Enter: run    a: advanced    m: menu"
 	}
 	return "Tab: next    ←→: select    Enter: run    a: advanced    e: edit    y: copy    m: menu"
 }

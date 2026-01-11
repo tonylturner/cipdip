@@ -8,22 +8,23 @@ import (
 )
 
 type clientFlags struct {
-	ip          string
-	port        int
-	scenario    string
-	intervalMs  int
-	durationSec int
-	config      string
-	logFile     string
-	metricsFile string
-	verbose     bool
-	debug       bool
-	pcapFile    string
-	quickStart  bool
-	cipProfile  string
-	targetTags  string
-	firewall    string
-	tuiStats    bool
+	ip               string
+	port             int
+	scenario         string
+	intervalMs       int
+	durationSec      int
+	config           string
+	logFile          string
+	metricsFile      string
+	verbose          bool
+	debug            bool
+	pcapFile         string
+	captureInterface string
+	quickStart       bool
+	cipProfile       string
+	targetTags       string
+	firewall         string
+	tuiStats         bool
 }
 
 func newClientCmd() *cobra.Command {
@@ -128,6 +129,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().BoolVar(&flags.verbose, "verbose", false, "Enable verbose output")
 	cmd.Flags().BoolVar(&flags.debug, "debug", false, "Enable debug output")
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., capture.pcap)")
+	cmd.Flags().StringVar(&flags.captureInterface, "capture-interface", "", "Network interface for PCAP capture (auto-detected if not specified)")
 	cmd.Flags().BoolVar(&flags.quickStart, "quick-start", false, "Auto-generate default config if missing (zero-config usage)")
 	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
 	cmd.Flags().StringVar(&flags.targetTags, "target-tags", "", "Filter targets by comma-separated tags (e.g., rockwell,tc-enip-001-explicit)")
@@ -139,21 +141,22 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 
 func runClient(flags *clientFlags) error {
 	return app.RunClient(app.ClientOptions{
-		IP:             flags.ip,
-		Port:           flags.port,
-		Scenario:       flags.scenario,
-		IntervalMs:     flags.intervalMs,
-		DurationSec:    flags.durationSec,
-		ConfigPath:     flags.config,
-		LogFile:        flags.logFile,
-		MetricsFile:    flags.metricsFile,
-		Verbose:        flags.verbose,
-		Debug:          flags.debug,
-		PCAPFile:       flags.pcapFile,
-		QuickStart:     flags.quickStart,
-		CIPProfile:     flags.cipProfile,
-		TargetTags:     flags.targetTags,
-		FirewallVendor: flags.firewall,
-		TUIStats:       flags.tuiStats,
+		IP:               flags.ip,
+		Port:             flags.port,
+		Scenario:         flags.scenario,
+		IntervalMs:       flags.intervalMs,
+		DurationSec:      flags.durationSec,
+		ConfigPath:       flags.config,
+		LogFile:          flags.logFile,
+		MetricsFile:      flags.metricsFile,
+		Verbose:          flags.verbose,
+		Debug:            flags.debug,
+		PCAPFile:         flags.pcapFile,
+		CaptureInterface: flags.captureInterface,
+		QuickStart:       flags.quickStart,
+		CIPProfile:       flags.cipProfile,
+		TargetTags:       flags.targetTags,
+		FirewallVendor:   flags.firewall,
+		TUIStats:         flags.tuiStats,
 	})
 }

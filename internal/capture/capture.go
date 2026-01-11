@@ -9,6 +9,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
+	"github.com/tturner/cipdip/internal/netdetect"
 )
 
 // Capture represents a packet capture session
@@ -111,6 +112,37 @@ func StartCaptureLoopback(outputFile string) (*Capture, error) {
 	}
 
 	return StartCapture(loopbackIface, outputFile)
+}
+
+// StartCaptureForClient starts capturing packets on the interface that routes to targetIP.
+// It auto-detects the appropriate interface based on the system's routing table.
+func StartCaptureForClient(outputFile, targetIP string) (*Capture, string, error) {
+	ifaceName, err := netdetect.DetectInterfaceForTarget(targetIP)
+	if err != nil {
+		return nil, "", fmt.Errorf("detect interface for target %s: %w", targetIP, err)
+	}
+
+	capture, err := StartCapture(ifaceName, outputFile)
+	if err != nil {
+		return nil, ifaceName, err
+	}
+	return capture, ifaceName, nil
+}
+
+// StartCaptureForServer starts capturing packets on the interface bound to listenIP.
+// For 0.0.0.0, it selects the first non-loopback interface.
+// For 127.0.0.1, it uses the loopback interface.
+func StartCaptureForServer(outputFile, listenIP string) (*Capture, string, error) {
+	ifaceName, err := netdetect.DetectInterfaceForListen(listenIP)
+	if err != nil {
+		return nil, "", fmt.Errorf("detect interface for listen %s: %w", listenIP, err)
+	}
+
+	capture, err := StartCapture(ifaceName, outputFile)
+	if err != nil {
+		return nil, ifaceName, err
+	}
+	return capture, ifaceName, nil
 }
 
 // captureLoop runs the capture loop in background
