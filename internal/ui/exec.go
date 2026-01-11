@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
@@ -187,7 +188,10 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 	if err != nil {
 		return nil, nil, err
 	}
-	cmd.Stderr = cmd.Stdout // Merge stderr into stdout
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, nil, err
+	}
 
 	statsChan := make(chan StatsUpdate, 10)
 	resultChan := make(chan CommandResult, 1)
@@ -201,7 +205,9 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 		defer close(resultChan)
 
 		var outputBuf bytes.Buffer
-		scanner := bufio.NewScanner(stdout)
+		// Combine stdout and stderr
+		combined := io.MultiReader(stdout, stderr)
+		scanner := bufio.NewScanner(combined)
 		for scanner.Scan() {
 			line := scanner.Text()
 			outputBuf.WriteString(line)
