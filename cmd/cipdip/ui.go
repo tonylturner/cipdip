@@ -130,7 +130,7 @@ func runUI(flags *uiFlags) error {
 
 	fmt.Fprintf(os.Stdout, "Workspace loaded: %s\n", ws.Root)
 	if flags.startTUI {
-		return ui.RunTUI(ws.Root)
+		return ui.RunTUIV2(ws.Root)
 	}
 	previewOnly := flags.cliMode || flags.noRun || flags.printCommand || flags.showCatalog || flags.showPalette || flags.showHome || flags.wizard != "" || flags.profile != ""
 	if flags.showCatalog {
@@ -168,7 +168,7 @@ func runUI(flags *uiFlags) error {
 		return nil
 	}
 	if !previewOnly {
-		return ui.RunTUI(ws.Root)
+		return ui.RunTUIV2(ws.Root)
 	}
 	var profiles []ui.ProfileInfo
 	if flags.wizard == "" {

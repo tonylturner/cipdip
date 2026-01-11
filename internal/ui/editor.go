@@ -14,7 +14,7 @@ func OpenEditor(path string) error {
 		if runtime.GOOS == "windows" {
 			editor = "notepad"
 		} else {
-			editor = "vi"
+			editor = "nano"
 		}
 	}
 	cmd := exec.Command(editor, path)
