@@ -6,9 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
+	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -205,30 +205,55 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 		defer close(resultChan)
 
 		var outputBuf bytes.Buffer
-		// Combine stdout and stderr
-		combined := io.MultiReader(stdout, stderr)
-		scanner := bufio.NewScanner(combined)
-		for scanner.Scan() {
-			line := scanner.Text()
-			outputBuf.WriteString(line)
-			outputBuf.WriteString("\n")
+		var outputMu sync.Mutex
+		lineChan := make(chan string, 100)
 
-			// Try to parse as JSON stats
-			var msg struct {
-				Type  string      `json:"type"`
-				Stats StatsUpdate `json:"stats"`
+		// Read stdout in a goroutine
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			for scanner.Scan() {
+				lineChan <- scanner.Text()
 			}
-			if err := json.Unmarshal([]byte(line), &msg); err == nil && msg.Type == "stats" {
-				select {
-				case statsChan <- msg.Stats:
-				default:
-					// Drop stats if channel is full
+		}()
+
+		// Read stderr in a goroutine
+		go func() {
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				lineChan <- scanner.Text()
+			}
+		}()
+
+		// Process lines until command exits
+		done := make(chan struct{})
+		go func() {
+			for line := range lineChan {
+				outputMu.Lock()
+				outputBuf.WriteString(line)
+				outputBuf.WriteString("\n")
+				outputMu.Unlock()
+
+				// Try to parse as JSON stats
+				var msg struct {
+					Type  string      `json:"type"`
+					Stats StatsUpdate `json:"stats"`
+				}
+				if err := json.Unmarshal([]byte(line), &msg); err == nil && msg.Type == "stats" {
+					select {
+					case statsChan <- msg.Stats:
+					default:
+						// Drop stats if channel is full
+					}
 				}
 			}
-		}
+			close(done)
+		}()
 
 		// Wait for command to finish
 		err := cmd.Wait()
+		close(lineChan)
+		<-done // Wait for line processing to complete
+
 		exitCode := 0
 		if err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
@@ -238,8 +263,12 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 			}
 		}
 
+		outputMu.Lock()
+		output := outputBuf.String()
+		outputMu.Unlock()
+
 		resultChan <- CommandResult{
-			Output:   outputBuf.String(),
+			Output:   output,
 			ExitCode: exitCode,
 			Err:      err,
 		}
