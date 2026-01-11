@@ -112,6 +112,19 @@ func LoadRunArtifacts(runDir string) (*RunArtifacts, error) {
 	return artifacts, nil
 }
 
+// LoadRunSummary loads just the summary.json from a run directory.
+func LoadRunSummary(path string) (*RunSummary, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var summary RunSummary
+	if err := json.Unmarshal(data, &summary); err != nil {
+		return nil, err
+	}
+	return &summary, nil
+}
+
 func writeYAML(path string, data interface{}) error {
 	encoded, err := yaml.Marshal(data)
 	if err != nil {

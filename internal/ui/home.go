@@ -23,15 +23,6 @@ func HomeActions() []string {
 
 // RenderHomeScreen builds a simple home screen view for non-interactive runs.
 func RenderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem) string {
-	return renderHomeScreen(workspaceName, profiles, runs, palette, -1, "")
-}
-
-// RenderHomeScreenWithCursor renders the home screen with a highlighted quick action.
-func RenderHomeScreenWithCursor(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int, status string) string {
-	return renderHomeScreen(workspaceName, profiles, runs, palette, cursor, status)
-}
-
-func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []string, palette []PaletteItem, cursor int, status string) string {
 	titleStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
 	sectionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
 	metaStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
@@ -44,12 +35,8 @@ func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 		"",
 		sectionStyle.Render("Quick Actions:"),
 	}
-	for i, action := range HomeActions() {
-		prefix := "  - "
-		if cursor >= 0 && i == cursor {
-			prefix = "> "
-		}
-		lines = append(lines, fmt.Sprintf("%s%s", prefix, action))
+	for _, action := range HomeActions() {
+		lines = append(lines, fmt.Sprintf("  - %s", action))
 	}
 	lines = append(lines, "")
 	lines = append(lines, sectionStyle.Render("Configs:"))
@@ -67,10 +54,7 @@ func renderHomeScreen(workspaceName string, profiles []ProfileInfo, runs []strin
 	if len(runs) == 0 {
 		lines = append(lines, metaStyle.Render("  (no runs yet)"))
 	}
-	if strings.TrimSpace(status) != "" {
-		lines = append(lines, "", status)
-	}
-	lines = append(lines, "", "Tip: press / to search, p for palette")
+	lines = append(lines, "", "Tip: use --tui for interactive mode")
 	return frameStyle.Render(strings.Join(lines, "\n"))
 }
 
@@ -112,15 +96,3 @@ func RenderCatalogExplorer(entries []CatalogEntry, query string, sources []strin
 	return strings.Join(lines, "\n")
 }
 
-// RenderPaletteView formats palette entries for display.
-func RenderPaletteView(items []PaletteItem) string {
-	lines := []string{"Palette"}
-	if len(items) == 0 {
-		lines = append(lines, "(no items)")
-		return strings.Join(lines, "\n")
-	}
-	for _, item := range items {
-		lines = append(lines, item.String())
-	}
-	return strings.Join(lines, "\n")
-}
