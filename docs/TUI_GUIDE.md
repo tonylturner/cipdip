@@ -45,23 +45,55 @@ Configure and execute CIP client scenarios against a target device.
 **Fields:**
 - **Target IP**: IP address of the CIP device
 - **Port**: TCP port (default: 44818)
-- **Scenario**: Test scenario to run
+- **Scenario**: Test scenario to run (14 scenarios in 4 groups)
+- **Mode**: Duration preset (Quick/Standard/Extended/Custom)
 
 **Scenarios:**
-| Scenario | Description |
-|----------|-------------|
-| baseline | Read-only polling of configured targets |
-| mixed | Alternating reads and writes |
-| stress | High-frequency burst traffic |
-| io | Connected I/O with Forward Open |
-| edge | Protocol edge cases for DPI testing |
+
+| Group | Scenario | Description |
+|-------|----------|-------------|
+| **Basic** | baseline | Read-only polling of configured targets |
+| | mixed | Alternating reads and writes |
+| | stress | High-frequency burst traffic |
+| | io | Connected I/O with Forward Open |
+| | churn | Connection setup/teardown cycles |
+| **Edge Cases** | edge | Protocol edge cases for DPI testing |
+| | edge_valid | Protocol-valid edge cases |
+| | edge_vendor | Vendor-specific edge cases |
+| **Vendor Variants** | rockwell | Rockwell edge pack |
+| | vendor_variants | Protocol variant testing |
+| | mixed_state | UCMM + I/O interleaving |
+| | unconnected_send | UCMM wrapper tests |
+| **Firewall DPI** | firewall | Firewall DPI test pack (select vendor) |
+
+When **firewall** scenario is selected, a vendor selector appears:
+- All (firewall_pack), Hirschmann, Moxa, Dynics
+
+**Mode Presets:**
+
+| Mode | Duration | Interval |
+|------|----------|----------|
+| Quick | 30s | 250ms |
+| Standard | 5min | 250ms |
+| Extended | 30min | 250ms |
+| Custom | User-defined | User-defined |
+
+**Advanced Options** (press `a` to toggle):
+- **Duration/Interval**: Editable when Custom mode selected
+- **CIP Profiles**: [energy] [safety] [motion] - filter by application vertical
+- **Protocol**: strict_odva, rockwell_enbt, schneider_m580, siemens_s7_1200
+- **PCAP Capture**: Enable packet capture with filename
+- **Metrics File**: Export latency/jitter data to CSV
 
 **Keys:**
 - `Tab` - Move between fields
+- `←→` or `Space` - Change selection
+- `a` - Toggle advanced options
 - `Enter` - Start the run
 - `e` - Edit configuration file
 - `y` - Copy command to clipboard
 - `x` - Stop running client
+- `1/2/3` - Toggle individual CIP profiles (when focused)
 
 **Running State:**
 While running, the screen shows:
@@ -79,19 +111,38 @@ Start and monitor the CIP server emulator.
 - **Listen IP**: Interface to bind (default: 0.0.0.0)
 - **Port**: TCP port (default: 44818)
 - **Personality**: Server behavior profile
+- **Mode**: Server behavior mode
 
 **Personalities:**
+
 | Personality | Description |
 |-------------|-------------|
 | adapter | Assembly-based (like CLICK PLCs) |
 | logix_like | Tag-based (like Allen-Bradley Logix) |
 
+**Modes:**
+
+| Mode | Description |
+|------|-------------|
+| baseline | Standard compliant responses |
+| realistic | Realistic timing and behavior |
+| dpi-torture | Edge cases to stress DPI engines |
+| perf | High-performance mode for load testing |
+
+**Advanced Options** (press `a` to toggle):
+- **CIP Profiles**: [energy] [safety] [motion] - filter by application vertical
+- **UDP I/O**: Enable UDP I/O on port 2222
+- **PCAP Capture**: Enable packet capture with filename
+
 **Keys:**
 - `Tab` - Move between fields
+- `←→` or `Space` - Change selection
+- `a` - Toggle advanced options
 - `Enter` - Start server
 - `e` - Edit configuration
 - `y` - Copy command to clipboard
 - `x` - Stop server
+- `1/2/3` - Toggle individual CIP profiles (when focused)
 
 **Running State:**
 While running, the screen shows:
@@ -105,18 +156,34 @@ While running, the screen shows:
 Analyze and replay PCAP files containing CIP traffic.
 
 **Actions:**
-| Action | Description |
-|--------|-------------|
-| summary | Quick stats about the capture |
-| report | Detailed analysis report |
-| coverage | CIP service coverage analysis |
-| replay | Replay packets to a target |
-| rewrite | Modify and save packets |
-| dump | Hex dump of specific packets |
+
+| # | Action | Description |
+|---|--------|-------------|
+| 1 | Summary | Quick stats about the capture |
+| 2 | Report | Detailed analysis report |
+| 3 | Coverage | CIP service coverage analysis |
+| 4 | Replay | Replay packets to a target |
+| 5 | Rewrite | Modify and save packets |
+| 6 | Dump | Hex dump of specific packets |
+| 7 | Diff | Compare two PCAPs for service/timing differences |
+
+**Diff Action:**
+Compare baseline and compare PCAPs to identify:
+- Added/removed CIP service codes
+- Added/removed object classes
+- Latency differences (request/response timing)
+- RPI jitter analysis for I/O traffic
+
+Options:
+- **Baseline**: First PCAP file
+- **Compare**: Second PCAP file to compare
+- **Expected RPI**: Expected RPI in milliseconds (default: 20)
+- **Skip Timing**: Skip latency analysis
+- **Skip RPI**: Skip RPI jitter analysis
 
 **Keys:**
 - `b` - Browse for PCAP file
-- `1-6` - Select action
+- `1-7` - Select action
 - `Enter` - Run selected action
 - `y` - Copy command to clipboard
 
