@@ -13,19 +13,20 @@ import (
 )
 
 type serverFlags struct {
-	listenIP     string
-	listenPort   int
-	personality  string
-	serverConfig string
-	enableUDPIO  bool
-	pcapFile     string
-	cipProfile   string
-	mode         string
-	target       string
-	logFormat    string
-	logLevel     string
-	logEvery     int
-	tuiStats     bool
+	listenIP         string
+	listenPort       int
+	personality      string
+	serverConfig     string
+	enableUDPIO      bool
+	pcapFile         string
+	captureInterface string
+	cipProfile       string
+	mode             string
+	target           string
+	logFormat        string
+	logLevel         string
+	logEvery         int
+	tuiStats         bool
 }
 
 func newServerCmd() *cobra.Command {
@@ -195,6 +196,7 @@ func registerServerFlags(cmd *cobra.Command, flags *serverFlags) {
 	cmd.Flags().StringVar(&flags.serverConfig, "server-config", "cipdip_server.yaml", "Server config file path (default \"cipdip_server.yaml\")")
 	cmd.Flags().BoolVar(&flags.enableUDPIO, "enable-udp-io", false, "Enable UDP I/O on port 2222 (default false)")
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., server_capture.pcap)")
+	cmd.Flags().StringVar(&flags.captureInterface, "capture-interface", "", "Network interface for PCAP capture (auto-detected if not specified)")
 	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
 	cmd.Flags().StringVar(&flags.mode, "mode", "", "Mode preset: baseline|realistic|dpi-torture|perf")
 	cmd.Flags().StringVar(&flags.target, "target", "", "Target preset name")
@@ -206,18 +208,19 @@ func registerServerFlags(cmd *cobra.Command, flags *serverFlags) {
 
 func runServer(flags *serverFlags) error {
 	return app.RunServer(app.ServerOptions{
-		ListenIP:    flags.listenIP,
-		ListenPort:  flags.listenPort,
-		Personality: flags.personality,
-		ConfigPath:  flags.serverConfig,
-		EnableUDPIO: flags.enableUDPIO,
-		PCAPFile:    flags.pcapFile,
-		CIPProfile:  flags.cipProfile,
-		Mode:        flags.mode,
-		Target:      flags.target,
-		LogFormat:   flags.logFormat,
-		LogLevel:    flags.logLevel,
-		LogEvery:    flags.logEvery,
-		TUIStats:    flags.tuiStats,
+		ListenIP:         flags.listenIP,
+		ListenPort:       flags.listenPort,
+		Personality:      flags.personality,
+		ConfigPath:       flags.serverConfig,
+		EnableUDPIO:      flags.enableUDPIO,
+		PCAPFile:         flags.pcapFile,
+		CaptureInterface: flags.captureInterface,
+		CIPProfile:       flags.cipProfile,
+		Mode:             flags.mode,
+		Target:           flags.target,
+		LogFormat:        flags.logFormat,
+		LogLevel:         flags.logLevel,
+		LogEvery:         flags.logEvery,
+		TUIStats:         flags.tuiStats,
 	})
 }

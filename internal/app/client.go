@@ -22,22 +22,23 @@ import (
 )
 
 type ClientOptions struct {
-	IP             string
-	Port           int
-	Scenario       string
-	IntervalMs     int
-	DurationSec    int
-	ConfigPath     string
-	LogFile        string
-	MetricsFile    string
-	Verbose        bool
-	Debug          bool
-	PCAPFile       string
-	QuickStart     bool
-	CIPProfile     string
-	TargetTags     string
-	FirewallVendor string
-	TUIStats       bool
+	IP               string
+	Port             int
+	Scenario         string
+	IntervalMs       int
+	DurationSec      int
+	ConfigPath       string
+	LogFile          string
+	MetricsFile      string
+	Verbose          bool
+	Debug            bool
+	PCAPFile         string
+	CaptureInterface string
+	QuickStart       bool
+	CIPProfile       string
+	TargetTags       string
+	FirewallVendor   string
+	TUIStats         bool
 }
 
 func RunClient(opts ClientOptions) error {
@@ -167,10 +168,21 @@ func RunClient(opts ClientOptions) error {
 
 	var pcapCapture *capture.Capture
 	if opts.PCAPFile != "" {
-		fmt.Fprintf(os.Stdout, "Starting packet capture: %s\n", opts.PCAPFile)
-		pcapCapture, err = capture.StartCaptureLoopback(opts.PCAPFile)
+		var ifaceName string
+		if opts.CaptureInterface != "" {
+			// Use explicitly specified interface
+			fmt.Fprintf(os.Stdout, "Starting packet capture on %s: %s\n", opts.CaptureInterface, opts.PCAPFile)
+			pcapCapture, err = capture.StartCapture(opts.CaptureInterface, opts.PCAPFile)
+			ifaceName = opts.CaptureInterface
+		} else {
+			// Auto-detect interface for target IP
+			pcapCapture, ifaceName, err = capture.StartCaptureForClient(opts.PCAPFile, opts.IP)
+			if err == nil {
+				fmt.Fprintf(os.Stdout, "Starting packet capture on %s (auto-detected): %s\n", ifaceName, opts.PCAPFile)
+			}
+		}
 		if err != nil {
-			return fmt.Errorf("start packet capture: %w", err)
+			return fmt.Errorf("start packet capture on %s: %w", ifaceName, err)
 		}
 		defer pcapCapture.Stop()
 	}

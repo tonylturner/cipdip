@@ -14,29 +14,41 @@ import (
 )
 
 type ServerOptions struct {
-	ListenIP    string
-	ListenPort  int
-	Personality string
-	ConfigPath  string
-	EnableUDPIO bool
-	PCAPFile    string
-	CIPProfile  string
-	Mode        string
-	Target      string
-	LogFormat   string
-	LogLevel    string
-	LogEvery    int
-	TUIStats    bool
+	ListenIP         string
+	ListenPort       int
+	Personality      string
+	ConfigPath       string
+	EnableUDPIO      bool
+	PCAPFile         string
+	CaptureInterface string
+	CIPProfile       string
+	Mode             string
+	Target           string
+	LogFormat        string
+	LogLevel         string
+	LogEvery         int
+	TUIStats         bool
 }
 
 func RunServer(opts ServerOptions) error {
 	var pcapCapture *capture.Capture
 	if opts.PCAPFile != "" {
-		fmt.Fprintf(os.Stdout, "Starting packet capture: %s\n", opts.PCAPFile)
 		var err error
-		pcapCapture, err = capture.StartCaptureLoopback(opts.PCAPFile)
+		var ifaceName string
+		if opts.CaptureInterface != "" {
+			// Use explicitly specified interface
+			fmt.Fprintf(os.Stdout, "Starting packet capture on %s: %s\n", opts.CaptureInterface, opts.PCAPFile)
+			pcapCapture, err = capture.StartCapture(opts.CaptureInterface, opts.PCAPFile)
+			ifaceName = opts.CaptureInterface
+		} else {
+			// Auto-detect interface for listen IP
+			pcapCapture, ifaceName, err = capture.StartCaptureForServer(opts.PCAPFile, opts.ListenIP)
+			if err == nil {
+				fmt.Fprintf(os.Stdout, "Starting packet capture on %s (auto-detected): %s\n", ifaceName, opts.PCAPFile)
+			}
+		}
 		if err != nil {
-			return fmt.Errorf("start packet capture: %w", err)
+			return fmt.Errorf("start packet capture on %s: %w", ifaceName, err)
 		}
 		defer pcapCapture.Stop()
 	}
