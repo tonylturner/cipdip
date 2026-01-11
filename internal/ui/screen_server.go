@@ -495,53 +495,59 @@ func (m *ServerScreenModel) View() string {
 func (m *ServerScreenModel) viewEditing() string {
 	var b strings.Builder
 
-	// Header - no styling for terminal compatibility testing
+	// Header
 	header := "SERVER"
 	if m.ShowAdvanced {
-		header += " [advanced]"
+		header += "                                          [advanced]"
 	}
-	b.WriteString(header)
+	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("-", 60))
+	b.WriteString(strings.Repeat("─", 60))
 	b.WriteString("\n\n")
 
-	// Listen IP field - plain text only
+	// Listen IP field
+	ipLabel := "Listen IP: "
 	ipValue := m.ListenIP
 	if ipValue == "" {
 		ipValue = "0.0.0.0"
 	}
 	if m.focusIndex == serverFieldIP {
-		b.WriteString(fmt.Sprintf("> Listen IP: %s_\n", ipValue))
+		b.WriteString(selectedStyle.Render(ipLabel + ipValue + "█"))
 	} else {
-		b.WriteString(fmt.Sprintf("  Listen IP: %s\n", ipValue))
+		b.WriteString(ipLabel + ipValue)
 	}
+	b.WriteString("            ")
 
-	// Port field - plain text only
+	// Port field
+	portLabel := "TCP Port: "
 	portValue := m.Port
 	if portValue == "" {
 		portValue = "44818"
 	}
 	if m.focusIndex == serverFieldPort {
-		b.WriteString(fmt.Sprintf("> TCP Port:  %s_\n", portValue))
+		b.WriteString(selectedStyle.Render(portLabel + portValue + "█"))
 	} else {
-		b.WriteString(fmt.Sprintf("  TCP Port:  %s\n", portValue))
+		b.WriteString(portLabel + portValue)
 	}
+	b.WriteString("\n\n")
 
-	// Personality selection - plain text only
-	b.WriteString("\nPersonality:\n")
+	// Personality selection
+	b.WriteString("Personality:\n")
 	for i, p := range serverPersonalities {
 		prefix := "  ( ) "
 		if i == m.Personality {
-			prefix = "  (*) "
+			prefix = "  (•) "
 		}
+		line := fmt.Sprintf("%s%-12s %s", prefix, p.Name, p.Desc)
 		if m.focusIndex == serverFieldPersonality && i == m.Personality {
-			b.WriteString(fmt.Sprintf("> %s%-12s %s\n", prefix[2:], p.Name, p.Desc))
+			b.WriteString(selectedStyle.Render(line))
 		} else {
-			b.WriteString(fmt.Sprintf("%s%-12s %s\n", prefix, p.Name, p.Desc))
+			b.WriteString(line)
 		}
+		b.WriteString("\n")
 	}
 
-	// Mode selector - plain text only
+	// Mode selector
 	b.WriteString("\n")
 	modeLine := "Mode: "
 	for i, mode := range serverModes {
@@ -552,15 +558,15 @@ func (m *ServerScreenModel) viewEditing() string {
 		}
 	}
 	if m.focusIndex == serverFieldMode {
-		b.WriteString("> " + modeLine)
+		b.WriteString(selectedStyle.Render(modeLine))
 	} else {
-		b.WriteString("  " + modeLine)
+		b.WriteString(modeLine)
 	}
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("        %s", serverModes[m.ModeIndex].Desc))
+	b.WriteString(dimStyle.Render(fmt.Sprintf("      %s", serverModes[m.ModeIndex].Desc)))
 	b.WriteString("\n")
 
-	// PCAP capture toggle - plain text only
+	// PCAP capture toggle (always visible)
 	b.WriteString("\n")
 	pcapCheck := " "
 	if m.PcapEnabled {
@@ -570,18 +576,18 @@ func (m *ServerScreenModel) viewEditing() string {
 	pcapFilename := filepath.Base(pcapFullPath)
 	pcapLine := fmt.Sprintf("PCAP Capture: [%s] pcaps/%s", pcapCheck, pcapFilename)
 	if m.focusIndex == serverFieldPcap {
-		b.WriteString("> " + pcapLine)
+		b.WriteString(selectedStyle.Render(pcapLine))
 	} else {
-		b.WriteString("  " + pcapLine)
+		b.WriteString(pcapLine)
 	}
 	b.WriteString("\n")
 
-	// Advanced options section - plain text only
+	// Advanced options section
 	if m.ShowAdvanced {
 		b.WriteString("\n")
-		b.WriteString(strings.Repeat("-", 60))
+		b.WriteString(strings.Repeat("─", 60))
 		b.WriteString("\n")
-		b.WriteString("Advanced Options                                   [a] hide")
+		b.WriteString(dimStyle.Render("Advanced Options                                   [a] hide"))
 		b.WriteString("\n\n")
 
 		// CIP Profiles
@@ -595,9 +601,9 @@ func (m *ServerScreenModel) viewEditing() string {
 		}
 		profileLine += "  (1/2/3 toggle, space=all)"
 		if m.focusIndex == serverFieldCIPProfiles {
-			b.WriteString("> " + profileLine)
+			b.WriteString(selectedStyle.Render(profileLine))
 		} else {
-			b.WriteString("  " + profileLine)
+			b.WriteString(profileLine)
 		}
 		b.WriteString("\n\n")
 
@@ -608,41 +614,41 @@ func (m *ServerScreenModel) viewEditing() string {
 		}
 		udpLine := fmt.Sprintf("UDP I/O:      [%s] Enable UDP I/O on port 2222", udpCheck)
 		if m.focusIndex == serverFieldUDPIO {
-			b.WriteString("> " + udpLine)
+			b.WriteString(selectedStyle.Render(udpLine))
 		} else {
-			b.WriteString("  " + udpLine)
+			b.WriteString(udpLine)
 		}
 		b.WriteString("\n")
 	} else {
 		b.WriteString("\n")
-		b.WriteString("                                        [a]dvanced options >")
+		b.WriteString(dimStyle.Render("                                        [a]dvanced options ▸"))
 		b.WriteString("\n")
 	}
 
-	// Config info - plain text only
+	// Config info
 	b.WriteString("\n")
 	if m.ConfigPath != "" {
 		b.WriteString(fmt.Sprintf("Config: %s                    [e]dit\n", m.ConfigPath))
 	} else {
-		b.WriteString("Config: [none - using defaults]                    [e]dit")
+		b.WriteString(dimStyle.Render("Config: [none - using defaults]                    [e]dit"))
 		b.WriteString("\n")
 	}
 
 	// Separator
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("-", 60))
+	b.WriteString(strings.Repeat("─", 60))
 	b.WriteString("\n\n")
 
-	// Command preview - plain text only
+	// Command preview
 	b.WriteString("Command preview:\n")
 	cmd := m.buildCommand()
 	// Word wrap long commands
 	if len(cmd) > 58 {
-		b.WriteString(cmd[:58])
+		b.WriteString(dimStyle.Render(cmd[:58]))
 		b.WriteString("\n")
-		b.WriteString("  " + cmd[58:])
+		b.WriteString(dimStyle.Render("  " + cmd[58:]))
 	} else {
-		b.WriteString(cmd)
+		b.WriteString(dimStyle.Render(cmd))
 	}
 	b.WriteString("\n")
 
