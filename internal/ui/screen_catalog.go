@@ -65,6 +65,21 @@ func (m *CatalogScreenModel) updateList(msg tea.KeyMsg) (*CatalogScreenModel, te
 			m.Filter = ""
 			m.cursor = 0
 		}
+	case "1":
+		// Quick filter: Logix/Rockwell services
+		m.Filter = "rockwell"
+		m.cursor = 0
+		m.Status = "Filter: Logix/Rockwell services"
+	case "2":
+		// Quick filter: Core CIP services
+		m.Filter = "core"
+		m.cursor = 0
+		m.Status = "Filter: Core CIP services"
+	case "0":
+		// Clear filter
+		m.Filter = ""
+		m.cursor = 0
+		m.Status = "Filter cleared"
 	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
@@ -323,7 +338,7 @@ func (m *CatalogScreenModel) viewList() string {
 	// Header
 	b.WriteString(headerStyle.Render("CIP CATALOG"))
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n\n")
 
 	// Filter
@@ -337,20 +352,31 @@ func (m *CatalogScreenModel) viewList() string {
 
 	// Classes list
 	b.WriteString("Classes:\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n")
 
 	if len(filtered) == 0 {
 		b.WriteString(dimStyle.Render("  (no matching entries)"))
 		b.WriteString("\n")
 	} else {
-		// Group by class
-		displayEntries := filtered
-		if len(displayEntries) > 15 {
-			displayEntries = displayEntries[:15]
+		// Calculate scroll window based on cursor position
+		maxVisible := 15
+		startIdx := 0
+		if m.cursor >= maxVisible {
+			startIdx = m.cursor - maxVisible + 1
+		}
+		endIdx := startIdx + maxVisible
+		if endIdx > len(filtered) {
+			endIdx = len(filtered)
 		}
 
-		for i, entry := range displayEntries {
+		// Show scroll indicator at top if not at beginning
+		if startIdx > 0 {
+			b.WriteString(dimStyle.Render(fmt.Sprintf("  ↑ %d more above\n", startIdx)))
+		}
+
+		for i := startIdx; i < endIdx; i++ {
+			entry := filtered[i]
 			prefix := "  "
 			if i == m.cursor {
 				prefix = "> "
@@ -359,9 +385,15 @@ func (m *CatalogScreenModel) viewList() string {
 			if name == "" {
 				name = entry.Key
 			}
-			// Show class/instance/attribute path for unique identification
-			path := fmt.Sprintf("%s/%s/%s", entry.Class, entry.Instance, entry.Attribute)
-			line := fmt.Sprintf("%s%-28s %s", prefix, name, path)
+			// Format: Name (Service)  Path
+			nameWithService := fmt.Sprintf("%s (%s)", name, entry.Service)
+			var path string
+			if getPathKind(entry) == "symbolic" {
+				path = "Symbolic (0x91)"
+			} else {
+				path = fmt.Sprintf("%s/%s/%s", entry.Class, entry.Instance, entry.Attribute)
+			}
+			line := fmt.Sprintf("%s%-43s %s", prefix, nameWithService, path)
 			if i == m.cursor {
 				b.WriteString(selectedStyle.Render(line))
 			} else {
@@ -370,8 +402,9 @@ func (m *CatalogScreenModel) viewList() string {
 			b.WriteString("\n")
 		}
 
-		if len(filtered) > 15 {
-			b.WriteString(dimStyle.Render(fmt.Sprintf("  ... and %d more", len(filtered)-15)))
+		// Show scroll indicator at bottom if more entries
+		if endIdx < len(filtered) {
+			b.WriteString(dimStyle.Render(fmt.Sprintf("  ↓ %d more below", len(filtered)-endIdx)))
 			b.WriteString("\n")
 		}
 	}
@@ -385,6 +418,17 @@ func (m *CatalogScreenModel) viewList() string {
 	return borderStyle.Render(b.String())
 }
 
+// getPathKind returns the addressing mode for a catalog entry
+func getPathKind(entry CatalogEntry) string {
+	payloadType := strings.ToLower(entry.Payload.Type)
+	switch payloadType {
+	case "rockwell_tag", "rockwell_tag_fragmented":
+		return "symbolic"
+	default:
+		return "numeric"
+	}
+}
+
 func (m *CatalogScreenModel) viewExpanded() string {
 	var b strings.Builder
 	filtered := m.filteredEntries()
@@ -393,22 +437,34 @@ func (m *CatalogScreenModel) viewExpanded() string {
 		return m.viewList()
 	}
 	entry := filtered[m.expandedIdx]
+	pathKind := getPathKind(entry)
 
 	// Header with class name
-	b.WriteString(headerStyle.Render(fmt.Sprintf("CIP CATALOG > %s (%s)", entry.Name, entry.Class)))
+	b.WriteString(headerStyle.Render(fmt.Sprintf("CIP CATALOG > %s", entry.Name)))
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n\n")
 
 	// Entry details
 	b.WriteString("Details:\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("  Key:       %s\n", entry.Key))
 	b.WriteString(fmt.Sprintf("  Service:   %s\n", entry.Service))
-	b.WriteString(fmt.Sprintf("  Class:     %s\n", entry.Class))
-	b.WriteString(fmt.Sprintf("  Instance:  %s\n", entry.Instance))
-	b.WriteString(fmt.Sprintf("  Attribute: %s\n", entry.Attribute))
+
+	if pathKind == "symbolic" {
+		// Symbolic addressing - show that path is determined by tag name
+		b.WriteString(fmt.Sprintf("  Path:      Symbolic (0x91) - tag name in request\n"))
+		b.WriteString(fmt.Sprintf("  Object:    %s (Symbol Object)\n", entry.Class))
+	} else {
+		// Numeric addressing - show class/instance/attribute
+		b.WriteString(fmt.Sprintf("  Class:     %s\n", entry.Class))
+		b.WriteString(fmt.Sprintf("  Instance:  %s\n", entry.Instance))
+		if entry.Attribute != "" && entry.Attribute != "0x00" && entry.Attribute != "0x0000" {
+			b.WriteString(fmt.Sprintf("  Attribute: %s\n", entry.Attribute))
+		}
+	}
+
 	if entry.PayloadHex != "" {
 		b.WriteString(fmt.Sprintf("  Payload:   %s\n", entry.PayloadHex))
 	}
@@ -419,7 +475,7 @@ func (m *CatalogScreenModel) viewExpanded() string {
 	// Services section (if we had more data)
 	b.WriteString("\n")
 	b.WriteString("Services:\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("  %s  %s\n", entry.Service, entry.Name))
 
@@ -441,13 +497,17 @@ func (m *CatalogScreenModel) viewProbeDialog() string {
 	if m.expandedIdx < len(filtered) {
 		entry := filtered[m.expandedIdx]
 		entryName = entry.Name
-		entryPath = fmt.Sprintf("%s / %s / %s", entry.Class, entry.Instance, entry.Attribute)
+		if getPathKind(entry) == "symbolic" {
+			entryPath = "Symbolic (0x91) - requires --tag parameter"
+		} else {
+			entryPath = fmt.Sprintf("%s / %s / %s", entry.Class, entry.Instance, entry.Attribute)
+		}
 	}
 
 	// Header
 	b.WriteString(headerStyle.Render(fmt.Sprintf("PROBE: %s", entryName)))
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n\n")
 
 	// Path info
@@ -479,7 +539,7 @@ func (m *CatalogScreenModel) viewProbeDialog() string {
 
 	// Command preview
 	b.WriteString("\n")
-	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString(strings.Repeat("─", 78))
 	b.WriteString("\n\n")
 	b.WriteString("Command:\n")
 	b.WriteString(dimStyle.Render(m.buildProbeCommand()))
@@ -502,5 +562,5 @@ func (m *CatalogScreenModel) Footer() string {
 	if m.expanded {
 		return "Enter: probe this attribute    y: copy path    Esc: back    m: menu"
 	}
-	return "↑↓: navigate    Enter: expand    /: filter    y: copy key    m: menu"
+	return "↑↓: navigate    Enter: expand    /: filter    1: Logix    2: Core    0: All    m: menu"
 }
