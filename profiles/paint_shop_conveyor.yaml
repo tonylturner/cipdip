@@ -1,0 +1,350 @@
+metadata:
+  name: "Paint Shop Conveyor Cell"
+  description: "High-frequency discrete I/O"
+  version: "1.0"
+  seed: 11111
+  personality: adapter
+  enable_udp_io: true
+
+data_model:
+  assemblies:
+    - name: InputAssembly
+      class: 0x04
+      instance: 0x64
+      attribute: 0x03
+      size_bytes: 8
+      writable: false
+      update_rule: counter
+
+    - name: OutputAssembly
+      class: 0x04
+      instance: 0x65
+      attribute: 0x03
+      size_bytes: 8
+      writable: true
+      update_rule: static
+
+    - name: StatusAssembly
+      class: 0x04
+      instance: 0x66
+      attribute: 0x03
+      size_bytes: 4
+      writable: false
+      update_rule: latch
+
+  tags:
+    # Discrete signals (mapped to assembly bits for state machine logic)
+    - name: ConveyorRunning
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    - name: ConveyorSpeed
+      type: INT
+      initial_value: 0
+      writable: true
+      update_rule: static
+
+    - name: PartPresent
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: toggle
+      update_params:
+        interval: 3s
+
+    - name: PartCount
+      type: DINT
+      initial_value: 0
+      writable: false
+      update_rule: counter
+      update_params:
+        increment: 1
+        interval: 3s
+
+    - name: StationReady
+      type: BOOL
+      initial_value: true
+      writable: false
+      update_rule: latch
+
+    - name: PaintGunActive
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    - name: CureOvenTemp
+      type: REAL
+      initial_value: 180.0
+      writable: false
+      update_rule: sine
+      update_params:
+        amplitude: 5.0
+        offset: 180.0
+        period: 120s
+
+    # Control signals
+    - name: StartCmd
+      type: BOOL
+      initial_value: false
+      writable: true
+      update_rule: static
+
+    - name: StopCmd
+      type: BOOL
+      initial_value: false
+      writable: true
+      update_rule: static
+
+    - name: EStop
+      type: BOOL
+      initial_value: false
+      writable: true
+      update_rule: static
+
+    - name: ResetCmd
+      type: BOOL
+      initial_value: false
+      writable: true
+      update_rule: static
+
+    # Faults
+    - name: FaultCode
+      type: INT
+      initial_value: 0
+      writable: false
+      update_rule: latch
+
+    - name: FaultActive
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    - name: WarningActive
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    # Production stats
+    - name: ShiftPartCount
+      type: DINT
+      initial_value: 0
+      writable: false
+      update_rule: counter
+      update_params:
+        increment: 1
+        interval: 3s
+
+    - name: RejectCount
+      type: DINT
+      initial_value: 0
+      writable: false
+      update_rule: counter
+      update_params:
+        increment: 1
+        interval: 60s
+
+    - name: CycleTime
+      type: REAL
+      initial_value: 3.0
+      writable: false
+      update_rule: sine
+      update_params:
+        amplitude: 0.2
+        offset: 3.0
+        period: 30s
+
+state_machine:
+  initial_state: idle
+  states:
+    idle:
+      description: "Conveyor stopped, waiting for start"
+      duration: 10s
+      transitions:
+        - to: run
+          condition: "tag:StartCmd==true"
+          priority: 1
+      tag_overrides:
+        ConveyorRunning: "static:false"
+        ConveyorSpeed: "static:0"
+        PaintGunActive: "static:false"
+
+    run:
+      description: "Normal production"
+      duration: 120s
+      transitions:
+        - to: fault
+          condition: "random:0.02"
+          priority: 1
+        - to: idle
+          condition: "tag:StopCmd==true"
+          priority: 2
+        - to: estop
+          condition: "tag:EStop==true"
+          priority: 3
+      tag_overrides:
+        ConveyorRunning: "static:true"
+        ConveyorSpeed: "static:60"
+        StationReady: "static:true"
+        PaintGunActive: "static:true"
+      events:
+        - name: part_through
+          trigger: "timer:3s"
+          actions:
+            - type: set_tag
+              target: PartCount
+              value: "increment"
+            - type: set_tag
+              target: ShiftPartCount
+              value: "increment"
+        - name: random_warning
+          trigger: "random:0.01"
+          actions:
+            - type: set_tag
+              target: WarningActive
+              value: true
+
+    fault:
+      description: "Fault condition - conveyor stopped"
+      duration: 5s
+      transitions:
+        - to: reset
+          condition: "tag:ResetCmd==true"
+          priority: 1
+      tag_overrides:
+        ConveyorRunning: "static:false"
+        ConveyorSpeed: "static:0"
+        PaintGunActive: "static:false"
+        FaultActive: "static:true"
+        FaultCode: "random:1:10"
+        StationReady: "static:false"
+      events:
+        - name: fault_logged
+          trigger: "once"
+          actions:
+            - type: log
+              value: "Fault condition detected"
+
+    reset:
+      description: "Resetting from fault"
+      duration: 5s
+      transitions:
+        - to: run
+          condition: "timer:5s"
+          priority: 1
+      tag_overrides:
+        FaultCode: "static:0"
+        FaultActive: "static:false"
+        ResetCmd: "static:false"
+        StationReady: "static:true"
+        WarningActive: "static:false"
+      events:
+        - name: reset_complete
+          trigger: "timer:4s"
+          actions:
+            - type: log
+              value: "Reset complete, resuming operation"
+
+    estop:
+      description: "Emergency stop - immediate halt"
+      duration: 10s
+      transitions:
+        - to: reset
+          condition: "tag:EStop==false"
+          priority: 1
+      tag_overrides:
+        ConveyorRunning: "static:false"
+        ConveyorSpeed: "static:0"
+        PaintGunActive: "static:false"
+        StationReady: "static:false"
+      events:
+        - name: estop_engaged
+          trigger: "once"
+          actions:
+            - type: log
+              value: "Emergency stop engaged"
+
+roles:
+  hmi:
+    description: "Cell HMI - fast polling for discrete signals"
+    poll_interval: 100ms
+    batch_size: 8
+    read_tags:
+      - ConveyorRunning
+      - ConveyorSpeed
+      - PartPresent
+      - PartCount
+      - StationReady
+      - PaintGunActive
+      - FaultCode
+      - FaultActive
+    write_tags:
+      - StartCmd
+      - StopCmd
+      - EStop
+      - ResetCmd
+      - ConveyorSpeed
+    write_events:
+      - trigger: "state:idle"
+        tag: StartCmd
+        value: true
+        condition: "timer:5s"
+      - trigger: "state:fault"
+        tag: ResetCmd
+        value: true
+        condition: "timer:3s"
+
+  historian:
+    description: "Production historian"
+    poll_interval: 1s
+    batch_size: 10
+    read_tags:
+      - PartCount
+      - ShiftPartCount
+      - RejectCount
+      - ConveyorRunning
+      - CycleTime
+      - FaultCode
+      - CureOvenTemp
+      - WarningActive
+    write_tags: []
+
+  plc_scanner:
+    description: "I/O scanner - assembly data exchange"
+    poll_interval: 50ms
+    batch_size: 3
+    read_tags:
+      - ConveyorRunning
+      - PartPresent
+      - StationReady
+    write_tags:
+      - StartCmd
+      - StopCmd
+    write_events: []
+
+baselining:
+  required_states:
+    - idle
+    - run
+    - fault
+    - reset
+  min_time_per_state: 5s
+  required_events:
+    - part_through
+    - fault_logged
+    - reset_complete
+  total_duration: 5m
+  export_pcap: true
+  export_summaries: true
+
+torture:
+  timing_jitter: 20ms
+  burst_amplify: 3.0
+  latency_spikes:
+    probability: 0.08
+    min_delay: 20ms
+    max_delay: 100ms

@@ -59,6 +59,9 @@ type ClientScreenModel struct {
 	AvgLatency   string
 	LastResponse string
 	Errors       []string
+
+	// Navigation
+	NavigateToProfile bool
 }
 
 type clientScenario struct {
@@ -280,6 +283,10 @@ func (m *ClientScreenModel) updateEditing(msg tea.KeyMsg) (*ClientScreenModel, t
 		m.focusIndex = m.nextField(1)
 	case "shift+tab", "up", "k":
 		m.focusIndex = m.nextField(-1)
+	case "p":
+		// Switch to profile mode
+		m.NavigateToProfile = true
+		return m, nil
 	case "a":
 		// Toggle advanced options
 		m.ShowAdvanced = !m.ShowAdvanced
@@ -732,12 +739,14 @@ func (m *ClientScreenModel) viewEditing() string {
 	var b strings.Builder
 	scenarios := allScenarios()
 
-	// Header
-	header := "CLIENT"
+	// Header with mode indicator
+	header := "CLIENT - SCENARIO MODE"
 	if m.ShowAdvanced {
-		header += "                                          [advanced]"
+		header += "                      [advanced]"
 	} else if m.ConfigPath != "" {
-		header += "                                            [config]"
+		header += "                        [config]"
+	} else {
+		header += "                    [p]rofile ▸"
 	}
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
@@ -1148,12 +1157,12 @@ func (m *ClientScreenModel) Footer() string {
 		return "Enter/Esc: back to config    r: re-run    o: open artifacts    m: menu"
 	}
 	if m.ShowAdvanced {
-		return "Tab: next    ←→: select    Enter: run    a: hide adv    e: edit    m: menu"
+		return "Tab: next    ←→: select    Enter: run    a: hide adv    p: profile    m: menu"
 	}
 	if m.focusIndex == clientFieldPcap && m.PcapEnabled {
-		return "Space: toggle    i: interface    Enter: run    a: advanced    m: menu"
+		return "Space: toggle    i: interface    Enter: run    p: profile    m: menu"
 	}
-	return "Tab: next    ←→: select    Enter: run    a: advanced    e: edit    y: copy    m: menu"
+	return "Tab: next    ←→: select    Enter: run    a: adv    p: profile    y: copy    m: menu"
 }
 
 // clientTickMsg is sent periodically while client is running to poll for stats.

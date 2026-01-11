@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tturner/cipdip/internal/netdetect"
+	"github.com/tturner/cipdip/internal/profile"
 )
 
 // ServerScreenModel handles the server emulator screen.
@@ -21,6 +22,11 @@ type ServerScreenModel struct {
 	Port        string
 	Personality int // Index into personalities slice
 	ConfigPath  string
+
+	// Profile mode (alternative to config mode)
+	ProfileMode  bool // true = use profile, false = use config/personality
+	Profiles     []profile.ProfileInfo
+	ProfileIndex int
 
 	// Advanced options
 	ShowAdvanced     bool
@@ -95,6 +101,7 @@ const (
 	serverFieldIP = iota
 	serverFieldPort
 	serverFieldPersonality
+	serverFieldProfile // Only visible in profile mode
 	serverFieldMode
 	// Advanced fields
 	serverFieldCIPProfiles
@@ -105,12 +112,23 @@ const (
 
 // NewServerScreenModel creates a new server screen model.
 func NewServerScreenModel(state *AppState) *ServerScreenModel {
-	return &ServerScreenModel{
+	m := &ServerScreenModel{
 		state:       state,
 		ListenIP:    "", // Empty means 0.0.0.0 (all interfaces)
 		Port:        "44818",
 		CIPProfiles: make([]bool, len(serverCIPProfiles)),
 	}
+	m.loadProfiles()
+	return m
+}
+
+// loadProfiles loads available profiles from the profiles directory.
+func (m *ServerScreenModel) loadProfiles() {
+	profiles, err := profile.ListProfilesDefault()
+	if err != nil || len(profiles) == 0 {
+		profiles, _ = profile.ListProfiles("profiles")
+	}
+	m.Profiles = profiles
 }
 
 // updateAutoDetectedInterface detects the interface for the current listen IP.
@@ -138,10 +156,16 @@ func (m *ServerScreenModel) displayIP() string {
 
 // generatePcapFilename creates a filename based on current settings
 func (m *ServerScreenModel) generatePcapFilename() string {
-	personality := serverPersonalities[m.Personality].Name
+	var name string
+	if m.ProfileMode && m.ProfileIndex < len(m.Profiles) {
+		name = strings.ReplaceAll(m.Profiles[m.ProfileIndex].Name, " ", "_")
+		name = strings.ToLower(name)
+	} else {
+		name = serverPersonalities[m.Personality].Name
+	}
 	mode := serverModes[m.ModeIndex].Name
 	timestamp := time.Now().UTC().Format("2006-01-02T150405Z")
-	filename := fmt.Sprintf("server_%s_%s_%s.pcap", personality, mode, timestamp)
+	filename := fmt.Sprintf("server_%s_%s_%s.pcap", name, mode, timestamp)
 	return filepath.Join(m.state.WorkspaceRoot, "pcaps", filename)
 }
 
@@ -203,6 +227,19 @@ func (m *ServerScreenModel) updateEditing(msg tea.KeyMsg) (*ServerScreenModel, t
 		m.focusIndex = m.nextField(1)
 	case "shift+tab", "up", "k":
 		m.focusIndex = m.nextField(-1)
+	case "p":
+		// Toggle profile mode
+		m.ProfileMode = !m.ProfileMode
+		if m.ProfileMode {
+			m.loadProfiles()
+			m.focusIndex = serverFieldProfile
+			// Set UDP I/O based on selected profile's default
+			if m.ProfileIndex < len(m.Profiles) {
+				m.EnableUDPIO = m.Profiles[m.ProfileIndex].EnableUDPIO
+			}
+		} else {
+			m.focusIndex = serverFieldPersonality
+		}
 	case "a":
 		// Toggle advanced options
 		m.ShowAdvanced = !m.ShowAdvanced
@@ -280,6 +317,21 @@ adapter_assemblies:
 		case "left", "h":
 			m.Personality = (m.Personality - 1 + len(serverPersonalities)) % len(serverPersonalities)
 		}
+	case serverFieldProfile:
+		switch msg.String() {
+		case " ", "right", "l":
+			if len(m.Profiles) > 0 {
+				m.ProfileIndex = (m.ProfileIndex + 1) % len(m.Profiles)
+				// Update UDP I/O based on newly selected profile
+				m.EnableUDPIO = m.Profiles[m.ProfileIndex].EnableUDPIO
+			}
+		case "left", "h":
+			if len(m.Profiles) > 0 {
+				m.ProfileIndex = (m.ProfileIndex - 1 + len(m.Profiles)) % len(m.Profiles)
+				// Update UDP I/O based on newly selected profile
+				m.EnableUDPIO = m.Profiles[m.ProfileIndex].EnableUDPIO
+			}
+		}
 	case serverFieldMode:
 		switch msg.String() {
 		case " ", "right", "l":
@@ -334,7 +386,16 @@ adapter_assemblies:
 // nextField returns the next valid field index, skipping hidden fields
 func (m *ServerScreenModel) nextField(dir int) int {
 	// Determine which fields are visible
-	visibleFields := []int{serverFieldIP, serverFieldPort, serverFieldPersonality, serverFieldMode, serverFieldPcap}
+	visibleFields := []int{serverFieldIP, serverFieldPort}
+
+	// Show either personality (config mode) or profile (profile mode)
+	if m.ProfileMode {
+		visibleFields = append(visibleFields, serverFieldProfile)
+	} else {
+		visibleFields = append(visibleFields, serverFieldPersonality)
+	}
+
+	visibleFields = append(visibleFields, serverFieldMode, serverFieldPcap)
 	if m.ShowAdvanced {
 		visibleFields = append(visibleFields, serverFieldCIPProfiles, serverFieldUDPIO)
 	}
@@ -480,7 +541,14 @@ func (m *ServerScreenModel) startServer() (*ServerScreenModel, tea.Cmd) {
 }
 
 func (m *ServerScreenModel) buildCommandArgs() []string {
-	args := []string{"cipdip", "server", "--personality", serverPersonalities[m.Personality].Name}
+	args := []string{"cipdip", "server"}
+
+	// Profile mode uses --profile, config mode uses --personality
+	if m.ProfileMode && m.ProfileIndex < len(m.Profiles) {
+		args = append(args, "--profile", m.Profiles[m.ProfileIndex].Name)
+	} else {
+		args = append(args, "--personality", serverPersonalities[m.Personality].Name)
+	}
 
 	if m.ListenIP != "" && m.ListenIP != "0.0.0.0" {
 		args = append(args, "--listen-ip", m.ListenIP)
@@ -494,15 +562,17 @@ func (m *ServerScreenModel) buildCommandArgs() []string {
 		args = append(args, "--mode", serverModes[m.ModeIndex].Name)
 	}
 
-	// CIP Profiles
-	var profiles []string
-	for i, enabled := range m.CIPProfiles {
-		if enabled {
-			profiles = append(profiles, serverCIPProfiles[i])
+	// CIP Profiles (only in config mode)
+	if !m.ProfileMode {
+		var profiles []string
+		for i, enabled := range m.CIPProfiles {
+			if enabled {
+				profiles = append(profiles, serverCIPProfiles[i])
+			}
 		}
-	}
-	if len(profiles) > 0 {
-		args = append(args, "--cip-profile", strings.Join(profiles, ","))
+		if len(profiles) > 0 {
+			args = append(args, "--cip-profile", strings.Join(profiles, ","))
+		}
 	}
 
 	// UDP I/O
@@ -518,8 +588,8 @@ func (m *ServerScreenModel) buildCommandArgs() []string {
 		}
 	}
 
-	// Config file
-	if m.ConfigPath != "" {
+	// Config file (only in config mode)
+	if !m.ProfileMode && m.ConfigPath != "" {
 		args = append(args, "--server-config", m.ConfigPath)
 	}
 
@@ -549,10 +619,22 @@ func (m *ServerScreenModel) View() string {
 func (m *ServerScreenModel) viewEditing() string {
 	var b strings.Builder
 
-	// Header
-	header := "SERVER"
-	if m.ShowAdvanced {
-		header += "                                          [advanced]"
+	// Header with mode indicator
+	var header string
+	if m.ProfileMode {
+		header = "SERVER - PROFILE MODE"
+		if m.ShowAdvanced {
+			header += "                   [advanced]"
+		} else {
+			header += "               [p] config ▸"
+		}
+	} else {
+		header = "SERVER - CONFIG MODE"
+		if m.ShowAdvanced {
+			header += "                    [advanced]"
+		} else {
+			header += "                [p]rofile ▸"
+		}
 	}
 	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
@@ -585,20 +667,43 @@ func (m *ServerScreenModel) viewEditing() string {
 	}
 	b.WriteString("\n\n")
 
-	// Personality selection
-	b.WriteString("Personality:\n")
-	for i, p := range serverPersonalities {
-		prefix := "  ( ) "
-		if i == m.Personality {
-			prefix = "  (•) "
-		}
-		line := fmt.Sprintf("%s%-12s %s", prefix, p.Name, p.Desc)
-		if m.focusIndex == serverFieldPersonality && i == m.Personality {
-			b.WriteString(selectedStyle.Render(line))
+	// Profile mode: show profile selection
+	// Config mode: show personality selection
+	if m.ProfileMode {
+		b.WriteString("Profile:\n")
+		if len(m.Profiles) == 0 {
+			b.WriteString(dimStyle.Render("  (no profiles found)"))
+			b.WriteString("\n")
 		} else {
-			b.WriteString(line)
+			for i, p := range m.Profiles {
+				prefix := "  ( ) "
+				if i == m.ProfileIndex {
+					prefix = "  (•) "
+				}
+				line := fmt.Sprintf("%s%-26s %s", prefix, p.Name, p.Description)
+				if m.focusIndex == serverFieldProfile && i == m.ProfileIndex {
+					b.WriteString(selectedStyle.Render(line))
+				} else {
+					b.WriteString(line)
+				}
+				b.WriteString("\n")
+			}
 		}
-		b.WriteString("\n")
+	} else {
+		b.WriteString("Personality:\n")
+		for i, p := range serverPersonalities {
+			prefix := "  ( ) "
+			if i == m.Personality {
+				prefix = "  (•) "
+			}
+			line := fmt.Sprintf("%s%-12s %s", prefix, p.Name, p.Desc)
+			if m.focusIndex == serverFieldPersonality && i == m.Personality {
+				b.WriteString(selectedStyle.Render(line))
+			} else {
+				b.WriteString(line)
+			}
+			b.WriteString("\n")
+		}
 	}
 
 	// Mode selector
@@ -860,12 +965,15 @@ func (m *ServerScreenModel) Footer() string {
 		return "Enter/Esc: back to config    r: restart    o: open log    m: menu"
 	}
 	if m.ShowAdvanced {
-		return "Tab: next    ←→: select    Enter: start    a: hide adv    e: edit    m: menu"
+		return "Tab: next    ←→: select    Enter: start    a: hide adv    p: toggle mode    m: menu"
 	}
 	if m.focusIndex == serverFieldPcap && m.PcapEnabled {
-		return "Space: toggle    i: interface    Enter: start    a: advanced    m: menu"
+		return "Space: toggle    i: interface    Enter: start    p: toggle mode    m: menu"
 	}
-	return "Tab: next    ←→: select    Enter: start    a: advanced    e: edit    y: copy    m: menu"
+	if m.ProfileMode {
+		return "Tab: next    ←→: select    Enter: start    p: config mode    y: copy    m: menu"
+	}
+	return "Tab: next    ←→: select    Enter: start    p: profile    e: edit    y: copy    m: menu"
 }
 
 func formatDuration(d time.Duration) string {
