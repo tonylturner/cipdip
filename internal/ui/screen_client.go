@@ -209,6 +209,32 @@ func (m *ClientScreenModel) Update(msg tea.KeyMsg) (*ClientScreenModel, tea.Cmd)
 func (m *ClientScreenModel) updateEditing(msg tea.KeyMsg) (*ClientScreenModel, tea.Cmd) {
 	scenarios := allScenarios()
 
+	// Handle text input fields first - these consume single characters
+	isTextInputField := m.focusIndex == clientFieldIP || m.focusIndex == clientFieldPort
+	if isTextInputField {
+		switch msg.String() {
+		case "tab", "down":
+			m.focusIndex = m.nextField(1)
+			return m, nil
+		case "shift+tab", "up":
+			m.focusIndex = m.nextField(-1)
+			return m, nil
+		case "enter":
+			if m.TargetIP != "" {
+				return m.startRun()
+			}
+			return m, nil
+		case "backspace":
+			m.handleBackspace()
+			return m, nil
+		default:
+			if len(msg.String()) == 1 {
+				m.handleCharInput(msg.String())
+			}
+			return m, nil
+		}
+	}
+
 	switch msg.String() {
 	case "tab", "down", "j":
 		m.focusIndex = m.nextField(1)
