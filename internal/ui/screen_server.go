@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tturner/cipdip/internal/netdetect"
 )
 
 // ServerScreenModel handles the server emulator screen.
@@ -22,12 +23,18 @@ type ServerScreenModel struct {
 	ConfigPath  string
 
 	// Advanced options
-	ShowAdvanced bool
-	ModeIndex    int    // Index into serverModes
-	CIPProfiles  []bool // energy, safety, motion toggles
-	EnableUDPIO  bool
-	PcapEnabled  bool
-	PcapFile     string
+	ShowAdvanced     bool
+	ModeIndex        int    // Index into serverModes
+	CIPProfiles      []bool // energy, safety, motion toggles
+	EnableUDPIO      bool
+	PcapEnabled           bool
+	PcapFile              string
+	CaptureInterface      string // Network interface for PCAP (empty = auto-detect)
+	AutoDetectedInterface string // The auto-detected interface for display
+
+	// Interface selector
+	InterfaceSelector       *InterfaceSelectorModel
+	InterfaceSelectorActive bool
 
 	// UI state
 	focusIndex int
@@ -106,6 +113,20 @@ func NewServerScreenModel(state *AppState) *ServerScreenModel {
 	}
 }
 
+// updateAutoDetectedInterface detects the interface for the current listen IP.
+func (m *ServerScreenModel) updateAutoDetectedInterface() {
+	listenIP := m.ListenIP
+	if listenIP == "" {
+		listenIP = "0.0.0.0"
+	}
+	iface, err := netdetect.DetectInterfaceForListen(listenIP)
+	if err != nil {
+		m.AutoDetectedInterface = "unknown"
+	} else {
+		m.AutoDetectedInterface = iface
+	}
+}
+
 // displayIP returns the listen IP for display, showing default when empty.
 func (m *ServerScreenModel) displayIP() string {
 	if m.ListenIP == "" {
@@ -125,6 +146,24 @@ func (m *ServerScreenModel) generatePcapFilename() string {
 
 // Update handles input for the server screen.
 func (m *ServerScreenModel) Update(msg tea.KeyMsg) (*ServerScreenModel, tea.Cmd) {
+	// Handle interface selector if active
+	if m.InterfaceSelectorActive && m.InterfaceSelector != nil {
+		selector, cmd, done := m.InterfaceSelector.Update(msg)
+		m.InterfaceSelector = selector
+		if done {
+			m.InterfaceSelectorActive = false
+			if selector.Selected != "" || msg.String() == "enter" {
+				m.CaptureInterface = selector.Selected
+				if selector.Selected == "" {
+					m.Status = "Interface: auto-detect"
+				} else {
+					m.Status = fmt.Sprintf("Interface: %s", selector.Selected)
+				}
+			}
+		}
+		return m, cmd
+	}
+
 	if m.Running {
 		return m.updateRunning(msg)
 	}
@@ -271,6 +310,20 @@ adapter_assemblies:
 		switch msg.String() {
 		case " ":
 			m.PcapEnabled = !m.PcapEnabled
+			if m.PcapEnabled {
+				m.updateAutoDetectedInterface()
+			}
+		case "i":
+			// Open interface selector
+			if m.PcapEnabled {
+				m.InterfaceSelector = NewInterfaceSelectorModel()
+				m.InterfaceSelector.CurrentAutoDetected = m.AutoDetectedInterface
+				if err := m.InterfaceSelector.LoadInterfaces(); err != nil {
+					m.Status = fmt.Sprintf("Failed to load interfaces: %v", err)
+				} else {
+					m.InterfaceSelectorActive = true
+				}
+			}
 		}
 	}
 
@@ -344,6 +397,10 @@ func (m *ServerScreenModel) handleBackspace() {
 	case serverFieldIP:
 		if len(m.ListenIP) > 0 {
 			m.ListenIP = m.ListenIP[:len(m.ListenIP)-1]
+			// Update auto-detected interface if PCAP is enabled
+			if m.PcapEnabled {
+				m.updateAutoDetectedInterface()
+			}
 		}
 	case serverFieldPort:
 		if len(m.Port) > 0 {
@@ -357,6 +414,10 @@ func (m *ServerScreenModel) handleCharInput(ch string) {
 	case serverFieldIP:
 		if strings.ContainsAny(ch, "0123456789.") {
 			m.ListenIP += ch
+			// Update auto-detected interface if PCAP is enabled
+			if m.PcapEnabled {
+				m.updateAutoDetectedInterface()
+			}
 		}
 	case serverFieldPort:
 		if strings.ContainsAny(ch, "0123456789") {
@@ -451,6 +512,9 @@ func (m *ServerScreenModel) buildCommandArgs() []string {
 	// PCAP capture
 	if m.PcapEnabled {
 		args = append(args, "--pcap", m.generatePcapFilename())
+		if m.CaptureInterface != "" {
+			args = append(args, "--capture-interface", m.CaptureInterface)
+		}
 	}
 
 	// Config file
@@ -467,6 +531,11 @@ func (m *ServerScreenModel) buildCommand() string {
 
 // View renders the server screen.
 func (m *ServerScreenModel) View() string {
+	// Show interface selector if active
+	if m.InterfaceSelectorActive && m.InterfaceSelector != nil {
+		return m.InterfaceSelector.View()
+	}
+
 	if m.Running {
 		return m.viewRunning()
 	}
@@ -558,7 +627,19 @@ func (m *ServerScreenModel) viewEditing() string {
 	}
 	pcapFullPath := m.generatePcapFilename()
 	pcapFilename := filepath.Base(pcapFullPath)
+	ifaceDisplay := "auto"
+	if m.CaptureInterface != "" {
+		ifaceDisplay = m.CaptureInterface
+	}
 	pcapLine := fmt.Sprintf("PCAP Capture: [%s] pcaps/%s", pcapCheck, pcapFilename)
+	if m.PcapEnabled {
+		// Show actual interface - either manual or auto-detected
+		displayIface := ifaceDisplay
+		if m.CaptureInterface == "" && m.AutoDetectedInterface != "" {
+			displayIface = m.AutoDetectedInterface + " (auto)"
+		}
+		pcapLine += fmt.Sprintf("  [i]nterface: %s", displayIface)
+	}
 	if m.focusIndex == serverFieldPcap {
 		b.WriteString(selectedStyle.Render(pcapLine))
 	} else {
@@ -768,6 +849,9 @@ func (m *ServerScreenModel) viewCompleted() string {
 
 // Footer returns the footer text for the server screen.
 func (m *ServerScreenModel) Footer() string {
+	if m.InterfaceSelectorActive && m.InterfaceSelector != nil {
+		return m.InterfaceSelector.Footer()
+	}
 	if m.Running {
 		return "x: stop    l: full log    f: filter by IP    m: menu"
 	}
@@ -776,6 +860,9 @@ func (m *ServerScreenModel) Footer() string {
 	}
 	if m.ShowAdvanced {
 		return "Tab: next    ←→: select    Enter: start    a: hide adv    e: edit    m: menu"
+	}
+	if m.focusIndex == serverFieldPcap && m.PcapEnabled {
+		return "Space: toggle    i: interface    Enter: start    a: advanced    m: menu"
 	}
 	return "Tab: next    ←→: select    Enter: start    a: advanced    e: edit    y: copy    m: menu"
 }
@@ -866,6 +953,18 @@ func (m *ServerScreenModel) HandleServerTick(msg serverTickMsg) (*ServerScreenMo
 				m.ConnectionCount = stats.ActiveConnections
 				m.RequestCount = stats.TotalRequests
 				m.ErrorCount = stats.TotalErrors
+
+				// Update connections list from recent clients
+				if len(stats.RecentClients) > 0 {
+					m.Connections = make([]ServerConnection, 0, len(stats.RecentClients))
+					for _, client := range stats.RecentClients {
+						m.Connections = append(m.Connections, ServerConnection{
+							RemoteAddr: client,
+							SessionID:  "-",
+							IdleTime:   0,
+						})
+					}
+				}
 				continue
 			default:
 				// No more stats available

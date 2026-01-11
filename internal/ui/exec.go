@@ -206,13 +206,17 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 
 		var outputBuf bytes.Buffer
 		var outputMu sync.Mutex
-		lineChan := make(chan string, 100)
+		lineChan := make(chan string, 1000)
 
 		// Read stdout in a goroutine
 		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
-				lineChan <- scanner.Text()
+				select {
+				case lineChan <- scanner.Text():
+				default:
+					// Drop line if channel is full to prevent blocking
+				}
 			}
 		}()
 
@@ -220,7 +224,11 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 		go func() {
 			scanner := bufio.NewScanner(stderr)
 			for scanner.Scan() {
-				lineChan <- scanner.Text()
+				select {
+				case lineChan <- scanner.Text():
+				default:
+					// Drop line if channel is full to prevent blocking
+				}
 			}
 		}()
 
