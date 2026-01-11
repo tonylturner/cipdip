@@ -66,6 +66,13 @@ func (m *MockClient) Disconnect(ctx context.Context) error {
 	return nil
 }
 
+// IsConnected returns true if the mock client is connected
+func (m *MockClient) IsConnected() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.connected
+}
+
 // InvokeService simulates service invocation
 func (m *MockClient) InvokeService(ctx context.Context, req protocol.CIPRequest) (protocol.CIPResponse, error) {
 	// Not used by scenarios directly, but implement for interface compliance

@@ -1,14 +1,15 @@
 package scenario
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
 	"strings"
 	"time"
 
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 )
 
@@ -100,6 +101,34 @@ func computeJitterMs(last *time.Time, expected time.Duration) float64 {
 		jitter = -jitter
 	}
 	return float64(jitter.Milliseconds())
+}
+
+// ensureConnected checks if the client is connected and reconnects if needed.
+// Returns an error if reconnection fails after retries.
+func ensureConnected(ctx context.Context, client cipclient.Client, ip string, port int, maxRetries int, retryDelay time.Duration) error {
+	if client.IsConnected() {
+		return nil
+	}
+
+	// Connection dropped, attempt to reconnect
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(retryDelay):
+			}
+		}
+
+		err := client.Connect(ctx, ip, port)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+	}
+
+	return fmt.Errorf("reconnect failed after %d attempts: %w", maxRetries+1, lastErr)
 }
 
 

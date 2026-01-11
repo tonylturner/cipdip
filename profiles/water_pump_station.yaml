@@ -1,0 +1,268 @@
+metadata:
+  name: "Water Pump Station"
+  description: "Continuous process, read-heavy"
+  version: "1.0"
+  seed: 12345
+  personality: logix_like
+
+data_model:
+  tags:
+    # Process values (read-only)
+    - name: TankLevel
+      type: REAL
+      initial_value: 50.0
+      writable: false
+      update_rule: ramp
+      update_params:
+        min: 0.0
+        max: 100.0
+        rate: 0.5
+
+    - name: FlowRate
+      type: REAL
+      initial_value: 0.0
+      writable: false
+      update_rule: sine
+      update_params:
+        amplitude: 10.0
+        offset: 50.0
+        period: 60s
+
+    - name: PumpRunning
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    - name: PumpSpeed
+      type: INT
+      initial_value: 0
+      writable: false
+      update_rule: latch
+
+    # Setpoints (writable)
+    - name: LevelSetpoint
+      type: REAL
+      initial_value: 75.0
+      writable: true
+      update_rule: static
+
+    - name: FlowSetpoint
+      type: REAL
+      initial_value: 50.0
+      writable: true
+      update_rule: static
+
+    # Alarms
+    - name: LowLevelAlarm
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    - name: HighLevelAlarm
+      type: BOOL
+      initial_value: false
+      writable: false
+      update_rule: latch
+
+    - name: AlarmAck
+      type: BOOL
+      initial_value: false
+      writable: true
+      update_rule: static
+
+    # Maintenance
+    - name: MaintenanceMode
+      type: BOOL
+      initial_value: false
+      writable: true
+      update_rule: static
+
+    # Diagnostics
+    - name: PumpHours
+      type: DINT
+      initial_value: 12450
+      writable: false
+      update_rule: counter
+      update_params:
+        increment: 1
+        interval: 3600s
+
+    - name: CycleCount
+      type: DINT
+      initial_value: 8234
+      writable: false
+      update_rule: counter
+      update_params:
+        increment: 1
+        interval: 300s
+
+state_machine:
+  initial_state: idle
+  states:
+    idle:
+      description: "System idle, pump off"
+      duration: 30s
+      transitions:
+        - to: running
+          condition: "tag:LevelSetpoint>0"
+          priority: 1
+      tag_overrides:
+        PumpRunning: "static:false"
+        PumpSpeed: "static:0"
+
+    running:
+      description: "Normal operation, pump running"
+      duration: 120s
+      transitions:
+        - to: alarm
+          condition: "tag:TankLevel<10"
+          priority: 1
+        - to: maintenance
+          condition: "tag:MaintenanceMode==true"
+          priority: 2
+        - to: idle
+          condition: "timer:300s"
+          priority: 3
+      tag_overrides:
+        PumpRunning: "static:true"
+        PumpSpeed: "static:75"
+      events:
+        - name: level_fluctuation
+          trigger: "random:0.1"
+          actions:
+            - type: set_tag
+              target: TankLevel
+              value: "random:20:80"
+
+    alarm:
+      description: "Low level alarm active"
+      duration: 10s
+      transitions:
+        - to: running
+          condition: "tag:AlarmAck==true"
+          priority: 1
+      tag_overrides:
+        LowLevelAlarm: "static:true"
+        PumpRunning: "static:false"
+        PumpSpeed: "static:0"
+      events:
+        - name: alarm_triggered
+          trigger: "once"
+          actions:
+            - type: log
+              value: "Low level alarm triggered"
+
+    maintenance:
+      description: "Maintenance mode - high write activity expected"
+      duration: 60s
+      transitions:
+        - to: idle
+          condition: "tag:MaintenanceMode==false"
+          priority: 1
+      tag_overrides:
+        PumpRunning: "static:false"
+        PumpSpeed: "static:0"
+      events:
+        - name: maintenance_burst
+          trigger: "timer:5s"
+          actions:
+            - type: log
+              value: "Maintenance configuration burst"
+
+roles:
+  hmi:
+    description: "Operator HMI - frequent polling, occasional writes"
+    poll_interval: 500ms
+    batch_size: 10
+    read_tags:
+      - TankLevel
+      - FlowRate
+      - PumpRunning
+      - PumpSpeed
+      - LevelSetpoint
+      - FlowSetpoint
+      - LowLevelAlarm
+      - HighLevelAlarm
+      - AlarmAck
+      - MaintenanceMode
+    write_tags:
+      - LevelSetpoint
+      - FlowSetpoint
+      - AlarmAck
+      - MaintenanceMode
+    write_events:
+      - trigger: "state:alarm"
+        tag: AlarmAck
+        value: true
+        condition: "timer:5s"
+      - trigger: "random:0.02"
+        tag: LevelSetpoint
+        value: "random:50:90"
+
+  historian:
+    description: "Data historian - broad read-only polling at slower rate"
+    poll_interval: 5s
+    batch_size: 15
+    read_tags:
+      - TankLevel
+      - FlowRate
+      - PumpRunning
+      - PumpSpeed
+      - LevelSetpoint
+      - FlowSetpoint
+      - LowLevelAlarm
+      - HighLevelAlarm
+      - PumpHours
+      - CycleCount
+    write_tags: []
+
+  ews:
+    description: "Engineering workstation - bursty maintenance access"
+    poll_interval: 2s
+    batch_size: 12
+    read_tags:
+      - TankLevel
+      - FlowRate
+      - PumpRunning
+      - PumpSpeed
+      - PumpHours
+      - CycleCount
+      - MaintenanceMode
+    write_tags:
+      - MaintenanceMode
+      - LevelSetpoint
+      - FlowSetpoint
+    write_events:
+      - trigger: "timer:120s"
+        tag: MaintenanceMode
+        value: true
+      - trigger: "state:maintenance"
+        tag: LevelSetpoint
+        value: "random:40:80"
+      - trigger: "state:maintenance"
+        tag: FlowSetpoint
+        value: "random:30:70"
+
+baselining:
+  required_states:
+    - idle
+    - running
+    - alarm
+    - maintenance
+  min_time_per_state: 30s
+  required_events:
+    - alarm_triggered
+    - maintenance_burst
+  total_duration: 10m
+  export_pcap: true
+  export_summaries: true
+
+torture:
+  latency_spikes:
+    probability: 0.05
+    min_delay: 100ms
+    max_delay: 500ms
+  burst_amplify: 2.0
+  timing_jitter: 50ms

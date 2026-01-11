@@ -60,6 +60,11 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 	progressBar := progress.NewProgressBar(totalOps, "Baseline scenario")
 	defer progressBar.Finish()
 
+	// Reconnect settings (typical for CIP stacks)
+	const maxReconnectRetries = 3
+	const reconnectDelay = 2 * time.Second
+	reconnectCount := 0
+
 	// Main loop
 	for {
 		select {
@@ -73,6 +78,17 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 		// Check if we've exceeded duration
 		if time.Now().After(deadline) {
 			break
+		}
+
+		// Ensure connection is alive before operations
+		if !client.IsConnected() {
+			reconnectCount++
+			fmt.Printf("[CLIENT] Connection lost, attempting reconnect (%d)...\n", reconnectCount)
+			if err := ensureConnected(ctx, client, params.IP, port, maxReconnectRetries, reconnectDelay); err != nil {
+				fmt.Printf("[CLIENT] Reconnect failed: %s\n", err)
+				return fmt.Errorf("connection lost and reconnect failed: %w", err)
+			}
+			fmt.Printf("[CLIENT] Reconnected successfully\n")
 		}
 
 		// Perform reads for each target

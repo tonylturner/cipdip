@@ -25,6 +25,9 @@ type clientFlags struct {
 	targetTags       string
 	firewall         string
 	tuiStats         bool
+	profile          string
+	role             string
+	outputDir        string
 }
 
 func newClientCmd() *cobra.Command {
@@ -107,8 +110,13 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 			if flags.ip == "" {
 				return missingFlagError(cmd, "--ip")
 			}
-			if flags.scenario == "" {
-				return missingFlagError(cmd, "--scenario")
+			// Either --scenario or --profile is required
+			if flags.scenario == "" && flags.profile == "" {
+				return missingFlagError(cmd, "--scenario or --profile")
+			}
+			// If using profile, role is required
+			if flags.profile != "" && flags.role == "" {
+				return missingFlagError(cmd, "--role (required when using --profile)")
 			}
 			err := runClient(flags)
 			if err != nil {
@@ -135,6 +143,9 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().StringVar(&flags.targetTags, "target-tags", "", "Filter targets by comma-separated tags (e.g., rockwell,tc-enip-001-explicit)")
 	cmd.Flags().StringVar(&flags.firewall, "firewall-vendor", "", "Annotate metrics with firewall vendor (hirschmann|moxa|dynics)")
 	cmd.Flags().BoolVar(&flags.tuiStats, "tui-stats", false, "Enable JSON stats output for TUI consumption")
+	cmd.Flags().StringVar(&flags.profile, "profile", "", "Process profile name (e.g., water_pump_station, batch_mixing_tank)")
+	cmd.Flags().StringVar(&flags.role, "role", "", "Role to emulate from profile (e.g., hmi, historian, ews)")
+	cmd.Flags().StringVar(&flags.outputDir, "output-dir", "", "Output directory for artifacts (run.json, summary, metrics, pcap)")
 
 	return cmd
 }
@@ -158,5 +169,8 @@ func runClient(flags *clientFlags) error {
 		TargetTags:       flags.targetTags,
 		FirewallVendor:   flags.firewall,
 		TUIStats:         flags.tuiStats,
+		Profile:          flags.profile,
+		Role:             flags.role,
+		OutputDir:        flags.outputDir,
 	})
 }
