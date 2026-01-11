@@ -512,24 +512,28 @@ func (m *ServerScreenModel) viewEditing() string {
 		ipValue = "0.0.0.0"
 	}
 	if m.focusIndex == serverFieldIP {
-		b.WriteString(selectedStyle.Render(ipLabel + ipValue + "█"))
+		b.WriteString(selectedStyle.Render(ipLabel))
+		b.WriteString(selectedStyle.Render(ipValue))
+		b.WriteString(selectedStyle.Render("█"))
 	} else {
 		b.WriteString(ipLabel + ipValue)
 	}
-	b.WriteString("            ")
+	b.WriteString("\n")
 
 	// Port field
-	portLabel := "TCP Port: "
+	portLabel := "TCP Port:  "
 	portValue := m.Port
 	if portValue == "" {
 		portValue = "44818"
 	}
 	if m.focusIndex == serverFieldPort {
-		b.WriteString(selectedStyle.Render(portLabel + portValue + "█"))
+		b.WriteString(selectedStyle.Render(portLabel))
+		b.WriteString(selectedStyle.Render(portValue))
+		b.WriteString(selectedStyle.Render("█"))
 	} else {
 		b.WriteString(portLabel + portValue)
 	}
-	b.WriteString("\n\n")
+	b.WriteString("\n")
 
 	// Personality selection
 	b.WriteString("Personality:\n")
