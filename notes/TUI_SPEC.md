@@ -1,448 +1,652 @@
-# CIPDIP TUI & UX Specification
+# CIPDIP TUI Specification
 
-Version: 2.0
-Audience: Implementation agent (Codex), CIPDIP maintainers
-Status: Authoritative design specification
-Scope: TUI + UX only (no protocol semantics)
+Version: 3.0
+Status: Design specification
 
 ---
 
-## 0. Explicit Instruction to Implementation Agent (Codex)
+## 1. Design Philosophy
 
-This specification is intentionally opinionated but incomplete.
+**The TUI exists to reduce friction, not to impress.**
 
-You are expected to:
-- Take reasonable latitude where this document lacks knowledge of:
-  - existing flags
-  - internal edge cases
-  - experimental features
-- Preserve all existing Cobra commands and CLI behavior.
-- Treat the CLI as the canonical interface.
-- Prefer intent-level abstractions over exhaustive flag exposure.
-- Defer to existing code correctness over this document if conflicts arise.
-- Log assumptions where behavior is inferred.
+A protocol test harness serves experts who need speed and clarity. The TUI should feel like a well-organized toolbox, not an IDE.
 
-This document defines UX contracts and system shape, not every option.
+### Principles
 
----
+1. **Visible options over hidden discovery** - Users shouldn't search for features; features should be visible and organized
+2. **One thing at a time** - Each screen has a single purpose with a clear exit
+3. **Show the CLI** - Always display the equivalent command so users learn the CLI naturally
+4. **Fail fast, fail loud** - Validation errors appear immediately, not after a wizard sequence
+5. **Keyboard-native** - Every action has a single-key shortcut; mouse is optional
 
-## 1. Problem Statement
+### Anti-patterns to avoid
 
-CIPDIP has evolved into a powerful research platform with:
-- dozens of subcommands
-- commands with 20–40 flags
-- YAML configs that are technically correct but expert-only
-- deep domain coupling to CIP semantics (services, classes, attributes)
-
-As new capabilities are added:
-- server emulation
-- application profiles (PLC / HMI / EWS)
-- baseline + torture testing
-- catalog-driven single-request probing
-
-The CLI alone becomes insufficient for:
-- discoverability
-- safe execution
-- repeatability
-- comparison of results
-
-The TUI exists to make CIPDIP usable without diluting correctness.
+- Command palettes as primary navigation (good for 500+ commands, overkill for 20)
+- Multi-step wizards that hide what's happening
+- Abstract "workspace" concepts that add ceremony without value
+- Clever terminology that obscures simple operations
 
 ---
 
-## 2. Design Goals
+## 2. Screen Architecture
 
-1. Make CIPDIP discoverable without reading code
-2. Reduce cognitive load for common workflows
-3. Produce repeatable, auditable runs by default
-4. Preserve expert escape hatches
-5. Avoid a "second product" divergence from CLI
-6. Scale as commands and profiles increase
+The TUI has five screens. Each screen is reachable in one or two keystrokes from any other.
+
+```
+                    ┌─────────────┐
+                    │   MAIN      │
+                    │   MENU      │
+                    └──────┬──────┘
+                           │
+       ┌───────────┬───────┼───────┬───────────┐
+       │           │       │       │           │
+       v           v       v       v           v
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│  CLIENT  │ │  SERVER  │ │   PCAP   │ │ CATALOG  │ │   RUNS   │
+│  CONFIG  │ │  CONFIG  │ │  TOOLS   │ │ BROWSER  │ │  HISTORY │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+```
+
+**Navigation is flat, not nested.** Press `m` from any screen to return to main menu.
 
 ---
 
-## 3. Non-Goals
+## 3. Global Keys
 
-- Full CLI flag parity in the TUI
-- Replacing Cobra help or documentation
-- Hiding CIP hex values or protocol reality
-- Building a graphical UI
+These work on every screen:
 
----
+| Key | Action |
+|-----|--------|
+| `q` | Quit (with confirmation if run is active) |
+| `m` | Main menu |
+| `?` | Help overlay for current screen |
+| `Esc` | Cancel current action / close overlay |
 
-## 4. System Architecture
-
-```
-+-----------------+
-|      User       |
-+--------+--------+
-         |
-         | interactive intent selection
-         v
-+----------------------------+
-|        CIPDIP TUI          |
-|  (Bubble Tea + Huh Forms)  |
-|                            |
-|  - Palette                 |
-|  - Wizards                 |
-|  - Workspace Browser       |
-|  - Catalog Explorer        |
-+-------------+--------------+
-              |
-              | generates concrete CLI commands
-              | and/or structured configs
-              v
-+----------------------------+
-|        Cobra CLI           |
-|  (canonical interface)    |
-+-------------+--------------+
-              |
-              | shared runners
-              v
-+----------------------------+
-|     Core CIPDIP Engine     |
-+----------------------------+
-```
-
-The TUI never owns business logic.
+The footer of every screen shows available keys for that context.
 
 ---
 
-## 5. Core UX Patterns (Integrated)
+## 4. Main Menu
 
-The TUI integrates three complementary patterns:
-1. Command Palette (discovery)
-2. Wizard Flows (safe construction)
-3. Workspace Model (repeatability)
+The entry point. Shows system status and primary actions.
 
-They are not separate modes — they reinforce each other.
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CIPDIP                                                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  [c] Client         Configure and run client scenarios      │
+│  [s] Server         Start server emulator                   │
+│  [p] PCAP           Analyze, replay, or rewrite captures    │
+│  [k] Catalog        Browse CIP classes and services         │
+│  [r] Runs           View past run results                   │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Recent:                                                    │
+│    10:41  client baseline  192.168.1.50  ✓ 847 ok / 0 err   │
+│    10:38  server adapter   :44818        running...         │
+│    10:22  pcap-summary     ENIP.pcap     ✓ 12,847 packets   │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  c/s/p/k/r: select    q: quit    ?: help                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Behavior
+
+- Recent runs show the last 5 operations with status
+- A running server shows "running..." with uptime
+- Arrow keys can select a recent run to view details
+- Pressing the key for an already-running operation focuses that screen
 
 ---
 
-## 6. Workspace Model (Foundational)
+## 5. Client Screen
 
-### 6.1 Workspace Definition
+Configure targets and run scenarios against a remote device.
 
-A workspace is the unit of repeatability.
-
-It is a directory containing:
-- inputs
-- configs
-- runs
-- outputs
-- notes
-
-### 6.2 Directory Layout
+### 5.1 Initial State (No Config)
 
 ```
-workspace/
-│
-├── workspace.yaml
-├── profiles/
-│   ├── baseline-dpi-off.yaml
-│   ├── baseline-dpi-on.yaml
-│   └── replay-raw-auto.yaml
-│
-├── catalogs/
-│   └── custom-cip.yaml      (optional)
-│
-├── pcaps/
-│   └── stress/
-│
-├── runs/
-│   ├── 2026-01-03_00-41_baseline-dpi-off/
-│   │   ├── resolved.yaml
-│   │   ├── command.txt
-│   │   ├── stdout.log
-│   │   ├── summary.json
-│   │   └── artifacts/
-│   │
-│   └── 2026-01-03_01-02_baseline-dpi-on/
-│
-├── reports/
-└── tmp/
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENT                                                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Target IP: _____________    Port: 44818                    │
+│                                                             │
+│  Scenario:                                                  │
+│    (•) baseline     Read-only polling of configured targets │
+│    ( ) mixed        Alternating reads and writes            │
+│    ( ) stress       High-frequency burst traffic            │
+│    ( ) io           Connected I/O with Forward Open         │
+│    ( ) edge         Protocol edge cases for DPI testing     │
+│                                                             │
+│  Config: [none - using defaults]                    [e]dit  │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Command preview:                                           │
+│  cipdip client --ip ??? --scenario baseline                 │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Tab: next field    Enter: run    e: edit config    m: menu │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 6.3 Mandatory Run Artifacts
+### 5.2 With Config Loaded
 
-Every run must emit:
-- `resolved.yaml` – fully expanded effective configuration
-- `command.txt` – exact CLI invocation
-- `stdout.log` – full output capture
-- `summary.json` – structured result metadata
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENT                                            [config] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Target IP: 192.168.1.50       Port: 44818                  │
+│                                                             │
+│  Scenario: baseline                                         │
+│                                                             │
+│  Targets from config:                                       │
+│    read   InputBlock1     0x04/0x65/0x03                    │
+│    read   InputBlock2     0x04/0x66/0x03                    │
+│    write  OutputBlock1    0x04/0x67/0x03  pattern=increment │
+│                                                             │
+│  Protocol: strict_odva                                      │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Command preview:                                           │
+│  cipdip client --ip 192.168.1.50 --scenario baseline \      │
+│    --config cipdip_client.yaml                              │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Enter: run    e: edit config    y: copy command    m: menu │
+└─────────────────────────────────────────────────────────────┘
+```
 
-This is a hard requirement.
+### 5.3 Running State
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENT                                          [RUNNING]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Target: 192.168.1.50:44818    Scenario: baseline           │
+│  Elapsed: 00:01:23             Requests: 4,231              │
+│                                                             │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                             │
+│  Statistics:                                                │
+│    Success:     4,229  (99.95%)                             │
+│    Errors:          2  (0.05%)                              │
+│    Latency:     12.3ms avg   8.1ms p50   41.2ms p99         │
+│                                                             │
+│  Last response:                                             │
+│    InputBlock1: 0x04/0x65/0x03 → 00 00 00 1A 00 00 00 00    │
+│                                                             │
+│  Errors:                                                    │
+│    10:42:17  InputBlock2  timeout (no response in 5000ms)   │
+│    10:42:31  InputBlock2  timeout (no response in 5000ms)   │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  x: stop    Space: pause/resume    l: show full log         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Keys (Client Screen)
+
+| Key | Context | Action |
+|-----|---------|--------|
+| `Tab` | Editing | Next field |
+| `Shift+Tab` | Editing | Previous field |
+| `Enter` | Ready | Start run |
+| `e` | Any | Open config in `$EDITOR` |
+| `y` | Ready | Copy command to clipboard |
+| `x` | Running | Stop run |
+| `Space` | Running | Pause/resume |
+| `l` | Running | Toggle full log view |
 
 ---
 
-## 7. TUI Entry and Navigation
+## 6. Server Screen
 
-### 7.1 Entry Command
-
-```
-cipdip ui
-```
-
-Optional flags:
-- `--workspace <path>`
-- `--new-workspace <path>`
-- `--no-run`
-- `--print-command`
-
-### 7.2 Global Keybindings
-
-- `Enter` – select / confirm
-- `Esc` – back
-- `/` – focus command palette
-- `r` – run selected config
-- `e` – edit config
-- `c` – copy generated command
-- `d` – diff runs
-- `q` – quit
-- `?` – help overlay
-
-Keybindings must be visible in the UI footer.
-
----
-
-## 8. Home Screen (Workspace Context)
+Start and monitor the CIP emulator.
 
 ```
-+------------------------------------------------------+
-| cipdip UI | Workspace: dynics-lab                    |
-+------------------------------------------------------+
-| Search: ____________________________________________ |
-|                                                      |
-| Quick Actions:                                       |
-|   - New Run (Wizard)                                 |
-|   - Run Existing Config                              |
-|   - Baseline (Guided)                                |
-|   - Start Server Emulator                            |
-|   - Explore CIP Catalog                              |
-|                                                      |
-| Configs:                                             |
-|   baseline-dpi-off.yaml                              |
-|   baseline-dpi-on.yaml                               |
-|   replay-raw-auto.yaml                               |
-|                                                      |
-| Recent Runs:                                         |
-|   2026-01-03_00-41_baseline-dpi-off                  |
-|   2026-01-03_01-02_baseline-dpi-on                   |
-+------------------------------------------------------+
+┌─────────────────────────────────────────────────────────────┐
+│  SERVER                                                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Listen IP: 0.0.0.0            TCP Port: 44818              │
+│                                                             │
+│  Personality:                                               │
+│    (•) adapter      Assembly-based (like CLICK PLCs)        │
+│    ( ) logix_like   Tag-based (like Allen-Bradley Logix)    │
+│                                                             │
+│  Config: [none - using defaults]                    [e]dit  │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Command preview:                                           │
+│  cipdip server --personality adapter --listen-ip 0.0.0.0    │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Enter: start    e: edit config    y: copy command          │
+└─────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 9. Command Palette Pattern
-
-The palette is the primary discovery mechanism.
-
-### 9.1 Palette Search Scope
-
-A single search input must match:
-- Tasks (wizards)
-- Profiles (YAML configs)
-- Runs (execution history)
-- Catalog entries (CIP operations)
-
-Results are grouped and labeled by type.
-
-### 9.2 Palette Example
+### Running State
 
 ```
-Search: vendor id
----------------------------------
-[Task] Explore CIP Catalog
-[Catalog] identity.vendor_id
-[Run] 2026-01-03_00-41_baseline
-[Config] baseline-dpi-off.yaml
-```
-
-Selecting an item routes to the appropriate screen.
-
----
-
-## 10. Wizard Pattern
-
-Wizards are safe construction tools.
-
-They serve two purposes:
-- execute a multi-step activity
-- generate a repeatable YAML config
-
-### 10.1 Wizard Contract
-
-Every wizard must:
-1. Ask only what is required
-2. Provide defaults from workspace
-3. Hide advanced options initially
-4. End with a review screen
-
-### 10.2 Wizard Final Screen (Required)
-
-```
-+---------------- Review & Execute -------------------+
-| Command:                                           |
-| cipdip pcap-replay --preset cl5000eip:firmware ... |
-|                                                     |
-| Effective Behavior:                                |
-| - Raw replay                                       |
-| - ARP primed once                                  |
-| - ENIP rewrite enabled                             |
-|                                                     |
-| Actions:                                           |
-| [Run] [Save Config] [Copy Command] [Back]          |
-+----------------------------------------------------+
+┌─────────────────────────────────────────────────────────────┐
+│  SERVER                                          [RUNNING]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Listening: 0.0.0.0:44818      Personality: adapter         │
+│  Uptime: 00:14:32              Connections: 2 active        │
+│                                                             │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                             │
+│  Active connections:                                        │
+│    192.168.1.100:52341  session=0x00000001  idle 2.3s       │
+│    192.168.1.101:49822  session=0x00000002  idle 0.1s       │
+│                                                             │
+│  Recent requests:                                           │
+│    10:45:01  192.168.1.101  Get_Attribute_Single 0x01/1/1   │
+│    10:45:01  192.168.1.101  Get_Attribute_Single 0x04/65/3  │
+│    10:45:00  192.168.1.100  List_Identity                   │
+│    10:44:59  192.168.1.101  Register_Session                │
+│                                                             │
+│  Statistics:                                                │
+│    Total requests: 1,247    Errors: 0                       │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  x: stop    l: full log    f: filter by IP                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 11. Profile (Config) Model
+## 7. PCAP Screen
 
-### 11.1 Two-Layer YAML
+Tools for capture analysis and replay.
 
-Profiles must separate:
-- spec: intent-level fields (wizard-owned)
-- advanced: expert overrides
-
-### 11.2 Example
-
-```yaml
-version: 1
-kind: pcap_replay
-name: replay-raw-auto
-
-spec:
-  engine: raw
-  target:
-    iface: eth0
-    dst_ip: 192.168.10.20
-  arp: prime
-  rewrite: auto
-  pace: 5ms
-  report: true
-
-advanced: {}
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PCAP TOOLS                                                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  File: [select or drag file]                       [b]rowse │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Actions (select file first):                               │
+│                                                             │
+│    [1] Summary       Packet counts, endpoints, timing       │
+│    [2] Report        Detailed CIP request/response analysis │
+│    [3] Coverage      Which CIP classes/services are present │
+│    [4] Replay        Send packets to a target device        │
+│    [5] Rewrite       Modify IPs/MACs and save new capture   │
+│    [6] Dump          Hex dump of specific packets           │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  b: browse files    1-6: select action    m: menu           │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 11.3 Mapping Rules
+### After Selecting File + Action
 
-Each kind maps to one Cobra command.
+Example: Summary selected
 
-Expansion order:
-1. workspace defaults
-2. spec
-3. advanced
-4. wizard overrides
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PCAP > Summary                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  File: pcaps/stress/ENIP.pcap                               │
+│  Size: 45.5 MB    Packets: 12,847                           │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Command preview:                                           │
+│  cipdip pcap-summary --input pcaps/stress/ENIP.pcap         │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Enter: run    y: copy command    Esc: back                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Replay Configuration
+
+When "Replay" is selected, show additional options:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PCAP > Replay                                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  File: pcaps/stress/ENIP.pcap                               │
+│                                                             │
+│  Target IP: _____________                                   │
+│                                                             │
+│  Options:                                                   │
+│    [x] Rewrite IP/MAC addresses                             │
+│    [ ] Preserve original timing                             │
+│    [ ] Application-layer only (skip raw replay)             │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Command preview:                                           │
+│  cipdip pcap-replay --input pcaps/stress/ENIP.pcap \        │
+│    --server-ip ??? --rewrite                                │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Tab: next    Space: toggle    Enter: run    Esc: back      │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 12. CIP Catalog Concept
+## 8. Catalog Screen
 
-### 12.1 Purpose
-
-The catalog provides named, searchable CIP operations.
-
-It replaces:
-- memorizing service codes
-- remembering class/instance/attribute triples
-
-### 12.2 Catalog Structure
+Browse CIP classes, services, and attributes.
 
 ```
-Service
-  |
-Object (Class)
-  |
-Attribute / Operation
+┌─────────────────────────────────────────────────────────────┐
+│  CIP CATALOG                                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Filter: __________                                         │
+│                                                             │
+│  Classes:                                                   │
+│  ─────────────────────────────────────────────────────────  │
+│  > Identity Object            0x01                          │
+│    Message Router             0x02                          │
+│    Assembly                   0x04                          │
+│    Connection Manager         0x06                          │
+│    TCP/IP Interface           0xF5                          │
+│    Ethernet Link              0xF6                          │
+│    ...                                                      │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  ↑↓: navigate    Enter: expand    /: filter    m: menu      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 12.3 Catalog Explorer UI
+### Expanded Class
 
 ```
-+--------------- CIP Catalog ----------------+
-| Search: identity                            |
-|                                            |
-| Identity Object (Class 0x01)                |
-|   - Vendor ID (attr 0x01)                  |
-|   - Product Name (attr 0x07)               |
-|                                            |
-| [Run] [Copy Command] [Add to Test Plan]    |
-+--------------------------------------------+
+┌─────────────────────────────────────────────────────────────┐
+│  CIP CATALOG > Identity Object (0x01)                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Instance 1 Attributes:                                     │
+│  ─────────────────────────────────────────────────────────  │
+│    1   Vendor ID              UINT                          │
+│    2   Device Type            UINT                          │
+│    3   Product Code           UINT                          │
+│    4   Revision               UINT[2]                       │
+│    5   Status                 WORD                          │
+│    6   Serial Number          UDINT                         │
+│  > 7   Product Name           SHORT_STRING                  │
+│                                                             │
+│  Services:                                                  │
+│  ─────────────────────────────────────────────────────────  │
+│    0x01  Get_Attribute_All                                  │
+│    0x0E  Get_Attribute_Single                               │
+│    0x10  Set_Attribute_Single                               │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Enter: probe this attribute    y: copy path    Esc: back   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Hex values must always be visible.
+### Probe Dialog
+
+When pressing Enter on an attribute:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  PROBE: Identity Object / Product Name                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Path: 0x01 / 0x01 / 0x07                                   │
+│                                                             │
+│  Target IP: _____________    Port: 44818                    │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  Command:                                                   │
+│  cipdip single --ip ??? --class 0x01 --instance 0x01 \      │
+│    --attribute 0x07 --service 0x0E                          │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Enter: run    y: copy command    Esc: cancel               │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 13. Friendly Single-Request Flow
+## 9. Runs Screen
 
-### 13.1 CLI
+View history and results of past operations.
 
 ```
-cipdip single identity.vendor_id --ip 10.0.0.50
+┌─────────────────────────────────────────────────────────────┐
+│  RUN HISTORY                                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Filter: [all]  client | server | pcap                      │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│  > 2026-01-10 10:41  client baseline  192.168.1.50   ✓      │
+│    2026-01-10 10:38  server adapter   :44818         ✓ 14m  │
+│    2026-01-10 10:22  pcap-summary     ENIP.pcap      ✓      │
+│    2026-01-09 16:05  client stress    192.168.1.50   ✗ err  │
+│    2026-01-09 15:30  pcap-replay      test.pcap      ✓      │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  Enter: view details    d: delete    Tab: filter    m: menu │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 13.2 TUI Flow
+### Run Detail View
 
-1. Select catalog operation
-2. Enter target IP/port
-3. Optional payload (only if required)
-4. Review
-5. Run / Save step
+```
+┌─────────────────────────────────────────────────────────────┐
+│  RUN: 2026-01-10 10:41 client baseline                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Status: completed successfully                             │
+│  Duration: 5m 23s                                           │
+│  Target: 192.168.1.50:44818                                 │
+│                                                             │
+│  Command:                                                   │
+│  cipdip client --ip 192.168.1.50 --scenario baseline \      │
+│    --config cipdip_client.yaml                              │
+│                                                             │
+│  Results:                                                   │
+│    Requests:  4,231                                         │
+│    Success:   4,229 (99.95%)                                │
+│    Errors:        2 (0.05%)                                 │
+│    Avg latency: 12.3ms                                      │
+│                                                             │
+│  Artifacts:                                                 │
+│    summary.json    resolved.yaml    stdout.log              │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  o: open artifact    r: re-run    y: copy command    Esc    │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 14. Test Plan Builder (Optional, Phase 2)
+## 10. Run Artifacts
 
-Allows construction of multi-step tests:
+Every run automatically saves:
+
+| File | Purpose |
+|------|---------|
+| `command.txt` | Exact CLI command that was executed |
+| `stdout.log` | Complete terminal output |
+| `summary.json` | Structured results (counts, timings, errors) |
+
+Location: `runs/<timestamp>_<type>_<scenario>/`
+
+Example: `runs/2026-01-10_10-41_client_baseline/`
+
+**No configuration required.** Artifacts are always generated.
+
+---
+
+## 11. Error Handling
+
+### Validation Errors
+
+Show immediately, inline, without modal dialogs:
 
 ```
-steps:
-  - single: identity.vendor_id
-  - single: pccc.execute
-  - sleep: 500ms
-  - replay: baseline-raw.yaml
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENT                                                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Target IP: 192.168.1      ← invalid IP address             │
+│             ^^^^^^^^^^^^                                    │
+│                                                             │
 ```
 
-This reuses:
-- catalog operations
-- existing profiles
+### Runtime Errors
+
+Show in a non-blocking status bar, with option to view details:
+
+```
+├─────────────────────────────────────────────────────────────┤
+│  ERROR: connection refused to 192.168.1.50:44818    [v]iew  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Fatal Errors
+
+Replace screen content with error and recovery options:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ERROR                                                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Failed to bind to port 44818: address already in use       │
+│                                                             │
+│  Another process is using this port. Options:               │
+│                                                             │
+│    [1] Use different port                                   │
+│    [2] Find and stop conflicting process                    │
+│    [3] Return to menu                                       │
+│                                                             │
+├─────────────────────────────────────────────────────────────┤
+│  1/2/3: select    q: quit                                   │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 15. Run Comparison (Phase 2)
+## 12. Help System
 
-Compare two runs:
-- resolved.yaml diff
-- summary.json metrics
-- captured artifacts
+Pressing `?` shows context-sensitive help as an overlay:
 
-Primary use case:
-- DPI off vs DPI on validation
+```
+┌─────────────────────────────────────────────────────────────┐
+│  CLIENT                                                     │
+├────────────────────────────────────────┬────────────────────┤
+│                                        │ HELP               │
+│  Target IP: 192.168.1.50               │                    │
+│                                        │ This screen        │
+│  Scenario: baseline                    │ configures a CIP   │
+│                                        │ client to connect  │
+│  ...                                   │ to a remote device │
+│                                        │ and run test       │
+│                                        │ scenarios.         │
+│                                        │                    │
+│                                        │ Keys:              │
+│                                        │ Tab    next field  │
+│                                        │ Enter  start run   │
+│                                        │ e      edit config │
+│                                        │ y      copy cmd    │
+│                                        │                    │
+│                                        │ Press ? or Esc     │
+│                                        │ to close           │
+├────────────────────────────────────────┴────────────────────┤
+│  ?: close help                                              │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 16. Acceptance Criteria (Phase 1)
+## 13. Implementation Notes
 
-The implementation is acceptable when:
-1. `cipdip ui` opens a workspace-aware TUI
-2. Palette searches tasks, configs, runs, catalog
-3. PCAP replay wizard works end-to-end
-4. Baseline and server wizards exist
-5. Catalog CLI and TUI browsing exist
-6. `cipdip single <catalog-key>` works
-7. All runs emit required artifacts
+### Dependencies
+
+- `bubbletea` - TUI framework
+- `lipgloss` - Styling
+- `huh` - Form inputs (optional, only if complex forms needed)
+
+### State Management
+
+Each screen is a bubbletea `Model` with:
+- `Init()` - Load relevant data
+- `Update()` - Handle keypresses and messages
+- `View()` - Render current state
+
+Global state (active runs, server status) lives in a shared `AppState` struct passed to all models.
+
+### Screen Transitions
+
+```go
+type Screen int
+
+const (
+    ScreenMain Screen = iota
+    ScreenClient
+    ScreenServer
+    ScreenPCAP
+    ScreenCatalog
+    ScreenRuns
+)
+
+// Navigation is a simple state machine
+func (m Model) handleGlobalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+    switch msg.String() {
+    case "m":
+        return m.switchTo(ScreenMain)
+    case "q":
+        if m.hasActiveRun() {
+            return m.showQuitConfirmation()
+        }
+        return m, tea.Quit
+    case "?":
+        return m.toggleHelp()
+    }
+    return m, nil
+}
+```
+
+### CLI Command Generation
+
+Every screen that can execute a command maintains a `buildCommand()` method that returns the equivalent CLI invocation. This is displayed in the preview area and used for:
+
+1. Actually executing the command
+2. Copying to clipboard
+3. Saving to `command.txt` in run artifacts
 
 ---
 
-## 17. Summary
+## 14. Acceptance Criteria
 
-This TUI is not a replacement for the CLI.
+The TUI is complete when:
 
-It is a force multiplier:
-- for learning
-- for repeatability
-- for research velocity
-
-Preserve correctness. Optimize usability. Defer to CLI when uncertain.
+1. `cipdip ui` launches and shows main menu
+2. Each screen (client, server, pcap, catalog, runs) is functional
+3. All operations show command preview before execution
+4. Running operations show live status
+5. All runs save artifacts automatically
+6. `?` shows help on every screen
+7. `m` returns to main menu from anywhere
+8. Error messages are clear and actionable
