@@ -39,3 +39,10 @@ reports/
 
 # Snyk Security Extension - AI Rules (auto-generated)
 .github/instructions/snyk_rules.instructions.md
+
+# macOS metadata
+.DS_Store
+
+# Claude Code files
+CLAUDE.md
+AGENTS.md
