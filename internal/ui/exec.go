@@ -193,7 +193,7 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 		return nil, nil, err
 	}
 
-	statsChan := make(chan StatsUpdate, 10)
+	statsChan := make(chan StatsUpdate, 100)
 	resultChan := make(chan CommandResult, 1)
 
 	if err := cmd.Start(); err != nil {
@@ -247,10 +247,21 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 					Stats StatsUpdate `json:"stats"`
 				}
 				if err := json.Unmarshal([]byte(line), &msg); err == nil && msg.Type == "stats" {
+					// Drain any old stats to make room for new one
+					for {
+						select {
+						case <-statsChan:
+							// Drained one old stat
+						default:
+							// Channel is not full, we can send
+							goto sendStats
+						}
+					}
+				sendStats:
+					// Now send the new stats (non-blocking in case channel closed)
 					select {
 					case statsChan <- msg.Stats:
 					default:
-						// Drop stats if channel is full
 					}
 				}
 			}
