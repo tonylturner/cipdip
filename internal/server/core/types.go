@@ -34,6 +34,21 @@ type Server struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
+
+	// Stats tracking
+	stats      ServerStats
+	statsMu    sync.RWMutex
+	tuiStats   bool          // Enable JSON stats output for TUI
+	statsQuit  chan struct{} // Signal to stop stats goroutine
+}
+
+// ServerStats holds live server statistics.
+type ServerStats struct {
+	ActiveConnections int      `json:"active_connections"`
+	TotalConnections  int      `json:"total_connections"`
+	TotalRequests     int      `json:"total_requests"`
+	TotalErrors       int      `json:"total_errors"`
+	RecentClients     []string `json:"recent_clients,omitempty"`
 }
 
 // Session represents an active EtherNet/IP session.

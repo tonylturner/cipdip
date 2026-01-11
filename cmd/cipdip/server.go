@@ -25,6 +25,7 @@ type serverFlags struct {
 	logFormat    string
 	logLevel     string
 	logEvery     int
+	tuiStats     bool
 }
 
 func newServerCmd() *cobra.Command {
@@ -200,6 +201,7 @@ func registerServerFlags(cmd *cobra.Command, flags *serverFlags) {
 	cmd.Flags().StringVar(&flags.logFormat, "log-format", "", "Log format override: text|json")
 	cmd.Flags().StringVar(&flags.logLevel, "log-level", "", "Log level override: error|info|verbose|debug")
 	cmd.Flags().IntVar(&flags.logEvery, "log-every-n", 0, "Log every N events (override)")
+	cmd.Flags().BoolVar(&flags.tuiStats, "tui-stats", false, "Enable JSON stats output for TUI consumption")
 }
 
 func runServer(flags *serverFlags) error {
@@ -216,5 +218,6 @@ func runServer(flags *serverFlags) error {
 		LogFormat:   flags.logFormat,
 		LogLevel:    flags.logLevel,
 		LogEvery:    flags.logEvery,
+		TUIStats:    flags.tuiStats,
 	})
 }

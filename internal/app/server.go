@@ -26,6 +26,7 @@ type ServerOptions struct {
 	LogFormat   string
 	LogLevel    string
 	LogEvery    int
+	TUIStats    bool
 }
 
 func RunServer(opts ServerOptions) error {
@@ -120,6 +121,10 @@ func RunServer(opts ServerOptions) error {
 	srv, err := server.NewServer(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("create server: %w", err)
+	}
+
+	if opts.TUIStats {
+		srv.EnableTUIStats()
 	}
 
 	if err := srv.Start(); err != nil {

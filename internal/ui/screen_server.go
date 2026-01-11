@@ -396,41 +396,25 @@ func (m *ServerScreenModel) startServer() (*ServerScreenModel, tea.Cmd) {
 		m.state.ServerRunning = false
 		return m, nil
 	}
+	m.RunDir = runDir
 
-	// Return a command that executes the server
-	startTime := time.Now()
-	return m, func() tea.Msg {
-		stdout, exitCode, runErr := ExecuteCommand(ctx, command)
-
-		// Write artifacts
-		resolved := map[string]interface{}{
-			"personality": serverPersonalities[m.Personality].Name,
-			"listen_ip":   m.ListenIP,
-			"port":        m.Port,
-		}
-		status := "success"
-		if runErr != nil && ctx.Err() == nil {
-			// Only mark as failed if not cancelled
-			status = "failed"
-		} else if ctx.Err() != nil {
-			status = "stopped"
-		}
-		summary := RunSummary{
-			Status:     status,
-			Command:    args,
-			StartedAt:  startTime.UTC().Format(time.RFC3339),
-			FinishedAt: time.Now().UTC().Format(time.RFC3339),
-			ExitCode:   exitCode,
-		}
-		_ = WriteRunArtifacts(runDir, resolved, args, stdout, summary)
-
-		return serverStatusMsg{
-			Stopped: true,
-			Stdout:  stdout,
-			RunDir:  runDir,
-			Err:     runErr,
-		}
+	// Start the streaming command
+	statsChan, resultChan, err := StartStreamingCommand(ctx, command)
+	if err != nil {
+		m.Status = fmt.Sprintf("Failed to start server: %v", err)
+		m.Running = false
+		m.state.ServerRunning = false
+		return m, nil
 	}
+
+	// Store channels for polling
+	m.state.ServerStatsChan = statsChan
+	m.state.ServerResultChan = resultChan
+
+	// Return a tick command to poll for updates
+	return m, tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return serverTickMsg{Time: t}
+	})
 }
 
 func (m *ServerScreenModel) buildCommandArgs() []string {
@@ -801,4 +785,97 @@ func formatDuration(d time.Duration) string {
 	m := int(d.Minutes()) % 60
 	s := int(d.Seconds()) % 60
 	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
+// serverTickMsg is sent periodically while server is running to poll for stats.
+type serverTickMsg struct {
+	Time time.Time
+}
+
+// HandleServerTick processes a server tick message, polling for stats updates.
+func (m *ServerScreenModel) HandleServerTick(msg serverTickMsg) (*ServerScreenModel, tea.Cmd) {
+	if !m.Running {
+		return m, nil
+	}
+
+	// Update uptime
+	if m.StartTime != nil {
+		m.Uptime = time.Since(*m.StartTime)
+	}
+
+	// Check for result (command finished)
+	if m.state.ServerResultChan != nil {
+		select {
+		case result, ok := <-m.state.ServerResultChan:
+			if ok {
+				// Command finished
+				m.Running = false
+				m.Completed = true
+				m.state.ServerRunning = false
+				m.Output = result.Output
+
+				// Write artifacts
+				args := m.buildCommandArgs()
+				resolved := map[string]interface{}{
+					"personality": serverPersonalities[m.Personality].Name,
+					"listen_ip":   m.ListenIP,
+					"port":        m.Port,
+				}
+				status := "success"
+				if result.Err != nil && m.state.ServerCtx.Err() == nil {
+					status = "failed"
+					m.Status = fmt.Sprintf("FAILED: %v", result.Err)
+				} else if m.state.ServerCtx.Err() != nil {
+					status = "stopped"
+					m.Status = "Server stopped by user"
+				} else {
+					m.Status = "Server stopped"
+				}
+				startTime := time.Time{}
+				if m.StartTime != nil {
+					startTime = *m.StartTime
+				}
+				summary := RunSummary{
+					Status:     status,
+					Command:    args,
+					StartedAt:  startTime.UTC().Format(time.RFC3339),
+					FinishedAt: time.Now().UTC().Format(time.RFC3339),
+					ExitCode:   result.ExitCode,
+				}
+				_ = WriteRunArtifacts(m.RunDir, resolved, args, result.Output, summary)
+
+				m.state.ServerStatsChan = nil
+				m.state.ServerResultChan = nil
+				return m, nil
+			}
+		default:
+			// No result yet
+		}
+	}
+
+	// Check for stats updates
+	if m.state.ServerStatsChan != nil {
+		for {
+			select {
+			case stats, ok := <-m.state.ServerStatsChan:
+				if !ok {
+					m.state.ServerStatsChan = nil
+					break
+				}
+				// Update display stats
+				m.ConnectionCount = stats.ActiveConnections
+				m.RequestCount = stats.TotalRequests
+				m.ErrorCount = stats.TotalErrors
+				continue
+			default:
+				// No more stats available
+			}
+			break
+		}
+	}
+
+	// Schedule next tick
+	return m, tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return serverTickMsg{Time: t}
+	})
 }

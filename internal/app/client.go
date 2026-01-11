@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -36,6 +37,7 @@ type ClientOptions struct {
 	CIPProfile     string
 	TargetTags     string
 	FirewallVendor string
+	TUIStats       bool
 }
 
 func RunClient(opts ClientOptions) error {
@@ -214,8 +216,20 @@ func RunClient(opts ClientOptions) error {
 		TargetType:  determineTargetType(cfg, opts.IP),
 	}
 
+	// Start TUI stats output if enabled
+	var statsQuit chan struct{}
+	if opts.TUIStats {
+		statsQuit = make(chan struct{})
+		go clientStatsLoop(ctx, metricsSink, statsQuit)
+	}
+
 	startTime := time.Now()
 	err = scenarioImpl.Run(ctx, client, cfg, params)
+
+	// Stop stats output
+	if statsQuit != nil {
+		close(statsQuit)
+	}
 	elapsed := time.Since(startTime)
 
 	if label := buildScenarioLabel(opts.Scenario, opts.FirewallVendor, parseTags(opts.TargetTags)); label != "" {
@@ -500,4 +514,40 @@ func mergeProfiles(existing, extra []string) []string {
 	merged := append([]string{}, existing...)
 	merged = append(merged, extra...)
 	return cipclient.NormalizeCIPProfiles(merged)
+}
+
+// clientStatsLoop outputs JSON stats periodically when TUI stats are enabled.
+func clientStatsLoop(ctx context.Context, sink *metrics.Sink, quit chan struct{}) {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-quit:
+			return
+		case <-ticker.C:
+			outputClientStats(sink)
+		}
+	}
+}
+
+// outputClientStats writes current stats as JSON to stdout.
+func outputClientStats(sink *metrics.Sink) {
+	summary := sink.GetSummary()
+	data, err := json.Marshal(map[string]interface{}{
+		"type": "stats",
+		"stats": map[string]interface{}{
+			"total_requests":      summary.TotalOperations,
+			"successful_requests": summary.SuccessfulOps,
+			"failed_requests":     summary.FailedOps,
+			"timeouts":            summary.TimeoutCount,
+		},
+	})
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "%s\n", data)
+	os.Stdout.Sync()
 }
