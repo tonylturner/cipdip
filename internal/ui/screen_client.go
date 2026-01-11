@@ -191,7 +191,8 @@ func (m *ClientScreenModel) generatePcapFilename() string {
 	}
 	modeName := modePresets[m.ModeIndex].Name
 	timestamp := time.Now().UTC().Format("2006-01-02T150405Z")
-	return fmt.Sprintf("client_%s_%s_%s.pcap", scenarioName, modeName, timestamp)
+	filename := fmt.Sprintf("client_%s_%s_%s.pcap", scenarioName, modeName, timestamp)
+	return filepath.Join(m.state.WorkspaceRoot, "pcaps", filename)
 }
 
 // Update handles input for the client screen.
@@ -736,8 +737,9 @@ func (m *ClientScreenModel) viewEditing() string {
 	if m.PcapEnabled {
 		pcapCheck = "x"
 	}
-	pcapFilename := m.generatePcapFilename()
-	pcapLine := fmt.Sprintf("PCAP Capture: [%s] %s", pcapCheck, pcapFilename)
+	pcapFullPath := m.generatePcapFilename()
+	pcapFilename := filepath.Base(pcapFullPath)
+	pcapLine := fmt.Sprintf("PCAP Capture: [%s] pcaps/%s", pcapCheck, pcapFilename)
 	if m.focusIndex == clientFieldPcap {
 		b.WriteString(selectedStyle.Render(pcapLine))
 	} else {
