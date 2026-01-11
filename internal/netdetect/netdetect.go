@@ -3,13 +3,15 @@ package netdetect
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/google/gopacket/pcap"
 )
 
 // InterfaceInfo represents a network interface with its properties.
 type InterfaceInfo struct {
-	Name        string   // System interface name (e.g., "en0", "eth0", "Ethernet")
+	Name        string   // System interface name (e.g., "en0", "eth0", "\Device\NPF_{GUID}")
+	DisplayName string   // Human-readable name for UI display (e.g., "en0", "eth0", "Ethernet")
 	Description string   // Human-readable description
 	Addresses   []string // IP addresses assigned to this interface
 	IsUp        bool     // Whether the interface is up
@@ -27,6 +29,7 @@ func ListInterfaces() ([]InterfaceInfo, error) {
 	for _, device := range devices {
 		info := InterfaceInfo{
 			Name:        device.Name,
+			DisplayName: device.Name, // Default to system name
 			Description: device.Description,
 		}
 
@@ -44,12 +47,28 @@ func ListInterfaces() ([]InterfaceInfo, error) {
 		iface, err := net.InterfaceByName(device.Name)
 		if err == nil {
 			info.IsUp = (iface.Flags & net.FlagUp) != 0
+			// On some systems, net.Interface has a better name
+			if iface.Name != "" && iface.Name != device.Name {
+				info.DisplayName = iface.Name
+			}
+		}
+
+		// Use Description as DisplayName if it's more human-readable
+		// This is especially useful on Windows where Name is a GUID
+		if info.Description != "" && isGUIDName(info.Name) {
+			info.DisplayName = info.Description
 		}
 
 		interfaces = append(interfaces, info)
 	}
 
 	return interfaces, nil
+}
+
+// isGUIDName checks if a name looks like a Windows GUID-style interface name.
+func isGUIDName(name string) bool {
+	// Windows pcap names look like: \Device\NPF_{GUID}
+	return len(name) > 20 && (strings.Contains(name, "{") || strings.HasPrefix(name, "\\Device\\"))
 }
 
 // DetectInterfaceForListen returns the interface bound to the given listen IP.
@@ -125,10 +144,30 @@ func findLoopbackInterface() (string, error) {
 
 // GetInterfaceDisplayName returns a display-friendly name for an interface.
 func GetInterfaceDisplayName(info InterfaceInfo) string {
+	if info.DisplayName != "" && info.DisplayName != info.Name {
+		return info.DisplayName
+	}
 	if info.Description != "" && info.Description != info.Name {
-		return fmt.Sprintf("%s (%s)", info.Name, info.Description)
+		return info.Description
 	}
 	return info.Name
+}
+
+// GetDisplayNameForInterface looks up the display name for an interface by its system name.
+func GetDisplayNameForInterface(name string) string {
+	interfaces, err := ListInterfaces()
+	if err != nil {
+		return name
+	}
+	for _, iface := range interfaces {
+		if iface.Name == name {
+			if iface.DisplayName != "" {
+				return iface.DisplayName
+			}
+			return iface.Name
+		}
+	}
+	return name
 }
 
 // GetInterfaceAddressString returns a comma-separated list of interface addresses.

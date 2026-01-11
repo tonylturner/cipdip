@@ -10,7 +10,8 @@ import (
 
 // InterfaceEntry represents a network interface in the selector.
 type InterfaceEntry struct {
-	Name        string
+	Name        string // System name (used for actual capture)
+	DisplayName string // Human-readable name for UI
 	Description string
 	Addresses   []string
 	IsLoopback  bool
@@ -51,10 +52,15 @@ func (m *InterfaceSelectorModel) LoadInterfaces() error {
 	for _, iface := range interfaces {
 		entry := InterfaceEntry{
 			Name:        iface.Name,
+			DisplayName: iface.DisplayName,
 			Description: iface.Description,
 			Addresses:   iface.Addresses,
 			IsLoopback:  iface.IsLoopback,
 			IsUp:        iface.IsUp,
+		}
+		// Fallback to Name if DisplayName is empty
+		if entry.DisplayName == "" {
+			entry.DisplayName = entry.Name
 		}
 		m.Entries = append(m.Entries, entry)
 	}
@@ -143,10 +149,13 @@ func (m *InterfaceSelectorModel) View() string {
 			// Auto-detect option
 			line = fmt.Sprintf("%s[Auto] %s", prefix, entry.Description)
 		} else {
-			// Regular interface
-			name := entry.Name
-			if len(name) > 20 {
-				name = name[:17] + "..."
+			// Regular interface - use DisplayName for UI
+			displayName := entry.DisplayName
+			if displayName == "" {
+				displayName = entry.Name
+			}
+			if len(displayName) > 25 {
+				displayName = displayName[:22] + "..."
 			}
 
 			// Status indicator
@@ -168,17 +177,7 @@ func (m *InterfaceSelectorModel) View() string {
 				}
 			}
 
-			// Description
-			desc := entry.Description
-			if len(desc) > 25 {
-				desc = desc[:22] + "..."
-			}
-
-			if desc != "" && desc != entry.Name {
-				line = fmt.Sprintf("%s%-20s %s %-18s %s", prefix, name, status, addrStr, desc)
-			} else {
-				line = fmt.Sprintf("%s%-20s %s %s", prefix, name, status, addrStr)
-			}
+			line = fmt.Sprintf("%s%-25s %s %s", prefix, displayName, status, addrStr)
 		}
 
 		if i == m.Cursor {
