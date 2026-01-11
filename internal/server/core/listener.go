@@ -1,9 +1,11 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"time"
 
 	"github.com/tturner/cipdip/internal/enip"
@@ -147,6 +149,7 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 	remoteAddr := conn.RemoteAddr().String()
 	s.logger.Info("New connection from %s", remoteAddr)
 	fmt.Printf("[SERVER] New connection from %s\n", remoteAddr)
+	s.recordConnection(remoteAddr)
 
 	buffer := make([]byte, 0, 8192)
 	readBuf := make([]byte, 4096)
@@ -284,4 +287,89 @@ func (s *Server) metricsLoop() {
 		fmt.Fprintf(conn, "cipdip_server_up 1\n")
 		_ = conn.Close()
 	}
+}
+
+// EnableTUIStats enables periodic JSON stats output for TUI consumption.
+func (s *Server) EnableTUIStats() {
+	s.tuiStats = true
+	s.statsQuit = make(chan struct{})
+	s.wg.Add(1)
+	go s.statsLoop()
+}
+
+// statsLoop outputs JSON stats periodically when TUI stats are enabled.
+func (s *Server) statsLoop() {
+	defer s.wg.Done()
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.statsQuit:
+			return
+		case <-ticker.C:
+			s.outputStats()
+		}
+	}
+}
+
+// outputStats writes current stats as JSON to stdout.
+func (s *Server) outputStats() {
+	s.statsMu.RLock()
+	stats := s.stats
+	s.statsMu.RUnlock()
+
+	// Get active session count
+	s.sessionsMu.RLock()
+	stats.ActiveConnections = len(s.sessions)
+	s.sessionsMu.RUnlock()
+
+	data, err := json.Marshal(map[string]interface{}{
+		"type":  "stats",
+		"stats": stats,
+	})
+	if err != nil {
+		return
+	}
+	fmt.Fprintf(os.Stdout, "%s\n", data)
+	os.Stdout.Sync()
+}
+
+// recordConnection increments connection stats.
+func (s *Server) recordConnection(remoteAddr string) {
+	s.statsMu.Lock()
+	s.stats.TotalConnections++
+	// Keep last 10 clients
+	s.stats.RecentClients = append(s.stats.RecentClients, remoteAddr)
+	if len(s.stats.RecentClients) > 10 {
+		s.stats.RecentClients = s.stats.RecentClients[1:]
+	}
+	s.statsMu.Unlock()
+}
+
+// recordRequest increments request stats.
+func (s *Server) recordRequest() {
+	s.statsMu.Lock()
+	s.stats.TotalRequests++
+	s.statsMu.Unlock()
+}
+
+// recordError increments error stats.
+func (s *Server) recordError() {
+	s.statsMu.Lock()
+	s.stats.TotalErrors++
+	s.statsMu.Unlock()
+}
+
+// GetStats returns a copy of current stats.
+func (s *Server) GetStats() ServerStats {
+	s.statsMu.RLock()
+	defer s.statsMu.RUnlock()
+	stats := s.stats
+	s.sessionsMu.RLock()
+	stats.ActiveConnections = len(s.sessions)
+	s.sessionsMu.RUnlock()
+	return stats
 }

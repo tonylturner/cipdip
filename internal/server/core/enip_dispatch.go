@@ -11,6 +11,7 @@ import (
 )
 
 func (s *Server) handleENIPCommand(encap enip.ENIPEncapsulation, remoteAddr string) []byte {
+	s.recordRequest()
 	switch encap.Command {
 	case enip.ENIPCommandRegisterSession:
 		if !s.enipSupport.registerSession {

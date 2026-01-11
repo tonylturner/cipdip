@@ -37,12 +37,16 @@ type AppState struct {
 	CatalogSources []string
 
 	// Active operations
-	ServerRunning   bool
-	ServerCtx       context.Context
-	ServerCancel    context.CancelFunc
-	ClientRunning   bool
-	ClientCtx       context.Context
-	ClientCancel    context.CancelFunc
+	ServerRunning     bool
+	ServerCtx         context.Context
+	ServerCancel      context.CancelFunc
+	ServerStatsChan   <-chan StatsUpdate
+	ServerResultChan  <-chan CommandResult
+	ClientRunning     bool
+	ClientCtx         context.Context
+	ClientCancel      context.CancelFunc
+	ClientStatsChan   <-chan StatsUpdate
+	ClientResultChan  <-chan CommandResult
 
 	// Recent runs for main menu
 	RecentRuns []RecentRun
@@ -216,6 +220,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case serverStatusMsg:
 		return m.handleServerStatus(msg)
+
+	case serverTickMsg:
+		return m.handleServerTick(msg)
+
+	case clientTickMsg:
+		return m.handleClientTick(msg)
 
 	case pcapResultMsg:
 		return m.handlePCAPResult(msg)
@@ -528,6 +538,24 @@ func (m Model) handleServerStatus(msg serverStatusMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) handleServerTick(msg serverTickMsg) (tea.Model, tea.Cmd) {
+	if m.serverModel == nil {
+		return m, nil
+	}
+	newModel, cmd := m.serverModel.HandleServerTick(msg)
+	m.serverModel = newModel
+	return m, cmd
+}
+
+func (m Model) handleClientTick(msg clientTickMsg) (tea.Model, tea.Cmd) {
+	if m.clientModel == nil {
+		return m, nil
+	}
+	newModel, cmd := m.clientModel.HandleClientTick(msg)
+	m.clientModel = newModel
+	return m, cmd
+}
+
 func (m Model) handlePCAPResult(msg pcapResultMsg) (tea.Model, tea.Cmd) {
 	// Update PCAP model with result
 	if m.pcapModel != nil {
@@ -707,10 +735,11 @@ type runResultMsg struct {
 }
 
 type serverStatusMsg struct {
-	Stopped bool
-	Stdout  string
-	RunDir  string
-	Err     error
+	Stopped  bool
+	Stdout   string
+	RunDir   string
+	ExitCode int
+	Err      error
 }
 
 type errorMsg string
