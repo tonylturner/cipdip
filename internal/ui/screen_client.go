@@ -562,38 +562,25 @@ func (m *ClientScreenModel) startRun() (*ClientScreenModel, tea.Cmd) {
 		m.state.ClientRunning = false
 		return m, nil
 	}
+	m.RunDir = runDir
 
-	// Return a command that executes the client
-	startTime := time.Now()
-	return m, func() tea.Msg {
-		stdout, exitCode, runErr := ExecuteCommand(ctx, command)
-
-		// Write artifacts
-		resolved := map[string]interface{}{
-			"scenario": scenarioName,
-			"target":   m.TargetIP,
-			"port":     m.Port,
-		}
-		status := "success"
-		if runErr != nil {
-			status = "failed"
-		}
-		summary := RunSummary{
-			Status:     status,
-			Command:    args,
-			StartedAt:  startTime.UTC().Format(time.RFC3339),
-			FinishedAt: time.Now().UTC().Format(time.RFC3339),
-			ExitCode:   exitCode,
-		}
-		_ = WriteRunArtifacts(runDir, resolved, args, stdout, summary)
-
-		return runResultMsg{
-			RunDir:   runDir,
-			ExitCode: exitCode,
-			Stdout:   stdout,
-			Err:      runErr,
-		}
+	// Start the streaming command
+	statsChan, resultChan, err := StartStreamingCommand(ctx, command)
+	if err != nil {
+		m.Status = fmt.Sprintf("Failed to start client: %v", err)
+		m.Running = false
+		m.state.ClientRunning = false
+		return m, nil
 	}
+
+	// Store channels for polling
+	m.state.ClientStatsChan = statsChan
+	m.state.ClientResultChan = resultChan
+
+	// Return a tick command to poll for updates
+	return m, tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return clientTickMsg{Time: t}
+	})
 }
 
 func (m *ClientScreenModel) buildCommandArgs() []string {
@@ -1079,4 +1066,110 @@ func (m *ClientScreenModel) Footer() string {
 		return "Tab: next    ←→: select    Enter: run    a: hide adv    e: edit    m: menu"
 	}
 	return "Tab: next    ←→: select    Enter: run    a: advanced    e: edit    y: copy    m: menu"
+}
+
+// clientTickMsg is sent periodically while client is running to poll for stats.
+type clientTickMsg struct {
+	Time time.Time
+}
+
+// HandleClientTick processes a client tick message, polling for stats updates.
+func (m *ClientScreenModel) HandleClientTick(msg clientTickMsg) (*ClientScreenModel, tea.Cmd) {
+	if !m.Running {
+		return m, nil
+	}
+
+	// Update elapsed time
+	if m.StartTime != nil {
+		elapsed := time.Since(*m.StartTime)
+		h := int(elapsed.Hours())
+		min := int(elapsed.Minutes()) % 60
+		s := int(elapsed.Seconds()) % 60
+		m.Elapsed = fmt.Sprintf("%02d:%02d:%02d", h, min, s)
+	}
+
+	// Check for result (command finished)
+	if m.state.ClientResultChan != nil {
+		select {
+		case result, ok := <-m.state.ClientResultChan:
+			if ok {
+				// Command finished
+				m.Running = false
+				m.Completed = true
+				m.state.ClientRunning = false
+				m.Output = result.Output
+
+				// Write artifacts
+				scenarios := allScenarios()
+				scenarioName := scenarios[m.Scenario].Name
+				if scenarioName == "firewall" {
+					scenarioName = firewallVendors[m.FirewallVendor].Scenario
+				}
+				args := m.buildCommandArgs()
+				resolved := map[string]interface{}{
+					"scenario": scenarioName,
+					"target":   m.TargetIP,
+					"port":     m.Port,
+				}
+				status := "success"
+				if result.Err != nil && m.state.ClientCtx.Err() == nil {
+					status = "failed"
+					errMsg := extractErrorFromOutput(result.Output)
+					if errMsg == "" {
+						errMsg = result.Err.Error()
+					}
+					m.Status = fmt.Sprintf("FAILED: %s", errMsg)
+				} else if m.state.ClientCtx.Err() != nil {
+					status = "stopped"
+					m.Status = "Run cancelled by user"
+				} else {
+					m.Status = "Run completed successfully"
+				}
+				startTime := time.Time{}
+				if m.StartTime != nil {
+					startTime = *m.StartTime
+				}
+				summary := RunSummary{
+					Status:     status,
+					Command:    args,
+					StartedAt:  startTime.UTC().Format(time.RFC3339),
+					FinishedAt: time.Now().UTC().Format(time.RFC3339),
+					ExitCode:   result.ExitCode,
+				}
+				_ = WriteRunArtifacts(m.RunDir, resolved, args, result.Output, summary)
+
+				m.state.ClientStatsChan = nil
+				m.state.ClientResultChan = nil
+				return m, nil
+			}
+		default:
+			// No result yet
+		}
+	}
+
+	// Check for stats updates
+	if m.state.ClientStatsChan != nil {
+		for {
+			select {
+			case stats, ok := <-m.state.ClientStatsChan:
+				if !ok {
+					m.state.ClientStatsChan = nil
+					break
+				}
+				// Update display stats
+				m.RequestCount = stats.TotalRequests
+				m.SuccessCount = stats.SuccessfulRequests
+				m.ErrorCount = stats.FailedRequests
+				continue
+			default:
+				// No more stats available
+			}
+			break
+		}
+	}
+
+	// Schedule next tick
+	return m, tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return clientTickMsg{Time: t}
+	})
 }

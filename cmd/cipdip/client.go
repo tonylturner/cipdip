@@ -23,6 +23,7 @@ type clientFlags struct {
 	cipProfile  string
 	targetTags  string
 	firewall    string
+	tuiStats    bool
 }
 
 func newClientCmd() *cobra.Command {
@@ -131,6 +132,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
 	cmd.Flags().StringVar(&flags.targetTags, "target-tags", "", "Filter targets by comma-separated tags (e.g., rockwell,tc-enip-001-explicit)")
 	cmd.Flags().StringVar(&flags.firewall, "firewall-vendor", "", "Annotate metrics with firewall vendor (hirschmann|moxa|dynics)")
+	cmd.Flags().BoolVar(&flags.tuiStats, "tui-stats", false, "Enable JSON stats output for TUI consumption")
 
 	return cmd
 }
@@ -152,5 +154,6 @@ func runClient(flags *clientFlags) error {
 		CIPProfile:     flags.cipProfile,
 		TargetTags:     flags.targetTags,
 		FirewallVendor: flags.firewall,
+		TUIStats:       flags.tuiStats,
 	})
 }
