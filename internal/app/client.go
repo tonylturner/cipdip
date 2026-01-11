@@ -548,6 +548,8 @@ func outputClientStats(sink *metrics.Sink) {
 	if err != nil {
 		return
 	}
-	fmt.Fprintf(os.Stdout, "%s\n", data)
+	// Print newline first to ensure stats are on their own line
+	// (progress bars use \r without \n)
+	fmt.Fprintf(os.Stdout, "\n%s\n", data)
 	os.Stdout.Sync()
 }
