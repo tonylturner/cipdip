@@ -504,16 +504,24 @@ func (m *ServerScreenModel) viewEditing() string {
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", 60))
 	b.WriteString("\n\n")
-	// Listen IP field - using simple markers for compatibility
+	// Listen IP field
 	ipLabel := "Listen IP: "
 	ipValue := m.ListenIP
 	if ipValue == "" {
 		ipValue = "0.0.0.0"
 	}
+	ipLine := ipLabel + ipValue
 	if m.focusIndex == serverFieldIP {
-		b.WriteString("> " + ipLabel + ipValue + "_")
+		ipLine += "█"
+	}
+	// Pad to fixed width to prevent display issues
+	for len(ipLine) < 40 {
+		ipLine += " "
+	}
+	if m.focusIndex == serverFieldIP {
+		b.WriteString(selectedStyle.Render(ipLine))
 	} else {
-		b.WriteString("  " + ipLabel + ipValue)
+		b.WriteString(ipLine)
 	}
 	b.WriteString("\n")
 
@@ -524,9 +532,9 @@ func (m *ServerScreenModel) viewEditing() string {
 		portValue = "44818"
 	}
 	if m.focusIndex == serverFieldPort {
-		b.WriteString("> " + portLabel + portValue + "_")
+		b.WriteString(selectedStyle.Render(portLabel + portValue + "█"))
 	} else {
-		b.WriteString("  " + portLabel + portValue)
+		b.WriteString(portLabel + portValue)
 	}
 	b.WriteString("\n")
 
