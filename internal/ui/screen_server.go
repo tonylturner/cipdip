@@ -100,10 +100,18 @@ const (
 func NewServerScreenModel(state *AppState) *ServerScreenModel {
 	return &ServerScreenModel{
 		state:       state,
-		ListenIP:    "0.0.0.0",
+		ListenIP:    "", // Empty means 0.0.0.0 (all interfaces)
 		Port:        "44818",
 		CIPProfiles: make([]bool, len(serverCIPProfiles)),
 	}
+}
+
+// displayIP returns the listen IP for display, showing default when empty.
+func (m *ServerScreenModel) displayIP() string {
+	if m.ListenIP == "" {
+		return "0.0.0.0"
+	}
+	return m.ListenIP
 }
 
 // generatePcapFilename creates a filename based on current settings
@@ -666,7 +674,7 @@ func (m *ServerScreenModel) viewRunning() string {
 
 	// Server info
 	b.WriteString(fmt.Sprintf("Listening: %s:%s      Personality: %s\n",
-		m.ListenIP, m.Port, serverPersonalities[m.Personality].Name))
+		m.displayIP(), m.Port, serverPersonalities[m.Personality].Name))
 	b.WriteString(fmt.Sprintf("Uptime: %s              Connections: %d active\n",
 		formatDuration(m.Uptime), m.ConnectionCount))
 
@@ -735,7 +743,7 @@ func (m *ServerScreenModel) viewCompleted() string {
 
 	// Server info
 	b.WriteString(fmt.Sprintf("Listen: %s:%s    Personality: %s\n",
-		m.ListenIP, m.Port, serverPersonalities[m.Personality].Name))
+		m.displayIP(), m.Port, serverPersonalities[m.Personality].Name))
 	b.WriteString(fmt.Sprintf("Uptime: %s\n", formatDuration(m.Uptime)))
 
 	// Status message
