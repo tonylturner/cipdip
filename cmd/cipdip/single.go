@@ -68,7 +68,7 @@ Use this for quick firewall/DPI checks on a specific service/class/instance/attr
 	cmd.Flags().StringVar(&flags.service, "service", "", "CIP service code (hex/decimal) or alias (required)")
 	cmd.Flags().StringVar(&flags.classID, "class", "", "CIP class ID (hex/decimal) or alias (required)")
 	cmd.Flags().StringVar(&flags.instanceID, "instance", "", "CIP instance ID (hex or decimal, required)")
-	cmd.Flags().StringVar(&flags.attributeID, "attribute", "0x0000", "CIP attribute ID (hex or decimal, default 0)")
+	cmd.Flags().StringVar(&flags.attributeID, "attribute", "", "CIP attribute ID (hex or decimal)")
 	cmd.Flags().StringVar(&flags.payloadHex, "payload-hex", "", "Optional hex payload for the request body")
 	cmd.Flags().StringVar(&flags.payloadType, "payload-type", "", "Payload type to build (forward_open, unconnected_send, rockwell_tag, file_object, modbus_object, rockwell_pccc)")
 	cmd.Flags().StringArrayVar(&flags.payloadParams, "payload-param", nil, "Payload param key=value (repeatable)")

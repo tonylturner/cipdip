@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -531,10 +532,30 @@ func (m Model) handlePCAPResult(msg pcapResultMsg) (tea.Model, tea.Cmd) {
 	// Update PCAP model with result
 	if m.pcapModel != nil {
 		m.pcapModel.Running = false
+		m.pcapModel.Completed = true
+		m.pcapModel.Output = msg.Stdout
+		m.pcapModel.RunDir = msg.RunDir
+		m.pcapModel.SubView = 3 // Switch to completed view
+
+		// If a report was generated, read it
+		if m.pcapModel.ReportPath != "" {
+			if content, err := os.ReadFile(m.pcapModel.ReportPath); err == nil {
+				m.pcapModel.ReportContent = string(content)
+			}
+		}
+
 		if msg.Err != nil {
-			m.pcapModel.Status = fmt.Sprintf("Failed: %v", msg.Err)
+			errMsg := extractErrorFromOutput(msg.Stdout)
+			if errMsg == "" {
+				errMsg = msg.Err.Error()
+			}
+			m.pcapModel.Status = fmt.Sprintf("FAILED: %s", errMsg)
 		} else {
-			m.pcapModel.Status = fmt.Sprintf("Completed. Artifacts: %s", msg.RunDir)
+			if m.pcapModel.ReportPath != "" {
+				m.pcapModel.Status = fmt.Sprintf("Report saved to: %s", m.pcapModel.ReportPath)
+			} else {
+				m.pcapModel.Status = "Completed successfully"
+			}
 		}
 	}
 

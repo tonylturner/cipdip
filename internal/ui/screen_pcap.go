@@ -22,7 +22,7 @@ type PCAPScreenModel struct {
 
 	// Action selection
 	ActionIndex int // Which action is selected
-	SubView     int // 0 = main, 1 = action config, 2 = file browser
+	SubView     int // 0 = main, 1 = action config, 2 = file browser, 3 = completed
 
 	// Replay options (when action is replay)
 	ReplayTargetIP string
@@ -30,15 +30,28 @@ type PCAPScreenModel struct {
 	ReplayTiming   bool
 	ReplayAppOnly  bool
 
+	// Dump options (when action is dump)
+	DumpService string // Service code to filter (e.g., "0x51")
+
 	// File browser state
-	BrowserPath    string       // Current directory
-	BrowserEntries []FileEntry  // Files/dirs in current directory
-	BrowserCursor  int          // Selected entry
+	BrowserPath    string      // Current directory
+	BrowserEntries []FileEntry // Files/dirs in current directory
+	BrowserCursor  int         // Selected entry
 
 	// UI state
-	focusIndex int
-	Status     string
-	Running    bool
+	focusIndex    int
+	Status        string
+	Running       bool
+	Completed     bool   // True after action finishes
+	Output        string // Captured stdout from the action
+	RunDir        string // Directory where artifacts were saved
+	ReportPath    string // Path to generated report file (for actions 2, 3)
+	ReportContent string // Content of generated report
+
+	// Viewer state (subview 5)
+	ViewerLines  []string // Lines of content being viewed
+	ViewerScroll int      // Current scroll position
+	ViewerTitle  string   // Title for the viewer
 }
 
 // FileEntry represents a file or directory in the browser.
@@ -55,12 +68,12 @@ var pcapActions = []struct {
 	Name string
 	Desc string
 }{
-	{"1", "Summary", "Packet counts, endpoints, timing"},
-	{"2", "Report", "Detailed CIP request/response analysis"},
-	{"3", "Coverage", "Which CIP classes/services are present"},
+	{"1", "Summary", "Packet counts, endpoints, timing (single file)"},
+	{"2", "Report", "Multi-file summary report (uses directory)"},
+	{"3", "Coverage", "CIP service coverage report (uses directory)"},
 	{"4", "Replay", "Send packets to a target device"},
 	{"5", "Rewrite", "Modify IPs/MACs and save new capture"},
-	{"6", "Dump", "Hex dump of specific packets"},
+	{"6", "Dump", "Hex dump of CIP packets by service code"},
 }
 
 const (
@@ -85,9 +98,119 @@ func (m *PCAPScreenModel) Update(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
 		return m.updateActionConfig(msg)
 	case 2:
 		return m.updateFileBrowser(msg)
+	case 3:
+		return m.updateCompleted(msg)
+	case 4:
+		return m.updateDumpConfig(msg)
+	case 5:
+		return m.updateViewer(msg)
 	default:
 		return m.updateMain(msg)
 	}
+}
+
+func (m *PCAPScreenModel) updateViewer(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
+	maxVisible := 20 // Lines visible at once
+	maxScroll := len(m.ViewerLines) - maxVisible
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+
+	switch msg.String() {
+	case "q", "esc":
+		m.SubView = 3 // Return to completed view
+		m.ViewerLines = nil
+		m.ViewerScroll = 0
+	case "up", "k":
+		if m.ViewerScroll > 0 {
+			m.ViewerScroll--
+		}
+	case "down", "j":
+		if m.ViewerScroll < maxScroll {
+			m.ViewerScroll++
+		}
+	case "pgup", "b", "ctrl+u":
+		m.ViewerScroll -= maxVisible
+		if m.ViewerScroll < 0 {
+			m.ViewerScroll = 0
+		}
+	case "pgdown", " ", "ctrl+d":
+		m.ViewerScroll += maxVisible
+		if m.ViewerScroll > maxScroll {
+			m.ViewerScroll = maxScroll
+		}
+	case "g", "home":
+		m.ViewerScroll = 0
+	case "G", "end":
+		m.ViewerScroll = maxScroll
+	}
+	return m, nil
+}
+
+func (m *PCAPScreenModel) updateDumpConfig(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.SubView = 0
+	case "enter":
+		if m.DumpService != "" {
+			return m.runAction()
+		} else {
+			m.Status = "Service code is required (e.g., 0x51)"
+		}
+	case "y":
+		cmd := m.buildCommand()
+		if err := copyToClipboard(cmd); err != nil {
+			m.Status = fmt.Sprintf("Copy failed: %v", err)
+		} else {
+			m.Status = "Command copied to clipboard"
+		}
+	case "backspace":
+		if len(m.DumpService) > 0 {
+			m.DumpService = m.DumpService[:len(m.DumpService)-1]
+		}
+	default:
+		if len(msg.String()) == 1 {
+			ch := msg.String()
+			// Allow hex characters for service code
+			if strings.ContainsAny(ch, "0123456789abcdefABCDEFxX") {
+				m.DumpService += ch
+			}
+		}
+	}
+	return m, nil
+}
+
+func (m *PCAPScreenModel) updateCompleted(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		// Return to main view
+		m.Completed = false
+		m.SubView = 0
+		m.Output = ""
+		m.ReportContent = ""
+		m.Status = ""
+	case "enter", "v", "o":
+		// Open full content in scrollable viewer
+		content := m.Output
+		title := "Output"
+		if m.ReportContent != "" {
+			content = m.ReportContent
+			title = "Report"
+		}
+		if content != "" {
+			m.ViewerLines = strings.Split(content, "\n")
+			m.ViewerScroll = 0
+			m.ViewerTitle = title
+			m.SubView = 5
+		}
+	case "r":
+		// Re-run same action
+		m.Completed = false
+		m.SubView = 0
+		m.ReportContent = ""
+		return m.runAction()
+	}
+	return m, nil
 }
 
 func (m *PCAPScreenModel) updateMain(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd) {
@@ -101,10 +224,13 @@ func (m *PCAPScreenModel) updateMain(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd)
 		if idx >= 0 && idx < len(pcapActions) {
 			m.ActionIndex = idx
 			if m.FilePath != "" {
-				// Go to action config for replay, otherwise run directly
+				// Go to action config for replay and dump, otherwise run directly
 				if idx == 3 { // Replay
 					m.SubView = 1
 					m.focusIndex = pcapFieldReplayIP
+				} else if idx == 5 { // Dump - needs service code
+					m.SubView = 4 // Dump config view
+					m.focusIndex = 0
 				} else {
 					return m.runAction()
 				}
@@ -117,6 +243,9 @@ func (m *PCAPScreenModel) updateMain(msg tea.KeyMsg) (*PCAPScreenModel, tea.Cmd)
 			if m.ActionIndex == 3 { // Replay needs config
 				m.SubView = 1
 				m.focusIndex = pcapFieldReplayIP
+			} else if m.ActionIndex == 5 { // Dump needs service code
+				m.SubView = 4
+				m.focusIndex = 0
 			} else {
 				return m.runAction()
 			}
@@ -353,8 +482,22 @@ func (m *PCAPScreenModel) runAction() (*PCAPScreenModel, tea.Cmd) {
 		return m, nil
 	}
 
+	// For dump, require service code
+	if m.ActionIndex == 5 && m.DumpService == "" {
+		m.Status = "Service code is required for dump"
+		return m, nil
+	}
+
 	m.Running = true
 	m.Status = "Running..."
+
+	// Track report path for actions that generate reports
+	m.ReportPath = ""
+	if m.ActionIndex == 1 { // Report
+		m.ReportPath = filepath.Join(m.state.WorkspaceRoot, "reports", "pcap_report.md")
+	} else if m.ActionIndex == 2 { // Coverage
+		m.ReportPath = filepath.Join(m.state.WorkspaceRoot, "reports", "pcap_coverage.md")
+	}
 
 	// Build the command
 	args := m.buildCommandArgs()
@@ -421,13 +564,17 @@ func (m *PCAPScreenModel) buildCommandArgs() []string {
 
 	var args []string
 	switch m.ActionIndex {
-	case 0: // Summary
+	case 0: // Summary - uses --input for single file
 		args = []string{"cipdip", "pcap-summary", "--input", m.FilePath}
-	case 1: // Report
-		args = []string{"cipdip", "pcap-report", "--input", m.FilePath}
-	case 2: // Coverage
-		args = []string{"cipdip", "pcap-coverage", "--input", m.FilePath}
-	case 3: // Replay
+	case 1: // Report - uses --pcap-dir for directory
+		pcapDir := filepath.Dir(m.FilePath)
+		outputPath := filepath.Join(m.state.WorkspaceRoot, "reports", "pcap_report.md")
+		args = []string{"cipdip", "pcap-report", "--pcap-dir", pcapDir, "--output", outputPath}
+	case 2: // Coverage - uses --pcap-dir for directory
+		pcapDir := filepath.Dir(m.FilePath)
+		outputPath := filepath.Join(m.state.WorkspaceRoot, "reports", "pcap_coverage.md")
+		args = []string{"cipdip", "pcap-coverage", "--pcap-dir", pcapDir, "--output", outputPath}
+	case 3: // Replay - uses --input for single file
 		args = []string{"cipdip", "pcap-replay", "--input", m.FilePath}
 		if m.ReplayTargetIP != "" {
 			args = append(args, "--server-ip", m.ReplayTargetIP)
@@ -441,10 +588,14 @@ func (m *PCAPScreenModel) buildCommandArgs() []string {
 		if m.ReplayAppOnly {
 			args = append(args, "--mode", "app")
 		}
-	case 4: // Rewrite
-		args = []string{"cipdip", "pcap-rewrite", "--input", m.FilePath}
-	case 5: // Dump
+	case 4: // Rewrite - uses --input and --output
+		outputPath := strings.TrimSuffix(m.FilePath, filepath.Ext(m.FilePath)) + "_rewritten.pcap"
+		args = []string{"cipdip", "pcap-rewrite", "--input", m.FilePath, "--output", outputPath}
+	case 5: // Dump - uses --input and --service
 		args = []string{"cipdip", "pcap-dump", "--input", m.FilePath}
+		if m.DumpService != "" {
+			args = append(args, "--service", m.DumpService)
+		}
 	}
 	return args
 }
@@ -464,9 +615,193 @@ func (m *PCAPScreenModel) View() string {
 		return m.viewReplayConfig()
 	case 2:
 		return m.viewFileBrowser()
+	case 3:
+		return m.viewCompleted()
+	case 4:
+		return m.viewDumpConfig()
+	case 5:
+		return m.viewViewer()
 	default:
 		return m.viewMain()
 	}
+}
+
+func (m *PCAPScreenModel) viewViewer() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(headerStyle.Render(fmt.Sprintf("PCAP > %s", m.ViewerTitle)))
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 70))
+	b.WriteString("\n")
+
+	// Content with scroll
+	maxVisible := 20
+	totalLines := len(m.ViewerLines)
+	endIdx := m.ViewerScroll + maxVisible
+	if endIdx > totalLines {
+		endIdx = totalLines
+	}
+
+	// Show scroll indicator
+	if m.ViewerScroll > 0 {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("  ↑ %d lines above\n", m.ViewerScroll)))
+	} else {
+		b.WriteString("\n")
+	}
+
+	// Show visible lines
+	for i := m.ViewerScroll; i < endIdx; i++ {
+		line := m.ViewerLines[i]
+		// Don't truncate in viewer - show full width
+		if len(line) > 68 {
+			line = line[:68]
+		}
+		b.WriteString(fmt.Sprintf("%s\n", line))
+	}
+
+	// Pad to consistent height
+	displayed := endIdx - m.ViewerScroll
+	for i := displayed; i < maxVisible; i++ {
+		b.WriteString("\n")
+	}
+
+	// Show scroll indicator at bottom
+	remaining := totalLines - endIdx
+	if remaining > 0 {
+		b.WriteString(dimStyle.Render(fmt.Sprintf("  ↓ %d lines below", remaining)))
+	}
+	b.WriteString("\n")
+
+	// Progress indicator
+	b.WriteString(strings.Repeat("─", 70))
+	b.WriteString("\n")
+	pct := 0
+	if totalLines > 0 {
+		pct = (m.ViewerScroll + maxVisible) * 100 / totalLines
+		if pct > 100 {
+			pct = 100
+		}
+	}
+	b.WriteString(dimStyle.Render(fmt.Sprintf("Line %d-%d of %d (%d%%)", m.ViewerScroll+1, endIdx, totalLines, pct)))
+
+	return b.String()
+}
+
+func (m *PCAPScreenModel) viewDumpConfig() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(headerStyle.Render("PCAP > Dump"))
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString("\n\n")
+
+	// File info
+	b.WriteString(fmt.Sprintf("File: %s\n\n", filepath.Base(m.FilePath)))
+
+	// Service code input
+	serviceValue := m.DumpService
+	if serviceValue == "" {
+		serviceValue = "0x__"
+	}
+	b.WriteString(selectedStyle.Render("Service code: " + serviceValue + "█"))
+	b.WriteString("\n\n")
+
+	// Help text
+	b.WriteString(dimStyle.Render("Enter a CIP service code in hex format (e.g., 0x51, 0x0E)"))
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("Common services: 0x0E (Get Attribute Single), 0x10 (Set Attribute Single)"))
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render("                0x52 (Unconnected Send), 0x54 (Forward Open)"))
+	b.WriteString("\n")
+
+	// Command preview
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString("\n\n")
+	b.WriteString("Command preview:\n")
+	cmd := m.buildCommand()
+	if m.DumpService == "" {
+		cmd = strings.Replace(cmd, "--service ", "--service ???", 1)
+	}
+	b.WriteString(dimStyle.Render(cmd))
+	b.WriteString("\n")
+
+	// Status
+	if m.Status != "" {
+		b.WriteString("\n")
+		b.WriteString(m.Status)
+	}
+
+	return borderStyle.Render(b.String())
+}
+
+func (m *PCAPScreenModel) viewCompleted() string {
+	var b strings.Builder
+
+	// Header with status
+	actionName := "PCAP"
+	if m.ActionIndex >= 0 && m.ActionIndex < len(pcapActions) {
+		actionName = pcapActions[m.ActionIndex].Name
+	}
+	b.WriteString(headerStyle.Render(fmt.Sprintf("PCAP > %s", actionName)))
+	b.WriteString("                                    ")
+	if strings.HasPrefix(m.Status, "FAILED") {
+		b.WriteString(errorStyle.Render("[FAILED]"))
+	} else {
+		b.WriteString(successStyle.Render("[DONE]"))
+	}
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString("\n\n")
+
+	// File info
+	b.WriteString(fmt.Sprintf("File: %s\n", filepath.Base(m.FilePath)))
+
+	// Status message
+	b.WriteString("\n")
+	if strings.HasPrefix(m.Status, "FAILED") {
+		b.WriteString(errorStyle.Render(m.Status))
+	} else {
+		b.WriteString(successStyle.Render(m.Status))
+	}
+	b.WriteString("\n")
+
+	// Content section - show report if available, otherwise stdout
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", 60))
+	b.WriteString("\n")
+
+	content := m.Output
+	contentLabel := "Output"
+	if m.ReportContent != "" {
+		content = m.ReportContent
+		contentLabel = "Report"
+	}
+
+	b.WriteString(fmt.Sprintf("%s:\n", contentLabel))
+	if content == "" {
+		b.WriteString(dimStyle.Render("  (no output captured)"))
+		b.WriteString("\n")
+	} else {
+		// Show content lines (scroll if needed)
+		lines := strings.Split(strings.TrimSpace(content), "\n")
+		maxLines := 18
+		startIdx := 0
+		if len(lines) > maxLines {
+			startIdx = len(lines) - maxLines
+			b.WriteString(dimStyle.Render(fmt.Sprintf("  ... (%d lines omitted, press 'o' to view full)\n", startIdx)))
+		}
+		for _, line := range lines[startIdx:] {
+			if len(line) > 70 {
+				line = line[:67] + "..."
+			}
+			b.WriteString(fmt.Sprintf("  %s\n", line))
+		}
+	}
+
+	return borderStyle.Render(b.String())
 }
 
 func (m *PCAPScreenModel) viewFileBrowser() string {
@@ -689,6 +1024,12 @@ func (m *PCAPScreenModel) Footer() string {
 		return "Tab: next    1/2/3: toggle    Enter: run    y: copy command    Esc: back    m: menu"
 	case 2:
 		return "↑↓: navigate    Enter: select    ←/h: parent    Esc: cancel    m: menu"
+	case 3:
+		return "Enter/v: view full    r: re-run    Esc: back    m: menu"
+	case 4:
+		return "Enter: run    y: copy command    Esc: back    m: menu"
+	case 5:
+		return "↑↓/j/k: scroll    Space/b: page    g/G: top/bottom    q/Esc: back"
 	default:
 		return "b: browse files    1-6: select action    y: copy command    m: menu"
 	}
