@@ -2,6 +2,20 @@
 
 This document provides practical examples of using CIPDIP for various scenarios.
 
+## Interactive TUI
+
+The fastest way to get started is with the interactive TUI:
+
+```bash
+# Start the TUI
+cipdip ui --tui
+
+# With a specific workspace
+cipdip ui --workspace workspaces/myproject --tui
+```
+
+See `docs/TUI_GUIDE.md` for complete TUI documentation.
+
 ## Basic Client Usage
 
 ### Baseline Scenario

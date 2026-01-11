@@ -38,6 +38,7 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 	rootCmd.AddCommand(newPcapReplayCmd())
 	rootCmd.AddCommand(newPcapRewriteCmd())
 	rootCmd.AddCommand(newPcapValidateCmd())
+	rootCmd.AddCommand(newPCAPDiffCmd())
 	rootCmd.AddCommand(newArpCmd())
 	rootCmd.AddCommand(newTestCmd())
 	rootCmd.AddCommand(newSelfTestCmd())
