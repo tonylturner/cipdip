@@ -111,7 +111,8 @@ func (m *ServerScreenModel) generatePcapFilename() string {
 	personality := serverPersonalities[m.Personality].Name
 	mode := serverModes[m.ModeIndex].Name
 	timestamp := time.Now().UTC().Format("2006-01-02T150405Z")
-	return fmt.Sprintf("server_%s_%s_%s.pcap", personality, mode, timestamp)
+	filename := fmt.Sprintf("server_%s_%s_%s.pcap", personality, mode, timestamp)
+	return filepath.Join(m.state.WorkspaceRoot, "pcaps", filename)
 }
 
 // Update handles input for the server screen.
@@ -540,8 +541,9 @@ func (m *ServerScreenModel) viewEditing() string {
 	if m.PcapEnabled {
 		pcapCheck = "x"
 	}
-	pcapFilename := m.generatePcapFilename()
-	pcapLine := fmt.Sprintf("PCAP Capture: [%s] %s", pcapCheck, pcapFilename)
+	pcapFullPath := m.generatePcapFilename()
+	pcapFilename := filepath.Base(pcapFullPath)
+	pcapLine := fmt.Sprintf("PCAP Capture: [%s] pcaps/%s", pcapCheck, pcapFilename)
 	if m.focusIndex == serverFieldPcap {
 		b.WriteString(selectedStyle.Render(pcapLine))
 	} else {
