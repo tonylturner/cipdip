@@ -199,7 +199,8 @@ func (m *ClientScreenModel) updateAutoDetectedInterface() {
 	if err != nil {
 		m.AutoDetectedInterface = "unknown"
 	} else {
-		m.AutoDetectedInterface = iface
+		// Get the display-friendly name
+		m.AutoDetectedInterface = netdetect.GetDisplayNameForInterface(iface)
 	}
 }
 
