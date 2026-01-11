@@ -21,6 +21,14 @@ type ServerScreenModel struct {
 	Personality int // Index into personalities slice
 	ConfigPath  string
 
+	// Advanced options
+	ShowAdvanced bool
+	ModeIndex    int    // Index into serverModes
+	CIPProfiles  []bool // energy, safety, motion toggles
+	EnableUDPIO  bool
+	PcapEnabled  bool
+	PcapFile     string
+
 	// UI state
 	focusIndex int
 	Running    bool
@@ -62,20 +70,48 @@ var serverPersonalities = []struct {
 	{"logix_like", "Tag-based (like Allen-Bradley Logix)"},
 }
 
+// Server mode presets
+var serverModes = []struct {
+	Name string
+	Desc string
+}{
+	{"baseline", "Standard compliant responses"},
+	{"realistic", "Realistic timing and behavior"},
+	{"dpi-torture", "Edge cases to stress DPI engines"},
+	{"perf", "High-performance mode for load testing"},
+}
+
+// CIP profiles for server (reuse from client)
+var serverCIPProfiles = []string{"energy", "safety", "motion"}
+
 const (
 	serverFieldIP = iota
 	serverFieldPort
 	serverFieldPersonality
+	serverFieldMode
+	// Advanced fields
+	serverFieldCIPProfiles
+	serverFieldUDPIO
+	serverFieldPcap
 	serverFieldCount
 )
 
 // NewServerScreenModel creates a new server screen model.
 func NewServerScreenModel(state *AppState) *ServerScreenModel {
 	return &ServerScreenModel{
-		state:    state,
-		ListenIP: "0.0.0.0",
-		Port:     "44818",
+		state:       state,
+		ListenIP:    "0.0.0.0",
+		Port:        "44818",
+		CIPProfiles: make([]bool, len(serverCIPProfiles)),
 	}
+}
+
+// generatePcapFilename creates a filename based on current settings
+func (m *ServerScreenModel) generatePcapFilename() string {
+	personality := serverPersonalities[m.Personality].Name
+	mode := serverModes[m.ModeIndex].Name
+	timestamp := time.Now().UTC().Format("2006-01-02T150405Z")
+	return fmt.Sprintf("server_%s_%s_%s.pcap", personality, mode, timestamp)
 }
 
 // Update handles input for the server screen.
@@ -92,9 +128,15 @@ func (m *ServerScreenModel) Update(msg tea.KeyMsg) (*ServerScreenModel, tea.Cmd)
 func (m *ServerScreenModel) updateEditing(msg tea.KeyMsg) (*ServerScreenModel, tea.Cmd) {
 	switch msg.String() {
 	case "tab", "down", "j":
-		m.focusIndex = (m.focusIndex + 1) % serverFieldCount
+		m.focusIndex = m.nextField(1)
 	case "shift+tab", "up", "k":
-		m.focusIndex = (m.focusIndex - 1 + serverFieldCount) % serverFieldCount
+		m.focusIndex = m.nextField(-1)
+	case "a":
+		// Toggle advanced options
+		m.ShowAdvanced = !m.ShowAdvanced
+		if !m.ShowAdvanced && m.focusIndex > serverFieldMode {
+			m.focusIndex = serverFieldMode
+		}
 	case "enter":
 		return m.startServer()
 	case "e":
@@ -152,8 +194,9 @@ adapter_assemblies:
 		}
 	}
 
-	// Handle personality selection with number keys, space, or arrows
-	if m.focusIndex == serverFieldPersonality {
+	// Handle field-specific controls
+	switch m.focusIndex {
+	case serverFieldPersonality:
 		switch msg.String() {
 		case "1", "2":
 			idx := int(msg.String()[0] - '1')
@@ -165,9 +208,63 @@ adapter_assemblies:
 		case "left", "h":
 			m.Personality = (m.Personality - 1 + len(serverPersonalities)) % len(serverPersonalities)
 		}
+	case serverFieldMode:
+		switch msg.String() {
+		case " ", "right", "l":
+			m.ModeIndex = (m.ModeIndex + 1) % len(serverModes)
+		case "left", "h":
+			m.ModeIndex = (m.ModeIndex - 1 + len(serverModes)) % len(serverModes)
+		}
+	case serverFieldCIPProfiles:
+		switch msg.String() {
+		case "1":
+			m.CIPProfiles[0] = !m.CIPProfiles[0] // energy
+		case "2":
+			m.CIPProfiles[1] = !m.CIPProfiles[1] // safety
+		case "3":
+			m.CIPProfiles[2] = !m.CIPProfiles[2] // motion
+		case " ":
+			// Toggle all
+			allOn := m.CIPProfiles[0] && m.CIPProfiles[1] && m.CIPProfiles[2]
+			for i := range m.CIPProfiles {
+				m.CIPProfiles[i] = !allOn
+			}
+		}
+	case serverFieldUDPIO:
+		switch msg.String() {
+		case " ":
+			m.EnableUDPIO = !m.EnableUDPIO
+		}
+	case serverFieldPcap:
+		switch msg.String() {
+		case " ":
+			m.PcapEnabled = !m.PcapEnabled
+		}
 	}
 
 	return m, nil
+}
+
+// nextField returns the next valid field index, skipping hidden fields
+func (m *ServerScreenModel) nextField(dir int) int {
+	// Determine which fields are visible
+	visibleFields := []int{serverFieldIP, serverFieldPort, serverFieldPersonality, serverFieldMode, serverFieldPcap}
+	if m.ShowAdvanced {
+		visibleFields = append(visibleFields, serverFieldCIPProfiles, serverFieldUDPIO)
+	}
+
+	// Find current position in visible fields
+	currentPos := 0
+	for i, f := range visibleFields {
+		if f == m.focusIndex {
+			currentPos = i
+			break
+		}
+	}
+
+	// Move to next/prev
+	newPos := (currentPos + dir + len(visibleFields)) % len(visibleFields)
+	return visibleFields[newPos]
 }
 
 func (m *ServerScreenModel) updateRunning(msg tea.KeyMsg) (*ServerScreenModel, tea.Cmd) {
@@ -306,15 +403,45 @@ func (m *ServerScreenModel) startServer() (*ServerScreenModel, tea.Cmd) {
 
 func (m *ServerScreenModel) buildCommandArgs() []string {
 	args := []string{"cipdip", "server", "--personality", serverPersonalities[m.Personality].Name}
+
 	if m.ListenIP != "" && m.ListenIP != "0.0.0.0" {
 		args = append(args, "--listen-ip", m.ListenIP)
 	}
 	if m.Port != "" && m.Port != "44818" {
 		args = append(args, "--listen-port", m.Port)
 	}
+
+	// Mode (only if not default baseline)
+	if m.ModeIndex > 0 {
+		args = append(args, "--mode", serverModes[m.ModeIndex].Name)
+	}
+
+	// CIP Profiles
+	var profiles []string
+	for i, enabled := range m.CIPProfiles {
+		if enabled {
+			profiles = append(profiles, serverCIPProfiles[i])
+		}
+	}
+	if len(profiles) > 0 {
+		args = append(args, "--cip-profile", strings.Join(profiles, ","))
+	}
+
+	// UDP I/O
+	if m.EnableUDPIO {
+		args = append(args, "--enable-udp-io")
+	}
+
+	// PCAP capture
+	if m.PcapEnabled {
+		args = append(args, "--pcap", m.generatePcapFilename())
+	}
+
+	// Config file
 	if m.ConfigPath != "" {
 		args = append(args, "--server-config", m.ConfigPath)
 	}
+
 	return args
 }
 
@@ -337,7 +464,11 @@ func (m *ServerScreenModel) viewEditing() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(headerStyle.Render("SERVER"))
+	header := "SERVER"
+	if m.ShowAdvanced {
+		header += "                                          [advanced]"
+	}
+	b.WriteString(headerStyle.Render(header))
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", 60))
 	b.WriteString("\n\n")
@@ -384,6 +515,83 @@ func (m *ServerScreenModel) viewEditing() string {
 		b.WriteString("\n")
 	}
 
+	// Mode selector
+	b.WriteString("\n")
+	modeLine := "Mode: "
+	for i, mode := range serverModes {
+		if i == m.ModeIndex {
+			modeLine += fmt.Sprintf("[%s] ", mode.Name)
+		} else {
+			modeLine += fmt.Sprintf(" %s  ", mode.Name)
+		}
+	}
+	if m.focusIndex == serverFieldMode {
+		b.WriteString(selectedStyle.Render(modeLine))
+	} else {
+		b.WriteString(modeLine)
+	}
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render(fmt.Sprintf("      %s", serverModes[m.ModeIndex].Desc)))
+	b.WriteString("\n")
+
+	// PCAP capture toggle (always visible)
+	b.WriteString("\n")
+	pcapCheck := " "
+	if m.PcapEnabled {
+		pcapCheck = "x"
+	}
+	pcapFilename := m.generatePcapFilename()
+	pcapLine := fmt.Sprintf("PCAP Capture: [%s] %s", pcapCheck, pcapFilename)
+	if m.focusIndex == serverFieldPcap {
+		b.WriteString(selectedStyle.Render(pcapLine))
+	} else {
+		b.WriteString(pcapLine)
+	}
+	b.WriteString("\n")
+
+	// Advanced options section
+	if m.ShowAdvanced {
+		b.WriteString("\n")
+		b.WriteString(strings.Repeat("─", 60))
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("Advanced Options                                   [a] hide"))
+		b.WriteString("\n\n")
+
+		// CIP Profiles
+		profileLine := "CIP Profiles: "
+		for i, p := range serverCIPProfiles {
+			check := " "
+			if m.CIPProfiles[i] {
+				check = "x"
+			}
+			profileLine += fmt.Sprintf("[%s] %s  ", check, p)
+		}
+		profileLine += "  (1/2/3 toggle, space=all)"
+		if m.focusIndex == serverFieldCIPProfiles {
+			b.WriteString(selectedStyle.Render(profileLine))
+		} else {
+			b.WriteString(profileLine)
+		}
+		b.WriteString("\n\n")
+
+		// UDP I/O toggle
+		udpCheck := " "
+		if m.EnableUDPIO {
+			udpCheck = "x"
+		}
+		udpLine := fmt.Sprintf("UDP I/O:      [%s] Enable UDP I/O on port 2222", udpCheck)
+		if m.focusIndex == serverFieldUDPIO {
+			b.WriteString(selectedStyle.Render(udpLine))
+		} else {
+			b.WriteString(udpLine)
+		}
+		b.WriteString("\n")
+	} else {
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("                                        [a]dvanced options ▸"))
+		b.WriteString("\n")
+	}
+
 	// Config info
 	b.WriteString("\n")
 	if m.ConfigPath != "" {
@@ -400,7 +608,15 @@ func (m *ServerScreenModel) viewEditing() string {
 
 	// Command preview
 	b.WriteString("Command preview:\n")
-	b.WriteString(dimStyle.Render(m.buildCommand()))
+	cmd := m.buildCommand()
+	// Word wrap long commands
+	if len(cmd) > 58 {
+		b.WriteString(dimStyle.Render(cmd[:58]))
+		b.WriteString("\n")
+		b.WriteString(dimStyle.Render("  " + cmd[58:]))
+	} else {
+		b.WriteString(dimStyle.Render(cmd))
+	}
 	b.WriteString("\n")
 
 	// Status
@@ -541,7 +757,10 @@ func (m *ServerScreenModel) Footer() string {
 	if m.Completed {
 		return "Enter/Esc: back to config    r: restart    o: open log    m: menu"
 	}
-	return "Tab: next    ←→: personality    Enter: start    e: edit    y: copy    m: menu"
+	if m.ShowAdvanced {
+		return "Tab: next    ←→: select    Enter: start    a: hide adv    e: edit    m: menu"
+	}
+	return "Tab: next    ←→: select    Enter: start    a: advanced    e: edit    y: copy    m: menu"
 }
 
 func formatDuration(d time.Duration) string {
