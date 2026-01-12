@@ -74,6 +74,14 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 
 		// Perform reads for each target (serial, one after another)
 		for _, target := range cfg.ReadTargets {
+			// Check deadline before each operation to avoid overshooting duration
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Stress scenario completed (deadline during reads)")
+				return nil
+			default:
+			}
+
 			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
@@ -141,6 +149,14 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 		}
 
 		for _, target := range cfg.CustomTargets {
+			// Check deadline before each operation
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Stress scenario completed (deadline during custom targets)")
+				return nil
+			default:
+			}
+
 			serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
 			if err != nil {
 				return err

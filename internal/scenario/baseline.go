@@ -93,6 +93,14 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 
 		// Perform reads for each target
 		for _, target := range cfg.ReadTargets {
+			// Check deadline before each operation to avoid overshooting duration
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Baseline scenario completed (deadline during reads)")
+				return nil
+			default:
+			}
+
 			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
@@ -159,6 +167,14 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 		}
 
 		for _, target := range cfg.CustomTargets {
+			// Check deadline before each operation to avoid overshooting duration
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Baseline scenario completed (deadline during custom reads)")
+				return nil
+			default:
+			}
+
 			serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
 			if err != nil {
 				return err

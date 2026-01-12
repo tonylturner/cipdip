@@ -101,6 +101,14 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		if len(cfg.ReadTargets) > 0 {
 			for i := 0; i < readCount; i++ {
 				for _, target := range cfg.ReadTargets {
+					// Check deadline before each operation
+					select {
+					case <-ctx.Done():
+						params.Logger.Info("Churn scenario completed (deadline during reads)")
+						return nil
+					default:
+					}
+
 					path := protocol.CIPPath{
 						Class:     target.Class,
 						Instance:  target.Instance,
@@ -168,6 +176,14 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		}
 
 		for _, target := range cfg.CustomTargets {
+			// Check deadline before each operation
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Churn scenario completed (deadline during custom targets)")
+				return nil
+			default:
+			}
+
 			serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
 			if err != nil {
 				return err
