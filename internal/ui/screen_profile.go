@@ -647,13 +647,35 @@ func (m *ProfileScreenModel) viewEditing() string {
 			if i == m.ProfileIndex {
 				prefix = "  (*) "
 			}
-			line := fmt.Sprintf("%s%-26s %s", prefix, p.Name, p.Description)
+			// Add subtle personality indicator
+			pType := "logix"
+			if p.Personality == "adapter" {
+				pType = "i/o"
+			}
+			line := fmt.Sprintf("%s%-24s [%s]  %s", prefix, p.Name, pType, p.Description)
 			if m.focusIndex == profileFieldProfile && i == m.ProfileIndex {
 				b.WriteString(selectedStyle.Render(line))
 			} else {
 				b.WriteString(line)
 			}
 			b.WriteString("\n")
+		}
+	}
+
+	// Show validation errors (if any) - only errors, not warnings
+	if m.ProfileIndex < len(m.Profiles) {
+		if p, err := profile.LoadProfileByName(m.Profiles[m.ProfileIndex].Name); err == nil {
+			warnings := profile.ValidateProfileConsistency(p)
+			errorCount := 0
+			for _, w := range warnings {
+				if w.Level == "error" {
+					errorCount++
+				}
+			}
+			if errorCount > 0 {
+				b.WriteString(dimStyle.Render(fmt.Sprintf("      ! %d config issue(s) detected", errorCount)))
+				b.WriteString("\n")
+			}
 		}
 	}
 
