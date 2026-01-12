@@ -351,6 +351,12 @@ func RunClient(opts ClientOptions) error {
 			scenarioName, elapsed.Seconds(), summary.TotalOperations, summary.FailedOps)
 	}
 
+	// Print pcap path if capture was enabled
+	if opts.PCAPFile != "" {
+		absPath, _ := filepath.Abs(opts.PCAPFile)
+		fmt.Fprintf(os.Stdout, "PCAP written to: %s\n", absPath)
+	}
+
 	// Finalize artifact output
 	if outputMgr != nil {
 		exitCode := 0
