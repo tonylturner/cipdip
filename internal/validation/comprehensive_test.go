@@ -216,6 +216,16 @@ func runProfileValidation(t *testing.T, profileInfo profile.ProfileInfo, tmpDir 
 		t.Fatalf("LoadProfile error: %v", err)
 	}
 
+	// Validate profile consistency
+	warnings := profile.ValidateProfileConsistency(p)
+	for _, w := range warnings {
+		if w.Level == "error" {
+			t.Errorf("Profile validation error: %s", w.Message)
+		} else {
+			t.Logf("Profile validation warning: %s", w.Message)
+		}
+	}
+
 	// Convert profile to server config
 	cfg := p.ToServerConfig()
 	cfg.Server.ListenIP = "127.0.0.1"

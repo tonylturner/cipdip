@@ -126,14 +126,14 @@ func (s *ProfileScenario) Run(ctx context.Context, client cipclient.Client, cfg 
 			} else {
 				// Serial reads
 				for _, req := range readBatch {
-					s.executeSingleRead(ctx, client, req, params)
+					s.executeSingleRead(ctx, client, req, params, clientEngine)
 				}
 			}
 
 			// Execute pending writes
 			writes := clientEngine.GetPendingWrites()
 			for _, w := range writes {
-				s.executeWrite(ctx, client, w, params)
+				s.executeWrite(ctx, client, w, params, clientEngine)
 			}
 
 			loopCount++
@@ -149,7 +149,7 @@ func (s *ProfileScenario) executeBatchedReads(ctx context.Context, client cipcli
 	for i, req := range batch {
 		requests[i] = protocol.CIPRequest{
 			Service: spec.CIPServiceGetAttributeSingle,
-			Path:    tagNameToPath(req.TagName),
+			Path:    s.resolveTagPath(req.TagName, clientEngine),
 		}
 	}
 
@@ -220,8 +220,8 @@ func (s *ProfileScenario) executeBatchedReads(ctx context.Context, client cipcli
 }
 
 // executeSingleRead performs a single tag read.
-func (s *ProfileScenario) executeSingleRead(ctx context.Context, client cipclient.Client, req engine.ReadRequest, params ScenarioParams) {
-	path := tagNameToPath(req.TagName)
+func (s *ProfileScenario) executeSingleRead(ctx context.Context, client cipclient.Client, req engine.ReadRequest, params ScenarioParams, clientEngine *engine.ClientEngine) {
+	path := s.resolveTagPath(req.TagName, clientEngine)
 
 	start := time.Now()
 	resp, err := client.ReadAttribute(ctx, path)
@@ -258,8 +258,8 @@ func (s *ProfileScenario) executeSingleRead(ctx context.Context, client cipclien
 }
 
 // executeWrite performs a tag write.
-func (s *ProfileScenario) executeWrite(ctx context.Context, client cipclient.Client, req engine.WriteRequest, params ScenarioParams) {
-	path := tagNameToPath(req.TagName)
+func (s *ProfileScenario) executeWrite(ctx context.Context, client cipclient.Client, req engine.WriteRequest, params ScenarioParams, clientEngine *engine.ClientEngine) {
+	path := s.resolveTagPath(req.TagName, clientEngine)
 
 	// Encode value
 	value := encodeValue(req.Value, req.TagType)
@@ -298,12 +298,23 @@ func (s *ProfileScenario) executeWrite(ctx context.Context, client cipclient.Cli
 	}
 }
 
-// tagNameToPath converts a tag name to a CIP path.
-// For logix-like profiles, this would use symbolic addressing.
-// For adapter profiles, this uses class/instance/attribute.
-func tagNameToPath(tagName string) protocol.CIPPath {
-	// For now, use symbolic path (name field)
-	// The client should handle this appropriately
+// resolveTagPath converts a tag name to a CIP path.
+// For logix-like profiles, this uses symbolic addressing.
+// For adapter profiles with field mappings, this uses class/instance/attribute.
+func (s *ProfileScenario) resolveTagPath(tagName string, clientEngine *engine.ClientEngine) protocol.CIPPath {
+	// Check if this is an adapter profile with field mappings
+	if clientEngine.IsAdapterProfile() {
+		if resolved := clientEngine.ResolveTag(tagName); resolved != nil {
+			return protocol.CIPPath{
+				Class:     resolved.Class,
+				Instance:  resolved.Instance,
+				Attribute: resolved.Attribute,
+				Name:      tagName, // Keep name for logging
+			}
+		}
+	}
+
+	// Fall back to symbolic path for logix_like profiles or unmapped tags
 	return protocol.CIPPath{
 		Name: tagName,
 	}
