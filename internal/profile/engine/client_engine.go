@@ -24,10 +24,11 @@ type WriteRequest struct {
 
 // ClientEngine manages role behavior for the client.
 type ClientEngine struct {
-	profile  *profile.Profile
-	role     *profile.Role
-	roleName string
-	rng      *rand.Rand
+	profile     *profile.Profile
+	tagResolver *profile.TagResolver
+	role        *profile.Role
+	roleName    string
+	rng         *rand.Rand
 
 	// Observed server state (updated from tag reads if available)
 	serverState string
@@ -90,14 +91,24 @@ func NewClientEngine(p *profile.Profile, roleName string) (*ClientEngine, error)
 		batchSize = 1 // No batching
 	}
 
+	// Create TagResolver for adapter profiles with field mappings
+	tagResolver := profile.NewTagResolver(p)
+
 	// Build read request list
 	readTags := make([]ReadRequest, 0, len(role.ReadTags))
 	for _, tagName := range role.ReadTags {
-		tag := p.GetTagByName(tagName)
 		tagType := "DINT" // Default
-		if tag != nil {
+
+		// Try to get type from tag definition first
+		if tag := p.GetTagByName(tagName); tag != nil {
 			tagType = tag.Type
+		} else if tagResolver != nil {
+			// For adapter profiles, try field mapping
+			if resolved := tagResolver.Resolve(tagName); resolved != nil {
+				tagType = resolved.Type
+			}
 		}
+
 		readTags = append(readTags, ReadRequest{
 			TagName: tagName,
 			TagType: tagType,
@@ -110,6 +121,11 @@ func NewClientEngine(p *profile.Profile, roleName string) (*ClientEngine, error)
 		tagType := "DINT"
 		if tag := p.GetTagByName(we.Tag); tag != nil {
 			tagType = tag.Type
+		} else if tagResolver != nil {
+			// For adapter profiles, try field mapping
+			if resolved := tagResolver.Resolve(we.Tag); resolved != nil {
+				tagType = resolved.Type
+			}
 		}
 
 		evt := scheduledWriteEvent{
@@ -142,6 +158,7 @@ func NewClientEngine(p *profile.Profile, roleName string) (*ClientEngine, error)
 
 	return &ClientEngine{
 		profile:          p,
+		tagResolver:      tagResolver,
 		role:             role,
 		roleName:         roleName,
 		rng:              rand.New(rand.NewSource(seed)),
@@ -408,6 +425,10 @@ func (e *ClientEngine) ScheduleWrite(tagName string, value interface{}) error {
 	tagType := "DINT"
 	if tag := e.profile.GetTagByName(tagName); tag != nil {
 		tagType = tag.Type
+	} else if e.tagResolver != nil {
+		if resolved := e.tagResolver.Resolve(tagName); resolved != nil {
+			tagType = resolved.Type
+		}
 	}
 
 	e.mu.Lock()
@@ -420,4 +441,28 @@ func (e *ClientEngine) ScheduleWrite(tagName string, value interface{}) error {
 	})
 
 	return nil
+}
+
+// Profile returns the profile this engine is running.
+func (e *ClientEngine) Profile() *profile.Profile {
+	return e.profile
+}
+
+// TagResolver returns the tag resolver for adapter profiles, or nil for logix_like.
+func (e *ClientEngine) TagResolver() *profile.TagResolver {
+	return e.tagResolver
+}
+
+// IsAdapterProfile returns true if this engine is for an adapter profile with field mappings.
+func (e *ClientEngine) IsAdapterProfile() bool {
+	return e.tagResolver != nil && e.tagResolver.IsAdapterProfile()
+}
+
+// ResolveTag returns the resolved tag information for adapter profiles.
+// Returns nil if not an adapter profile or tag not found.
+func (e *ClientEngine) ResolveTag(tagName string) *profile.ResolvedTag {
+	if e.tagResolver == nil {
+		return nil
+	}
+	return e.tagResolver.Resolve(tagName)
 }

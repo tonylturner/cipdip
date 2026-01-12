@@ -45,15 +45,26 @@ type TagDefinition struct {
 	UpdateParams map[string]interface{} `yaml:"update_params,omitempty"`
 }
 
+// FieldMapping maps a tag name to a position within an assembly's data.
+// This enables adapter profiles to expose symbolic tag names that resolve
+// to specific byte/bit positions in assembly I/O data.
+type FieldMapping struct {
+	Name       string `yaml:"name"`        // Tag name reference
+	Type       string `yaml:"type"`        // BOOL, INT, DINT, REAL
+	ByteOffset int    `yaml:"byte_offset"` // Offset within assembly data
+	BitOffset  int    `yaml:"bit_offset"`  // For BOOL types (0-7), ignored for others
+}
+
 // AssemblyDefinition defines an assembly for adapter-like profiles.
 type AssemblyDefinition struct {
-	Name       string `yaml:"name"`
-	Class      uint16 `yaml:"class"`
-	Instance   uint16 `yaml:"instance"`
-	Attribute  uint16 `yaml:"attribute"`
-	SizeBytes  int    `yaml:"size_bytes"`
-	Writable   bool   `yaml:"writable"`
-	UpdateRule string `yaml:"update_rule"`
+	Name       string         `yaml:"name"`
+	Class      uint16         `yaml:"class"`
+	Instance   uint16         `yaml:"instance"`
+	Attribute  uint16         `yaml:"attribute"`
+	SizeBytes  int            `yaml:"size_bytes"`
+	Writable   bool           `yaml:"writable"`
+	UpdateRule string         `yaml:"update_rule"`
+	Fields     []FieldMapping `yaml:"fields,omitempty"` // Tag-to-bit mappings for adapter profiles
 }
 
 // StateMachine defines the operational state machine.
@@ -204,19 +215,47 @@ func (p *Profile) Validate() error {
 		}
 	}
 
-	// Validate roles reference valid tags
+	// Build set of valid tag/field names
 	tagSet := make(map[string]bool)
 	for _, tag := range p.DataModel.Tags {
 		tagSet[tag.Name] = true
 	}
+	// For adapter profiles, field mappings are also valid tag references
+	fieldSet := make(map[string]bool)
+	for _, asm := range p.DataModel.Assemblies {
+		for _, field := range asm.Fields {
+			fieldSet[field.Name] = true
+		}
+	}
+
+	// Validate field mappings don't exceed assembly bounds
+	for _, asm := range p.DataModel.Assemblies {
+		for _, field := range asm.Fields {
+			maxOffset := field.ByteOffset
+			switch field.Type {
+			case "INT":
+				maxOffset += 2
+			case "DINT", "REAL":
+				maxOffset += 4
+			default: // BOOL, SINT
+				maxOffset += 1
+			}
+			if maxOffset > asm.SizeBytes {
+				return fmt.Errorf("assembly %q field %q exceeds assembly size (offset %d + size > %d)",
+					asm.Name, field.Name, field.ByteOffset, asm.SizeBytes)
+			}
+		}
+	}
+
+	// Validate roles reference valid tags or field mappings
 	for roleName, role := range p.Roles {
 		for _, tagName := range role.ReadTags {
-			if !tagSet[tagName] {
+			if !tagSet[tagName] && !fieldSet[tagName] {
 				return fmt.Errorf("role %q references unknown read tag %q", roleName, tagName)
 			}
 		}
 		for _, tagName := range role.WriteTags {
-			if !tagSet[tagName] {
+			if !tagSet[tagName] && !fieldSet[tagName] {
 				return fmt.Errorf("role %q references unknown write tag %q", roleName, tagName)
 			}
 		}
@@ -259,6 +298,35 @@ func (p *Profile) GetAssemblyByName(name string) *AssemblyDefinition {
 		}
 	}
 	return nil
+}
+
+// GetFieldMapping returns the assembly and field mapping for a tag name, or nil if not found.
+// This is used for adapter profiles where tags map to assembly bit/byte positions.
+func (p *Profile) GetFieldMapping(tagName string) (*AssemblyDefinition, *FieldMapping) {
+	for i := range p.DataModel.Assemblies {
+		asm := &p.DataModel.Assemblies[i]
+		for j := range asm.Fields {
+			if asm.Fields[j].Name == tagName {
+				return asm, &asm.Fields[j]
+			}
+		}
+	}
+	return nil, nil
+}
+
+// HasFieldMappings returns true if any assembly has field mappings defined.
+func (p *Profile) HasFieldMappings() bool {
+	for _, asm := range p.DataModel.Assemblies {
+		if len(asm.Fields) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// IsAdapterWithFieldMappings returns true if this is an adapter profile with field mappings.
+func (p *Profile) IsAdapterWithFieldMappings() bool {
+	return p.Metadata.Personality == "adapter" && p.HasFieldMappings()
 }
 
 // GetRole returns a role by name, or nil if not found.

@@ -15,6 +15,37 @@ data_model:
       size_bytes: 8
       writable: false
       update_rule: counter
+      fields:
+        # Discrete sensor inputs (byte 0)
+        - name: ConveyorRunning
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 0
+        - name: PartPresent
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 1
+        - name: StationReady
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 2
+        - name: PaintGunActive
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 3
+        - name: FaultActive
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 4
+        - name: WarningActive
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 5
+        # Part counter (bytes 4-7)
+        - name: PartCount
+          type: DINT
+          byte_offset: 4
+          bit_offset: 0
 
     - name: OutputAssembly
       class: 0x04
@@ -23,14 +54,61 @@ data_model:
       size_bytes: 8
       writable: true
       update_rule: static
+      fields:
+        # Discrete control outputs (byte 0)
+        - name: StartCmd
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 0
+        - name: StopCmd
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 1
+        - name: EStop
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 2
+        - name: ResetCmd
+          type: BOOL
+          byte_offset: 0
+          bit_offset: 3
+        # Speed setpoint (bytes 2-3)
+        - name: ConveyorSpeed
+          type: INT
+          byte_offset: 2
+          bit_offset: 0
 
     - name: StatusAssembly
       class: 0x04
       instance: 0x66
       attribute: 0x03
-      size_bytes: 4
+      size_bytes: 20
       writable: false
       update_rule: latch
+      fields:
+        # Fault code (bytes 0-1)
+        - name: FaultCode
+          type: INT
+          byte_offset: 0
+          bit_offset: 0
+        # Production stats
+        - name: ShiftPartCount
+          type: DINT
+          byte_offset: 4
+          bit_offset: 0
+        - name: RejectCount
+          type: DINT
+          byte_offset: 8
+          bit_offset: 0
+        # Process values
+        - name: CureOvenTemp
+          type: REAL
+          byte_offset: 12
+          bit_offset: 0
+        - name: CycleTime
+          type: REAL
+          byte_offset: 16
+          bit_offset: 0
 
   tags:
     # Discrete signals (mapped to assembly bits for state machine logic)

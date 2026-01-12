@@ -22,6 +22,12 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 	registry.RegisterHandler(spec.CIPClassIdentityObject, uint8(spec.CIPServiceGetAttributeSingle), identityHandler)
 	registry.RegisterHandler(spec.CIPClassIdentityObject, uint8(spec.CIPServiceGetAttributeAll), identityHandler)
 
+	// Register Connection Manager stubs for unsupported services
+	connMgrStubs := standard.NewConnectionManagerStubs()
+	registry.RegisterHandler(spec.CIPClassConnectionManager, uint8(spec.CIPServiceGetConnectionData), connMgrStubs)
+	registry.RegisterHandler(spec.CIPClassConnectionManager, uint8(spec.CIPServiceSearchConnectionData), connMgrStubs)
+	registry.RegisterHandler(spec.CIPClassConnectionManager, uint8(spec.CIPServiceGetConnectionOwner), connMgrStubs)
+
 	profileClasses := buildProfileClassSet(cfg.CIPProfiles, cfg.CIPProfileClasses)
 	genericHandler := standard.NewGenericObjectHandler(profileClasses)
 	registry.Register(handlers.ClassAny, handlers.ServiceAny, genericHandler.HandleCIPRequest)
