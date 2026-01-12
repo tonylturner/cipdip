@@ -39,12 +39,13 @@ func LoadProfileByName(name string) (*Profile, error) {
 }
 
 // LoadProfileByNameFromDir loads a profile by name from a specific directory.
+// It matches by filename first, then by metadata name (case-insensitive).
 func LoadProfileByNameFromDir(name, dir string) (*Profile, error) {
 	// Normalize name
 	name = strings.TrimSuffix(name, ".yaml")
 	name = strings.TrimSuffix(name, ".yml")
 
-	// Try exact match first
+	// Try exact filename match first
 	for _, ext := range []string{".yaml", ".yml"} {
 		path := filepath.Join(dir, name+ext)
 		if _, err := os.Stat(path); err == nil {
@@ -52,13 +53,15 @@ func LoadProfileByNameFromDir(name, dir string) (*Profile, error) {
 		}
 	}
 
-	// Try case-insensitive match
+	// Read directory entries
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("read profiles directory: %w", err)
 	}
 
 	nameLower := strings.ToLower(name)
+
+	// Try case-insensitive filename match
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -71,6 +74,26 @@ func LoadProfileByNameFromDir(name, dir string) (*Profile, error) {
 		baseName := strings.TrimSuffix(entryName, ext)
 		if strings.ToLower(baseName) == nameLower {
 			return LoadProfile(filepath.Join(dir, entryName))
+		}
+	}
+
+	// Try matching by metadata name (supports display names like "Batch Mixing Tank")
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		entryName := entry.Name()
+		ext := filepath.Ext(entryName)
+		if ext != ".yaml" && ext != ".yml" {
+			continue
+		}
+		path := filepath.Join(dir, entryName)
+		profile, err := LoadProfile(path)
+		if err != nil {
+			continue // Skip invalid profiles
+		}
+		if strings.EqualFold(profile.Metadata.Name, name) {
+			return profile, nil
 		}
 	}
 
