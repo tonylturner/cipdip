@@ -27,6 +27,7 @@ type serverFlags struct {
 	logLevel         string
 	logEvery         int
 	tuiStats         bool
+	profile          string
 }
 
 func newServerCmd() *cobra.Command {
@@ -204,6 +205,7 @@ func registerServerFlags(cmd *cobra.Command, flags *serverFlags) {
 	cmd.Flags().StringVar(&flags.logLevel, "log-level", "", "Log level override: error|info|verbose|debug")
 	cmd.Flags().IntVar(&flags.logEvery, "log-every-n", 0, "Log every N events (override)")
 	cmd.Flags().BoolVar(&flags.tuiStats, "tui-stats", false, "Enable JSON stats output for TUI consumption")
+	cmd.Flags().StringVar(&flags.profile, "profile", "", "Process profile name (e.g., water_pump_station) - loads data model from profile")
 }
 
 func runServer(flags *serverFlags) error {
@@ -222,5 +224,6 @@ func runServer(flags *serverFlags) error {
 		LogLevel:         flags.logLevel,
 		LogEvery:         flags.logEvery,
 		TUIStats:         flags.tuiStats,
+		Profile:          flags.profile,
 	})
 }

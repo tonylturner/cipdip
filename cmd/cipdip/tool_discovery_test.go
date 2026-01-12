@@ -73,7 +73,8 @@ func writeDummyTool(t *testing.T, name string) string {
 		filename += ".exe"
 	}
 	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, []byte("stub"), 0o644); err != nil {
+	// Use 0o755 to make the file executable (required for exec.LookPath)
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0"), 0o755); err != nil {
 		t.Fatalf("write dummy tool: %v", err)
 	}
 	return path
