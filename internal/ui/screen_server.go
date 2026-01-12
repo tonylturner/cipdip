@@ -511,7 +511,13 @@ func (m *ServerScreenModel) startServer() (*ServerScreenModel, tea.Cmd) {
 	command := CommandSpec{Args: args}
 
 	// Create run directory for server
-	runName := fmt.Sprintf("server_%s", serverPersonalities[m.Personality].Name)
+	var runName string
+	if m.ProfileMode && m.ProfileIndex < len(m.Profiles) {
+		profileName := strings.ReplaceAll(m.Profiles[m.ProfileIndex].Name, " ", "_")
+		runName = fmt.Sprintf("server_%s", strings.ToLower(profileName))
+	} else {
+		runName = fmt.Sprintf("server_%s", serverPersonalities[m.Personality].Name)
+	}
 	runDir, err := CreateRunDir(m.state.WorkspaceRoot, runName)
 	if err != nil {
 		m.Status = fmt.Sprintf("Failed to create run directory: %v", err)
@@ -848,9 +854,13 @@ func (m *ServerScreenModel) viewRunning() string {
 	b.WriteString(strings.Repeat("─", 60))
 	b.WriteString("\n\n")
 
-	// Server info
+	// Server info - show profile personality if in profile mode
+	personality := serverPersonalities[m.Personality].Name
+	if m.ProfileMode && m.ProfileIndex < len(m.Profiles) {
+		personality = m.Profiles[m.ProfileIndex].Personality
+	}
 	b.WriteString(fmt.Sprintf("Listening: %s:%s      Personality: %s\n",
-		m.displayIP(), m.Port, serverPersonalities[m.Personality].Name))
+		m.displayIP(), m.Port, personality))
 	b.WriteString(fmt.Sprintf("Uptime: %s              Connections: %d active\n",
 		formatDuration(m.Uptime), m.ConnectionCount))
 
@@ -917,9 +927,13 @@ func (m *ServerScreenModel) viewCompleted() string {
 	b.WriteString(strings.Repeat("─", 60))
 	b.WriteString("\n\n")
 
-	// Server info
+	// Server info - show profile personality if in profile mode
+	personality := serverPersonalities[m.Personality].Name
+	if m.ProfileMode && m.ProfileIndex < len(m.Profiles) {
+		personality = m.Profiles[m.ProfileIndex].Personality
+	}
 	b.WriteString(fmt.Sprintf("Listen: %s:%s    Personality: %s\n",
-		m.displayIP(), m.Port, serverPersonalities[m.Personality].Name))
+		m.displayIP(), m.Port, personality))
 	b.WriteString(fmt.Sprintf("Uptime: %s\n", formatDuration(m.Uptime)))
 
 	// Status message
@@ -1017,8 +1031,12 @@ func (m *ServerScreenModel) HandleServerTick(msg serverTickMsg) (*ServerScreenMo
 
 				// Write artifacts
 				args := m.buildCommandArgs()
+				personality := serverPersonalities[m.Personality].Name
+				if m.ProfileMode && m.ProfileIndex < len(m.Profiles) {
+					personality = m.Profiles[m.ProfileIndex].Personality
+				}
 				resolved := map[string]interface{}{
-					"personality": serverPersonalities[m.Personality].Name,
+					"personality": personality,
 					"listen_ip":   m.ListenIP,
 					"port":        m.Port,
 				}
