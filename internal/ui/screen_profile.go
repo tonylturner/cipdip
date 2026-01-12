@@ -995,9 +995,9 @@ func (m *ProfileScreenModel) Footer() string {
 		return "Enter/Esc: back    r: re-run    o: open artifacts    m: menu"
 	}
 	if m.focusIndex == profileFieldPcap && m.PcapEnabled {
-		return "Space: toggle    i: interface    Enter: run    s: scenario    m: menu"
+		return "Space: toggle    i: interface    Enter: run    s: scenario    m: menu    ?/h: help"
 	}
-	return "Tab: next    ←→: select    Enter: run    r: refresh    s: scenario    m: menu"
+	return "Tab: next    ←→: select    Enter: run    r: refresh    s: scenario    m: menu    ?/h: help"
 }
 
 // profileTickMsg is sent periodically while profile run is active.

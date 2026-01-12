@@ -167,7 +167,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Handle help overlay
 		if m.showHelp {
-			if msg.String() == "?" || msg.String() == "esc" {
+			if msg.String() == "?" || msg.String() == "h" || msg.String() == "esc" {
 				m.showHelp = false
 				return m, nil
 			}
@@ -202,7 +202,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.error = ""
 			return m, nil
 
-		case "?":
+		case "?", "h":
 			m.showHelp = true
 			return m, nil
 
@@ -335,7 +335,7 @@ func (m Model) View() string {
 	switch m.screen {
 	case ScreenMain:
 		content = m.mainModel.View()
-		footer = "c/s/p/k/r: select    q: quit    ?: help"
+		footer = "c/s/p/k/r: select    q: quit    ?/h: help"
 	case ScreenClient:
 		content = m.clientModel.View()
 		footer = m.clientModel.Footer()
@@ -389,148 +389,318 @@ func (m Model) renderFatalError() string {
 }
 
 func (m Model) renderHelpOverlay(baseContent string) string {
-	helpContent := m.getHelpForScreen()
+	helpTitle, helpBody := m.getHelpForScreen()
 
-	// Simple side-by-side layout
-	lines := strings.Split(baseContent, "\n")
-	helpLines := strings.Split(helpContent, "\n")
+	// Get main content lines
+	contentLines := strings.Split(baseContent, "\n")
 
-	maxLines := len(lines)
-	if len(helpLines) > maxLines {
-		maxLines = len(helpLines)
+	// Find the actual content width
+	mainWidth := 0
+	for _, line := range contentLines {
+		w := lipgloss.Width(line)
+		if w > mainWidth {
+			mainWidth = w
+		}
 	}
 
+	// Help styling
+	helpTitleStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("12")).
+		Bold(true)
+
+	dimHelpStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+
+	// Build help content lines manually for precise control
+	helpInnerWidth := 34
+	var helpContentLines []string
+	helpContentLines = append(helpContentLines, helpTitleStyle.Render(helpTitle))
+	helpContentLines = append(helpContentLines, strings.Repeat("─", helpInnerWidth))
+
+	// Word wrap the body text
+	for _, line := range strings.Split(helpBody, "\n") {
+		if line == "" {
+			helpContentLines = append(helpContentLines, "")
+			continue
+		}
+		// Simple word wrap
+		wrapped := wrapText(line, helpInnerWidth)
+		helpContentLines = append(helpContentLines, wrapped...)
+	}
+
+	helpContentLines = append(helpContentLines, "")
+	helpContentLines = append(helpContentLines, dimHelpStyle.Render("h/Esc to close"))
+
+	// Calculate heights - main content height (count lines in the bordered box)
+	mainHeight := len(contentLines)
+	helpContentHeight := len(helpContentLines)
+
+	// We need to match heights - help content + border (top/bottom) + padding (top/bottom)
+	// Border adds 2 lines, padding adds 2 lines = 4 extra lines for the box
+	helpBoxPadding := 4
+	targetHelpContent := mainHeight - helpBoxPadding
+	if targetHelpContent < helpContentHeight {
+		targetHelpContent = helpContentHeight
+	}
+
+	// Pad help content to match
+	for len(helpContentLines) < targetHelpContent {
+		helpContentLines = append(helpContentLines, "")
+	}
+
+	// Build help box manually to match main box height
+	helpBoxWidth := helpInnerWidth + 4 // 2 for border, 2 for padding
+	var helpLines []string
+
+	// Top border
+	helpLines = append(helpLines, "╭"+strings.Repeat("─", helpBoxWidth-2)+"╮")
+
+	// Padding top
+	helpLines = append(helpLines, "│"+strings.Repeat(" ", helpBoxWidth-2)+"│")
+
+	// Content lines
+	for _, line := range helpContentLines {
+		lineWidth := lipgloss.Width(line)
+		padding := helpBoxWidth - 4 - lineWidth // 4 = 2 border + 2 internal padding
+		if padding < 0 {
+			padding = 0
+		}
+		helpLines = append(helpLines, "│ "+line+strings.Repeat(" ", padding)+" │")
+	}
+
+	// Padding bottom
+	helpLines = append(helpLines, "│"+strings.Repeat(" ", helpBoxWidth-2)+"│")
+
+	// Bottom border
+	helpLines = append(helpLines, "╰"+strings.Repeat("─", helpBoxWidth-2)+"╯")
+
+	// Now match the number of lines
+	for len(helpLines) < mainHeight {
+		helpLines = append(helpLines, strings.Repeat(" ", helpBoxWidth))
+	}
+	for len(contentLines) < len(helpLines) {
+		contentLines = append(contentLines, strings.Repeat(" ", mainWidth))
+	}
+
+	// Build side-by-side output
 	var result strings.Builder
-	for i := 0; i < maxLines; i++ {
-		left := ""
-		if i < len(lines) {
-			left = lines[i]
+	for i := 0; i < len(contentLines); i++ {
+		mainLine := contentLines[i]
+		lineWidth := lipgloss.Width(mainLine)
+		if lineWidth < mainWidth {
+			mainLine += strings.Repeat(" ", mainWidth-lineWidth)
 		}
-		right := ""
+
+		helpLine := ""
 		if i < len(helpLines) {
-			right = helpLines[i]
+			helpLine = helpLines[i]
 		}
-		// Pad left side and add separator
-		if len(left) < 40 {
-			left += strings.Repeat(" ", 40-len(left))
-		}
-		result.WriteString(left[:min(40, len(left))] + " | " + right + "\n")
+
+		result.WriteString(mainLine)
+		result.WriteString(helpLine)
+		result.WriteString("\n")
 	}
+
 	return result.String()
 }
 
-func (m Model) getHelpForScreen() string {
+// wrapText wraps text to the specified width, preserving leading spaces
+func wrapText(text string, width int) []string {
+	if lipgloss.Width(text) <= width {
+		return []string{text}
+	}
+
+	// Count leading spaces to preserve indentation
+	leadingSpaces := 0
+	for _, c := range text {
+		if c == ' ' {
+			leadingSpaces++
+		} else {
+			break
+		}
+	}
+	indent := strings.Repeat(" ", leadingSpaces)
+	text = strings.TrimLeft(text, " ")
+
+	var lines []string
+	words := strings.Fields(text)
+	currentLine := indent
+
+	for _, word := range words {
+		testLine := currentLine
+		if currentLine != indent {
+			testLine += " "
+		}
+		testLine += word
+
+		if lipgloss.Width(testLine) <= width {
+			if currentLine != indent {
+				currentLine += " "
+			}
+			currentLine += word
+		} else {
+			if currentLine != indent {
+				lines = append(lines, currentLine)
+			}
+			currentLine = indent + word
+		}
+	}
+	if currentLine != indent {
+		lines = append(lines, currentLine)
+	}
+
+	return lines
+}
+
+func (m Model) getHelpForScreen() (string, string) {
 	switch m.screen {
 	case ScreenMain:
-		return `HELP
+		return "CIPDIP", `Protocol-aware CIP/EtherNet-IP
+test harness for DPI validation.
 
-This is the main menu.
-Select a screen to navigate.
+SCREENS
+ c Client   Test scenarios
+ s Server   Device emulator
+ p PCAP     Capture analysis
+ k Catalog  CIP objects
+ r Runs     Past results
 
-Keys:
-c    Client screen
-s    Server screen
-p    PCAP tools
-k    CIP Catalog
-r    Run history
+QUICK START
+ 1. Start Server to emulate PLC
+ 2. Run Client scenarios
+ 3. Check Runs for results
 
-Press ? or Esc to close`
+All runs save artifacts:
+configs, logs, and JSON.`
 
 	case ScreenClient:
-		return `HELP
+		return "Client", `Run CIP scenarios against a
+target device or emulator.
 
-Configure and run CIP
-client scenarios.
+SCENARIOS
+ baseline  Basic CIP ops
+ mixed     Various services
+ stress    High-rate load
+ io        I/O connections
+ edge      Edge cases
+ vendor    Vendor behaviors
 
-Keys:
-Tab    next field
-Enter  start run
-p      profile mode
-e      edit config
-y      copy command
-x      stop run
-m      main menu
+WORKFLOW
+ 1. Enter target IP
+ 2. Select scenario
+ 3. Enter to start
+ 4. View live stats
 
-Press ? or Esc to close`
+TIPS
+ 'a' for advanced options
+ 'p' for profile mode`
 
 	case ScreenProfile:
-		return `HELP
+		return "Profile", `Run YAML-defined traffic.
 
-Run traffic using
-process profiles.
+PROFILES
+ Realistic patterns for:
+ - PLC polling intervals
+ - HMI update rates
+ - SCADA collection
 
-Keys:
-Tab    next field
-Enter  start run
-s      scenario mode
-r      refresh profiles
-y      copy command
-x      stop run
-m      main menu
+LOCATION
+ profiles/*.yaml
 
-Press ? or Esc to close`
+CREATING
+ Copy existing, modify:
+ - target_rate: req/sec
+ - services: CIP services
+ - objects: class/instance
+
+'r' refreshes profile list`
 
 	case ScreenServer:
-		return `HELP
+		return "Server", `Emulate a CIP device.
 
-Start and monitor the
-CIP server emulator.
+PERSONALITIES
+ adapter     Basic I/O
+ logix_like  Rockwell style
 
-Keys:
-Tab    next field
-Enter  start server
-e      edit config
-y      copy command
-x      stop server
-m      main menu
+FEATURES
+ - CIP service handling
+ - Forward Open/Close
+ - Identity queries
+ - Tags and assemblies
 
-Press ? or Esc to close`
+USE CASES
+ - Test without hardware
+ - Validate DPI engines
+ - Local development
+
+Logs all requests with
+full connection state.`
 
 	case ScreenPCAP:
-		return `HELP
+		return "PCAP", `Analyze and replay captures.
 
-PCAP analysis and replay.
+ACTIONS
+ 1 Summary   Quick stats
+ 2 Timeline  Time analysis
+ 3 Coverage  Protocol map
+ 4 Compare   Diff captures
+ 5 Replay    To target
+ 6 Rewrite   Modify pcap
+ 7 I/O       Extract I/O
 
-Keys:
-b      browse files
-1-6    select action
-Enter  run action
-y      copy command
-m      main menu
+FORMATS
+ .pcap, .pcapng
 
-Press ? or Esc to close`
+Reports saved to runs/
+with full CIP breakdown.
+
+'b' to browse files`
 
 	case ScreenCatalog:
-		return `HELP
+		return "Catalog", `Browse CIP definitions.
 
-Browse CIP classes and
-services.
+STRUCTURE
+ Class → Instance → Attr
 
-Keys:
-/      filter
-Enter  expand/probe
-y      copy path
-m      main menu
+FILTERS
+ 1  Logix objects
+ 2  Core CIP only
+ 0  Show all
+ /  Text search
 
-Press ? or Esc to close`
+PROBING
+ Enter on attribute to
+ probe live device.
+
+SOURCES
+ - ODVA CIP spec
+ - Rockwell extensions
+ - Discovered objects
+
+'y' copies EPATH`
 
 	case ScreenRuns:
-		return `HELP
+		return "Runs", `View past test runs.
 
-View past run results.
+ARTIFACTS
+ command.txt   Command
+ stdout.log    Output
+ resolved.yaml Config
+ summary.json  Results
 
-Keys:
-Tab    filter type
-Enter  view details
-o      open artifact
-r      re-run
-y      copy command
-d      delete
-m      main menu
+FILTERS
+ Tab: all/client/server/pcap
 
-Press ? or Esc to close`
+ACTIONS
+ Enter  View details
+ o      Open in $EDITOR
+ r      Re-run command
+ y      Copy command
+ d      Delete run
+
+Sorted newest first.`
 	}
-	return "Press ? or Esc to close"
+	return "Help", "h/Esc to close"
 }
 
 func (m Model) handleRunResult(msg runResultMsg) (tea.Model, tea.Cmd) {
