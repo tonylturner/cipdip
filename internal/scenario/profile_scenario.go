@@ -126,6 +126,13 @@ func (s *ProfileScenario) Run(ctx context.Context, client cipclient.Client, cfg 
 			} else {
 				// Serial reads
 				for _, req := range readBatch {
+					// Check deadline before each operation
+					select {
+					case <-ctx.Done():
+						params.Logger.Info("Profile scenario completed (deadline during serial reads)")
+						return nil
+					default:
+					}
 					s.executeSingleRead(ctx, client, req, params, clientEngine)
 				}
 			}
@@ -133,6 +140,13 @@ func (s *ProfileScenario) Run(ctx context.Context, client cipclient.Client, cfg 
 			// Execute pending writes
 			writes := clientEngine.GetPendingWrites()
 			for _, w := range writes {
+				// Check deadline before each write
+				select {
+				case <-ctx.Done():
+					params.Logger.Info("Profile scenario completed (deadline during writes)")
+					return nil
+				default:
+				}
 				s.executeWrite(ctx, client, w, params, clientEngine)
 			}
 

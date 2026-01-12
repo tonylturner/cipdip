@@ -111,6 +111,14 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		for _, target := range cfg.ReadTargets {
+			// Check deadline before each operation
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Mixed state scenario completed (deadline during reads)")
+				return nil
+			default:
+			}
+
 			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
