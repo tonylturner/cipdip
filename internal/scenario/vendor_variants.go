@@ -109,6 +109,13 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 			for _, target := range cfg.ReadTargets {
+				// Check deadline before each operation
+				select {
+				case <-ctxVariant.Done():
+					return nil
+				default:
+				}
+
 				path := protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
@@ -146,6 +153,13 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			}
 
 			for _, target := range cfg.WriteTargets {
+				// Check deadline before each operation
+				select {
+				case <-ctxVariant.Done():
+					return nil
+				default:
+				}
+
 				path := protocol.CIPPath{
 					Class:     target.Class,
 					Instance:  target.Instance,
@@ -188,6 +202,13 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 			}
 
 			for _, target := range cfg.CustomTargets {
+				// Check deadline before each operation
+				select {
+				case <-ctxVariant.Done():
+					return nil
+				default:
+				}
+
 				serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
 				if err != nil {
 					return err

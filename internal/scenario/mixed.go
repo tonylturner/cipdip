@@ -82,6 +82,14 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 		// Perform reads for all read targets
 		for _, target := range cfg.ReadTargets {
+			// Check deadline before each operation to avoid overshooting duration
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Mixed scenario completed (deadline during reads)")
+				return nil
+			default:
+			}
+
 			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
@@ -145,6 +153,14 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		}
 
 		for _, target := range cfg.CustomTargets {
+			// Check deadline before each operation
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Mixed scenario completed (deadline during custom reads)")
+				return nil
+			default:
+			}
+
 			serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
 			if err != nil {
 				return err
@@ -202,6 +218,14 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 
 		// Perform writes for all write targets
 		for _, target := range cfg.WriteTargets {
+			// Check deadline before each operation
+			select {
+			case <-ctx.Done():
+				params.Logger.Info("Mixed scenario completed (deadline during writes)")
+				return nil
+			default:
+			}
+
 			path := protocol.CIPPath{
 				Class:     target.Class,
 				Instance:  target.Instance,
