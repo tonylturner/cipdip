@@ -1234,7 +1234,7 @@ func (m *PCAPScreenModel) Footer() string {
 	case 6:
 		return "Tab: next    b: browse    Space: toggle    +/-: RPI    Enter: run    y: copy    Esc: back"
 	default:
-		return "b: browse files    1-7: select action    y: copy command    m: menu"
+		return "b: browse files    1-7: select action    y: copy    m: menu    ?/h: help"
 	}
 }
 

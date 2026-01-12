@@ -562,5 +562,5 @@ func (m *CatalogScreenModel) Footer() string {
 	if m.expanded {
 		return "Enter: probe this attribute    y: copy path    Esc: back    m: menu"
 	}
-	return "↑↓: navigate    Enter: expand    /: filter    1: Logix    2: Core    0: All    m: menu"
+	return "↑↓: navigate    Enter: expand    /: filter    1: Logix    2: Core    0: All    m: menu    ?/h: help"
 }

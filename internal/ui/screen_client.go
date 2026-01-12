@@ -1157,12 +1157,12 @@ func (m *ClientScreenModel) Footer() string {
 		return "Enter/Esc: back to config    r: re-run    o: open artifacts    m: menu"
 	}
 	if m.ShowAdvanced {
-		return "Tab: next    ←→: select    Enter: run    a: hide adv    p: profile    m: menu"
+		return "Tab: next    ←→: select    Enter: run    a: hide adv    p: profile    m: menu    ?/h: help"
 	}
 	if m.focusIndex == clientFieldPcap && m.PcapEnabled {
-		return "Space: toggle    i: interface    Enter: run    p: profile    m: menu"
+		return "Space: toggle    i: interface    Enter: run    p: profile    m: menu    ?/h: help"
 	}
-	return "Tab: next    ←→: select    Enter: run    a: adv    p: profile    y: copy    m: menu"
+	return "Tab: next    ←→: select    Enter: run    a: adv    p: profile    m: menu    ?/h: help"
 }
 
 // clientTickMsg is sent periodically while client is running to poll for stats.
