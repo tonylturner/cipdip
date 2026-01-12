@@ -17,6 +17,14 @@ type RunsScreenModel struct {
 	cursor     int
 	filterType string // "all", "client", "server", "pcap"
 	showDetail bool
+
+	// Detail view
+	selectedArtifact int
+	artifacts        []string
+	artifactContent  string
+
+	// Confirmation
+	confirmDelete bool
 }
 
 var runsFilterTypes = []string{"all", "client", "server", "pcap"}
@@ -27,15 +35,42 @@ func NewRunsScreenModel(state *AppState, styles Styles) *RunsScreenModel {
 		state:      state,
 		styles:     styles,
 		filterType: "all",
+		artifacts:  []string{"command.txt", "stdout.log", "resolved.yaml", "summary.json"},
 	}
 }
 
 // Update handles input for the runs screen.
 func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
+	// Handle delete confirmation
+	if m.confirmDelete {
+		switch msg.String() {
+		case "y", "Y":
+			// TODO: Actually delete the run
+			m.confirmDelete = false
+		case "n", "N", "esc":
+			m.confirmDelete = false
+		}
+		return m, nil
+	}
+
 	if m.showDetail {
 		switch msg.String() {
-		case "esc", "enter", "backspace":
+		case "esc", "backspace":
 			m.showDetail = false
+		case "up", "k":
+			if m.selectedArtifact > 0 {
+				m.selectedArtifact--
+			}
+		case "down", "j":
+			if m.selectedArtifact < len(m.artifacts)-1 {
+				m.selectedArtifact++
+			}
+		case "o":
+			// TODO: Open in editor
+		case "r":
+			// TODO: Re-run command
+		case "y":
+			// TODO: Copy command to clipboard
 		}
 		return m, nil
 	}
@@ -51,17 +86,32 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 				break
 			}
 		}
-	case "up":
+	case "up", "k":
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "down":
+	case "down", "j":
 		if m.cursor < len(filtered)-1 {
 			m.cursor++
 		}
 	case "enter":
 		if m.cursor < len(filtered) {
 			m.showDetail = true
+			m.selectedArtifact = 0
+		}
+	case "o":
+		// Open selected run in editor
+		// TODO: implement
+	case "r":
+		// Re-run selected
+		// TODO: implement
+	case "y":
+		// Copy command
+		// TODO: implement
+	case "d":
+		// Delete with confirmation
+		if m.cursor < len(filtered) {
+			m.confirmDelete = true
 		}
 	}
 	return m, nil
@@ -92,6 +142,45 @@ func (m *RunsScreenModel) View() string {
 
 	header := m.renderHeader(fullWidth)
 
+	var content string
+
+	// Handle delete confirmation
+	if m.confirmDelete {
+		filtered := m.filteredRuns()
+		runName := ""
+		if m.cursor < len(filtered) {
+			runName = filepath.Base(filtered[m.cursor])
+		}
+		content = s.Warning.Render("Delete run: "+runName+"?") + "\n\n" +
+			s.Dim.Render("Press [y] to confirm, [n] or [Esc] to cancel")
+	} else if m.showDetail {
+		content = m.renderDetailView(s, fullWidth)
+	} else {
+		content = m.renderListView(s)
+	}
+
+	// Build output
+	innerWidth := fullWidth - 4
+	var result strings.Builder
+	result.WriteString(header + "\n\n")
+
+	for _, line := range strings.Split(content, "\n") {
+		lineWidth := lipgloss.Width(line)
+		if lineWidth < innerWidth {
+			line += strings.Repeat(" ", innerWidth-lineWidth)
+		}
+		result.WriteString(line + "\n")
+	}
+
+	outerStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(DefaultTheme.Border).
+		Padding(0, 1)
+
+	return outerStyle.Render(result.String())
+}
+
+func (m *RunsScreenModel) renderListView(s Styles) string {
 	// Filter tabs
 	var tabs []string
 	for _, t := range runsFilterTypes {
@@ -155,27 +244,75 @@ func (m *RunsScreenModel) View() string {
 		}
 	}
 
-	content := filterLine + "\n\n" + strings.Join(lines, "\n")
+	return filterLine + "\n\n" + strings.Join(lines, "\n")
+}
 
-	// Build output
-	innerWidth := fullWidth - 4
-	var result strings.Builder
-	result.WriteString(header + "\n\n")
-
-	for _, line := range strings.Split(content, "\n") {
-		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
-		}
-		result.WriteString(line + "\n")
+func (m *RunsScreenModel) renderDetailView(s Styles, width int) string {
+	filtered := m.filteredRuns()
+	if m.cursor >= len(filtered) {
+		return s.Dim.Render("No run selected")
 	}
 
-	outerStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(DefaultTheme.Border).
-		Padding(0, 1)
+	runName := filepath.Base(filtered[m.cursor])
+	parts := strings.Split(runName, "_")
 
-	return outerStyle.Render(result.String())
+	var lines []string
+	lines = append(lines, s.Header.Render("Run Details: ")+runName)
+	lines = append(lines, "")
+
+	// Parse run info
+	if len(parts) >= 3 {
+		lines = append(lines, fmt.Sprintf("Type:     %s", parts[2]))
+	}
+	if len(parts) >= 4 {
+		lines = append(lines, fmt.Sprintf("Scenario: %s", parts[3]))
+	}
+	if len(parts) >= 2 {
+		if t, err := time.Parse("2006-01-02_15-04", parts[0]+"_"+parts[1]); err == nil {
+			lines = append(lines, fmt.Sprintf("Time:     %s", t.Format("2006-01-02 15:04")))
+		}
+	}
+
+	// Artifacts
+	lines = append(lines, "")
+	lines = append(lines, s.Header.Render("Artifacts:"))
+	for i, artifact := range m.artifacts {
+		cursor := "  "
+		if i == m.selectedArtifact {
+			cursor = s.Selected.Render("> ")
+		}
+		icon := "📄"
+		if artifact == "stdout.log" {
+			icon = "📋"
+		} else if artifact == "summary.json" {
+			icon = "📊"
+		}
+		lines = append(lines, fmt.Sprintf("%s%s %s", cursor, icon, artifact))
+	}
+
+	// Sample artifact content preview
+	lines = append(lines, "")
+	lines = append(lines, s.Header.Render("Preview:"))
+	switch m.artifacts[m.selectedArtifact] {
+	case "command.txt":
+		lines = append(lines, s.Dim.Render("  cipdip client --ip 192.168.1.100 --scenario baseline"))
+	case "stdout.log":
+		lines = append(lines, s.Dim.Render("  [INFO] Starting client scenario"))
+		lines = append(lines, s.Dim.Render("  [INFO] Connected to 192.168.1.100:44818"))
+		lines = append(lines, s.Dim.Render("  [INFO] Running baseline tests..."))
+	case "resolved.yaml":
+		lines = append(lines, s.Dim.Render("  target_ip: 192.168.1.100"))
+		lines = append(lines, s.Dim.Render("  port: 44818"))
+		lines = append(lines, s.Dim.Render("  scenario: baseline"))
+	case "summary.json":
+		lines = append(lines, s.Dim.Render("  {"))
+		lines = append(lines, s.Dim.Render("    \"status\": \"success\","))
+		lines = append(lines, s.Dim.Render("    \"requests\": 1234,"))
+		lines = append(lines, s.Dim.Render("    \"errors\": 0"))
+		lines = append(lines, s.Dim.Render("  }"))
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func (m *RunsScreenModel) renderHeader(width int) string {
@@ -207,13 +344,24 @@ func (m *RunsScreenModel) renderHeader(width int) string {
 
 // Footer returns the footer text.
 func (m *RunsScreenModel) Footer() string {
+	if m.confirmDelete {
+		return KeyHints([]KeyHint{{"y", "Confirm"}, {"n/Esc", "Cancel"}}, m.styles)
+	}
 	if m.showDetail {
-		return KeyHints([]KeyHint{{"Esc", "Back"}, {"o", "Open"}, {"m", "Menu"}}, m.styles)
+		return KeyHints([]KeyHint{
+			{"Esc", "Back"},
+			{"o", "Open"},
+			{"r", "Re-run"},
+			{"y", "Copy"},
+			{"m", "Menu"},
+		}, m.styles)
 	}
 	return KeyHints([]KeyHint{
 		{"Tab", "Filter"},
 		{"Enter", "Details"},
+		{"o", "Open"},
+		{"r", "Re-run"},
+		{"d", "Delete"},
 		{"m", "Menu"},
-		{"q", "Quit"},
 	}, m.styles)
 }
