@@ -126,21 +126,24 @@ func (m *MainScreenModel) View() string {
 
 	_ = fullHeight // Will use for height calculations
 
+	// Account for outer border (2 chars) and padding (2 chars)
+	contentWidth := fullWidth - 4
+
 	var sections []string
 
 	// Header with scrolling hints
-	sections = append(sections, m.renderHeader(fullWidth))
+	sections = append(sections, m.renderHeader(contentWidth))
 
 	// Top section: Traffic (left) | System + Stats (right)
-	topSection := m.renderTopSection(fullWidth)
+	topSection := m.renderTopSection(contentWidth)
 	sections = append(sections, topSection)
 
 	// Middle row: Services | Recent Runs | Errors (same height)
-	middleRow := m.renderMiddleRow(fullWidth)
+	middleRow := m.renderMiddleRow(contentWidth)
 	sections = append(sections, middleRow)
 
 	// Active panel area
-	activePanel := m.renderActivePanel(fullWidth)
+	activePanel := m.renderActivePanel(contentWidth)
 	if activePanel != "" {
 		sections = append(sections, activePanel)
 	}
@@ -363,12 +366,26 @@ func (m *MainScreenModel) renderStatsPanel(width, height int) string {
 
 func (m *MainScreenModel) renderMiddleRow(fullWidth int) string {
 	gap := 2
-	panelWidth := (fullWidth - gap*2) / 3
+	totalGaps := gap * 2 // Two gaps between three panels
+	// Calculate panel widths to fill exactly fullWidth
+	baseWidth := (fullWidth - totalGaps) / 3
+	remainder := (fullWidth - totalGaps) % 3
 	panelHeight := 8 // Fixed height for all three panels
 
-	servicePanel := m.renderServicePanel(panelWidth, panelHeight)
-	runsPanel := m.renderRunsPanel(panelWidth, panelHeight)
-	errorsPanel := m.renderErrorsPanel(panelWidth, panelHeight)
+	// Distribute remainder to first panels
+	serviceWidth := baseWidth
+	runsWidth := baseWidth
+	errorsWidth := baseWidth
+	if remainder >= 1 {
+		serviceWidth++
+	}
+	if remainder >= 2 {
+		runsWidth++
+	}
+
+	servicePanel := m.renderServicePanel(serviceWidth, panelHeight)
+	runsPanel := m.renderRunsPanel(runsWidth, panelHeight)
+	errorsPanel := m.renderErrorsPanel(errorsWidth, panelHeight)
 
 	return JoinHorizontal(gap, servicePanel, runsPanel, errorsPanel)
 }
@@ -491,32 +508,35 @@ func (m *MainScreenModel) renderActivePanel(fullWidth int) string {
 
 	panelWidth := fullWidth
 	if m.showHelp {
-		panelWidth = fullWidth - 32 // Reserve space for help
+		panelWidth = fullWidth - 34 // Reserve space for help
 	}
 
-	var panelView, panelName string
+	var panelContent, panelTitle string
 	var helpContent string
 
 	switch embeddedPanel {
 	case EmbedClient:
-		panelName = "CLIENT"
-		panelView = m.model.GetClientPanel().View(panelWidth-4, true)
+		panel := m.model.GetClientPanel()
+		panelTitle = panel.Title()
+		panelContent = panel.ViewContent(panelWidth-4, true)
 		helpContent = m.getClientHelp()
 	case EmbedServer:
-		panelName = "SERVER"
-		panelView = m.model.GetServerPanel().View(panelWidth-4, true)
+		panel := m.model.GetServerPanel()
+		panelTitle = panel.Title()
+		panelContent = panel.ViewContent(panelWidth-4, true)
 		helpContent = m.getServerHelp()
 	case EmbedPCAP:
-		panelName = "PCAP"
-		panelView = m.model.GetPCAPPanel().View(panelWidth-4, true)
+		panel := m.model.GetPCAPPanel()
+		panelTitle = panel.Title()
+		panelContent = panel.ViewContent(panelWidth-4, true)
 		helpContent = m.getPCAPHelp()
 	case EmbedCatalog:
-		panelName = "CATALOG"
-		panelView = m.renderCatalogContent(panelWidth - 4)
+		panelTitle = "CATALOG"
+		panelContent = m.renderCatalogContent(panelWidth - 4)
 		helpContent = m.getCatalogHelp()
 	}
 
-	activeBox := m.renderActivePanelBox(panelName, panelView, panelWidth)
+	activeBox := m.renderActivePanelBox(panelTitle, panelContent, panelWidth)
 
 	if m.showHelp && helpContent != "" {
 		helpBox := m.renderHelpPanel(helpContent, 30)
@@ -535,62 +555,90 @@ func (m *MainScreenModel) renderEmptyActivePanel(width int) string {
 func (m *MainScreenModel) renderActivePanelBox(name, content string, width int) string {
 	s := m.styles
 	innerWidth := width - 4
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
+	borderWidth := width - 2
+
+	borderStyle := lipgloss.NewStyle().Foreground(DefaultTheme.Accent)
+	b := func(ch string) string { return borderStyle.Render(ch) }
 
 	title := fmt.Sprintf(" %s ", name)
 	titleLen := lipgloss.Width(title)
-	remaining := innerWidth - titleLen - 1
+	remaining := borderWidth - titleLen - 1
 	if remaining < 0 {
 		remaining = 0
 	}
-
-	borderColor := DefaultTheme.Accent
-	titleBar := lipgloss.NewStyle().Foreground(borderColor).Render("─") +
-		s.Header.Render(title) +
-		lipgloss.NewStyle().Foreground(borderColor).Render(strings.Repeat("─", remaining))
+	topLine := b("╭─") + s.Header.Render(title) + b(strings.Repeat("─", remaining)+"╮")
 
 	var result strings.Builder
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╭") + titleBar + lipgloss.NewStyle().Foreground(borderColor).Render("╮") + "\n")
+	result.WriteString(topLine + "\n")
 
 	for _, line := range strings.Split(content, "\n") {
 		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
+		if lineWidth > innerWidth {
+			line = lipgloss.NewStyle().MaxWidth(innerWidth).Render(line)
 		}
-		result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("│ ") + line + lipgloss.NewStyle().Foreground(borderColor).Render(" │") + "\n")
+		paddedLine := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Left, line)
+		result.WriteString(b("│") + " " + paddedLine + " " + b("│") + "\n")
 	}
 
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", innerWidth) + "╯"))
+	result.WriteString(b("╰" + strings.Repeat("─", borderWidth) + "╯"))
 	return result.String()
+}
+
+// truncateToWidth truncates a string to fit within the specified visible width.
+func truncateToWidth(s string, maxWidth int) string {
+	if maxWidth < 3 {
+		maxWidth = 3
+	}
+	if lipgloss.Width(s) <= maxWidth {
+		return s
+	}
+	// Strip ANSI codes, truncate, but this loses styling
+	// Instead, truncate rune by rune until we fit
+	runes := []rune(s)
+	for i := len(runes); i > 0; i-- {
+		candidate := string(runes[:i])
+		if lipgloss.Width(candidate) <= maxWidth-3 {
+			return candidate + "..."
+		}
+	}
+	return "..."
 }
 
 func (m *MainScreenModel) renderHelpPanel(content string, width int) string {
 	s := m.styles
 	innerWidth := width - 4
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
+	borderWidth := width - 2
+
+	borderStyle := lipgloss.NewStyle().Foreground(DefaultTheme.Info)
+	b := func(ch string) string { return borderStyle.Render(ch) }
 
 	title := " HELP "
 	titleLen := lipgloss.Width(title)
-	remaining := innerWidth - titleLen - 1
+	remaining := borderWidth - titleLen - 1
 	if remaining < 0 {
 		remaining = 0
 	}
-
-	borderColor := DefaultTheme.Info
-	titleBar := lipgloss.NewStyle().Foreground(borderColor).Render("─") +
-		s.Header.Render(title) +
-		lipgloss.NewStyle().Foreground(borderColor).Render(strings.Repeat("─", remaining))
+	topLine := b("╭─") + s.Header.Render(title) + b(strings.Repeat("─", remaining)+"╮")
 
 	var result strings.Builder
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╭") + titleBar + lipgloss.NewStyle().Foreground(borderColor).Render("╮") + "\n")
+	result.WriteString(topLine + "\n")
 
 	for _, line := range strings.Split(content, "\n") {
 		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
+		if lineWidth > innerWidth {
+			line = lipgloss.NewStyle().MaxWidth(innerWidth).Render(line)
 		}
-		result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("│ ") + line + lipgloss.NewStyle().Foreground(borderColor).Render(" │") + "\n")
+		paddedLine := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Left, line)
+		result.WriteString(b("│") + " " + paddedLine + " " + b("│") + "\n")
 	}
 
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", innerWidth) + "╯"))
+	result.WriteString(b("╰" + strings.Repeat("─", borderWidth) + "╯"))
 	return result.String()
 }
 
@@ -633,12 +681,16 @@ func (m *MainScreenModel) getPCAPHelp() string {
 
 Modes:
   Summary  Quick stats
-  Diff     Compare files
+  Report   Full report
+  Coverage Service coverage
   Replay   Re-send packets
-  Export   Save analysis
+  Rewrite  Modify IPs/MACs
+  Dump     Hex dump
+  Diff     Compare files
 
 Navigation:
-  Tab      Change mode
+  ←/→      Change mode
+  Tab      Next field
   Up/Down  Select file
   Enter    Analyze
   Esc      Cancel`
@@ -693,41 +745,50 @@ func (m *MainScreenModel) renderCatalogContent(width int) string {
 
 func (m *MainScreenModel) panelBox(title, content string, width int) string {
 	s := m.styles
-	innerWidth := width - 4
+	innerWidth := width - 4 // Content area width (excluding borders and padding)
+	if innerWidth < 1 {
+		innerWidth = 1
+	}
+	borderWidth := width - 2 // Width between corner chars (innerWidth + 2 for padding spaces)
 
-	var titleBar string
+	borderStyle := lipgloss.NewStyle().Foreground(DefaultTheme.Border)
+	b := func(ch string) string { return borderStyle.Render(ch) }
+
+	// Build title bar - total width should be: ╭ + borderWidth + ╮ = width
+	var topLine string
 	if title != "" {
 		titleText := " " + title + " "
 		titleLen := lipgloss.Width(titleText)
-		remaining := innerWidth - titleLen - 1
+		remaining := borderWidth - titleLen - 1 // -1 for the first ─ after ╭
 		if remaining < 0 {
 			remaining = 0
 		}
-		titleBar = "─" + s.Header.Render(titleText) + strings.Repeat("─", remaining)
+		topLine = b("╭─") + s.Header.Render(titleText) + b(strings.Repeat("─", remaining)+"╮")
 	} else {
-		titleBar = strings.Repeat("─", innerWidth)
+		topLine = b("╭" + strings.Repeat("─", borderWidth) + "╮")
 	}
 
+	// Process content lines - truncate if too wide, then pad to exact width
 	contentLines := strings.Split(content, "\n")
 	var paddedLines []string
 	for _, line := range contentLines {
 		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
+		if lineWidth > innerWidth {
+			line = lipgloss.NewStyle().MaxWidth(innerWidth).Render(line)
 		}
-		paddedLines = append(paddedLines, line)
+		paddedLine := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Left, line)
+		paddedLines = append(paddedLines, paddedLine)
 	}
 
-	boxStyle := lipgloss.NewStyle().BorderForeground(DefaultTheme.Border)
-
+	// Build box - content lines: │ + space + content + space + │ = width
 	var result strings.Builder
-	result.WriteString("╭" + titleBar + "╮\n")
+	result.WriteString(topLine + "\n")
 	for _, line := range paddedLines {
-		result.WriteString("│ " + line + " │\n")
+		result.WriteString(b("│") + " " + line + " " + b("│") + "\n")
 	}
-	result.WriteString("╰" + strings.Repeat("─", innerWidth) + "╯")
+	result.WriteString(b("╰" + strings.Repeat("─", borderWidth) + "╯"))
 
-	return boxStyle.Render(result.String())
+	return result.String()
 }
 
 // ToggleHelp toggles the help panel.
