@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/tturner/cipdip/internal/capture"
@@ -171,7 +172,9 @@ func RunServer(opts ServerOptions) error {
 	if pcapCapture != nil {
 		pcapCapture.Stop()
 		packetCount := pcapCapture.GetPacketCount()
-		fmt.Fprintf(os.Stdout, "Packets captured: %d (%s)\n", packetCount, opts.PCAPFile)
+		absPath, _ := filepath.Abs(opts.PCAPFile)
+		fmt.Fprintf(os.Stdout, "Packets captured: %d\n", packetCount)
+		fmt.Fprintf(os.Stdout, "PCAP written to: %s\n", absPath)
 	}
 
 	return nil
