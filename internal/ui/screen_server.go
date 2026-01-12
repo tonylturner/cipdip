@@ -680,7 +680,12 @@ func (m *ServerScreenModel) viewEditing() string {
 				if i == m.ProfileIndex {
 					prefix = "  (•) "
 				}
-				line := fmt.Sprintf("%s%-26s %s", prefix, p.Name, p.Description)
+				// Add subtle personality indicator
+				pType := "logix"
+				if p.Personality == "adapter" {
+					pType = "i/o"
+				}
+				line := fmt.Sprintf("%s%-24s [%s]  %s", prefix, p.Name, pType, p.Description)
 				if m.focusIndex == serverFieldProfile && i == m.ProfileIndex {
 					b.WriteString(selectedStyle.Render(line))
 				} else {
