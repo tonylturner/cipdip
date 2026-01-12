@@ -178,6 +178,16 @@ func (lp *LogixPersonality) HandleCIPRequest(ctx context.Context, req protocol.C
 
 		return lp.handleSetAttributeSingle(tag, req)
 
+	case spec.CIPServiceGetInstanceAttrList:
+		tag, err := lp.tagForRequest(req)
+		if err != nil {
+			return protocol.CIPResponse{
+				Service: req.Service,
+				Status:  0x05, // Path destination unknown
+			}, err
+		}
+		return lp.handleGetInstanceAttributeList(tag, req)
+
 	default:
 		return protocol.CIPResponse{
 			Service: req.Service,
@@ -444,6 +454,72 @@ func (lp *LogixPersonality) handleSetAttributeSingle(tag *Tag, req protocol.CIPR
 		Service: req.Service,
 		Status:  0x00,
 		Path:    req.Path,
+	}, nil
+}
+
+// handleGetInstanceAttributeList handles Get_Instance_Attribute_List (0x55)
+// Request format: [attribute_count (2 bytes)] [attribute_id (2 bytes)]...
+// Response format: [attribute_count (2 bytes)] [attr_id (2 bytes)][status (2 bytes)][value]...
+func (lp *LogixPersonality) handleGetInstanceAttributeList(tag *Tag, req protocol.CIPRequest) (protocol.CIPResponse, error) {
+	if len(req.Payload) < 2 {
+		return protocol.CIPResponse{
+			Service: req.Service,
+			Status:  0x13, // Not enough data
+			Path:    req.Path,
+		}, fmt.Errorf("get instance attribute list: payload too short")
+	}
+
+	attrCount := binary.LittleEndian.Uint16(req.Payload[0:2])
+	if len(req.Payload) < 2+int(attrCount)*2 {
+		return protocol.CIPResponse{
+			Service: req.Service,
+			Status:  0x13,
+			Path:    req.Path,
+		}, fmt.Errorf("get instance attribute list: incomplete attribute list")
+	}
+
+	tag.mu.Lock()
+	defer tag.mu.Unlock()
+
+	// Update data based on pattern
+	now := time.Now()
+	if now.Sub(tag.LastUpdate) > 100*time.Millisecond {
+		lp.updateTagData(tag)
+		tag.LastUpdate = now
+	}
+
+	// Build response
+	// Response format per ODVA: [attribute_count][per-attribute: attr_id, status, value_if_ok]
+	var respPayload []byte
+	respPayload = append(respPayload, byte(attrCount), byte(attrCount>>8))
+
+	for i := 0; i < int(attrCount); i++ {
+		offset := 2 + i*2
+		attrID := binary.LittleEndian.Uint16(req.Payload[offset : offset+2])
+
+		// Add attribute ID to response
+		respPayload = append(respPayload, byte(attrID), byte(attrID>>8))
+
+		// For simplicity, we support a few standard attributes:
+		// - Attribute 1: typically the main value
+		// - Attribute 3: typically data attribute for assemblies
+		// For tags, we return the tag data for any requested attribute
+		switch attrID {
+		case 1, 3:
+			// Success - return tag data
+			respPayload = append(respPayload, 0x00, 0x00) // Status: success
+			respPayload = append(respPayload, tag.Data...)
+		default:
+			// Attribute not supported - return error status but continue
+			respPayload = append(respPayload, 0x14, 0x00) // Status: attribute not supported
+		}
+	}
+
+	return protocol.CIPResponse{
+		Service: req.Service,
+		Status:  0x00,
+		Path:    req.Path,
+		Payload: respPayload,
 	}, nil
 }
 

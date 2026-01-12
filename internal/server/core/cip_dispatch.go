@@ -37,6 +37,10 @@ func (s *Server) handleSendRRData(encap enip.ENIPEncapsulation, remoteAddr strin
 		return s.handleForwardClose(encap, cipData)
 	}
 
+	if len(cipData) > 0 && protocol.CIPServiceCode(cipData[0]) == spec.CIPServiceLargeForwardOpen {
+		return s.handleLargeForwardOpen(encap, cipData, remoteAddr)
+	}
+
 	cipReq, err := protocol.DecodeCIPRequest(cipData)
 	if err != nil {
 		s.logger.Error("Decode CIP request error: %v", err)
@@ -193,6 +197,91 @@ func (s *Server) handleForwardClose(encap enip.ENIPEncapsulation, cipData []byte
 		Options:       0,
 		Data:          sendData,
 	}
+	return enip.EncodeENIP(response)
+}
+
+// handleLargeForwardOpen handles Large Forward Open (0x5B) requests.
+// Large Forward Open is similar to Forward Open but supports:
+// - 32-bit connection serial numbers (vs 16-bit)
+// - Larger connection path sizes
+// - Extended connection parameters
+func (s *Server) handleLargeForwardOpen(encap enip.ENIPEncapsulation, cipData []byte, remoteAddr string) []byte {
+	fmt.Printf("[SERVER] Received Large ForwardOpen request\n")
+
+	s.sessionsMu.Lock()
+	// Use higher connection ID range to distinguish from regular ForwardOpen
+	oToTConnID := uint32(0x20000000 + s.nextSessionID*2)
+	tToOConnID := uint32(0x20000000 + s.nextSessionID*2 + 1)
+	connSerialNumber := s.nextSessionID
+	s.nextSessionID++
+	s.sessionsMu.Unlock()
+
+	order := cipclient.CurrentProtocolProfile().CIPByteOrder
+
+	// Build Large Forward Open response
+	// Response structure (per ODVA CIP Vol 1, Chapter 3-5.5.2):
+	// - O->T Connection ID (4 bytes)
+	// - T->O Connection ID (4 bytes)
+	// - Connection Serial Number (4 bytes) - 32-bit for Large Forward Open
+	// - Originator Vendor ID (2 bytes)
+	// - Originator Serial Number (4 bytes)
+	// - O->T API (4 bytes)
+	// - T->O API (4 bytes)
+	// - Application Reply Size (1 byte)
+	// - Reserved (1 byte)
+	// - Application Reply Data (variable)
+
+	var respData []byte
+
+	// O->T Connection ID
+	respData = append(respData, make([]byte, 4)...)
+	codec.PutUint32(order, respData[len(respData)-4:], oToTConnID)
+
+	// T->O Connection ID
+	respData = append(respData, make([]byte, 4)...)
+	codec.PutUint32(order, respData[len(respData)-4:], tToOConnID)
+
+	// Connection Serial Number (32-bit for Large Forward Open)
+	respData = append(respData, make([]byte, 4)...)
+	codec.PutUint32(order, respData[len(respData)-4:], connSerialNumber)
+
+	// Originator Vendor ID (echo from request or use default)
+	respData = append(respData, make([]byte, 2)...)
+	codec.PutUint16(order, respData[len(respData)-2:], 0x0001) // Default vendor ID
+
+	// Originator Serial Number (echo from request or use default)
+	respData = append(respData, make([]byte, 4)...)
+	codec.PutUint32(order, respData[len(respData)-4:], 0x12345678) // Default serial
+
+	// O->T API (Actual Packet Interval in microseconds)
+	respData = append(respData, make([]byte, 4)...)
+	codec.PutUint32(order, respData[len(respData)-4:], 20000) // 20ms default
+
+	// T->O API
+	respData = append(respData, make([]byte, 4)...)
+	codec.PutUint32(order, respData[len(respData)-4:], 20000) // 20ms default
+
+	// Application Reply Size (0 = no application reply)
+	respData = append(respData, 0x00)
+
+	// Reserved
+	respData = append(respData, 0x00)
+
+	sendData := enip.BuildSendRRDataPayload(respData)
+
+	response := enip.ENIPEncapsulation{
+		Command:       enip.ENIPCommandSendRRData,
+		Length:        uint16(len(sendData)),
+		SessionID:     encap.SessionID,
+		Status:        enip.ENIPStatusSuccess,
+		SenderContext: encap.SenderContext,
+		Options:       0,
+		Data:          sendData,
+	}
+
+	s.trackConnection(oToTConnID, encap.SessionID, remoteAddr)
+	s.trackConnection(tToOConnID, encap.SessionID, remoteAddr)
+
 	return enip.EncodeENIP(response)
 }
 

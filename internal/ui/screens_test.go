@@ -146,17 +146,17 @@ func TestClientScreenScenarioSelection(t *testing.T) {
 		WorkspaceRoot: "/tmp/test",
 	}
 
-	t.Run("number_keys_select_scenario", func(t *testing.T) {
+	t.Run("space_cycles_scenario", func(t *testing.T) {
 		model := NewClientScreenModel(state)
 		model.focusIndex = clientFieldScenario
 		model.Scenario = 0
 
-		// Press "3" to select stress scenario
-		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")}
+		// Press space to cycle to next scenario
+		msg := tea.KeyMsg{Type: tea.KeySpace}
 		newModel, _ := model.Update(msg)
 
-		if newModel.Scenario != 2 {
-			t.Errorf("got Scenario %d, want 2", newModel.Scenario)
+		if newModel.Scenario != 1 {
+			t.Errorf("got Scenario %d, want 1", newModel.Scenario)
 		}
 	})
 
@@ -249,9 +249,9 @@ func TestPCAPScreenCommandPreview(t *testing.T) {
 		expected    string
 	}{
 		{"summary", 0, "test.pcap", "cipdip pcap-summary --input test.pcap"},
-		{"report", 1, "test.pcap", "cipdip pcap-report --input test.pcap"},
-		{"coverage", 2, "test.pcap", "cipdip pcap-coverage --input test.pcap"},
-		{"rewrite", 4, "test.pcap", "cipdip pcap-rewrite --input test.pcap"},
+		{"report", 1, "test.pcap", "cipdip pcap-report --pcap-dir . --output /tmp/test/reports/pcap_report.md"},
+		{"coverage", 2, "test.pcap", "cipdip pcap-coverage --pcap-dir . --output /tmp/test/reports/pcap_coverage.md"},
+		{"rewrite", 4, "test.pcap", "cipdip pcap-rewrite --input test.pcap --output test_rewritten.pcap"},
 		{"dump", 5, "test.pcap", "cipdip pcap-dump --input test.pcap"},
 	}
 

@@ -45,6 +45,7 @@ type IOConnection struct {
 type Client interface {
 	Connect(ctx context.Context, ip string, port int) error
 	Disconnect(ctx context.Context) error
+	IsConnected() bool
 
 	// Generic CIP service invocation (unconnected messaging over SendRRData)
 	InvokeService(ctx context.Context, req protocol.CIPRequest) (protocol.CIPResponse, error)
@@ -203,6 +204,11 @@ func (c *ENIPClient) Disconnect(ctx context.Context) error {
 	c.sessionID = 0
 
 	return nil
+}
+
+// IsConnected returns true if the client has an active connection
+func (c *ENIPClient) IsConnected() bool {
+	return c.connected
 }
 
 // InvokeService invokes a generic CIP service via UCMM (SendRRData)
