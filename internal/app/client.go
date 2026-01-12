@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/tturner/cipdip/internal/artifact"
 	"github.com/tturner/cipdip/internal/capture"
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/spec"
@@ -18,6 +20,7 @@ import (
 	cipdipErrors "github.com/tturner/cipdip/internal/errors"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/metrics"
+	processprofile "github.com/tturner/cipdip/internal/profile"
 	"github.com/tturner/cipdip/internal/scenario"
 )
 
@@ -39,56 +42,62 @@ type ClientOptions struct {
 	TargetTags       string
 	FirewallVendor   string
 	TUIStats         bool
+	Profile          string
+	Role             string
+	OutputDir        string
 }
 
 func RunClient(opts ClientOptions) error {
-	validScenarios := map[string]bool{
-		"baseline":            true,
-		"mixed":               true,
-		"stress":              true,
-		"churn":               true,
-		"io":                  true,
-		"edge_valid":          true,
-		"edge_vendor":         true,
-		"rockwell":            true,
-		"vendor_variants":     true,
-		"mixed_state":         true,
-		"unconnected_send":    true,
-		"firewall_hirschmann": true,
-		"firewall_moxa":       true,
-		"firewall_dynics":     true,
-		"firewall_pack":       true,
-	}
-	if !validScenarios[opts.Scenario] {
-		return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack", opts.Scenario)
-	}
+	// Validate scenario (unless using profile mode)
+	if opts.Profile == "" {
+		validScenarios := map[string]bool{
+			"baseline":            true,
+			"mixed":               true,
+			"stress":              true,
+			"churn":               true,
+			"io":                  true,
+			"edge_valid":          true,
+			"edge_vendor":         true,
+			"rockwell":            true,
+			"vendor_variants":     true,
+			"mixed_state":         true,
+			"unconnected_send":    true,
+			"firewall_hirschmann": true,
+			"firewall_moxa":       true,
+			"firewall_dynics":     true,
+			"firewall_pack":       true,
+		}
+		if !validScenarios[opts.Scenario] {
+			return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack", opts.Scenario)
+		}
 
-	if opts.IntervalMs == 0 {
-		switch opts.Scenario {
-		case "baseline":
-			opts.IntervalMs = 250
-		case "mixed":
-			opts.IntervalMs = 100
-		case "stress":
-			opts.IntervalMs = 20
-		case "churn":
-			opts.IntervalMs = 100
-		case "io":
-			opts.IntervalMs = 10
-		case "edge_valid":
-			opts.IntervalMs = 100
-		case "edge_vendor":
-			opts.IntervalMs = 100
-		case "rockwell":
-			opts.IntervalMs = 100
-		case "vendor_variants":
-			opts.IntervalMs = 100
-		case "mixed_state":
-			opts.IntervalMs = 50
-		case "unconnected_send":
-			opts.IntervalMs = 100
-		case "firewall_hirschmann", "firewall_moxa", "firewall_dynics", "firewall_pack":
-			opts.IntervalMs = 100
+		if opts.IntervalMs == 0 {
+			switch opts.Scenario {
+			case "baseline":
+				opts.IntervalMs = 250
+			case "mixed":
+				opts.IntervalMs = 100
+			case "stress":
+				opts.IntervalMs = 20
+			case "churn":
+				opts.IntervalMs = 100
+			case "io":
+				opts.IntervalMs = 10
+			case "edge_valid":
+				opts.IntervalMs = 100
+			case "edge_vendor":
+				opts.IntervalMs = 100
+			case "rockwell":
+				opts.IntervalMs = 100
+			case "vendor_variants":
+				opts.IntervalMs = 100
+			case "mixed_state":
+				opts.IntervalMs = 50
+			case "unconnected_send":
+				opts.IntervalMs = 100
+			case "firewall_hirschmann", "firewall_moxa", "firewall_dynics", "firewall_pack":
+				opts.IntervalMs = 100
+			}
 		}
 	}
 
@@ -156,6 +165,29 @@ func RunClient(opts ClientOptions) error {
 		}
 	}
 
+	// Set up artifact output manager if output directory specified
+	var outputMgr *artifact.OutputManager
+	if opts.OutputDir != "" {
+		var err error
+		outputMgr, err = artifact.NewOutputManager(opts.OutputDir)
+		if err != nil {
+			return fmt.Errorf("create output manager: %w", err)
+		}
+
+		// Use output manager paths for artifacts
+		if opts.PCAPFile == "" {
+			opts.PCAPFile = outputMgr.PCAPPath()
+			outputMgr.SetPCAPFile(filepath.Base(opts.PCAPFile))
+		}
+		if opts.MetricsFile == "" {
+			opts.MetricsFile = outputMgr.MetricsPath()
+			outputMgr.SetMetricsFile(filepath.Base(opts.MetricsFile))
+		}
+
+		outputMgr.SetTarget(opts.IP, opts.Port)
+		fmt.Fprintf(os.Stdout, "Output directory: %s\n", opts.OutputDir)
+	}
+
 	metricsSink := metrics.NewSink()
 	var metricsWriter *metrics.Writer
 	if opts.MetricsFile != "" {
@@ -188,9 +220,15 @@ func RunClient(opts ClientOptions) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "CIPDIP Client starting...\n")
-	fmt.Fprintf(os.Stdout, "  Scenario: %s\n", opts.Scenario)
+	if opts.Profile != "" {
+		fmt.Fprintf(os.Stdout, "  Profile: %s (role: %s)\n", opts.Profile, opts.Role)
+	} else {
+		fmt.Fprintf(os.Stdout, "  Scenario: %s\n", opts.Scenario)
+	}
 	fmt.Fprintf(os.Stdout, "  Target: %s:%d\n", opts.IP, opts.Port)
-	fmt.Fprintf(os.Stdout, "  Interval: %d ms\n", opts.IntervalMs)
+	if opts.Profile == "" {
+		fmt.Fprintf(os.Stdout, "  Interval: %d ms\n", opts.IntervalMs)
+	}
 	fmt.Fprintf(os.Stdout, "  Duration: %d seconds\n", opts.DurationSec)
 	if opts.PCAPFile != "" {
 		fmt.Fprintf(os.Stdout, "  PCAP: %s\n", opts.PCAPFile)
@@ -198,7 +236,11 @@ func RunClient(opts ClientOptions) error {
 	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
 	os.Stdout.Sync()
 
-	logger.LogStartup(opts.Scenario, opts.IP, opts.Port, opts.IntervalMs, opts.DurationSec, opts.ConfigPath)
+	startupScenario := opts.Scenario
+	if opts.Profile != "" {
+		startupScenario = fmt.Sprintf("profile:%s/%s", opts.Profile, opts.Role)
+	}
+	logger.LogStartup(startupScenario, opts.IP, opts.Port, opts.IntervalMs, opts.DurationSec, opts.ConfigPath)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -213,9 +255,50 @@ func RunClient(opts ClientOptions) error {
 
 	client := cipclient.NewClient()
 
-	scenarioImpl, err := scenario.GetScenario(opts.Scenario)
-	if err != nil {
-		return fmt.Errorf("get scenario: %w", err)
+	var scenarioImpl scenario.Scenario
+	var scenarioName string
+
+	if opts.Profile != "" {
+		// Load profile and create ProfileScenario
+		p, err := processprofile.LoadProfileByName(opts.Profile)
+		if err != nil {
+			return fmt.Errorf("load profile '%s': %w", opts.Profile, err)
+		}
+
+		// Validate role exists
+		role := p.GetRole(opts.Role)
+		if role == nil {
+			availableRoles := make([]string, 0, len(p.Roles))
+			for name := range p.Roles {
+				availableRoles = append(availableRoles, name)
+			}
+			return fmt.Errorf("role '%s' not found in profile '%s'; available roles: %v", opts.Role, opts.Profile, availableRoles)
+		}
+
+		scenarioImpl = &scenario.ProfileScenario{
+			Profile: p,
+			Role:    opts.Role,
+		}
+		scenarioName = fmt.Sprintf("profile:%s/%s", opts.Profile, opts.Role)
+
+		// Configure output manager for profile run
+		if outputMgr != nil {
+			outputMgr.SetProfile(opts.Profile, opts.Role, p.Metadata.Personality)
+			outputMgr.SetConfig(int(role.PollInterval.MustParse().Milliseconds()), role.BatchSize)
+		}
+	} else {
+		var err error
+		scenarioImpl, err = scenario.GetScenario(opts.Scenario)
+		if err != nil {
+			return fmt.Errorf("get scenario: %w", err)
+		}
+		scenarioName = opts.Scenario
+
+		// Configure output manager for scenario run
+		if outputMgr != nil {
+			outputMgr.SetScenario(opts.Scenario)
+			outputMgr.SetConfig(opts.IntervalMs, 1)
+		}
 	}
 
 	params := scenario.ScenarioParams{
@@ -244,7 +327,7 @@ func RunClient(opts ClientOptions) error {
 	}
 	elapsed := time.Since(startTime)
 
-	if label := buildScenarioLabel(opts.Scenario, opts.FirewallVendor, parseTags(opts.TargetTags)); label != "" {
+	if label := buildScenarioLabel(scenarioName, opts.FirewallVendor, parseTags(opts.TargetTags)); label != "" {
 		metricsSink.RelabelScenario(label)
 	}
 
@@ -265,7 +348,20 @@ func RunClient(opts ClientOptions) error {
 		fmt.Fprintf(os.Stdout, "\n%s", metrics.FormatSummary(summary))
 	} else {
 		fmt.Fprintf(os.Stdout, "Completed scenario '%s' in %.1fs (%d operations, %d errors)\n",
-			opts.Scenario, elapsed.Seconds(), summary.TotalOperations, summary.FailedOps)
+			scenarioName, elapsed.Seconds(), summary.TotalOperations, summary.FailedOps)
+	}
+
+	// Finalize artifact output
+	if outputMgr != nil {
+		exitCode := 0
+		if err != nil {
+			exitCode = 1
+		}
+		if finalizeErr := outputMgr.Finalize(summary, metricsSink.GetMetrics(), exitCode, err); finalizeErr != nil {
+			logger.Error("Failed to finalize artifacts: %v", finalizeErr)
+		} else {
+			fmt.Fprintf(os.Stdout, "Artifacts written to: %s\n", opts.OutputDir)
+		}
 	}
 
 	if err != nil {

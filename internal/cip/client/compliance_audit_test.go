@@ -367,15 +367,23 @@ func TestEPATHEncodingODVA(t *testing.T) {
 //   - Byte 0: Service code (MUST be 0x54)
 //   - Bytes 1-4: Connection Manager path (class 0x06, instance 0x01)
 //     EPATH: 0x20 0x06 0x24 0x01 (ODVA standard path)
-//   - Byte 5: Priority and tick time
-//   - Bytes 6-7: Connection timeout (2 bytes, big-endian, seconds)
-//   - Bytes 8-11: O->T RPI (4 bytes, big-endian, microseconds)
-//   - Bytes 12-15: O->T connection parameters (4 bytes, big-endian)
-//   - Bytes 16-19: T->O RPI (4 bytes, big-endian, microseconds)
-//   - Bytes 20-23: T->O connection parameters (4 bytes, big-endian)
-//   - Byte 24: Transport class and trigger
-//   - Byte 25: Connection path size (in 16-bit words)
-//   - Bytes 26+: Connection path (padded to 16-bit boundary)
+//   - Payload structure (after Connection Manager path):
+//     - Byte 0: Priority/Time_Tick (bits 0-3=priority, bits 4-7=time tick)
+//     - Byte 1: Timeout_Ticks
+//     - Bytes 2-5: O->T Network Connection ID (4 bytes)
+//     - Bytes 6-9: T->O Network Connection ID (4 bytes)
+//     - Bytes 10-11: Connection Serial Number (2 bytes)
+//     - Bytes 12-13: Originator Vendor ID (2 bytes)
+//     - Bytes 14-17: Originator Serial Number (4 bytes)
+//     - Byte 18: Connection Timeout Multiplier
+//     - Bytes 19-21: Reserved (3 bytes)
+//     - Bytes 22-25: O->T RPI (4 bytes, microseconds)
+//     - Bytes 26-29: O->T Network Connection Parameters (4 bytes)
+//     - Bytes 30-33: T->O RPI (4 bytes, microseconds)
+//     - Bytes 34-37: T->O Network Connection Parameters (4 bytes)
+//     - Byte 38: Transport Type/Trigger
+//     - Byte 39: Connection Path Size (in 16-bit words)
+//     - Bytes 40+: Connection Path (padded to 16-bit boundary)
 func TestForwardOpenStructureODVA(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
 	SetProtocolProfile(StrictODVAProfile)
@@ -420,67 +428,101 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 			forwardOpenData[pathOffset+2], forwardOpenData[pathOffset+3])
 	}
 
-	// ODVA requirement: Priority and tick time at byte 5
+	// Payload starts after Connection Manager path
+	payloadStart := pathOffset + 4
+
+	// ODVA requirement: Priority and tick time at payload byte 0
 	// Bits 0-3: Priority (0=low, 1=scheduled, 2=high, 3=urgent)
-	// Bits 4-7: Tick time (typically 0)
-	priorityByte := forwardOpenData[pathOffset+4]
+	// Bits 4-7: Time tick (2^n ms base)
+	priorityByte := forwardOpenData[payloadStart]
 	priority := priorityByte & 0x0F
 	if priority != 0x01 { // scheduled
 		t.Errorf("ODVA violation: Priority for 'scheduled' must be 0x01, got 0x%02X", priority)
 	}
-	tickTime := (priorityByte >> 4) & 0x0F
-	if tickTime != 0 {
-		t.Errorf("ODVA violation: Tick time should be 0, got 0x%02X", tickTime)
+	// Time tick of 0x0A (10) means 2^10 = 1024ms base - this is valid per ODVA
+	// The actual timeout = timeout_ticks * 2^time_tick
+
+	// ODVA requirement: Timeout ticks at payload byte 1
+	if len(forwardOpenData) < payloadStart+2 {
+		t.Fatalf("ODVA violation: ForwardOpen too short for timeout ticks")
+	}
+	timeoutTicks := forwardOpenData[payloadStart+1]
+	if timeoutTicks == 0 {
+		t.Errorf("ODVA violation: Timeout ticks should be non-zero")
 	}
 
-	// ODVA requirement: Connection timeout at bytes 6-7 (big-endian, seconds)
-	if len(forwardOpenData) < 8 {
-		t.Fatalf("ODVA violation: ForwardOpen too short for timeout field")
+	// ODVA requirement: O->T Connection ID at payload bytes 2-5
+	if len(forwardOpenData) < payloadStart+6 {
+		t.Fatalf("ODVA violation: ForwardOpen too short for O->T connection ID")
 	}
-	timeout := cipOrder.Uint16(forwardOpenData[pathOffset+5 : pathOffset+7])
-	if timeout != 30 {
-		t.Errorf("ODVA violation: Connection timeout should be 30 seconds, got %d", timeout)
+	oToTConnID := cipOrder.Uint32(forwardOpenData[payloadStart+2 : payloadStart+6])
+	if oToTConnID == 0 {
+		t.Errorf("ODVA violation: O->T connection ID should be non-zero")
 	}
 
-	// ODVA requirement: O->T RPI at bytes 8-11 (big-endian, microseconds)
-	if len(forwardOpenData) < 12 {
+	// ODVA requirement: T->O Connection ID at payload bytes 6-9
+	if len(forwardOpenData) < payloadStart+10 {
+		t.Fatalf("ODVA violation: ForwardOpen too short for T->O connection ID")
+	}
+	tToOConnID := cipOrder.Uint32(forwardOpenData[payloadStart+6 : payloadStart+10])
+	if tToOConnID == 0 {
+		t.Errorf("ODVA violation: T->O connection ID should be non-zero")
+	}
+
+	// ODVA requirement: O->T RPI at payload bytes 22-25 (microseconds)
+	if len(forwardOpenData) < payloadStart+26 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for O->T RPI")
 	}
-	rpiOToT := cipOrder.Uint32(forwardOpenData[pathOffset+7 : pathOffset+11])
+	rpiOToT := cipOrder.Uint32(forwardOpenData[payloadStart+22 : payloadStart+26])
 	expectedRPI := uint32(20 * 1000) // 20ms = 20000 microseconds
 	if rpiOToT != expectedRPI {
 		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d", rpiOToT, expectedRPI)
 	}
 
-	// ODVA requirement: T->O RPI at bytes 16-19 (big-endian, microseconds)
-	if len(forwardOpenData) < 20 {
+	// ODVA requirement: O->T Connection Parameters at payload bytes 26-29
+	if len(forwardOpenData) < payloadStart+30 {
+		t.Fatalf("ODVA violation: ForwardOpen too short for O->T connection parameters")
+	}
+	oToTParams := cipOrder.Uint32(forwardOpenData[payloadStart+26 : payloadStart+30])
+	// Bit 0 must be 1 for IO connection
+	if oToTParams&0x01 != 0x01 {
+		t.Errorf("ODVA violation: O->T connection parameters bit 0 must be 1 for IO connection, got 0x%08X", oToTParams)
+	}
+
+	// ODVA requirement: T->O RPI at payload bytes 30-33 (microseconds)
+	if len(forwardOpenData) < payloadStart+34 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for T->O RPI")
 	}
-	rpiTToO := cipOrder.Uint32(forwardOpenData[pathOffset+15 : pathOffset+19])
-	expectedTToORPI := uint32(20 * 1000) // 20ms = 20000 microseconds
-	if rpiTToO != expectedTToORPI {
-		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d", rpiTToO, expectedTToORPI)
+	rpiTToO := cipOrder.Uint32(forwardOpenData[payloadStart+30 : payloadStart+34])
+	if rpiTToO != expectedRPI {
+		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d", rpiTToO, expectedRPI)
 	}
 
-	// ODVA requirement: Connection path size in 16-bit words
-	// Find path size byte (after transport class/trigger)
-	// Transport class/trigger is after T->O connection parameters (byte 24)
-	if len(forwardOpenData) < 26 {
-		t.Fatalf("ODVA violation: ForwardOpen too short for connection path")
+	// ODVA requirement: Transport Type/Trigger at payload byte 38
+	if len(forwardOpenData) < payloadStart+39 {
+		t.Fatalf("ODVA violation: ForwardOpen too short for transport type/trigger")
 	}
-	pathSizeByte := forwardOpenData[pathOffset+24]
+	transportTrigger := forwardOpenData[payloadStart+38]
+	if transportTrigger != 0x03 { // Cyclic
+		t.Errorf("ODVA violation: Transport class/trigger should be 0x03 (cyclic), got 0x%02X", transportTrigger)
+	}
 
-	// Verify connection path follows
-	// Path includes: class 0x04, instance 0x65, attribute 0x00 (default)
-	// EPATH: 0x20 0x04 0x24 0x65 0x30 0x00 = 6 bytes = 3 words (6 bytes / 2 = 3 words)
-	// Note: protocol.EncodeEPATH always includes attribute segment, even if 0
-	expectedPathSize := uint8(3) // 6 bytes = 3 words
+	// ODVA requirement: Connection path size at payload byte 39
+	if len(forwardOpenData) < payloadStart+40 {
+		t.Fatalf("ODVA violation: ForwardOpen too short for connection path size")
+	}
+	pathSizeByte := forwardOpenData[payloadStart+39]
+
+	// Connection path for class 0x04, instance 0x65:
+	// EncodeEPATH includes attribute segment even when 0:
+	// EPATH: 0x20 0x04 0x24 0x65 0x30 0x00 = 6 bytes = 3 words
+	expectedPathSize := uint8(3) // 6 bytes = 3 words (includes attribute=0)
 	if pathSizeByte != expectedPathSize {
-		t.Errorf("ODVA violation: Connection path size should be %d words (6 bytes / 2), got %d", expectedPathSize, pathSizeByte)
+		t.Errorf("ODVA violation: Connection path size should be %d words, got %d", expectedPathSize, pathSizeByte)
 	}
 
-	// Verify connection path content
-	pathStart := pathOffset + 25
+	// Verify connection path content at payload bytes 40+
+	pathStart := payloadStart + 40
 	if len(forwardOpenData) < pathStart+6 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for connection path data")
 	}
@@ -505,9 +547,14 @@ func TestForwardOpenStructureODVA(t *testing.T) {
 //   - Byte 0: Service code (MUST be 0x4E)
 //   - Bytes 1-4: Connection Manager path (class 0x06, instance 0x01)
 //     EPATH: 0x20 0x06 0x24 0x01
-//   - Byte 5: Connection path size (in 16-bit words)
-//   - Bytes 6+: Connection path with connection ID
-//     Path: 0x34 (connection segment) + connection ID (4 bytes, big-endian)
+//   - Payload structure (after Connection Manager path):
+//     - Byte 0: Priority/Time_Tick
+//     - Byte 1: Timeout_Ticks
+//     - Bytes 2-3: Connection Serial Number (2 bytes)
+//     - Bytes 4-5: Originator Vendor ID (2 bytes)
+//     - Bytes 6-9: Originator Serial Number (4 bytes)
+//     - Byte 10: Connection Path Size (in 16-bit words)
+//     - Bytes 11+: Connection Path (class/instance EPATH)
 func TestForwardCloseStructureODVA(t *testing.T) {
 	prevProfile := CurrentProtocolProfile()
 	SetProtocolProfile(StrictODVAProfile)
@@ -542,34 +589,83 @@ func TestForwardCloseStructureODVA(t *testing.T) {
 			forwardCloseData[pathOffset+2], forwardCloseData[pathOffset+3])
 	}
 
-	// ODVA requirement: Connection path size in 16-bit words
-	if len(forwardCloseData) < 6 {
-		t.Fatalf("ODVA violation: ForwardClose too short for path size")
-	}
-	pathSizeByte := forwardCloseData[pathOffset+4]
+	// Payload starts after Connection Manager path
+	payloadStart := pathOffset + 4
 
-	// Connection path: 0x34 (connection segment) + 4 bytes (connection ID) = 5 bytes
-	// Path size in words: 5 bytes / 2 = 2.5, rounded up = 3 words
-	expectedPathSize := uint8(3) // 5 bytes / 2 = 2.5, rounded up = 3 words
+	// ODVA requirement: Priority/Time_Tick at payload byte 0
+	if len(forwardCloseData) < payloadStart+1 {
+		t.Fatalf("ODVA violation: ForwardClose too short for priority/tick byte")
+	}
+	priorityByte := forwardCloseData[payloadStart]
+	priority := priorityByte & 0x0F
+	if priority != 0x01 { // scheduled
+		t.Errorf("ODVA violation: Priority should be 0x01 (scheduled), got 0x%02X", priority)
+	}
+
+	// ODVA requirement: Timeout ticks at payload byte 1
+	if len(forwardCloseData) < payloadStart+2 {
+		t.Fatalf("ODVA violation: ForwardClose too short for timeout ticks")
+	}
+
+	// ODVA requirement: Connection Serial at payload bytes 2-3
+	if len(forwardCloseData) < payloadStart+4 {
+		t.Fatalf("ODVA violation: ForwardClose too short for connection serial")
+	}
+	connectionSerial := cipOrder.Uint16(forwardCloseData[payloadStart+2 : payloadStart+4])
+	expectedSerial := uint16(connectionID & 0xFFFF)
+	if connectionSerial != expectedSerial {
+		t.Errorf("ODVA violation: Connection serial should be 0x%04X, got 0x%04X", expectedSerial, connectionSerial)
+	}
+
+	// ODVA requirement: Originator Vendor ID at payload bytes 4-5
+	if len(forwardCloseData) < payloadStart+6 {
+		t.Fatalf("ODVA violation: ForwardClose too short for originator vendor ID")
+	}
+	originatorVendor := cipOrder.Uint16(forwardCloseData[payloadStart+4 : payloadStart+6])
+	if originatorVendor != 0x0001 {
+		t.Errorf("ODVA violation: Originator vendor ID should be 0x0001, got 0x%04X", originatorVendor)
+	}
+
+	// ODVA requirement: Originator Serial at payload bytes 6-9
+	if len(forwardCloseData) < payloadStart+10 {
+		t.Fatalf("ODVA violation: ForwardClose too short for originator serial")
+	}
+	originatorSerial := cipOrder.Uint32(forwardCloseData[payloadStart+6 : payloadStart+10])
+	if originatorSerial != connectionID {
+		t.Errorf("ODVA violation: Originator serial should be 0x%08X, got 0x%08X", connectionID, originatorSerial)
+	}
+
+	// ODVA requirement: Connection path size at payload byte 10
+	if len(forwardCloseData) < payloadStart+11 {
+		t.Fatalf("ODVA violation: ForwardClose too short for connection path size")
+	}
+	pathSizeByte := forwardCloseData[payloadStart+10]
+
+	// Connection path includes attribute segment even when 0:
+	// EPATH: 0x20 0x04 0x24 0x65 0x30 0x00 = 6 bytes = 3 words
+	expectedPathSize := uint8(3) // 6 bytes = 3 words (includes attribute=0)
 	if pathSizeByte != expectedPathSize {
-		t.Errorf("ODVA violation: Connection path size should be %d words (5 bytes / 2 rounded up), got %d", expectedPathSize, pathSizeByte)
+		t.Errorf("ODVA violation: Connection path size should be %d words, got %d", expectedPathSize, pathSizeByte)
 	}
 
-	// ODVA requirement: Connection path must start with connection segment (0x34)
-	if len(forwardCloseData) < 7 {
+	// ODVA requirement: Connection path at payload bytes 11+
+	connPathStart := payloadStart + 11
+	if len(forwardCloseData) < connPathStart+6 {
 		t.Fatalf("ODVA violation: ForwardClose too short for connection path")
 	}
-	if forwardCloseData[pathOffset+5] != 0x34 {
-		t.Errorf("ODVA violation: Connection path must start with connection segment 0x34, got 0x%02X", forwardCloseData[pathOffset+5])
+	// Verify EPATH encoding
+	if forwardCloseData[connPathStart] != 0x20 || forwardCloseData[connPathStart+1] != 0x04 {
+		t.Errorf("ODVA violation: Connection path class must be 0x20 0x04, got 0x%02X 0x%02X",
+			forwardCloseData[connPathStart], forwardCloseData[connPathStart+1])
 	}
-
-	// ODVA requirement: Connection ID follows (4 bytes, big-endian)
-	if len(forwardCloseData) < 11 {
-		t.Fatalf("ODVA violation: ForwardClose too short for connection ID")
+	if forwardCloseData[connPathStart+2] != 0x24 || forwardCloseData[connPathStart+3] != 0x65 {
+		t.Errorf("ODVA violation: Connection path instance must be 0x24 0x65, got 0x%02X 0x%02X",
+			forwardCloseData[connPathStart+2], forwardCloseData[connPathStart+3])
 	}
-	recvConnectionID := cipOrder.Uint32(forwardCloseData[pathOffset+6 : pathOffset+10])
-	if recvConnectionID != connectionID {
-		t.Errorf("ODVA violation: Connection ID must be big-endian, got 0x%08X, want 0x%08X", recvConnectionID, connectionID)
+	// Attribute segment (0x30 0x00) is included by protocol.EncodeEPATH
+	if forwardCloseData[connPathStart+4] != 0x30 || forwardCloseData[connPathStart+5] != 0x00 {
+		t.Errorf("ODVA violation: Connection path attribute must be 0x30 0x00, got 0x%02X 0x%02X",
+			forwardCloseData[connPathStart+4], forwardCloseData[connPathStart+5])
 	}
 }
 
@@ -709,13 +805,17 @@ func TestForwardOpenConnectionParametersODVA(t *testing.T) {
 				t.Fatalf("BuildForwardOpenRequest failed: %v", err)
 			}
 
-			// O->T connection parameters at bytes 12-15
-			if len(forwardOpenData) < 16 {
-				t.Fatalf("ODVA violation: ForwardOpen too short for O->T connection parameters")
-			}
-			paramOffset := 12
+			// Calculate payload start after Connection Manager path
+			pathOffset := 1
 			if profile.IncludeCIPPathSize {
-				paramOffset = 13
+				pathOffset = 2
+			}
+			payloadStart := pathOffset + 4
+
+			// O->T connection parameters at payload bytes 26-29
+			paramOffset := payloadStart + 26
+			if len(forwardOpenData) < paramOffset+4 {
+				t.Fatalf("ODVA violation: ForwardOpen too short for O->T connection parameters")
 			}
 			oToTParams := cipOrder.Uint32(forwardOpenData[paramOffset : paramOffset+4])
 
@@ -759,28 +859,33 @@ func TestForwardOpenRPIMicrosecondsODVA(t *testing.T) {
 		t.Fatalf("BuildForwardOpenRequest failed: %v", err)
 	}
 
-	// ODVA requirement: O->T RPI at bytes 8-11 (microseconds)
-	if len(forwardOpenData) < 12 {
+	// Calculate payload start after Connection Manager path
+	pathOffset := 1
+	if profile.IncludeCIPPathSize {
+		pathOffset = 2
+	}
+	payloadStart := pathOffset + 4
+
+	// ODVA requirement: O->T RPI at payload bytes 22-25 (microseconds)
+	oToTRPIOffset := payloadStart + 22
+	if len(forwardOpenData) < oToTRPIOffset+4 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for O->T RPI")
 	}
-	offset := 8
-	if profile.IncludeCIPPathSize {
-		offset = 9
-	}
-	rpiOToT := cipOrder.Uint32(forwardOpenData[offset : offset+4])
+	rpiOToT := cipOrder.Uint32(forwardOpenData[oToTRPIOffset : oToTRPIOffset+4])
 	expectedMicroseconds := uint32(20 * 1000) // 20ms = 20000 microseconds
 	if rpiOToT != expectedMicroseconds {
-		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d (20ms = 20000??s)",
+		t.Errorf("ODVA violation: O->T RPI must be in microseconds, got %d, want %d (20ms = 20000µs)",
 			rpiOToT, expectedMicroseconds)
 	}
 
-	// ODVA requirement: T->O RPI at bytes 16-19 (microseconds)
-	if len(forwardOpenData) < 20 {
+	// ODVA requirement: T->O RPI at payload bytes 30-33 (microseconds)
+	tToORPIOffset := payloadStart + 30
+	if len(forwardOpenData) < tToORPIOffset+4 {
 		t.Fatalf("ODVA violation: ForwardOpen too short for T->O RPI")
 	}
-	rpiTToO := cipOrder.Uint32(forwardOpenData[offset+8 : offset+12])
+	rpiTToO := cipOrder.Uint32(forwardOpenData[tToORPIOffset : tToORPIOffset+4])
 	if rpiTToO != expectedMicroseconds {
-		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d (20ms = 20000??s)",
+		t.Errorf("ODVA violation: T->O RPI must be in microseconds, got %d, want %d (20ms = 20000µs)",
 			rpiTToO, expectedMicroseconds)
 	}
 }

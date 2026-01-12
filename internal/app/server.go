@@ -10,6 +10,7 @@ import (
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
+	"github.com/tturner/cipdip/internal/profile"
 	"github.com/tturner/cipdip/internal/server"
 )
 
@@ -28,6 +29,7 @@ type ServerOptions struct {
 	LogLevel         string
 	LogEvery         int
 	TUIStats         bool
+	Profile          string // Process profile name (loads data model from profile)
 }
 
 func RunServer(opts ServerOptions) error {
@@ -53,33 +55,42 @@ func RunServer(opts ServerOptions) error {
 		defer pcapCapture.Stop()
 	}
 
+	var cfg *config.ServerConfig
+
 	fmt.Fprintf(os.Stdout, "CIPDIP Server starting...\n")
-	fmt.Fprintf(os.Stdout, "  Personality: %s\n", opts.Personality)
-	fmt.Fprintf(os.Stdout, "  Config: %s\n", opts.ConfigPath)
-	fmt.Fprintf(os.Stdout, "  Listening on: %s:%d\n", opts.ListenIP, opts.ListenPort)
-	if opts.EnableUDPIO {
-		fmt.Fprintf(os.Stdout, "  UDP I/O enabled on port 2222\n")
-	}
-	if opts.PCAPFile != "" {
-		fmt.Fprintf(os.Stdout, "  PCAP: %s\n", opts.PCAPFile)
-	}
-	fmt.Fprintf(os.Stdout, "  Press Ctrl+C to stop\n\n")
-	os.Stdout.Sync()
 
-	if opts.Personality != "adapter" && opts.Personality != "logix_like" {
-		return fmt.Errorf("invalid personality '%s'; must be 'adapter' or 'logix_like'", opts.Personality)
-	}
+	// Load config from profile or config file
+	if opts.Profile != "" {
+		// Load profile and convert to server config
+		p, err := profile.LoadProfileByName(opts.Profile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: Failed to load profile: %v\n", err)
+			return fmt.Errorf("load profile: %w", err)
+		}
+		cfg = p.ToServerConfig()
+		// Override personality from profile
+		opts.Personality = p.Metadata.Personality
+		fmt.Fprintf(os.Stdout, "  Profile: %s\n", p.Metadata.Name)
+		fmt.Fprintf(os.Stdout, "  Personality: %s\n", p.Metadata.Personality)
+		fmt.Fprintf(os.Stdout, "  Tags/Assemblies: %d\n", len(p.DataModel.Tags)+len(p.DataModel.Assemblies))
+	} else {
+		if opts.Personality != "adapter" && opts.Personality != "logix_like" {
+			return fmt.Errorf("invalid personality '%s'; must be 'adapter' or 'logix_like'", opts.Personality)
+		}
 
-	cfg, err := config.LoadServerConfig(opts.ConfigPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: Failed to load server config: %v\n", err)
-		return fmt.Errorf("load server config: %w", err)
-	}
-	if opts.Target != "" {
-		if err := server.ApplyServerTarget(cfg, opts.Target); err != nil {
-			return err
+		var err error
+		cfg, err = config.LoadServerConfig(opts.ConfigPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: Failed to load server config: %v\n", err)
+			return fmt.Errorf("load server config: %w", err)
+		}
+		if opts.Target != "" {
+			if err := server.ApplyServerTarget(cfg, opts.Target); err != nil {
+				return err
+			}
 		}
 	}
+
 	if opts.Mode != "" {
 		if err := ApplyServerMode(cfg, opts.Mode); err != nil {
 			return err

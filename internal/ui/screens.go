@@ -18,6 +18,7 @@ type Screen int
 const (
 	ScreenMain Screen = iota
 	ScreenClient
+	ScreenProfile
 	ScreenServer
 	ScreenPCAP
 	ScreenCatalog
@@ -77,6 +78,7 @@ type Model struct {
 	// Screen-specific models
 	mainModel    *MainScreenModel
 	clientModel  *ClientScreenModel
+	profileModel *ProfileScreenModel
 	serverModel  *ServerScreenModel
 	pcapModel    *PCAPScreenModel
 	catalogModel *CatalogScreenModel
@@ -127,6 +129,7 @@ func NewModel(state *AppState) Model {
 	}
 	m.mainModel = NewMainScreenModel(state)
 	m.clientModel = NewClientScreenModel(state)
+	m.profileModel = NewProfileScreenModel(state)
 	m.serverModel = NewServerScreenModel(state)
 	m.pcapModel = NewPCAPScreenModel(state)
 	m.catalogModel = NewCatalogScreenModel(state)
@@ -227,6 +230,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clientTickMsg:
 		return m.handleClientTick(msg)
 
+	case profileTickMsg:
+		return m.handleProfileTick(msg)
+
 	case pcapResultMsg:
 		return m.handlePCAPResult(msg)
 
@@ -264,6 +270,33 @@ func (m Model) updateCurrentScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ScreenClient:
 		newScreen, cmd := m.clientModel.Update(msg)
 		m.clientModel = newScreen
+		// Check if client model wants to navigate to profile screen
+		if m.clientModel.NavigateToProfile {
+			m.clientModel.NavigateToProfile = false
+			// Copy IP and Port to profile screen
+			m.profileModel.TargetIP = m.clientModel.TargetIP
+			m.profileModel.Port = m.clientModel.Port
+			if m.profileModel.PcapEnabled {
+				m.profileModel.updateAutoDetectedInterface()
+			}
+			m.screen = ScreenProfile
+		}
+		return m, cmd
+
+	case ScreenProfile:
+		newScreen, cmd := m.profileModel.Update(msg)
+		m.profileModel = newScreen
+		// Check if profile model wants to navigate back to client screen
+		if m.profileModel.NavigateToClient {
+			m.profileModel.NavigateToClient = false
+			// Copy IP and Port back to client screen
+			m.clientModel.TargetIP = m.profileModel.TargetIP
+			m.clientModel.Port = m.profileModel.Port
+			if m.clientModel.PcapEnabled {
+				m.clientModel.updateAutoDetectedInterface()
+			}
+			m.screen = ScreenClient
+		}
 		return m, cmd
 
 	case ScreenServer:
@@ -306,6 +339,9 @@ func (m Model) View() string {
 	case ScreenClient:
 		content = m.clientModel.View()
 		footer = m.clientModel.Footer()
+	case ScreenProfile:
+		content = m.profileModel.View()
+		footer = m.profileModel.Footer()
 	case ScreenServer:
 		content = m.serverModel.View()
 		footer = m.serverModel.Footer()
@@ -409,7 +445,25 @@ client scenarios.
 Keys:
 Tab    next field
 Enter  start run
+p      profile mode
 e      edit config
+y      copy command
+x      stop run
+m      main menu
+
+Press ? or Esc to close`
+
+	case ScreenProfile:
+		return `HELP
+
+Run traffic using
+process profiles.
+
+Keys:
+Tab    next field
+Enter  start run
+s      scenario mode
+r      refresh profiles
 y      copy command
 x      stop run
 m      main menu
@@ -553,6 +607,15 @@ func (m Model) handleClientTick(msg clientTickMsg) (tea.Model, tea.Cmd) {
 	}
 	newModel, cmd := m.clientModel.HandleClientTick(msg)
 	m.clientModel = newModel
+	return m, cmd
+}
+
+func (m Model) handleProfileTick(msg profileTickMsg) (tea.Model, tea.Cmd) {
+	if m.profileModel == nil {
+		return m, nil
+	}
+	newModel, cmd := m.profileModel.HandleProfileTick(msg)
+	m.profileModel = newModel
 	return m, cmd
 }
 
