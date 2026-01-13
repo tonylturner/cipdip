@@ -1272,6 +1272,7 @@ type ServerPanel struct {
 	recentReqs    []string
 	statsHistory  []float64
 	startTime     *time.Time
+	endTime       *time.Time // Recorded when server stops
 
 	// Run control
 	runCtx    context.Context
@@ -1280,6 +1281,10 @@ type ServerPanel struct {
 
 	// Result
 	result *CommandResult
+
+	// Log viewer
+	viewingLog bool
+	logScroll  int
 }
 
 var serverPersonalities = []string{"adapter", "logix_like", "minimal"}
@@ -1570,6 +1575,8 @@ func (p *ServerPanel) updateRunning(msg tea.KeyMsg) (Panel, tea.Cmd) {
 		if p.runCancel != nil {
 			p.runCancel()
 		}
+		now := time.Now()
+		p.endTime = &now
 		p.mode = PanelResult
 		elapsed := time.Since(*p.startTime)
 		p.result = &CommandResult{
@@ -1581,16 +1588,57 @@ func (p *ServerPanel) updateRunning(msg tea.KeyMsg) (Panel, tea.Cmd) {
 }
 
 func (p *ServerPanel) updateResult(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	if p.viewingLog {
+		// Log viewer mode
+		switch msg.String() {
+		case "esc", "q":
+			p.viewingLog = false
+			p.logScroll = 0
+		case "up", "k":
+			if p.logScroll > 0 {
+				p.logScroll--
+			}
+		case "down", "j":
+			p.logScroll++
+		case "pgup":
+			p.logScroll -= 10
+			if p.logScroll < 0 {
+				p.logScroll = 0
+			}
+		case "pgdown":
+			p.logScroll += 10
+		case "home":
+			p.logScroll = 0
+		case "end":
+			if p.result != nil {
+				lines := strings.Split(p.result.Output, "\n")
+				p.logScroll = len(lines) - 10
+				if p.logScroll < 0 {
+					p.logScroll = 0
+				}
+			}
+		}
+		return p, nil
+	}
+
 	switch msg.String() {
 	case "esc", "enter":
 		p.mode = PanelIdle
 		p.result = nil
+		p.viewingLog = false
 	case "r":
 		p.mode = PanelRunning
 		now := time.Now()
 		p.startTime = &now
+		p.endTime = nil // Clear from previous run
 		p.stats = StatsUpdate{}
 		p.statsHistory = nil
+		p.viewingLog = false
+	case "l":
+		if p.result != nil && p.result.Output != "" {
+			p.viewingLog = true
+			p.logScroll = 0
+		}
 	}
 	return p, nil
 }
@@ -1607,10 +1655,65 @@ func (p *ServerPanel) ViewContent(width int, focused bool) string {
 	case PanelRunning:
 		return p.viewRunningContent(width, focused)
 	case PanelResult:
+		if p.viewingLog {
+			return p.viewLogContent(width, focused)
+		}
 		return p.viewResultContent(width, focused)
 	default:
 		return p.viewIdleContent(width, focused)
 	}
+}
+
+func (p *ServerPanel) viewLogContent(width int, focused bool) string {
+	s := p.styles
+
+	if p.result == nil || p.result.Output == "" {
+		return s.Dim.Render("No log output available.\n\n") +
+			s.KeyBinding.Render("[Esc]") + " Back"
+	}
+
+	lines := strings.Split(p.result.Output, "\n")
+	totalLines := len(lines)
+
+	// Calculate visible lines (leave room for header and footer)
+	visibleLines := 15
+	if p.logScroll > totalLines-visibleLines {
+		p.logScroll = totalLines - visibleLines
+	}
+	if p.logScroll < 0 {
+		p.logScroll = 0
+	}
+
+	endIdx := p.logScroll + visibleLines
+	if endIdx > totalLines {
+		endIdx = totalLines
+	}
+
+	var content []string
+	content = append(content, s.Header.Render("Server Log")+" "+s.Dim.Render(fmt.Sprintf("(%d-%d of %d)", p.logScroll+1, endIdx, totalLines)))
+	content = append(content, "")
+
+	for i := p.logScroll; i < endIdx; i++ {
+		line := lines[i]
+		// Truncate lines that are too wide
+		maxWidth := width - 4
+		if len(line) > maxWidth {
+			line = line[:maxWidth-3] + "..."
+		}
+		// Highlight error lines
+		if strings.Contains(strings.ToLower(line), "error") || strings.Contains(strings.ToLower(line), "failed") {
+			content = append(content, s.Error.Render(line))
+		} else if strings.Contains(strings.ToLower(line), "warn") {
+			content = append(content, s.Warning.Render(line))
+		} else {
+			content = append(content, s.Dim.Render(line))
+		}
+	}
+
+	content = append(content, "")
+	content = append(content, s.KeyBinding.Render("[↑/↓]")+" Scroll  "+s.KeyBinding.Render("[PgUp/PgDn]")+" Page  "+s.KeyBinding.Render("[Esc]")+" Back")
+
+	return strings.Join(content, "\n")
 }
 
 // Title returns the panel title based on current mode.
@@ -1621,6 +1724,9 @@ func (p *ServerPanel) Title() string {
 	case PanelRunning:
 		return "SERVER (Listening)"
 	case PanelResult:
+		if p.viewingLog {
+			return "SERVER (Logs)"
+		}
 		return "SERVER (Stopped)"
 	default:
 		return "SERVER"
@@ -1917,19 +2023,64 @@ func (p *ServerPanel) viewResultContent(width int, focused bool) string {
 	s := p.styles
 
 	var uptime string
-	if p.startTime != nil {
+	if p.startTime != nil && p.endTime != nil {
+		// Show final duration (start to end), not continuing to count
+		uptime = formatDuration(p.endTime.Sub(*p.startTime).Seconds())
+	} else if p.startTime != nil {
+		// Fallback if endTime not set
 		uptime = formatDuration(time.Since(*p.startTime).Seconds())
 	}
 
+	// Determine status based on result
+	status := s.Dim.Render("■ Stopped")
+	if p.result != nil {
+		if p.result.ExitCode != 0 {
+			status = s.Error.Render("✗ Failed (exit " + fmt.Sprintf("%d", p.result.ExitCode) + ")")
+		} else if p.result.Err != nil {
+			status = s.Warning.Render("⊘ Stopped")
+		}
+	}
+
 	lines := []string{
-		s.Dim.Render("■ Stopped"),
+		status,
 		"",
 		fmt.Sprintf("Uptime: %s", uptime),
 		fmt.Sprintf("Total Requests: %d", p.stats.TotalRequests),
 		fmt.Sprintf("Total Connections: %d", p.stats.TotalConnections),
-		"",
-		s.KeyBinding.Render("[Enter/Esc]") + " Dismiss  " + s.KeyBinding.Render("[r]") + " Restart",
 	}
+
+	// Show error/output if available
+	if p.result != nil {
+		if p.result.Err != nil {
+			lines = append(lines, "")
+			lines = append(lines, s.Error.Render("Error: "+p.result.Err.Error()))
+		}
+		if p.result.Output != "" {
+			lines = append(lines, "")
+			// Show last few lines of output (most relevant for errors)
+			output := filterOutputForDisplay(p.result.Output)
+			if output != "" {
+				outputLines := strings.Split(output, "\n")
+				// Show last 5 lines max
+				if len(outputLines) > 5 {
+					outputLines = outputLines[len(outputLines)-5:]
+				}
+				lines = append(lines, s.Dim.Render("Output:"))
+				for _, ol := range outputLines {
+					if ol != "" {
+						// Truncate long lines
+						if len(ol) > 60 {
+							ol = ol[:57] + "..."
+						}
+						lines = append(lines, "  "+s.Dim.Render(ol))
+					}
+				}
+			}
+		}
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, s.KeyBinding.Render("[Enter/Esc]")+" Dismiss  "+s.KeyBinding.Render("[r]")+" Restart  "+s.KeyBinding.Render("[l]")+" View Log")
 
 	return strings.Join(lines, "\n")
 }
@@ -1987,6 +2138,8 @@ func (p *ServerPanel) UpdateStats(stats StatsUpdate) {
 // SetResult sets the result and transitions to result mode.
 func (p *ServerPanel) SetResult(result CommandResult) {
 	p.result = &result
+	now := time.Now()
+	p.endTime = &now
 	p.mode = PanelResult
 }
 
