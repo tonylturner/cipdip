@@ -549,23 +549,40 @@ func parsePCAPArgs(args []string) PCAPRunConfig {
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
-	// Global keys
+	// Check if an embedded panel needs text input BEFORE handling global letter shortcuts
+	// This allows typing letters like 'm', 'h' in text fields
+	panelNeedsTextInput := false
+	if m.screen == ScreenMain && m.embeddedPanel != EmbedNone {
+		panel := m.getActiveEmbeddedPanel()
+		if panel != nil {
+			// Panels in Config mode (or Catalog which always needs input) get text input priority
+			panelNeedsTextInput = m.embeddedPanel == EmbedCatalog || panel.Mode() == PanelConfig
+		}
+	}
+
+	// Global keys - but route letter keys to panel first if it needs text input
 	switch msg.String() {
 	case "q", "ctrl+c":
+		// Always allow quit
 		return m, tea.Quit
 
 	case "h", "?":
-		m.showHelp = !m.showHelp
-		// Also toggle main screen help if on main screen
-		if m.screen == ScreenMain && m.mainScreen != nil {
-			m.mainScreen.ToggleHelp()
+		// Only toggle help if no panel needs text input
+		if !panelNeedsTextInput {
+			m.showHelp = !m.showHelp
+			if m.screen == ScreenMain && m.mainScreen != nil {
+				m.mainScreen.ToggleHelp()
+			}
+			return m, nil
 		}
-		return m, nil
 
 	case "m":
-		m.screen = ScreenMain
-		m.error = ""
-		return m, nil
+		// Only switch to main screen if no panel needs text input
+		if !panelNeedsTextInput {
+			m.screen = ScreenMain
+			m.error = ""
+			return m, nil
+		}
 
 	case "esc":
 		if m.error != "" {
@@ -748,6 +765,11 @@ func (m *Model) updateScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *Model) handleTick() (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	cmds = append(cmds, tickCmd())
+
+	// Trigger async initialization of main screen data (PCAP loading etc.)
+	if m.mainScreen != nil {
+		m.mainScreen.InitAsync()
+	}
 
 	// Poll server stats if running
 	if m.state.ServerRunning && m.serverPanel.Mode() == PanelRunning {
