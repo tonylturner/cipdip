@@ -1,8 +1,10 @@
 package pcap
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"os/exec"
 	"sort"
 	"strings"
 
@@ -14,6 +16,40 @@ import (
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/enip"
 )
+
+// findTshark looks for tshark in common locations.
+func findTshark() string {
+	paths := []string{
+		"tshark",
+		"/usr/bin/tshark",
+		"/usr/local/bin/tshark",
+		"/opt/homebrew/bin/tshark",
+		"/Applications/Wireshark.app/Contents/MacOS/tshark",
+	}
+	for _, p := range paths {
+		if path, err := exec.LookPath(p); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
+// countTsharkFilter counts packets matching a display filter.
+func countTsharkFilter(tsharkPath, pcapFile, filter string) (int, error) {
+	cmd := exec.Command(tsharkPath, "-r", pcapFile, "-Y", filter)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return 0, err
+	}
+	// Count lines in output (each line = one packet)
+	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return 0, nil
+	}
+	return len(lines), nil
+}
 
 // PCAPSummary provides high-level stats for ENIP traffic.
 type PCAPSummary struct {
@@ -44,6 +80,12 @@ type PCAPSummary struct {
 	UnknownPairs            map[string]int
 	VendorID                uint16
 	ProductName             string
+
+	// TCP-level metrics (populated via tshark if available)
+	TCPRetransmits   int
+	TCPResets        int
+	TCPLostSegments  int
+	CIPErrorResponses int
 }
 
 // CIPUnknownStats captures metadata for unknown CIP services.
@@ -127,6 +169,10 @@ func SummarizeENIPFromPCAP(pcapFile string) (*PCAPSummary, error) {
 	}
 
 	summary.TopPaths = topPaths(pathCounts, 10)
+
+	// Enhance with TCP-level metrics if tshark is available
+	summary.EnhanceWithTCPMetrics(pcapFile)
+
 	return summary, nil
 }
 
@@ -404,4 +450,33 @@ func topPaths(counts map[string]int, max int) []string {
 		out = append(out, fmt.Sprintf("%s (%d)", item.Key, item.Value))
 	}
 	return out
+}
+
+// EnhanceWithTCPMetrics populates TCP-level metrics using tshark if available.
+// This is optional - if tshark isn't found, metrics remain at 0.
+func (s *PCAPSummary) EnhanceWithTCPMetrics(pcapFile string) {
+	tsharkPath := findTshark()
+	if tsharkPath == "" {
+		return
+	}
+
+	// Count TCP retransmissions
+	if count, err := countTsharkFilter(tsharkPath, pcapFile, "tcp.analysis.retransmission"); err == nil {
+		s.TCPRetransmits = count
+	}
+
+	// Count TCP resets
+	if count, err := countTsharkFilter(tsharkPath, pcapFile, "tcp.flags.reset==1"); err == nil {
+		s.TCPResets = count
+	}
+
+	// Count TCP lost segments
+	if count, err := countTsharkFilter(tsharkPath, pcapFile, "tcp.analysis.lost_segment"); err == nil {
+		s.TCPLostSegments = count
+	}
+
+	// Count CIP error responses (non-zero status)
+	if count, err := countTsharkFilter(tsharkPath, pcapFile, "cip.genstat != 0"); err == nil {
+		s.CIPErrorResponses = count
+	}
 }

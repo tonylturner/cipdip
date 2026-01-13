@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -73,6 +74,9 @@ func NewModel(state *AppState) *Model {
 		pcapPanel:     NewPCAPPanel(styles),
 		catalogPanel:  NewCatalogPanel(styles, state),
 	}
+
+	// Refresh PCAP files with workspace context
+	m.pcapPanel.RefreshFiles(state.WorkspaceRoot)
 
 	// Initialize main screen
 	m.mainScreen = NewMainScreenModel(state, styles, m)
@@ -162,6 +166,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			metrics := ui.BuildMetrics("client", *m.clientPanel.startTime, endTime, ui.StatsUpdate(msg.result.Stats))
 			_ = ui.WriteMetrics(m.clientPanel.runDir, metrics)
 		}
+
+		// Add to recent runs
+		run := RecentRun{
+			Time:       time.Now(),
+			Type:       "client",
+			Details:    clientScenarios[m.clientPanel.scenario],
+			Target:     m.clientPanel.targetIP,
+			Status:     "ok",
+			Count:      msg.result.Stats.TotalRequests,
+			ErrorCount: msg.result.Stats.TotalErrors,
+		}
+		if msg.result.Error != nil {
+			run.Status = "error"
+		}
+		m.state.RecentRuns = append([]RecentRun{run}, m.state.RecentRuns...)
+		if len(m.state.RecentRuns) > 20 {
+			m.state.RecentRuns = m.state.RecentRuns[:20]
+		}
 		return m, nil
 
 	case clientStatsMsg:
@@ -207,6 +229,24 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			metrics := ui.BuildMetrics("server", *m.serverPanel.startTime, endTime, ui.StatsUpdate(m.serverPanel.stats))
 			_ = ui.WriteMetrics(m.serverPanel.runDir, metrics)
 		}
+
+		// Add to recent runs
+		run := RecentRun{
+			Time:       time.Now(),
+			Type:       "server",
+			Details:    serverPersonalities[m.serverPanel.personality],
+			Target:     m.serverPanel.listenAddr + ":" + m.serverPanel.port,
+			Status:     "ok",
+			Count:      m.serverPanel.stats.TotalRequests,
+			ErrorCount: m.serverPanel.stats.TotalErrors,
+		}
+		if msg.err != nil {
+			run.Status = "error"
+		}
+		m.state.RecentRuns = append([]RecentRun{run}, m.state.RecentRuns...)
+		if len(m.state.RecentRuns) > 20 {
+			m.state.RecentRuns = m.state.RecentRuns[:20]
+		}
 		return m, nil
 
 	case serverStatsMsg:
@@ -226,6 +266,37 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Err:      msg.err,
 		}
 		m.pcapPanel.mode = PanelResult
+
+		// Track this as a recent run
+		pcapFile := ""
+		if len(m.pcapPanel.files) > m.pcapPanel.selectedFile {
+			pcapFile = m.pcapPanel.files[m.pcapPanel.selectedFile]
+		}
+		run := RecentRun{
+			Time:    time.Now(),
+			Type:    "pcap",
+			Details: pcapModes[m.pcapPanel.modeIndex],
+			Target:  filepath.Base(pcapFile),
+			Status:  "ok",
+		}
+		if msg.exitCode != 0 || msg.err != nil {
+			run.Status = "error"
+		}
+		m.state.RecentRuns = append([]RecentRun{run}, m.state.RecentRuns...)
+		if len(m.state.RecentRuns) > 20 {
+			m.state.RecentRuns = m.state.RecentRuns[:20]
+		}
+
+		// If analysis succeeded for Summary mode, update dashboard with this PCAP
+		if msg.exitCode == 0 && m.pcapPanel.modeIndex == 0 {
+			if pcapFile != "" {
+				m.pcapPanel.lastAnalyzedPath = pcapFile
+				// Refresh dashboard with this PCAP data
+				if m.mainScreen != nil {
+					m.mainScreen.LoadFromPCAP(pcapFile)
+				}
+			}
+		}
 		return m, nil
 
 	case rerunCommandMsg:

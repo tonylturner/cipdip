@@ -1999,9 +1999,17 @@ type PCAPPanel struct {
 	mode         PanelMode
 	modeIndex    int // 0=Summary, 1=Report, 2=Coverage, 3=Replay, 4=Rewrite, 5=Dump, 6=Diff
 	selectedFile int
-	files        []string
+	files        []string // Full paths to PCAP files
+	fileNames    []string // Display names (just filename)
+	fileSizes    []int64  // File sizes in bytes
 	styles       Styles
 	focusedField int
+
+	// File browser state
+	browserActive bool
+	browserPath   string   // Current directory in browser
+	browserItems  []string // Items in current directory
+	browserIndex  int      // Selected item in browser
 
 	// For diff mode
 	diffFile1     int
@@ -2035,7 +2043,12 @@ type PCAPPanel struct {
 	diffAnalysis *PCAPDiffAnalysis
 
 	// Command result
-	result *CommandResult
+	result       *CommandResult
+	resultScroll int // Scroll offset for result view
+	resultLines  []string // Parsed/formatted result lines
+
+	// Track last analyzed file
+	lastAnalyzedPath string
 }
 
 // PCAPAnalysis holds results from PCAP analysis.
@@ -2097,12 +2110,98 @@ var pcapModes = []string{"Summary", "Report", "Coverage", "Replay", "Rewrite", "
 
 // NewPCAPPanel creates a new PCAP panel.
 func NewPCAPPanel(styles Styles) *PCAPPanel {
-	return &PCAPPanel{
+	p := &PCAPPanel{
 		mode:       PanelIdle,
 		styles:     styles,
-		files:      []string{"ENIP.pcap", "stress_test.pcap", "baseline.pcap", "errors.pcap"},
+		files:      []string{},
+		fileNames:  []string{},
 		showVisual: true,
 		packets:    generateSamplePackets(),
+	}
+	p.RefreshFiles("")
+	return p
+}
+
+// RefreshFiles scans for PCAP files in known locations.
+func (p *PCAPPanel) RefreshFiles(workspaceRoot string) {
+	p.files = []string{}
+	p.fileNames = []string{}
+	p.fileSizes = []int64{}
+
+	// Directories to scan for PCAP files
+	var searchDirs []string
+
+	// Add workspace pcaps if available
+	if workspaceRoot != "" {
+		searchDirs = append(searchDirs, filepath.Join(workspaceRoot, "pcaps"))
+		// Also check repo root relative to workspace
+		repoRoot := filepath.Dir(filepath.Dir(workspaceRoot))
+		searchDirs = append(searchDirs, filepath.Join(repoRoot, "pcaps"))
+	}
+
+	// Add common relative paths
+	searchDirs = append(searchDirs, "pcaps", "pcaps/stress", "pcaps/validation_generated")
+
+	// Try to find pcaps relative to executable
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		searchDirs = append(searchDirs,
+			filepath.Join(exeDir, "pcaps"),
+			filepath.Join(exeDir, "..", "pcaps"),
+		)
+	}
+
+	seen := make(map[string]bool)
+	for _, dir := range searchDirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".pcap") {
+				continue
+			}
+			fullPath := filepath.Join(dir, e.Name())
+			// Normalize path to avoid duplicates
+			if absPath, err := filepath.Abs(fullPath); err == nil {
+				fullPath = absPath
+			}
+			if seen[fullPath] {
+				continue
+			}
+			seen[fullPath] = true
+			p.files = append(p.files, fullPath)
+			p.fileNames = append(p.fileNames, e.Name())
+			// Get file size
+			var size int64
+			if info, err := os.Stat(fullPath); err == nil {
+				size = info.Size()
+			}
+			p.fileSizes = append(p.fileSizes, size)
+		}
+	}
+
+	// If no files found, add placeholder
+	if len(p.files) == 0 {
+		p.files = []string{}
+		p.fileNames = []string{"(no pcap files found)"}
+		return
+	}
+
+	// Select last analyzed file if available, otherwise default to ENIP.pcap
+	p.selectedFile = 0
+	for i, path := range p.files {
+		if p.lastAnalyzedPath != "" && path == p.lastAnalyzedPath {
+			p.selectedFile = i
+			return
+		}
+	}
+	// Default to ENIP.pcap if found
+	for i, name := range p.fileNames {
+		if name == "ENIP.pcap" {
+			p.selectedFile = i
+			return
+		}
 	}
 }
 
@@ -2186,10 +2285,19 @@ func (p *PCAPPanel) updateIdle(msg tea.KeyMsg) (Panel, tea.Cmd) {
 }
 
 func (p *PCAPPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	// Handle browser mode separately
+	if p.browserActive {
+		return p.updateBrowser(msg)
+	}
+
 	// Get max fields for current mode
 	maxField := p.getMaxFields()
 
 	switch msg.String() {
+	case "b":
+		// Open file browser
+		p.openBrowser()
+		return p, nil
 	case "esc":
 		p.mode = PanelIdle
 	case "enter":
@@ -2293,35 +2401,179 @@ func (p *PCAPPanel) updateRunning(msg tea.KeyMsg) (Panel, tea.Cmd) {
 }
 
 func (p *PCAPPanel) updateResult(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	maxScroll := len(p.resultLines) - 20
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+
 	switch msg.String() {
-	case "esc":
+	case "esc", "enter":
+		// Track last analyzed file before clearing
+		if len(p.files) > p.selectedFile {
+			p.lastAnalyzedPath = p.files[p.selectedFile]
+		}
 		p.mode = PanelIdle
 		p.analysis = nil
 		p.diffAnalysis = nil
+		p.result = nil
+		p.resultLines = nil
+		p.resultScroll = 0
 	case "v":
 		// Toggle visual/text mode
 		p.showVisual = !p.showVisual
-	case "up":
-		if p.modeIndex == 2 && p.selectedPkt > 0 { // Viewer mode
+	case "up", "k":
+		// Scroll up
+		if p.resultScroll > 0 {
+			p.resultScroll--
+		} else if p.modeIndex == 2 && p.selectedPkt > 0 { // Viewer mode
 			p.selectedPkt--
 		}
-	case "down":
-		if p.modeIndex == 2 && p.selectedPkt < len(p.packets)-1 { // Viewer mode
+	case "down", "j":
+		// Scroll down
+		if p.resultScroll < maxScroll {
+			p.resultScroll++
+		} else if p.modeIndex == 2 && p.selectedPkt < len(p.packets)-1 { // Viewer mode
 			p.selectedPkt++
 		}
-	case "pageup":
+	case "pageup", "ctrl+u":
+		p.resultScroll -= 10
+		if p.resultScroll < 0 {
+			p.resultScroll = 0
+		}
 		if p.modeIndex == 2 {
 			p.selectedPkt -= 5
 			if p.selectedPkt < 0 {
 				p.selectedPkt = 0
 			}
 		}
-	case "pagedown":
+	case "pagedown", "ctrl+d":
+		p.resultScroll += 10
+		if p.resultScroll > maxScroll {
+			p.resultScroll = maxScroll
+		}
 		if p.modeIndex == 2 {
 			p.selectedPkt += 5
 			if p.selectedPkt >= len(p.packets) {
 				p.selectedPkt = len(p.packets) - 1
 			}
+		}
+	case "g":
+		// Go to top
+		p.resultScroll = 0
+	case "G":
+		// Go to bottom
+		p.resultScroll = maxScroll
+	}
+	return p, nil
+}
+
+// openBrowser initializes the file browser at the workspace pcaps directory.
+func (p *PCAPPanel) openBrowser() {
+	p.browserActive = true
+	p.browserIndex = 0
+
+	// Start in workspace pcaps dir, fallback to /pcaps or current dir
+	startDir := "pcaps"
+	if len(p.files) > 0 {
+		// Use directory of first file
+		startDir = filepath.Dir(p.files[0])
+	}
+
+	p.browserPath = startDir
+	p.refreshBrowserItems()
+}
+
+// refreshBrowserItems loads directory contents for the browser.
+func (p *PCAPPanel) refreshBrowserItems() {
+	p.browserItems = []string{}
+
+	// Add parent directory option
+	p.browserItems = append(p.browserItems, "..")
+
+	entries, err := os.ReadDir(p.browserPath)
+	if err != nil {
+		return
+	}
+
+	// Add directories first
+	for _, e := range entries {
+		if e.IsDir() {
+			p.browserItems = append(p.browserItems, e.Name()+"/")
+		}
+	}
+
+	// Then add .pcap files
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(strings.ToLower(e.Name()), ".pcap") {
+			p.browserItems = append(p.browserItems, e.Name())
+		}
+	}
+}
+
+// updateBrowser handles input in file browser mode.
+func (p *PCAPPanel) updateBrowser(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		p.browserActive = false
+	case "up":
+		if p.browserIndex > 0 {
+			p.browserIndex--
+		}
+	case "down":
+		if p.browserIndex < len(p.browserItems)-1 {
+			p.browserIndex++
+		}
+	case "enter":
+		if p.browserIndex < len(p.browserItems) {
+			item := p.browserItems[p.browserIndex]
+			if item == ".." {
+				// Go up one directory
+				p.browserPath = filepath.Dir(p.browserPath)
+				p.browserIndex = 0
+				p.refreshBrowserItems()
+			} else if strings.HasSuffix(item, "/") {
+				// Enter directory
+				p.browserPath = filepath.Join(p.browserPath, strings.TrimSuffix(item, "/"))
+				p.browserIndex = 0
+				p.refreshBrowserItems()
+			} else {
+				// Select file
+				fullPath := filepath.Join(p.browserPath, item)
+				if absPath, err := filepath.Abs(fullPath); err == nil {
+					fullPath = absPath
+				}
+				// Add to files list if not already present
+				found := false
+				for i, f := range p.files {
+					if f == fullPath {
+						p.selectedFile = i
+						found = true
+						break
+					}
+				}
+				if !found {
+					p.files = append(p.files, fullPath)
+					p.fileNames = append(p.fileNames, item)
+					// Get file size
+					var size int64
+					if info, err := os.Stat(fullPath); err == nil {
+						size = info.Size()
+					}
+					p.fileSizes = append(p.fileSizes, size)
+					p.selectedFile = len(p.files) - 1
+				}
+				p.browserActive = false
+			}
+		}
+	case "pageup":
+		p.browserIndex -= 10
+		if p.browserIndex < 0 {
+			p.browserIndex = 0
+		}
+	case "pagedown":
+		p.browserIndex += 10
+		if p.browserIndex >= len(p.browserItems) {
+			p.browserIndex = len(p.browserItems) - 1
 		}
 	}
 	return p, nil
@@ -2365,6 +2617,132 @@ func (p *PCAPPanel) ViewContent(width int, focused bool) string {
 	}
 }
 
+// getFileName returns the display name for a file at index.
+func (p *PCAPPanel) getFileName(idx int) string {
+	if idx < len(p.fileNames) {
+		return p.fileNames[idx]
+	}
+	if idx < len(p.files) {
+		return filepath.Base(p.files[idx])
+	}
+	return "(unknown)"
+}
+
+// getFileSize returns formatted file size for a file at index.
+func (p *PCAPPanel) getFileSize(idx int) string {
+	if idx >= len(p.fileSizes) {
+		return ""
+	}
+	size := p.fileSizes[idx]
+	switch {
+	case size >= 1024*1024*1024:
+		return fmt.Sprintf("%.1fG", float64(size)/(1024*1024*1024))
+	case size >= 1024*1024:
+		return fmt.Sprintf("%.1fM", float64(size)/(1024*1024))
+	case size >= 1024:
+		return fmt.Sprintf("%.1fK", float64(size)/1024)
+	default:
+		return fmt.Sprintf("%dB", size)
+	}
+}
+
+// getFileEntry returns filename with size for display (name padded, size right-aligned).
+func (p *PCAPPanel) getFileEntry(idx int, width int) string {
+	name := p.getFileName(idx)
+	size := p.getFileSize(idx)
+
+	// Calculate padding (leave room for size + some spacing)
+	sizeWidth := len(size) + 2
+	maxNameWidth := width - sizeWidth - 4
+	if maxNameWidth < 10 {
+		maxNameWidth = 10
+	}
+
+	// Truncate name if needed
+	if len(name) > maxNameWidth {
+		name = name[:maxNameWidth-3] + "..."
+	}
+
+	padding := width - len(name) - len(size) - 4
+	if padding < 1 {
+		padding = 1
+	}
+
+	return name + strings.Repeat(" ", padding) + p.styles.Dim.Render(size)
+}
+
+// viewBrowserContent renders the file browser view.
+func (p *PCAPPanel) viewBrowserContent(width int) string {
+	s := p.styles
+	var lines []string
+
+	lines = append(lines, s.Header.Render("Browse for PCAP file"))
+	lines = append(lines, "")
+
+	// Show current path
+	pathDisplay := p.browserPath
+	if len(pathDisplay) > width-10 {
+		pathDisplay = "..." + pathDisplay[len(pathDisplay)-(width-13):]
+	}
+	lines = append(lines, s.Dim.Render("Path: ")+s.Info.Render(pathDisplay))
+	lines = append(lines, "")
+
+	// Show directory contents (scrollable)
+	maxVisible := 12
+	startIdx := 0
+	if p.browserIndex >= maxVisible {
+		startIdx = p.browserIndex - maxVisible + 1
+	}
+
+	for i := startIdx; i < len(p.browserItems) && i < startIdx+maxVisible; i++ {
+		item := p.browserItems[i]
+		cursor := "  "
+		if i == p.browserIndex {
+			cursor = s.Selected.Render("> ")
+		}
+
+		// Style directories differently
+		if strings.HasSuffix(item, "/") {
+			lines = append(lines, cursor+s.Info.Render(item))
+		} else if item == ".." {
+			lines = append(lines, cursor+s.Dim.Render(item+" (parent)"))
+		} else {
+			// Show file size for pcap files
+			fullPath := filepath.Join(p.browserPath, item)
+			var sizeStr string
+			if info, err := os.Stat(fullPath); err == nil {
+				size := info.Size()
+				switch {
+				case size >= 1024*1024:
+					sizeStr = fmt.Sprintf("%.1fM", float64(size)/(1024*1024))
+				case size >= 1024:
+					sizeStr = fmt.Sprintf("%.1fK", float64(size)/1024)
+				default:
+					sizeStr = fmt.Sprintf("%dB", size)
+				}
+			}
+			// Pad name and show size
+			name := item
+			maxNameLen := width - 12
+			if len(name) > maxNameLen {
+				name = name[:maxNameLen-3] + "..."
+			}
+			lines = append(lines, cursor+fmt.Sprintf("%-*s %s", maxNameLen, name, s.Dim.Render(sizeStr)))
+		}
+	}
+
+	// Show scroll indicator if needed
+	if len(p.browserItems) > maxVisible {
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render(fmt.Sprintf("  %d/%d items", p.browserIndex+1, len(p.browserItems))))
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, s.KeyBinding.Render("[Enter]")+" Select  "+s.KeyBinding.Render("[Esc]")+" Cancel")
+
+	return strings.Join(lines, "\n")
+}
+
 func (p *PCAPPanel) viewIdleContent(width int, focused bool) string {
 	s := p.styles
 	content := []string{
@@ -2372,7 +2750,7 @@ func (p *PCAPPanel) viewIdleContent(width int, focused bool) string {
 		fmt.Sprintf("Files: %d available", len(p.files)),
 	}
 	if len(p.files) > 0 {
-		content = append(content, fmt.Sprintf("Selected: %s", s.Dim.Render(p.files[p.selectedFile])))
+		content = append(content, fmt.Sprintf("Selected: %s", s.Dim.Render(p.getFileName(p.selectedFile))))
 	}
 	content = append(content, "")
 	if focused {
@@ -2386,6 +2764,11 @@ func (p *PCAPPanel) viewIdleContent(width int, focused bool) string {
 func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 	s := p.styles
 	var lines []string
+
+	// Show file browser if active
+	if p.browserActive {
+		return p.viewBrowserContent(width)
+	}
 
 	// Mode tabs (show first few, indicate more)
 	var modeTabs []string
@@ -2403,13 +2786,15 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 	case 0: // Summary
 		lines = append(lines, s.Header.Render("Analyze single PCAP file:"))
 		lines = append(lines, "")
-		for i, file := range p.files {
+		for i := range p.files {
 			cursor := "  "
 			if i == p.selectedFile {
 				cursor = s.Selected.Render("> ")
 			}
-			lines = append(lines, cursor+file)
+			lines = append(lines, cursor+p.getFileEntry(i, width-4))
 		}
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render("[b] Browse for file"))
 
 	case 1: // Report
 		lines = append(lines, s.Header.Render("Generate directory report:"))
@@ -2435,14 +2820,14 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 		lines = append(lines, s.Header.Render("Replay PCAP to target:"))
 		lines = append(lines, "")
 		// File selection
-		for i, file := range p.files {
+		for i := range p.files {
 			cursor := "  "
 			if i == p.selectedFile && p.focusedField == 0 {
 				cursor = s.Selected.Render("> ")
 			} else if i == p.selectedFile {
 				cursor = s.Success.Render("● ")
 			}
-			lines = append(lines, cursor+file)
+			lines = append(lines, cursor+p.getFileEntry(i, width-4))
 		}
 		lines = append(lines, "")
 		// Target IP
@@ -2464,12 +2849,12 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 	case 4: // Rewrite
 		lines = append(lines, s.Header.Render("Rewrite PCAP IPs/MACs:"))
 		lines = append(lines, "")
-		for i, file := range p.files {
+		for i := range p.files {
 			cursor := "  "
 			if i == p.selectedFile {
 				cursor = s.Selected.Render("> ")
 			}
-			lines = append(lines, cursor+file)
+			lines = append(lines, cursor+p.getFileName(i))
 		}
 		lines = append(lines, "")
 		lines = append(lines, s.Dim.Render("Output: {filename}_rewritten.pcap"))
@@ -2478,14 +2863,14 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 		lines = append(lines, s.Header.Render("Hex dump by service code:"))
 		lines = append(lines, "")
 		// File selection
-		for i, file := range p.files {
+		for i := range p.files {
 			cursor := "  "
 			if i == p.selectedFile && p.focusedField == 0 {
 				cursor = s.Selected.Render("> ")
 			} else if i == p.selectedFile {
 				cursor = s.Success.Render("● ")
 			}
-			lines = append(lines, cursor+file)
+			lines = append(lines, cursor+p.getFileName(i))
 		}
 		lines = append(lines, "")
 		// Service code
@@ -2534,10 +2919,17 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 					right = s.Success.Render("● ")
 				}
 			}
-			lines = append(lines, fmt.Sprintf("%s%-18s  %s%s", left, p.files[i], right, p.files[i]))
+			fileName := p.getFileName(i)
+			fileSize := p.getFileSize(i)
+			// Truncate filename if needed
+			if len(fileName) > 14 {
+				fileName = fileName[:11] + "..."
+			}
+			entry := fmt.Sprintf("%-14s %s", fileName, s.Dim.Render(fileSize))
+			lines = append(lines, fmt.Sprintf("%s%-22s  %s%-22s", left, entry, right, entry))
 		}
 		lines = append(lines, "")
-		lines = append(lines, s.Dim.Render("Use Left/Right to switch, Up/Down to select"))
+		lines = append(lines, s.Dim.Render("[b] Browse  [←/→] Switch  [↑/↓] Select"))
 	}
 
 	lines = append(lines, "")
@@ -2656,15 +3048,12 @@ func (p *PCAPPanel) viewReplayResultContent(width int, focused bool) string {
 		return strings.Join(lines, "\n")
 	}
 
-	selectedFile := ""
-	if len(p.files) > p.selectedFile {
-		selectedFile = p.files[p.selectedFile]
-	}
+	selectedFileName := p.getFileName(p.selectedFile)
 	lines := []string{
 		s.Success.Render("✓ Replay Complete"),
 		"",
 		fmt.Sprintf("Target:  %s", p.replayTargetIP),
-		fmt.Sprintf("File:    %s", selectedFile),
+		fmt.Sprintf("File:    %s", selectedFileName),
 		"",
 		s.KeyBinding.Render("[Esc]") + " Close",
 	}
@@ -2696,17 +3085,13 @@ func (p *PCAPPanel) viewRewriteResultContent(width int, focused bool) string {
 		return strings.Join(lines, "\n")
 	}
 
-	selectedFile := ""
-	outputFile := ""
-	if len(p.files) > p.selectedFile {
-		selectedFile = p.files[p.selectedFile]
-		outputFile = strings.TrimSuffix(selectedFile, ".pcap") + "_rewritten.pcap"
-	}
+	selectedFileName := p.getFileName(p.selectedFile)
+	outputFile := strings.TrimSuffix(selectedFileName, ".pcap") + "_rewritten.pcap"
 
 	lines := []string{
 		s.Success.Render("✓ Rewrite Complete"),
 		"",
-		s.Dim.Render("Input:  ") + selectedFile,
+		s.Dim.Render("Input:  ") + selectedFileName,
 		s.Dim.Render("Output: ") + s.Info.Render(outputFile),
 		"",
 		s.KeyBinding.Render("[Esc]") + " Close",
@@ -2743,14 +3128,11 @@ func (p *PCAPPanel) viewDumpResultContent(width int, focused bool) string {
 		return strings.Join(lines, "\n")
 	}
 
-	selectedFile := ""
-	if len(p.files) > p.selectedFile {
-		selectedFile = p.files[p.selectedFile]
-	}
+	selectedFileName := p.getFileName(p.selectedFile)
 	lines := []string{
 		s.Success.Render("✓ Dump for service " + serviceCode),
 		"",
-		s.Dim.Render("File: ") + selectedFile,
+		s.Dim.Render("File: ") + selectedFileName,
 		"",
 		s.KeyBinding.Render("[Esc]") + " Close",
 	}
@@ -2759,28 +3141,62 @@ func (p *PCAPPanel) viewDumpResultContent(width int, focused bool) string {
 
 func (p *PCAPPanel) viewSummaryResultContent(width int, focused bool) string {
 	s := p.styles
+	maxVisibleLines := 20 // Max lines to show before scrolling
 
-	// If we have command result, show that
+	// If we have command result, show that with nice formatting
 	if p.result != nil {
+		// Parse and format result if not already done
+		if len(p.resultLines) == 0 && p.result.Output != "" {
+			p.resultLines = p.formatPCAPOutput(p.result.Output)
+		}
+
 		var lines []string
 
+		// Status header
 		status := s.Success.Render("✓ Analysis Complete")
+		fileName := p.getFileName(p.selectedFile)
 		if p.result.ExitCode != 0 {
 			status = s.Error.Render("✗ Analysis Failed")
 		}
-		lines = append(lines, status)
-		lines = append(lines, "")
+		lines = append(lines, status+"  "+s.Dim.Render(fileName))
+		lines = append(lines, s.Dim.Render(strings.Repeat("─", width-4)))
 
-		// Show output (filtered for display)
-		if p.result.Output != "" {
-			cleanOutput := filterOutputForDisplay(p.result.Output)
-			if cleanOutput != "" {
-				lines = append(lines, s.Dim.Render(cleanOutput))
+		// Show formatted output with scrolling
+		if len(p.resultLines) > 0 {
+			visibleLines := p.resultLines
+			totalLines := len(visibleLines)
+
+			// Apply scroll offset
+			start := p.resultScroll
+			if start > totalLines-maxVisibleLines {
+				start = totalLines - maxVisibleLines
+			}
+			if start < 0 {
+				start = 0
+			}
+
+			end := start + maxVisibleLines
+			if end > totalLines {
+				end = totalLines
+			}
+
+			visibleLines = p.resultLines[start:end]
+			lines = append(lines, visibleLines...)
+
+			// Scroll indicator
+			if totalLines > maxVisibleLines {
+				scrollPct := float64(start) / float64(totalLines-maxVisibleLines) * 100
+				scrollInfo := fmt.Sprintf(" [%d-%d of %d] %.0f%%", start+1, end, totalLines, scrollPct)
+				lines = append(lines, "")
+				lines = append(lines, s.Dim.Render(scrollInfo))
 			}
 		}
 
 		lines = append(lines, "")
-		lines = append(lines, s.KeyBinding.Render("[Esc]")+" Close")
+		helpLine := s.KeyBinding.Render("[↑/↓]") + " Scroll  " +
+			s.KeyBinding.Render("[g/G]") + " Top/Bot  " +
+			s.KeyBinding.Render("[Esc]") + " Close"
+		lines = append(lines, helpLine)
 		return strings.Join(lines, "\n")
 	}
 
@@ -2834,6 +3250,86 @@ func (p *PCAPPanel) viewSummaryResultContent(width int, focused bool) string {
 	lines = append(lines, s.KeyBinding.Render("[v]")+" Toggle View  "+s.KeyBinding.Render("[Esc]")+" Close")
 
 	return strings.Join(lines, "\n")
+}
+
+// formatPCAPOutput formats the raw PCAP summary output with colors and structure.
+func (p *PCAPPanel) formatPCAPOutput(output string) []string {
+	s := p.styles
+	var lines []string
+	currentSection := ""
+
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimRight(line, "\r")
+		if line == "" {
+			lines = append(lines, "")
+			continue
+		}
+
+		// Detect section headers
+		if strings.HasSuffix(line, ":") && !strings.Contains(line, "  ") {
+			currentSection = strings.TrimSuffix(line, ":")
+			lines = append(lines, s.Header.Render(line))
+			continue
+		}
+
+		// Format based on content
+		trimmed := strings.TrimSpace(line)
+
+		// Key: value pairs
+		if strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "0x") {
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				key := strings.TrimSpace(parts[0])
+				value := strings.TrimSpace(parts[1])
+
+				// Color code based on key/value
+				valueStyle := s.Base
+				if strings.Contains(strings.ToLower(key), "error") || strings.Contains(strings.ToLower(key), "failed") {
+					if value != "0" {
+						valueStyle = s.Error
+					}
+				} else if strings.Contains(strings.ToLower(key), "packet") || strings.Contains(strings.ToLower(key), "request") {
+					valueStyle = s.Info
+				} else if strings.Contains(strings.ToLower(key), "vendor") || strings.Contains(strings.ToLower(key), "product") {
+					valueStyle = s.Success
+				}
+
+				indent := "  "
+				if !strings.HasPrefix(line, " ") {
+					indent = ""
+				}
+				lines = append(lines, indent+s.Dim.Render(key+":")+valueStyle.Render(" "+value))
+				continue
+			}
+		}
+
+		// Service/command counts (indented items)
+		if strings.HasPrefix(line, "  ") && strings.Contains(trimmed, ":") {
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) == 2 {
+				name := strings.TrimSpace(parts[0])
+				count := strings.TrimSpace(parts[1])
+				// Color based on section
+				nameStyle := s.Base
+				if currentSection == "Command Counts" {
+					nameStyle = s.Info
+				} else if currentSection == "CIP Service Counts" {
+					nameStyle = s.Success
+				}
+				lines = append(lines, "  "+nameStyle.Render(name)+": "+s.Dim.Render(count))
+				continue
+			}
+		}
+
+		// Default: preserve line with dim style for indented
+		if strings.HasPrefix(line, "  ") {
+			lines = append(lines, s.Dim.Render(line))
+		} else {
+			lines = append(lines, line)
+		}
+	}
+
+	return lines
 }
 
 func (p *PCAPPanel) viewDiffResultContent(width int, focused bool) string {
@@ -2963,7 +3459,7 @@ func (p *PCAPPanel) viewPacketViewerContent(width int, focused bool) string {
 	s := p.styles
 	var lines []string
 
-	lines = append(lines, s.Header.Render("Packet Viewer: ")+p.files[p.selectedFile])
+	lines = append(lines, s.Header.Render("Packet Viewer: ")+p.getFileName(p.selectedFile))
 	lines = append(lines, "")
 
 	// Column headers
