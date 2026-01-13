@@ -73,7 +73,7 @@ type ProfileScreenModel struct {
 }
 
 // Profile mode presets
-var profileModePresets = []modePreset{
+var profileModePresets = []ModePreset{
 	{"Quick", 60, 0},      // 1 minute
 	{"Standard", 300, 0},  // 5 minutes
 	{"Extended", 1800, 0}, // 30 minutes

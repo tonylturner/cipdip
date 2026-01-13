@@ -1,0 +1,40 @@
+CIPDIP Run Summary
+==================
+
+Run ID:     20260112-203157
+Start Time: 2026-01-12T20:31:57-05:00
+End Time:   2026-01-12T20:32:02-05:00
+Duration:   5.007485542s
+
+Profile:     Batch Mixing Tank
+Role:        hmi
+Personality: logix_like
+
+Target: 192.168.1.100:44818
+
+Results
+-------
+Total Operations: 0
+Successful:       0 (0.0%)
+Failed:           0
+Timeouts:         0
+
+RTT (ms)
+--------
+Average: 0.00
+P50:     0.00
+P95:     0.00
+P99:     0.00
+Max:     0.00
+
+Error: connect: Failed to communicate with device at 192.168.1.100:44818
+  Reason: Connection timeout - device may be offline or unreachable
+  Hint: Device may not be a CIP/EtherNet-IP device, or there may be a network connectivity issue
+  Try: cipdip test --ip 192.168.1.100 --port 44818
+  Details: dial TCP: dial tcp 192.168.1.100:44818: i/o timeout
+
+Artifacts
+---------
+Metrics: metrics_20260112-203157.csv
+Summary: 
+Run JSON: run.json

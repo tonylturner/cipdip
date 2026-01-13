@@ -60,3 +60,48 @@ func IsKnownService(code protocol.CIPServiceCode) bool {
 	_, ok := cipServiceNames[uint8(code)]
 	return ok
 }
+
+var cipClassNames = map[uint16]string{
+	0x01: "Identity",
+	0x02: "Message_Router",
+	0x03: "DeviceNet",
+	0x04: "Assembly",
+	0x05: "Connection",
+	0x06: "Connection_Manager",
+	0x07: "Register",
+	0x08: "Discrete_Input",
+	0x09: "Discrete_Output",
+	0x0A: "Analog_Input",
+	0x0B: "Analog_Output",
+	0x0F: "Parameter",
+	0x10: "Parameter_Group",
+	0x37: "File",
+	0x39: "Safety_Supervisor",
+	0x3A: "Safety_Validator",
+	0x42: "Motion_Axis",
+	0x43: "Time_Sync",
+	0x44: "Modbus",
+	0x4E: "Energy_Base",
+	0x4F: "Energy_Electrical",
+	0x50: "Energy_Non_Electrical",
+	0x67: "PCCC",
+	0x6B: "Symbol",
+	0x6C: "Template",
+	0xF4: "Port",
+	0xF5: "TCP_IP_Interface",
+	0xF6: "Ethernet_Link",
+}
+
+// ClassName returns a display name for a CIP class code.
+func ClassName(code uint16) string {
+	if name, ok := cipClassNames[code]; ok {
+		return name
+	}
+	return fmt.Sprintf("Unknown(0x%02X)", code)
+}
+
+// IsKnownClass returns true when a class code is recognized.
+func IsKnownClass(code uint16) bool {
+	_, ok := cipClassNames[code]
+	return ok
+}

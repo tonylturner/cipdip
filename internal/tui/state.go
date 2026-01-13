@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/tturner/cipdip/internal/app"
+	"github.com/tturner/cipdip/internal/ui"
 )
 
 // Type aliases from app package for convenience
@@ -12,30 +13,15 @@ type CatalogEntry = app.CatalogEntry
 type CatalogPayload = app.CatalogPayload
 type CatalogFile = app.CatalogFile
 
+// Type aliases from ui package to consolidate duplicates
+type StatsUpdate = ui.StatsUpdate
+type CommandResult = ui.CommandResult
+
 // ProfileInfo contains information about a profile.
 type ProfileInfo struct {
 	Path string
 	Name string
 	Kind string
-}
-
-// StatsUpdate contains statistics from a running operation.
-type StatsUpdate struct {
-	ActiveConnections  int      `json:"active_connections"`
-	TotalConnections   int      `json:"total_connections"`
-	TotalRequests      int      `json:"total_requests"`
-	TotalErrors        int      `json:"total_errors"`
-	RecentClients      []string `json:"recent_clients,omitempty"`
-	SuccessfulRequests int      `json:"successful_requests"`
-	FailedRequests     int      `json:"failed_requests"`
-	Timeouts           int      `json:"timeouts"`
-}
-
-// CommandResult contains the result of a command execution.
-type CommandResult struct {
-	Output   string
-	ExitCode int
-	Err      error
 }
 
 // RecentRun represents a recent operation for display.

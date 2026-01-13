@@ -309,14 +309,18 @@ func TestHelpContent(t *testing.T) {
 	for _, screen := range screens {
 		t.Run("screen_"+string(rune('0'+screen)), func(t *testing.T) {
 			model.screen = screen
-			help := model.getHelpForScreen()
+			title, body := model.getHelpForScreen()
 
-			if help == "" {
-				t.Errorf("expected non-empty help for screen %d", screen)
+			if title == "" {
+				t.Errorf("expected non-empty help title for screen %d", screen)
 			}
 
-			if len(help) < 50 {
-				t.Errorf("help for screen %d seems too short: %q", screen, help)
+			if body == "" {
+				t.Errorf("expected non-empty help body for screen %d", screen)
+			}
+
+			if len(body) < 50 {
+				t.Errorf("help for screen %d seems too short: %q", screen, body)
 			}
 		})
 	}

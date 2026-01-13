@@ -235,6 +235,7 @@ type ServerCIPPolicyConfig struct {
 	StrictPaths              *bool                     `yaml:"strict_paths,omitempty"`
 	DefaultUnsupportedStatus uint8                     `yaml:"default_unsupported_status,omitempty"`
 	DefaultErrorExtStatus    uint16                    `yaml:"default_error_ext_status,omitempty"`
+	CatalogValidation        bool                      `yaml:"catalog_validation,omitempty"` // Enable catalog-based service validation
 	Allow                    []ServerCIPRule           `yaml:"allow,omitempty"`
 	Deny                     []ServerCIPRule           `yaml:"deny,omitempty"`
 	DenyStatusOverrides      []ServerCIPStatusOverride `yaml:"deny_status_overrides,omitempty"`
