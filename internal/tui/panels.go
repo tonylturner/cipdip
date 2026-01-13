@@ -2100,13 +2100,17 @@ func (p *PCAPPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 		p.focusedField = 0
 		p.resetModeSelections()
 	case "tab":
-		// Tab always navigates fields within mode
-		if maxField > 1 {
+		// In diff mode, tab switches between file1 and file2 selection
+		if p.modeIndex == 6 {
+			p.diffSelectIdx = (p.diffSelectIdx + 1) % 2
+		} else if maxField > 1 {
 			p.focusedField = (p.focusedField + 1) % maxField
 		}
 	case "shift+tab":
-		// Shift+Tab goes to previous field
-		if maxField > 1 && p.focusedField > 0 {
+		// In diff mode, shift+tab also switches between file1 and file2
+		if p.modeIndex == 6 {
+			p.diffSelectIdx = (p.diffSelectIdx + 1) % 2
+		} else if maxField > 1 && p.focusedField > 0 {
 			p.focusedField--
 		}
 	case "up":

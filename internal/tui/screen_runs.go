@@ -3,7 +3,9 @@ package tui
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -11,6 +13,23 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tturner/cipdip/internal/ui"
 )
+
+// rerunCommandMsg requests to re-run a command from a previous run.
+type rerunCommandMsg struct {
+	runDir  string
+	command string // raw command string from command.txt
+	runType string // "client", "server", "pcap"
+}
+
+// openEditorMsg requests to open a file/directory in editor.
+type openEditorMsg struct {
+	path string
+}
+
+// deleteRunMsg requests to delete a run directory.
+type deleteRunMsg struct {
+	runDir string
+}
 
 // RunsScreenModel handles the full-screen runs history view.
 type RunsScreenModel struct {
@@ -38,7 +57,7 @@ func NewRunsScreenModel(state *AppState, styles Styles) *RunsScreenModel {
 		state:      state,
 		styles:     styles,
 		filterType: "all",
-		artifacts:  []string{"command.txt", "stdout.log", "resolved.yaml", "summary.json"},
+		artifacts:  []string{"command.txt", "stdout.log", "resolved.yaml", "summary.json", "metrics.json"},
 	}
 	// Load runs from workspace
 	m.loadRuns()
@@ -53,6 +72,65 @@ func (m *RunsScreenModel) loadRuns() {
 	runs, err := ui.ListRuns(m.state.WorkspaceRoot, 0)
 	if err == nil {
 		m.state.Runs = runs
+	}
+}
+
+// loadCommand loads the command.txt content for the current run.
+func (m *RunsScreenModel) loadCommand() string {
+	if m.currentRunDir == "" {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(m.currentRunDir, "command.txt"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// getRunType extracts the run type from the run directory name.
+func (m *RunsScreenModel) getRunType(runDir string) string {
+	name := filepath.Base(runDir)
+	parts := strings.Split(name, "_")
+	if len(parts) >= 3 {
+		runType := parts[2]
+		if strings.Contains(runType, "client") {
+			return "client"
+		}
+		if strings.Contains(runType, "server") {
+			return "server"
+		}
+		if strings.Contains(runType, "pcap") {
+			return "pcap"
+		}
+	}
+	return ""
+}
+
+// openInEditor opens a path in the system editor.
+func openInEditor(path string) tea.Cmd {
+	return func() tea.Msg {
+		editor := os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "code" // fallback to VS Code
+		}
+
+		var cmd *exec.Cmd
+		switch runtime.GOOS {
+		case "darwin":
+			// On macOS, try open command for folders
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				cmd = exec.Command("open", path)
+			} else {
+				cmd = exec.Command(editor, path)
+			}
+		case "linux":
+			cmd = exec.Command(editor, path)
+		default:
+			cmd = exec.Command(editor, path)
+		}
+
+		_ = cmd.Start()
+		return nil
 	}
 }
 
@@ -85,7 +163,18 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 	if m.confirmDelete {
 		switch msg.String() {
 		case "y", "Y":
-			// TODO: Actually delete the run
+			filtered := m.filteredRuns()
+			if m.cursor < len(filtered) {
+				runDir := filepath.Join(m.state.WorkspaceRoot, "runs", filtered[m.cursor])
+				// Delete the run directory
+				if err := os.RemoveAll(runDir); err == nil {
+					// Reload runs and adjust cursor
+					m.loadRuns()
+					if m.cursor > 0 && m.cursor >= len(m.filteredRuns()) {
+						m.cursor--
+					}
+				}
+			}
 			m.confirmDelete = false
 		case "n", "N", "esc":
 			m.confirmDelete = false
@@ -110,11 +199,28 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 				m.loadArtifactContent()
 			}
 		case "o":
-			// TODO: Open in editor
+			// Open current artifact in editor
+			if m.currentRunDir != "" && m.selectedArtifact < len(m.artifacts) {
+				artifactPath := filepath.Join(m.currentRunDir, m.artifacts[m.selectedArtifact])
+				return m, openInEditor(artifactPath)
+			}
 		case "r":
-			// TODO: Re-run command
+			// Re-run command
+			if m.currentRunDir != "" {
+				command := m.loadCommand()
+				runType := m.getRunType(m.currentRunDir)
+				if command != "" && runType != "" {
+					return m, func() tea.Msg {
+						return rerunCommandMsg{
+							runDir:  m.currentRunDir,
+							command: command,
+							runType: runType,
+						}
+					}
+				}
+			}
 		case "y":
-			// TODO: Copy command to clipboard
+			// Copy command to clipboard - not implemented yet
 		}
 		return m, nil
 	}
@@ -147,14 +253,32 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 			m.loadArtifactContent()
 		}
 	case "o":
-		// Open selected run in editor
-		// TODO: implement
+		// Open selected run directory in editor
+		if m.cursor < len(filtered) {
+			runDir := filepath.Join(m.state.WorkspaceRoot, "runs", filtered[m.cursor])
+			return m, openInEditor(runDir)
+		}
 	case "r":
 		// Re-run selected
-		// TODO: implement
+		if m.cursor < len(filtered) {
+			runDir := filepath.Join(m.state.WorkspaceRoot, "runs", filtered[m.cursor])
+			commandPath := filepath.Join(runDir, "command.txt")
+			if data, err := os.ReadFile(commandPath); err == nil {
+				command := strings.TrimSpace(string(data))
+				runType := m.getRunType(runDir)
+				if command != "" && runType != "" {
+					return m, func() tea.Msg {
+						return rerunCommandMsg{
+							runDir:  runDir,
+							command: command,
+							runType: runType,
+						}
+					}
+				}
+			}
+		}
 	case "y":
-		// Copy command
-		// TODO: implement
+		// Copy command - not implemented yet
 	case "d":
 		// Delete with confirmation
 		if m.cursor < len(filtered) {
