@@ -1,0 +1,18 @@
+{
+  "role": "server",
+  "agent_id": "local",
+  "argv": [
+    "/Users/tturner/Documents/GitHub/cipdip/cipdip",
+    "server",
+    "--listen-ip",
+    "0.0.0.0",
+    "--listen-port",
+    "44818",
+    "--personality",
+    "adapter",
+    "--tui-stats"
+  ],
+  "started_at": "2026-01-13T12:08:01.183712-05:00",
+  "finished_at": "2026-01-13T12:08:11.297511-05:00",
+  "exit_code": 0
+}
