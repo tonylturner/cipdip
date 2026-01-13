@@ -62,14 +62,15 @@ func (cfg ServerRunConfig) BuildCommandArgs() []string {
 	}
 
 	if cfg.PCAPFile != "" {
-		args = append(args, "--pcap", cfg.PCAPFile)
+		// Combine OutputDir (workspace root) with relative PCAP path
+		pcapPath := cfg.PCAPFile
+		if cfg.OutputDir != "" && !filepath.IsAbs(cfg.PCAPFile) {
+			pcapPath = filepath.Join(cfg.OutputDir, cfg.PCAPFile)
+		}
+		args = append(args, "--pcap", pcapPath)
 		if cfg.Interface != "" {
 			args = append(args, "--capture-interface", cfg.Interface)
 		}
-	}
-
-	if cfg.OutputDir != "" {
-		args = append(args, "--output-dir", cfg.OutputDir)
 	}
 
 	return args
