@@ -568,3 +568,67 @@ func TestSSHConnection(user, host, port, keyFile string) error {
 	_, err := cmd.Output()
 	return err
 }
+
+// AgentCapabilities holds remote agent capability info.
+type AgentCapabilities struct {
+	OSArch      string
+	Version     string
+	PCAPCapable bool
+}
+
+// GetRemoteAgentCapabilities queries a remote agent for its capabilities.
+func GetRemoteAgentCapabilities(info *SSHInfo) (*AgentCapabilities, error) {
+	target := info.Host
+	if info.User != "" {
+		target = info.User + "@" + info.Host
+	}
+
+	args := []string{
+		"-o", "BatchMode=yes",
+		"-o", "ConnectTimeout=10",
+		"-o", "StrictHostKeyChecking=accept-new",
+	}
+
+	if info.KeyFile != "" {
+		args = append(args, "-i", info.KeyFile)
+	}
+
+	if info.Port != "" && info.Port != "22" {
+		args = append(args, "-p", info.Port)
+	}
+
+	args = append(args, target)
+
+	// Use login shell to get full PATH on remote
+	if info.OS == "windows" {
+		args = append(args, "cipdip", "agent", "status")
+	} else {
+		// Source common profile files to get PATH (homebrew, go bin, etc.)
+		args = append(args, "source ~/.zprofile 2>/dev/null; source ~/.bash_profile 2>/dev/null; source ~/.profile 2>/dev/null; cipdip agent status")
+	}
+
+	cmd := exec.Command("ssh", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse output - looks for lines like:
+	// OS/Arch: darwin/arm64
+	// Version: v0.1.0
+	// PCAP Capable: true
+	caps := &AgentCapabilities{}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "OS/Arch:") {
+			caps.OSArch = strings.TrimSpace(strings.TrimPrefix(line, "OS/Arch:"))
+		} else if strings.HasPrefix(line, "Version:") {
+			caps.Version = strings.TrimSpace(strings.TrimPrefix(line, "Version:"))
+		} else if strings.HasPrefix(line, "PCAP Capable:") {
+			val := strings.TrimSpace(strings.TrimPrefix(line, "PCAP Capable:"))
+			caps.PCAPCapable = val == "true"
+		}
+	}
+
+	return caps, nil
+}
