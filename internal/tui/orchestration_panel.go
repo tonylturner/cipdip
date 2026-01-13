@@ -1291,9 +1291,22 @@ func (p *OrchestrationPanel) checkAgentConnectivity(agent *ui.Agent) {
 	if err != nil {
 		agent.Status = ui.AgentStatusUnreachable
 		agent.StatusMsg = err.Error()
+		agent.LastCheck = time.Now()
+		return
+	}
+
+	// Try to get agent capabilities via cipdip agent status
+	caps, err := ui.GetRemoteAgentCapabilities(info)
+	if err != nil {
+		// SSH works but cipdip not available
+		agent.Status = ui.AgentStatusNoCipdip
+		agent.StatusMsg = "SSH OK, cipdip not found"
 	} else {
 		agent.Status = ui.AgentStatusOK
 		agent.StatusMsg = "Connected"
+		agent.OSArch = caps.OSArch
+		agent.CipdipVer = caps.Version
+		agent.PCAPCapable = caps.PCAPCapable
 	}
 	agent.LastCheck = time.Now()
 }
@@ -1722,6 +1735,19 @@ func (p *OrchestrationPanel) renderAgentsView(width int, focused bool) string {
 		content.WriteString(s.Label.Render("  Status:") + "     " + string(agent.Status) + "\n")
 		if agent.StatusMsg != "" {
 			content.WriteString(s.Label.Render("  Message:") + "    " + agent.StatusMsg + "\n")
+		}
+		if agent.OSArch != "" {
+			content.WriteString(s.Label.Render("  OS/Arch:") + "    " + agent.OSArch + "\n")
+		}
+		if agent.CipdipVer != "" {
+			content.WriteString(s.Label.Render("  Version:") + "    " + agent.CipdipVer + "\n")
+		}
+		if agent.OSArch != "" {
+			pcapStatus := "No"
+			if agent.PCAPCapable {
+				pcapStatus = "Yes"
+			}
+			content.WriteString(s.Label.Render("  PCAP:") + "       " + pcapStatus + "\n")
 		}
 		if !agent.LastCheck.IsZero() {
 			content.WriteString(s.Label.Render("  Last Check:") + " " + agent.LastCheck.Format("2006-01-02 15:04:05") + "\n")

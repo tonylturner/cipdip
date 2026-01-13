@@ -163,17 +163,25 @@ func getInstallDirectory(customPath string) (string, error) {
 		return "", fmt.Errorf("PATH environment variable not set")
 	}
 
-	// Prefer user-local bin on Windows
+	// On Windows, prefer system directories that are in PATH for SSH sessions
 	if runtime.GOOS == "windows" {
-		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			localBin := filepath.Join(localAppData, "bin")
-			if err := os.MkdirAll(localBin, 0755); err == nil {
-				if err := os.WriteFile(filepath.Join(localBin, ".cipdip-test"), []byte("test"), 0644); err == nil {
-					os.Remove(filepath.Join(localBin, ".cipdip-test"))
-					return localBin, nil
-				}
-			}
+		// Try C:\Windows\System32 first (requires admin, but always in PATH)
+		system32 := filepath.Join(os.Getenv("SystemRoot"), "System32")
+		testFile := filepath.Join(system32, ".cipdip-test")
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+			os.Remove(testFile)
+			return system32, nil
 		}
+
+		// Try C:\Windows (also usually in PATH)
+		winDir := os.Getenv("SystemRoot")
+		testFile = filepath.Join(winDir, ".cipdip-test")
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err == nil {
+			os.Remove(testFile)
+			return winDir, nil
+		}
+
+		// Fall through to PATH search below
 	}
 
 	// Split PATH and find first writable directory
@@ -211,21 +219,9 @@ func getInstallDirectory(customPath string) (string, error) {
 
 	// Fallback to common directories
 	if runtime.GOOS == "windows" {
-		// Try common Windows locations
-		if localAppData := os.Getenv("LOCALAPPDATA"); localAppData != "" {
-			localBin := filepath.Join(localAppData, "bin")
-			if err := os.MkdirAll(localBin, 0755); err == nil {
-				return localBin, nil
-			}
-		}
-		homeDir, err := os.UserHomeDir()
-		if err == nil {
-			localBin := filepath.Join(homeDir, "AppData", "Local", "bin")
-			if err := os.MkdirAll(localBin, 0755); err == nil {
-				return localBin, nil
-			}
-		}
-		return "", fmt.Errorf("no writable directory found in PATH")
+		// On Windows, we need a directory in system PATH for SSH to work
+		// If we get here, user likely needs to run as Administrator
+		return "", fmt.Errorf("no writable system PATH directory found - run PowerShell as Administrator")
 	}
 
 	// Unix-like: try /usr/local/bin, ~/bin, ~/.local/bin
