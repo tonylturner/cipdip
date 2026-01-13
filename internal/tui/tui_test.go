@@ -365,3 +365,67 @@ func TestClientPanelLogView(t *testing.T) {
 		t.Errorf("log lines should be capped at %d, got %d", panel.maxLogLines, len(panel.logLines))
 	}
 }
+
+func TestMainScreenModelRealData(t *testing.T) {
+	state := &AppState{
+		WorkspaceRoot: "/tmp/test",
+		WorkspaceName: "test",
+	}
+	styles := DefaultStyles
+	m := NewMainScreenModel(state, styles, nil)
+
+	// Test AddError
+	m.AddError("test error message", "error")
+	m.AddError("test warning", "warning")
+
+	if len(m.recentErrors) != 2 {
+		t.Errorf("expected 2 errors, got %d", len(m.recentErrors))
+	}
+	if m.recentErrors[0].Message != "test warning" {
+		t.Error("most recent error should be first")
+	}
+
+	// Test AddLatency
+	m.AddLatency(10.0)
+	m.AddLatency(20.0)
+
+	avg := m.GetAverageLatency()
+	if avg != 15.0 {
+		t.Errorf("expected average latency 15.0, got %f", avg)
+	}
+
+	// Test UpdateStats
+	m.UpdateStats(StatsUpdate{TotalRequests: 100, TotalErrors: 5}, StatsUpdate{})
+	if !m.hasLiveData {
+		t.Error("hasLiveData should be true after UpdateStats with data")
+	}
+
+	// Test error limit (max 20)
+	for i := 0; i < 25; i++ {
+		m.AddError("error", "error")
+	}
+	if len(m.recentErrors) > 20 {
+		t.Errorf("error list should be capped at 20, got %d", len(m.recentErrors))
+	}
+}
+
+func TestShortenServiceName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Get_Attribute_Single", "GetAttr"},
+		{"Get_Attribute_All", "GetAll"},
+		{"Forward_Open", "FwdOpen"},
+		{"Unconnected_Send", "UCMM"},
+		{"ShortName", "ShortName"},
+		{"VeryLongServiceNameThatNeedsTruncation", "VeryLongSe"},
+	}
+
+	for _, tc := range tests {
+		result := shortenServiceName(tc.input)
+		if result != tc.expected {
+			t.Errorf("shortenServiceName(%q) = %q, want %q", tc.input, result, tc.expected)
+		}
+	}
+}

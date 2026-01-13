@@ -388,6 +388,152 @@ type TrafficGraph struct {
 	Height  int
 	MaxVal  float64
 	ShowMax bool
+	Color   lipgloss.Color // Optional color for the graph
+}
+
+// TrafficSeries represents a single data series with a color.
+type TrafficSeries struct {
+	Values []float64
+	Color  lipgloss.Color
+	Label  string
+}
+
+// ColoredTrafficGraph renders multiple series with different colors.
+type ColoredTrafficGraph struct {
+	Title   string
+	Series  []TrafficSeries // Stacked series: reads, writes, errors, other
+	Width   int
+	Height  int
+	ShowMax bool
+}
+
+// Render renders the colored traffic graph with stacked series using braille dots.
+func (t ColoredTrafficGraph) Render(s Styles) string {
+	if t.Width < 10 {
+		t.Width = 40
+	}
+	if t.Height < 3 {
+		t.Height = 6
+	}
+
+	graphWidth := t.Width - 2
+
+	// Calculate totals and max for each column
+	totals := make([]float64, graphWidth)
+	var maxVal float64
+
+	for _, series := range t.Series {
+		sampled := sampleValues(series.Values, graphWidth)
+		for i := 0; i < graphWidth; i++ {
+			totals[i] += sampled[i]
+			if totals[i] > maxVal {
+				maxVal = totals[i]
+			}
+		}
+	}
+	if maxVal == 0 {
+		maxVal = 100
+	}
+
+	// Pre-sample each series
+	sampledSeries := make([][]float64, len(t.Series))
+	for si, series := range t.Series {
+		sampledSeries[si] = sampleValues(series.Values, graphWidth)
+	}
+
+	// Build graph rows
+	var rows []string
+
+	// Title row
+	titleLine := t.Title
+	if t.ShowMax {
+		titleLine += fmt.Sprintf(" (max: %.0f)", maxVal)
+	}
+	rows = append(rows, s.Header.Render(titleLine))
+
+	// Braille dot patterns (4 vertical levels)
+	braille := []string{"⠀", "⣀", "⣤", "⣶", "⣿"}
+
+	// Graph rows (top to bottom)
+	for row := t.Height - 1; row >= 0; row-- {
+		var rowStr strings.Builder
+		rowStr.WriteString("│")
+
+		rowTop := float64(row+1) / float64(t.Height)
+		rowBot := float64(row) / float64(t.Height)
+
+		for col := 0; col < graphWidth; col++ {
+			// Calculate cumulative height at this column
+			cumulative := 0.0
+			char := " "
+			var charColor lipgloss.Color
+
+			for si, series := range t.Series {
+				prevCum := cumulative
+				cumulative += sampledSeries[si][col]
+				normalized := cumulative / maxVal
+				prevNorm := prevCum / maxVal
+
+				if normalized > rowBot && prevNorm < rowTop {
+					// This series contributes to this row
+					charColor = series.Color
+
+					if normalized >= rowTop {
+						// Full braille block
+						char = braille[len(braille)-1]
+					} else {
+						// Partial braille block
+						fillRatio := (normalized - rowBot) / (rowTop - rowBot)
+						level := int(fillRatio * float64(len(braille)-1))
+						if level >= len(braille) {
+							level = len(braille) - 1
+						}
+						if level < 0 {
+							level = 0
+						}
+						char = braille[level]
+					}
+				}
+			}
+
+			if char != " " && charColor != "" {
+				rowStr.WriteString(lipgloss.NewStyle().Foreground(charColor).Render(char))
+			} else {
+				rowStr.WriteString(char)
+			}
+		}
+		rowStr.WriteString("│")
+		rows = append(rows, rowStr.String())
+	}
+
+	// Bottom border
+	rows = append(rows, "└"+strings.Repeat("─", graphWidth)+"┘")
+
+	return strings.Join(rows, "\n")
+}
+
+// sampleValues resamples a slice to the target width.
+func sampleValues(values []float64, width int) []float64 {
+	sampled := make([]float64, width)
+	if len(values) == 0 {
+		return sampled
+	}
+	if len(values) >= width {
+		offset := len(values) - width
+		for i := 0; i < width; i++ {
+			sampled[i] = values[offset+i]
+		}
+	} else {
+		offset := width - len(values)
+		for i := 0; i < width; i++ {
+			if i < offset {
+				sampled[i] = 0
+			} else {
+				sampled[i] = values[i-offset]
+			}
+		}
+	}
+	return sampled
 }
 
 // Render renders the traffic graph.
@@ -412,26 +558,17 @@ func (t TrafficGraph) Render(s Styles) string {
 		maxVal = 100
 	}
 
-	// Graph characters
+	// Graph characters (braille dots)
 	blocks := []string{"⠀", "⣀", "⣤", "⣶", "⣿"}
 
 	// Sample values
 	graphWidth := t.Width - 2 // Border
-	sampled := make([]float64, graphWidth)
-	if len(t.Values) >= graphWidth {
-		offset := len(t.Values) - graphWidth
-		for i := 0; i < graphWidth; i++ {
-			sampled[i] = t.Values[offset+i]
-		}
-	} else {
-		offset := graphWidth - len(t.Values)
-		for i := 0; i < graphWidth; i++ {
-			if i < offset {
-				sampled[i] = 0
-			} else {
-				sampled[i] = t.Values[i-offset]
-			}
-		}
+	sampled := sampleValues(t.Values, graphWidth)
+
+	// Determine style for graph elements
+	graphStyle := s.Info
+	if t.Color != "" {
+		graphStyle = lipgloss.NewStyle().Foreground(t.Color)
 	}
 
 	// Build graph rows
@@ -460,14 +597,14 @@ func (t TrafficGraph) Render(s Styles) string {
 
 			if normalized >= rowTop {
 				// Full block
-				rowStr.WriteString(s.Info.Render(blocks[4]))
+				rowStr.WriteString(graphStyle.Render(blocks[4]))
 			} else if normalized > rowBot {
 				// Partial block
 				level := int((normalized - rowBot) / (rowTop - rowBot) * float64(len(blocks)-1))
 				if level >= len(blocks) {
 					level = len(blocks) - 1
 				}
-				rowStr.WriteString(s.Info.Render(blocks[level]))
+				rowStr.WriteString(graphStyle.Render(blocks[level]))
 			} else {
 				rowStr.WriteString(" ")
 			}
