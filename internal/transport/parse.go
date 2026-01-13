@@ -98,6 +98,11 @@ func parseSSHURL(u *url.URL, opts Options) (Transport, error) {
 		sshOpts.Agent = false
 	}
 
+	// Remote OS specification (for path handling)
+	if remoteOS := q.Get("os"); remoteOS != "" {
+		sshOpts.RemoteOS = remoteOS
+	}
+
 	return NewSSH(host, sshOpts)
 }
 
@@ -109,7 +114,8 @@ func parseSSHHost(spec string, opts Options) (Transport, error) {
 	}
 
 	// Check for user@host format
-	if idx := strings.Index(spec, "@"); idx != -1 {
+	// Use LastIndex because usernames can contain @ (e.g., name@domain@host)
+	if idx := strings.LastIndex(spec, "@"); idx != -1 {
 		sshOpts.User = spec[:idx]
 		spec = spec[idx+1:]
 	}

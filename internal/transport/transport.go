@@ -78,6 +78,9 @@ type SSHOptions struct {
 	Port           int           // SSH port (default 22)
 	ConnectTimeout time.Duration // Connection timeout
 	KeepAlive      time.Duration // Keep-alive interval
+
+	// Remote host info
+	RemoteOS string // Remote operating system: "linux", "darwin", "windows" (default: "linux")
 }
 
 // DefaultSSHOptions returns sensible default SSH options.

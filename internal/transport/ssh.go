@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -143,10 +144,12 @@ func (s *SSH) buildSSHConfig() (*ssh.ClientConfig, error) {
 			return nil, fmt.Errorf("known hosts: %w", err)
 		}
 	} else {
-		// Try default known_hosts
-		defaultKnownHosts := filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts")
-		if _, err := os.Stat(defaultKnownHosts); err == nil {
-			hostKeyCallback, _ = knownhosts.New(defaultKnownHosts)
+		// Try default known_hosts (cross-platform home directory)
+		if home, err := os.UserHomeDir(); err == nil {
+			defaultKnownHosts := filepath.Join(home, ".ssh", "known_hosts")
+			if _, err := os.Stat(defaultKnownHosts); err == nil {
+				hostKeyCallback, _ = knownhosts.New(defaultKnownHosts)
+			}
 		}
 		if hostKeyCallback == nil {
 			// Fall back to insecure if no known_hosts available
@@ -157,7 +160,11 @@ func (s *SSH) buildSSHConfig() (*ssh.ClientConfig, error) {
 
 	user := s.opts.User
 	if user == "" {
+		// Cross-platform username detection
 		user = os.Getenv("USER")
+		if user == "" {
+			user = os.Getenv("USERNAME") // Windows
+		}
 	}
 
 	return &ssh.ClientConfig{
@@ -472,7 +479,14 @@ func (s *SSH) Close() error {
 func (s *SSH) String() string {
 	user := s.opts.User
 	if user == "" {
+		// Cross-platform username detection
 		user = os.Getenv("USER")
+		if user == "" {
+			user = os.Getenv("USERNAME") // Windows
+		}
+		if user == "" {
+			user = "unknown"
+		}
 	}
 	port := s.opts.Port
 	if port == 0 {
@@ -481,12 +495,33 @@ func (s *SSH) String() string {
 	return fmt.Sprintf("ssh://%s@%s:%d", user, s.host, port)
 }
 
+// RemoteOS returns the configured remote operating system.
+// Returns "linux" if not specified.
+func (s *SSH) RemoteOS() string {
+	if s.opts.RemoteOS != "" {
+		return s.opts.RemoteOS
+	}
+	return "linux"
+}
+
+// IsWindows returns true if the remote host is Windows.
+func (s *SSH) IsWindows() bool {
+	return s.RemoteOS() == "windows"
+}
+
 // Helper functions
 
 // sshAgentAuth returns an SSH agent authentication method.
+// Supports Unix sockets (Linux/macOS). On Windows, SSH agent is handled via
+// sshAgentAuthWindows in ssh_agent_windows.go, or falls back to key file auth.
 func sshAgentAuth() ssh.AuthMethod {
+	// Check for SSH_AUTH_SOCK (works on Unix, and some Windows SSH tools)
 	socket := os.Getenv("SSH_AUTH_SOCK")
 	if socket == "" {
+		// On Windows, try platform-specific agent connection
+		if runtime.GOOS == "windows" {
+			return sshAgentAuthWindows()
+		}
 		return nil
 	}
 
@@ -497,6 +532,18 @@ func sshAgentAuth() ssh.AuthMethod {
 
 	agentClient := agent.NewClient(conn)
 	return ssh.PublicKeysCallback(agentClient.Signers)
+}
+
+// sshAgentAuthWindows attempts to connect to Windows OpenSSH agent.
+// This is a stub that returns nil - Windows named pipe support requires
+// the github.com/Microsoft/go-winio package which isn't imported.
+// Users should use explicit key file authentication on Windows instead:
+//   ssh://user@host?key=C:/Users/name/.ssh/id_ed25519&agent=false
+func sshAgentAuthWindows() ssh.AuthMethod {
+	// Windows OpenSSH agent uses named pipe: \\.\pipe\openssh-ssh-agent
+	// Full support requires go-winio. For now, users should use key file auth.
+	// To enable: add "github.com/Microsoft/go-winio" and use winio.DialPipe()
+	return nil
 }
 
 // publicKeyAuth returns a public key authentication method.
@@ -520,8 +567,12 @@ func publicKeyAuth(keyPath, passphrase string) (ssh.AuthMethod, error) {
 }
 
 // defaultKeyPaths returns default SSH key file paths.
+// Uses os.UserHomeDir() for cross-platform compatibility (works on Windows, macOS, Linux).
 func defaultKeyPaths() []string {
-	home := os.Getenv("HOME")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
 	return []string{
 		filepath.Join(home, ".ssh", "id_ed25519"),
 		filepath.Join(home, ".ssh", "id_rsa"),

@@ -345,3 +345,150 @@ func TestOrchestrationPanel_TimeoutInput(t *testing.T) {
 		t.Errorf("timeout = %s, want 123", panel.timeout)
 	}
 }
+
+func TestOrchestrationPanel_QuickRun(t *testing.T) {
+	panel := NewOrchestrationPanel(DefaultStyles)
+
+	// Start quick run configuration
+	panel.startQuickRun()
+
+	// Should switch to quick run view
+	if panel.view != OrchViewQuickRun {
+		t.Errorf("view = %v, want OrchViewQuickRun", panel.view)
+	}
+
+	// Should have scenarios loaded
+	if len(panel.quickRunScenarios) == 0 {
+		t.Error("quickRunScenarios should not be empty")
+	}
+
+	// Should have baseline scenario
+	foundBaseline := false
+	for _, s := range panel.quickRunScenarios {
+		if s == "baseline" {
+			foundBaseline = true
+			break
+		}
+	}
+	if !foundBaseline {
+		t.Error("quickRunScenarios should contain 'baseline'")
+	}
+
+	// Test navigation
+	panel.quickRunField = 0
+
+	// Down should move to next field
+	msg := tea.KeyMsg{Type: tea.KeyDown}
+	newPanel, _ := panel.Update(msg, true)
+	panel = newPanel.(*OrchestrationPanel)
+
+	if panel.quickRunField != 1 {
+		t.Errorf("After down, quickRunField = %d, want 1", panel.quickRunField)
+	}
+
+	// Test scenario cycling with left/right
+	panel.quickRunField = 2 // scenario field
+	initialScenario := panel.quickRunScenario
+
+	// Right should cycle scenario
+	msg = tea.KeyMsg{Type: tea.KeyRight}
+	newPanel, _ = panel.Update(msg, true)
+	panel = newPanel.(*OrchestrationPanel)
+
+	if panel.quickRunScenario == initialScenario && len(panel.quickRunScenarios) > 1 {
+		t.Error("Right arrow should cycle scenario")
+	}
+
+	// Left should cycle back
+	msg = tea.KeyMsg{Type: tea.KeyLeft}
+	newPanel, _ = panel.Update(msg, true)
+	panel = newPanel.(*OrchestrationPanel)
+
+	if panel.quickRunScenario != initialScenario {
+		t.Errorf("Left should cycle back to initial scenario, got %d want %d", panel.quickRunScenario, initialScenario)
+	}
+}
+
+func TestOrchestrationPanel_QuickRunTitle(t *testing.T) {
+	panel := NewOrchestrationPanel(DefaultStyles)
+	panel.view = OrchViewQuickRun
+
+	if title := panel.Title(); title != "QUICK RUN" {
+		t.Errorf("Title() = %s, want QUICK RUN", title)
+	}
+}
+
+func TestOrchestrationPanel_QuickRunView(t *testing.T) {
+	panel := NewOrchestrationPanel(DefaultStyles)
+	panel.startQuickRun()
+
+	// View should render
+	view := panel.View(80, true)
+	if view == "" {
+		t.Error("Quick run view should not be empty")
+	}
+}
+
+func TestOrchestrationPanel_QuickRunEscape(t *testing.T) {
+	panel := NewOrchestrationPanel(DefaultStyles)
+	panel.startQuickRun()
+
+	// Escape should return to controller view
+	msg := tea.KeyMsg{Type: tea.KeyEscape}
+	newPanel, _ := panel.Update(msg, true)
+	panel = newPanel.(*OrchestrationPanel)
+
+	if panel.view != OrchViewController {
+		t.Errorf("View after escape = %v, want OrchViewController", panel.view)
+	}
+}
+
+func TestGetAvailableScenarios(t *testing.T) {
+	scenarios := getAvailableScenarios()
+
+	if len(scenarios) == 0 {
+		t.Error("getAvailableScenarios should return at least one scenario")
+	}
+
+	// Should include baseline
+	foundBaseline := false
+	for _, s := range scenarios {
+		if s == "baseline" {
+			foundBaseline = true
+			break
+		}
+	}
+	if !foundBaseline {
+		t.Error("scenarios should include 'baseline'")
+	}
+}
+
+func TestOrchestrationPanel_GetAgentName(t *testing.T) {
+	panel := NewOrchestrationPanel(DefaultStyles)
+	panel.loadAgentRegistry()
+
+	// Local agent should return "local"
+	if name := panel.getAgentName(0); name != "local" {
+		t.Errorf("getAgentName(0) = %s, want local", name)
+	}
+
+	// Out of bounds should return "unknown"
+	if name := panel.getAgentName(999); name != "unknown" {
+		t.Errorf("getAgentName(999) = %s, want unknown", name)
+	}
+}
+
+func TestOrchestrationPanel_GetAgentTransport(t *testing.T) {
+	panel := NewOrchestrationPanel(DefaultStyles)
+	panel.loadAgentRegistry()
+
+	// Local agent should return "local"
+	if transport := panel.getAgentTransport(0); transport != "local" {
+		t.Errorf("getAgentTransport(0) = %s, want local", transport)
+	}
+
+	// Out of bounds should return "local"
+	if transport := panel.getAgentTransport(999); transport != "local" {
+		t.Errorf("getAgentTransport(999) = %s, want local", transport)
+	}
+}

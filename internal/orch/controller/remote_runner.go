@@ -14,6 +14,12 @@ import (
 	"github.com/tturner/cipdip/internal/transport"
 )
 
+// remotePath joins path components using forward slashes for SSH/SFTP.
+// SFTP protocol always uses forward slashes regardless of remote OS.
+func remotePath(parts ...string) string {
+	return strings.Join(parts, "/")
+}
+
 // RemoteRunner manages execution of a role on a remote host via SSH.
 type RemoteRunner struct {
 	role      string
@@ -53,13 +59,16 @@ func NewRemoteRunner(role string, args []string, b *bundle.Bundle, t transport.T
 		return nil, fmt.Errorf("transport is required for remote runner")
 	}
 
+	// Default to Unix-style temp directory (can be overridden with SetWorkDir for Windows)
+	workDir := fmt.Sprintf("/tmp/cipdip-%s", role)
+
 	return &RemoteRunner{
 		role:      role,
 		args:      args,
 		bundle:    b,
 		transport: t,
 		agentID:   agentID,
-		workDir:   fmt.Sprintf("/tmp/cipdip-%s", role),
+		workDir:   workDir,
 		doneCh:    make(chan struct{}),
 		readyCh:   make(chan struct{}),
 		meta: &bundle.RoleMeta{
@@ -68,6 +77,14 @@ func NewRemoteRunner(role string, args []string, b *bundle.Bundle, t transport.T
 			Argv:    args,
 		},
 	}, nil
+}
+
+// SetWorkDirForWindows sets the working directory for a Windows remote host.
+// Call this before Start() if the remote agent is Windows.
+func (r *RemoteRunner) SetWorkDirForWindows() {
+	// Use a Windows-compatible temp path
+	// C:/Windows/Temp is accessible, or we could use %TEMP% but that requires shell expansion
+	r.workDir = fmt.Sprintf("C:/Windows/Temp/cipdip-%s", r.role)
 }
 
 // SetWorkDir sets the remote working directory.
@@ -246,16 +263,16 @@ func (r *RemoteRunner) CollectArtifacts(ctx context.Context) error {
 
 	var collectedPcaps []string
 	for _, pcapFile := range pcapFiles {
-		remotePath := filepath.Join(r.workDir, pcapFile)
-		localPath := filepath.Join(roleDir, pcapFile)
+		remoteFilePath := remotePath(r.workDir, pcapFile) // Use forward slashes for SFTP
+		localPath := filepath.Join(roleDir, pcapFile)     // Local path uses OS separator
 
 		// Check if file exists on remote
-		if _, err := r.transport.Stat(ctx, remotePath); err != nil {
+		if _, err := r.transport.Stat(ctx, remoteFilePath); err != nil {
 			continue // File doesn't exist
 		}
 
 		// Copy from remote
-		if err := r.transport.Get(ctx, remotePath, localPath); err != nil {
+		if err := r.transport.Get(ctx, remoteFilePath, localPath); err != nil {
 			return fmt.Errorf("get pcap %s: %w", pcapFile, err)
 		}
 		collectedPcaps = append(collectedPcaps, pcapFile)
@@ -271,17 +288,17 @@ func (r *RemoteRunner) CollectArtifacts(ctx context.Context) error {
 
 // PushProfile copies a profile file to the remote host.
 func (r *RemoteRunner) PushProfile(ctx context.Context, localPath string) (string, error) {
-	remotePath := filepath.Join(r.workDir, filepath.Base(localPath))
+	remoteFilePath := remotePath(r.workDir, filepath.Base(localPath)) // Forward slashes for SFTP
 
 	if err := r.transport.Mkdir(ctx, r.workDir); err != nil {
 		return "", fmt.Errorf("create remote workdir: %w", err)
 	}
 
-	if err := r.transport.Put(ctx, localPath, remotePath); err != nil {
+	if err := r.transport.Put(ctx, localPath, remoteFilePath); err != nil {
 		return "", fmt.Errorf("push profile: %w", err)
 	}
 
-	return remotePath, nil
+	return remoteFilePath, nil
 }
 
 // Cleanup removes the remote working directory.
