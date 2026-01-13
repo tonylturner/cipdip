@@ -53,6 +53,8 @@ func GetScenario(name string) (Scenario, error) {
 		return &MixedStateScenario{}, nil
 	case "unconnected_send":
 		return &UnconnectedSendScenario{}, nil
+	case "dpi_explicit":
+		return &DPIExplicitScenario{}, nil
 	case "firewall_hirschmann":
 		return &FirewallScenario{Vendor: "hirschmann"}, nil
 	case "firewall_moxa":
@@ -61,8 +63,6 @@ func GetScenario(name string) (Scenario, error) {
 		return &FirewallScenario{Vendor: "dynics"}, nil
 	case "firewall_pack":
 		return &FirewallScenario{Vendor: "pack"}, nil
-	case "dpi_explicit":
-		return &DPIExplicitScenario{}, nil
 	default:
 		return nil, &UnknownScenarioError{Name: name}
 	}
