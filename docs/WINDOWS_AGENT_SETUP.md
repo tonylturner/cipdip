@@ -73,23 +73,30 @@ New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server' -Enabled True -Dire
 
 ## Step 5: Build and Install cipdip
 
+Run PowerShell **as Administrator**:
+
 ```powershell
 # Navigate to cipdip source directory
 cd C:\path\to\cipdip
 
-# Build and install to Go bin directory
-go install ./cmd/cipdip
+# Build the binary
+go build ./cmd/cipdip
 
-# Verify installation
-cipdip --version
+# Install to system PATH (requires Administrator)
+.\cipdip install --force
 ```
 
-Ensure the Go bin directory is in your PATH. Default location is `%USERPROFILE%\go\bin`.
+The `cipdip install` command will:
+1. Copy the binary to `C:\Windows\System32` (always in system PATH)
+2. Set up shell completion
 
-To add permanently:
-1. Open System Properties → Advanced → Environment Variables
-2. Edit `Path` under User variables
-3. Add `%USERPROFILE%\go\bin`
+This ensures cipdip is available in SSH sessions, which use the system PATH rather than user PATH.
+
+**Alternative: Manual Go install** (not recommended for remote agents):
+```powershell
+go install ./cmd/cipdip
+```
+Note: `go install` puts the binary in `%USERPROFILE%\go\bin`, which is NOT in the system PATH and won't work for SSH sessions.
 
 ## Step 6: Test the Setup
 
@@ -119,22 +126,36 @@ PCAP Capable: true
 2. Go to **Orchestration** panel
 3. Press **Tab** to switch to **Agents** view
 4. Press **a** to add new agent
-5. Enter name, user, and host
-6. Press **Enter** to save
-7. Press **c** to check connectivity
+5. Enter name, user, host, and port
+6. Set **OS** to `windows` using ←/→ arrows
+7. Set **Elevate** to `Yes` (for PCAP capture)
+8. Press **Enter** to save
+9. Press **c** to check connectivity
 
-The agent should show `windows/amd64` after checking, confirming Windows was detected.
+The agent status should show:
+- `windows/amd64` - Confirms Windows detected
+- `PCAP: Yes` - npcap is available
+- `Elevate: Yes (admin)` - Administrator privileges confirmed
 
-### Option B: Manual Manifest Configuration
+### Option B: Using SSH Setup Wizard
 
-Add `?os=windows` to the agent transport string:
+1. Press **s** for SSH Setup wizard
+2. Follow the guided steps to configure SSH key authentication
+3. Set **OS** to `windows` and **Elevate** to `Yes`
 
-```yaml
-roles:
-  client:
-    agent: "ssh://user@windows-ip?os=windows&key=/path/to/key&agent=false"
-    scenario: baseline
+### Option C: Manual Transport URL
+
+The transport URL format for Windows:
+
 ```
+ssh://user@windows-ip?os=windows&elevate=true&key=/path/to/key&agent=false
+```
+
+Parameters:
+- `os=windows` - Required for Windows path handling
+- `elevate=true` - Enables admin privilege checks
+- `key=/path/to/key` - SSH private key path
+- `agent=false` - Disable SSH agent (recommended for Windows)
 
 ## Troubleshooting
 
@@ -166,8 +187,28 @@ $env:PATH += ";$env:USERPROFILE\go\bin"
 
 Windows OpenSSH uses named pipes for the SSH agent, which isn't fully supported. Use explicit key file authentication instead:
 
-```yaml
-agent: "ssh://user@host?key=C:/Users/name/.ssh/id_ed25519&agent=false"
+```
+ssh://user@host?key=C:/Users/name/.ssh/id_ed25519&agent=false
+```
+
+### Elevate Shows "No"
+
+The elevation check runs `net session` remotely. If it shows "No":
+
+1. Ensure you're logged in as an Administrator user
+2. Verify your user is in the Administrators group:
+   ```powershell
+   whoami /groups | findstr Administrators
+   ```
+3. Check that the SSH session has admin privileges:
+   ```bash
+   ssh user@windows-ip "whoami /groups | findstr Administrators"
+   ```
+
+If the user isn't an administrator, add them:
+```powershell
+# Run as Administrator
+Add-LocalGroupMember -Group "Administrators" -Member "username"
 ```
 
 ## Architecture Notes

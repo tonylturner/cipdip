@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tturner/cipdip/internal/orch/controller"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
@@ -75,7 +76,7 @@ func NewModel(state *AppState) *Model {
 		serverPanel:   NewServerPanel(styles),
 		pcapPanel:     NewPCAPPanel(styles),
 		catalogPanel:  NewCatalogPanel(styles, state),
-		orchPanel:     NewOrchestrationPanel(styles),
+		orchPanel:     NewOrchestrationPanelWithWorkspace(styles, state.WorkspaceRoot),
 	}
 
 	// Refresh PCAP files with workspace context
@@ -317,9 +318,48 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case rerunCommandMsg:
 		// Handle re-run request from runs screen
 		return m.handleRerunCommand(msg)
+
+	case orchOutputMsg:
+		// Handle orchestration output event
+		if m.orchPanel != nil {
+			m.orchPanel.handleOutputEvent(msg.event)
+		}
+		// Continue forwarding output events
+		if m.state.OrchOutputCh != nil {
+			return m, ForwardOrchOutputCmd(m.state.OrchOutputCh)
+		}
+		return m, nil
+
+	case orchPhaseUpdateMsg:
+		// Handle orchestration phase update
+		if m.orchPanel != nil {
+			m.orchPanel.handlePhaseUpdate(msg.phase, msg.message)
+		}
+		// Continue forwarding phase events
+		if m.state.OrchPhaseCh != nil {
+			return m, ForwardOrchPhaseCmd(m.state.OrchPhaseCh)
+		}
+		return m, nil
+
+	case orchRunDoneMsg:
+		// Handle orchestration run completion
+		if m.orchPanel != nil {
+			m.orchPanel.handleRunDone(msg.result, msg.err)
+		}
+		m.state.OrchRunning = false
+		return m, nil
+
+	case startOrchRunMsg:
+		// Start the orchestration run
+		return m.startOrchRun(msg.config)
 	}
 
 	return m, nil
+}
+
+// startOrchRunMsg signals start of an orchestration run.
+type startOrchRunMsg struct {
+	config OrchRunConfig
 }
 
 // handleRerunCommand parses a saved command and dispatches to the appropriate runner.
@@ -1080,4 +1120,30 @@ func (m *Model) GetCatalogPanel() *CatalogPanel {
 // GetOrchPanel returns the orchestration panel.
 func (m *Model) GetOrchPanel() *OrchestrationPanel {
 	return m.orchPanel
+}
+
+// startOrchRun starts the orchestration controller.
+func (m *Model) startOrchRun(cfg OrchRunConfig) (tea.Model, tea.Cmd) {
+	m.state.OrchRunning = true
+
+	// Create context for this run
+	ctx, cancel := context.WithCancel(context.Background())
+	m.state.OrchCtx = ctx
+	m.state.OrchCancel = cancel
+
+	// Create channels for event forwarding
+	outputCh := make(chan controller.OutputEvent, 100)
+	phaseCh := make(chan orchPhaseUpdateMsg, 20)
+	m.state.OrchOutputCh = outputCh
+	m.state.OrchPhaseCh = phaseCh
+
+	// Start the orchestration run command
+	runCmd := StartOrchRunCmd(ctx, cfg, outputCh, phaseCh)
+
+	// Also start forwarding commands
+	return m, tea.Batch(
+		runCmd,
+		ForwardOrchOutputCmd(outputCh),
+		ForwardOrchPhaseCmd(phaseCh),
+	)
 }

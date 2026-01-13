@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/tturner/cipdip/internal/cip/catalog"
+	"github.com/tturner/cipdip/internal/orch/controller"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
@@ -62,6 +63,13 @@ type AppState struct {
 	ClientCancel     context.CancelFunc
 	ClientStatsChan  <-chan StatsUpdate
 	ClientResultChan <-chan CommandResult
+
+	// Orchestration state
+	OrchRunning  bool
+	OrchCtx      context.Context
+	OrchCancel   context.CancelFunc
+	OrchOutputCh <-chan controller.OutputEvent
+	OrchPhaseCh  <-chan orchPhaseUpdateMsg
 
 	// Recent runs for main menu
 	RecentRuns []RecentRun

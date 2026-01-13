@@ -103,6 +103,11 @@ func parseSSHURL(u *url.URL, opts Options) (Transport, error) {
 		sshOpts.RemoteOS = remoteOS
 	}
 
+	// Privilege escalation
+	if elevate := q.Get("elevate"); elevate == "true" || elevate == "1" {
+		sshOpts.Elevate = true
+	}
+
 	return NewSSH(host, sshOpts)
 }
 

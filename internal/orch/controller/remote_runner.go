@@ -48,6 +48,9 @@ type RemoteRunner struct {
 
 	// Cancel function for stopping the remote process
 	cancelFn context.CancelFunc
+
+	// Output streaming
+	outputCh chan OutputEvent
 }
 
 // NewRemoteRunner creates a new runner for executing a role on a remote host.
@@ -71,6 +74,7 @@ func NewRemoteRunner(role string, args []string, b *bundle.Bundle, t transport.T
 		workDir:   workDir,
 		doneCh:    make(chan struct{}),
 		readyCh:   make(chan struct{}),
+		outputCh:  make(chan OutputEvent, 100), // Buffered to avoid blocking
 		meta: &bundle.RoleMeta{
 			Role:    role,
 			AgentID: agentID,
@@ -129,12 +133,21 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 
 	// Create writers that capture to our buffers and check for readiness
 	stdoutWriter := &readinessWriter{
-		buf:     &r.stdoutBuf,
-		mu:      &r.mu,
-		readyCh: r.readyCh,
-		ready:   &r.ready,
+		buf:      &r.stdoutBuf,
+		mu:       &r.mu,
+		readyCh:  r.readyCh,
+		ready:    &r.ready,
+		outputCh: r.outputCh,
+		role:     r.role,
+		stream:   "stdout",
 	}
-	stderrWriter := &bufWriter{buf: &r.stderrBuf, mu: &r.mu}
+	stderrWriter := &bufWriter{
+		buf:      &r.stderrBuf,
+		mu:       &r.mu,
+		outputCh: r.outputCh,
+		role:     r.role,
+		stream:   "stderr",
+	}
 
 	// Execute via transport
 	exitCode, err := r.transport.ExecStream(ctx, cmd, nil, r.workDir, stdoutWriter, stderrWriter)
@@ -147,6 +160,8 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 	r.meta.ExitCode = exitCode
 	r.mu.Unlock()
 
+	// Close output channel after process exits
+	close(r.outputCh)
 	close(r.doneCh)
 }
 
@@ -311,25 +326,52 @@ func (r *RemoteRunner) Cleanup(ctx context.Context) error {
 
 // Helper types for output capture
 
-// bufWriter writes to a string builder with mutex protection.
+// bufWriter writes to a string builder with mutex protection and output events.
 type bufWriter struct {
-	buf *strings.Builder
-	mu  *sync.Mutex
+	buf      *strings.Builder
+	mu       *sync.Mutex
+	outputCh chan OutputEvent
+	role     string
+	stream   string
+	line     strings.Builder
 }
 
 func (w *bufWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.buf.Write(p)
+
+	w.buf.Write(p)
+
+	// Emit line-by-line output events
+	if w.outputCh != nil {
+		for _, b := range p {
+			if b == '\n' {
+				line := w.line.String()
+				w.line.Reset()
+				select {
+				case w.outputCh <- OutputEvent{Role: w.role, Stream: w.stream, Line: line, Time: time.Now()}:
+				default:
+					// Channel full, drop event
+				}
+			} else {
+				w.line.WriteByte(b)
+			}
+		}
+	}
+
+	return len(p), nil
 }
 
 // readinessWriter writes to a buffer and checks for readiness events.
 type readinessWriter struct {
-	buf     *strings.Builder
-	mu      *sync.Mutex
-	readyCh chan struct{}
-	ready   *bool
-	line    strings.Builder
+	buf      *strings.Builder
+	mu       *sync.Mutex
+	readyCh  chan struct{}
+	ready    *bool
+	line     strings.Builder
+	outputCh chan OutputEvent
+	role     string
+	stream   string
 }
 
 func (w *readinessWriter) Write(p []byte) (int, error) {
@@ -344,6 +386,15 @@ func (w *readinessWriter) Write(p []byte) (int, error) {
 			line := w.line.String()
 			w.line.Reset()
 
+			// Emit output event (non-blocking)
+			if w.outputCh != nil {
+				select {
+				case w.outputCh <- OutputEvent{Role: w.role, Stream: w.stream, Line: line, Time: time.Now()}:
+				default:
+					// Channel full, drop event
+				}
+			}
+
 			// Check for readiness event
 			if !*w.ready && strings.Contains(line, `"event":"server_ready"`) {
 				*w.ready = true
@@ -355,6 +406,11 @@ func (w *readinessWriter) Write(p []byte) (int, error) {
 	}
 
 	return len(p), nil
+}
+
+// OutputCh returns the channel for real-time output events.
+func (r *RemoteRunner) OutputCh() <-chan OutputEvent {
+	return r.outputCh
 }
 
 // Ensure RemoteRunner implements RoleRunner

@@ -7,6 +7,14 @@ import (
 	"github.com/tturner/cipdip/internal/orch/bundle"
 )
 
+// OutputEvent represents a line of output from a role process.
+type OutputEvent struct {
+	Role   string    // "server" or "client"
+	Stream string    // "stdout" or "stderr"
+	Line   string    // The output line (without newline)
+	Time   time.Time // When the output was received
+}
+
 // RoleRunner is the interface for running server/client roles.
 // It abstracts local and remote execution.
 type RoleRunner interface {
@@ -37,6 +45,10 @@ type RoleRunner interface {
 	// CollectArtifacts collects artifacts to the bundle.
 	// For remote runners, this copies files from the remote host.
 	CollectArtifacts(ctx context.Context) error
+
+	// OutputCh returns a channel that receives output events in real-time.
+	// The channel is closed when the process exits.
+	OutputCh() <-chan OutputEvent
 }
 
 // Ensure Runner implements RoleRunner

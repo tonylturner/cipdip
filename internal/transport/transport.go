@@ -81,6 +81,9 @@ type SSHOptions struct {
 
 	// Remote host info
 	RemoteOS string // Remote operating system: "linux", "darwin", "windows" (default: "linux")
+
+	// Privilege escalation
+	Elevate bool // Use sudo (Unix) or run as admin (Windows)
 }
 
 // DefaultSSHOptions returns sensible default SSH options.

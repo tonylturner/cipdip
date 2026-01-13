@@ -41,6 +41,9 @@ type Runner struct {
 	// Readiness detection
 	readyCh chan struct{}
 	ready   bool
+
+	// Output streaming
+	outputCh chan OutputEvent
 }
 
 // NewRunner creates a new runner for a role.
@@ -50,10 +53,11 @@ func NewRunner(role string, args []string, b *bundle.Bundle) (*Runner, error) {
 	}
 
 	return &Runner{
-		role:    role,
-		args:    args,
-		bundle:  b,
-		readyCh: make(chan struct{}),
+		role:     role,
+		args:     args,
+		bundle:   b,
+		readyCh:  make(chan struct{}),
+		outputCh: make(chan OutputEvent, 100), // Buffered to avoid blocking
 		meta: &bundle.RoleMeta{
 			Role: role,
 			Argv: args,
@@ -108,10 +112,19 @@ func (r *Runner) captureStdout() {
 	scanner := bufio.NewScanner(r.stdout)
 	for scanner.Scan() {
 		line := scanner.Text()
+		now := time.Now()
+
 		r.mu.Lock()
 		r.stdoutBuf.WriteString(line)
 		r.stdoutBuf.WriteString("\n")
 		r.mu.Unlock()
+
+		// Emit output event (non-blocking)
+		select {
+		case r.outputCh <- OutputEvent{Role: r.role, Stream: "stdout", Line: line, Time: now}:
+		default:
+			// Channel full, drop event to avoid blocking
+		}
 
 		// Check for readiness event
 		if !r.ready && strings.Contains(line, `"event":"server_ready"`) {
@@ -130,10 +143,19 @@ func (r *Runner) captureStderr() {
 	scanner := bufio.NewScanner(r.stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
+		now := time.Now()
+
 		r.mu.Lock()
 		r.stderrBuf.WriteString(line)
 		r.stderrBuf.WriteString("\n")
 		r.mu.Unlock()
+
+		// Emit output event (non-blocking)
+		select {
+		case r.outputCh <- OutputEvent{Role: r.role, Stream: "stderr", Line: line, Time: now}:
+		default:
+			// Channel full, drop event to avoid blocking
+		}
 	}
 }
 
@@ -142,8 +164,6 @@ func (r *Runner) waitForExit() {
 	err := r.cmd.Wait()
 
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.finished = true
 	r.meta.FinishedAt = time.Now()
 
@@ -160,6 +180,10 @@ func (r *Runner) waitForExit() {
 		r.exitCode = 0
 		r.meta.ExitCode = 0
 	}
+	r.mu.Unlock()
+
+	// Close output channel after process exits
+	close(r.outputCh)
 }
 
 // Wait waits for the process to complete.
@@ -311,4 +335,9 @@ func ParseReadyEvent(line string) (*ReadyEvent, error) {
 		return nil, fmt.Errorf("not a server_ready event")
 	}
 	return &event, nil
+}
+
+// OutputCh returns the channel for real-time output events.
+func (r *Runner) OutputCh() <-chan OutputEvent {
+	return r.outputCh
 }
