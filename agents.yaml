@@ -1,0 +1,6 @@
+agents:
+    mac-1:
+        name: mac-1
+        transport: ssh://tturner@192.168.100.25
+        last_check: 2026-01-13T14:00:15.315658-05:00
+        status: ok

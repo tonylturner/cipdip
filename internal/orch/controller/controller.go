@@ -157,8 +157,19 @@ func (c *Controller) createRunner(role string, args []string) (RoleRunner, error
 	// Check if we have a remote transport for this role
 	if t, ok := c.transports[role]; ok {
 		// For remote execution, prepend "cipdip" (assumed to be in PATH on remote)
+		// On Windows, the binary would be cipdip.exe but SSH typically handles this
 		fullArgs := append([]string{"cipdip"}, args...)
-		return NewRemoteRunner(role, fullArgs, c.bundle, t, agentSpec)
+		runner, err := NewRemoteRunner(role, fullArgs, c.bundle, t, agentSpec)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if remote is Windows and configure work directory accordingly
+		if sshTransport, ok := t.(*transport.SSH); ok && sshTransport.IsWindows() {
+			runner.SetWorkDirForWindows()
+		}
+
+		return runner, nil
 	}
 
 	// For local execution, use the current executable path
@@ -603,19 +614,7 @@ func (c *Controller) phaseBundle(ctx context.Context, result *Result) error {
 	return nil
 }
 
-// phaseAnalyze runs post-run analysis.
-func (c *Controller) phaseAnalyze(ctx context.Context, result *Result) error {
-	c.reportPhase(PhaseAnalyze, "Running analysis")
-	// TODO: Implement PCAP analysis
-	return nil
-}
-
-// phaseDiff runs diff against baseline.
-func (c *Controller) phaseDiff(ctx context.Context, result *Result) error {
-	c.reportPhase(PhaseDiff, "Running diff")
-	// TODO: Implement bundle diff
-	return nil
-}
+// phaseAnalyze and phaseDiff are implemented in analysis.go
 
 // Helper functions
 
