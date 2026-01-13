@@ -92,7 +92,7 @@ func (cfg PCAPRunConfig) BuildCommandArgs() []string {
 		return args
 
 	case "diff":
-		return []string{"cipdip", "pcap-diff", "--file1", cfg.InputFile, "--file2", cfg.InputFile2}
+		return []string{"cipdip", "pcap-diff", "--baseline", cfg.InputFile, "--compare", cfg.InputFile2}
 
 	default:
 		return []string{"cipdip", "pcap-summary", "--input", cfg.InputFile}
