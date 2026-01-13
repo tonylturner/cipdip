@@ -82,6 +82,11 @@ Available scenarios:
   firewall_dynics     - Dynics ICS-Defender DPI test pack
   firewall_pack       - Run all firewall vendor packs (hirschmann, moxa, dynics)
 
+  dpi_explicit        - Generic DPI explicit messaging test (vendor-neutral)
+                        6-phase test: baseline, read ambiguity, connection lifecycle,
+                        large payloads, violations, allowlist precision
+                        Focused on TCP 44818 explicit messaging only
+
 Configuration is loaded from cipdip_client.yaml (or --config). The config file defines
 which CIP paths (class/instance/attribute) to read/write and any I/O connections.
 
@@ -127,7 +132,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 	}
 
 	cmd.Flags().StringVar(&flags.ip, "ip", "", "Target CIP adapter IP address (required)")
-	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|rockwell|vendor_variants|mixed_state|unconnected_send|firewall_hirschmann|firewall_moxa|firewall_dynics|firewall_pack (required)")
+	cmd.Flags().StringVar(&flags.scenario, "scenario", "", "Scenario name: baseline|mixed|stress|churn|io|edge_valid|edge_vendor|rockwell|vendor_variants|mixed_state|unconnected_send|firewall_hirschmann|firewall_moxa|firewall_dynics|firewall_pack|dpi_explicit (required)")
 	cmd.Flags().IntVar(&flags.port, "port", 44818, "CIP TCP port (default 44818)")
 	cmd.Flags().IntVar(&flags.intervalMs, "interval-ms", 0, "Base polling interval in milliseconds (scenario-specific default if omitted)")
 	cmd.Flags().IntVar(&flags.durationSec, "duration-seconds", 300, "Total run time in seconds (default 300)")

@@ -61,6 +61,8 @@ func GetScenario(name string) (Scenario, error) {
 		return &FirewallScenario{Vendor: "dynics"}, nil
 	case "firewall_pack":
 		return &FirewallScenario{Vendor: "pack"}, nil
+	case "dpi_explicit":
+		return &DPIExplicitScenario{}, nil
 	default:
 		return nil, &UnknownScenarioError{Name: name}
 	}
