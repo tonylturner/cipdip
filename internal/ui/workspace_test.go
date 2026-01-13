@@ -30,9 +30,8 @@ func TestCreateWorkspace(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "catalogs", "core.yaml")); err != nil {
-		t.Fatalf("missing default catalog: %v", err)
-	}
+	// Note: Catalogs are no longer created in workspaces.
+	// The single source of truth is /catalogs/core.yaml at repo root.
 
 	profilePath := filepath.Join(root, "profiles", "baseline-default.yaml")
 	if _, err := os.Stat(profilePath); err != nil {

@@ -220,7 +220,11 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 				}
 			}
 		case "y":
-			// Copy command to clipboard - not implemented yet
+			// Copy command to clipboard
+			command := m.loadCommand()
+			if command != "" {
+				return m, copyToClipboard(command)
+			}
 		}
 		return m, nil
 	}
@@ -278,7 +282,17 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 			}
 		}
 	case "y":
-		// Copy command - not implemented yet
+		// Copy command to clipboard
+		if m.cursor < len(filtered) {
+			runDir := filepath.Join(m.state.WorkspaceRoot, "runs", filtered[m.cursor])
+			commandPath := filepath.Join(runDir, "command.txt")
+			if data, err := os.ReadFile(commandPath); err == nil {
+				command := strings.TrimSpace(string(data))
+				if command != "" {
+					return m, copyToClipboard(command)
+				}
+			}
+		}
 	case "d":
 		// Delete with confirmation
 		if m.cursor < len(filtered) {
