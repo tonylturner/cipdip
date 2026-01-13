@@ -31,11 +31,14 @@ type Agent struct {
 	LastCheck   time.Time   `yaml:"last_check,omitempty"`
 	Status      AgentStatus `yaml:"status,omitempty"`
 	StatusMsg   string      `yaml:"status_msg,omitempty"`
+	Elevate     bool        `yaml:"elevate,omitempty"` // Use sudo (Unix) or admin (Windows)
 
 	// Cached capabilities (from last check)
-	OSArch      string `yaml:"os_arch,omitempty"`
-	CipdipVer   string `yaml:"cipdip_version,omitempty"`
-	PCAPCapable bool   `yaml:"pcap_capable,omitempty"`
+	OSArch           string `yaml:"os_arch,omitempty"`
+	CipdipVer        string `yaml:"cipdip_version,omitempty"`
+	PCAPCapable      bool   `yaml:"pcap_capable,omitempty"`
+	ElevateAvailable bool   `yaml:"elevate_available,omitempty"`
+	ElevateMethod    string `yaml:"elevate_method,omitempty"` // "sudo" or "admin"
 }
 
 // AgentRegistry manages the collection of registered agents.
@@ -153,6 +156,7 @@ type SSHInfo struct {
 	KeyFile  string
 	Insecure bool
 	OS       string // Remote OS: linux, windows, darwin (empty = linux)
+	Elevate  bool   // Use sudo (Unix) or admin (Windows) for commands
 }
 
 // ParseSSHTransport parses an SSH transport string into components.
@@ -180,6 +184,8 @@ func ParseSSHTransport(transport string) (*SSHInfo, error) {
 						info.Insecure = parts[1] == "true"
 					case "os":
 						info.OS = parts[1]
+					case "elevate":
+						info.Elevate = parts[1] == "true"
 					}
 				}
 			}
@@ -234,6 +240,9 @@ func (s *SSHInfo) ToTransport() string {
 	}
 	if s.OS != "" && s.OS != "linux" {
 		params = append(params, "os="+s.OS)
+	}
+	if s.Elevate {
+		params = append(params, "elevate=true")
 	}
 
 	if len(params) > 0 {
@@ -571,9 +580,11 @@ func TestSSHConnection(user, host, port, keyFile string) error {
 
 // AgentCapabilities holds remote agent capability info.
 type AgentCapabilities struct {
-	OSArch      string
-	Version     string
-	PCAPCapable bool
+	OSArch           string
+	Version          string
+	PCAPCapable      bool
+	ElevateAvailable bool   // sudo (Unix) or admin (Windows) available
+	ElevateMethod    string // "sudo", "admin", or empty if not available
 }
 
 // GetRemoteAgentCapabilities queries a remote agent for its capabilities.
@@ -631,5 +642,52 @@ func GetRemoteAgentCapabilities(info *SSHInfo) (*AgentCapabilities, error) {
 		}
 	}
 
+	// Check elevation capabilities
+	caps.ElevateAvailable, caps.ElevateMethod = checkRemoteElevation(info)
+
 	return caps, nil
+}
+
+// checkRemoteElevation checks if elevated privileges are available on the remote host.
+func checkRemoteElevation(info *SSHInfo) (bool, string) {
+	target := info.Host
+	if info.User != "" {
+		target = info.User + "@" + info.Host
+	}
+
+	args := []string{
+		"-o", "BatchMode=yes",
+		"-o", "ConnectTimeout=5",
+		"-o", "StrictHostKeyChecking=accept-new",
+	}
+
+	if info.KeyFile != "" {
+		args = append(args, "-i", info.KeyFile)
+	}
+
+	if info.Port != "" && info.Port != "22" {
+		args = append(args, "-p", info.Port)
+	}
+
+	args = append(args, target)
+
+	if info.OS == "windows" {
+		// On Windows, check if user is admin by trying to access a protected resource
+		// "net session" returns 0 if running as admin, non-zero otherwise
+		checkArgs := append(args, "net", "session")
+		cmd := exec.Command("ssh", checkArgs...)
+		if err := cmd.Run(); err == nil {
+			return true, "admin"
+		}
+		return false, ""
+	}
+
+	// On Unix, check if passwordless sudo is available
+	// sudo -n true returns 0 if sudo works without password
+	checkArgs := append(args, "sudo -n true 2>/dev/null")
+	cmd := exec.Command("ssh", checkArgs...)
+	if err := cmd.Run(); err == nil {
+		return true, "sudo"
+	}
+	return false, ""
 }

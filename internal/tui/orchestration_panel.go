@@ -12,8 +12,10 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/tturner/cipdip/internal/manifest"
 	"github.com/tturner/cipdip/internal/orch/bundle"
+	"github.com/tturner/cipdip/internal/orch/controller"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
@@ -136,6 +138,7 @@ type OrchestrationPanel struct {
 	addAgentKeys        []ui.SSHKeyInfo // Available SSH keys
 	addAgentKeyIdx      int             // Selected key index (0 = none/default)
 	addAgentOSIdx       int             // OS index: 0=linux, 1=windows, 2=darwin
+	addAgentElevate     bool            // Use sudo/admin elevation
 
 	// SSH wizard state
 	sshWizardStep       SSHWizardStep
@@ -175,6 +178,16 @@ type OrchestrationPanel struct {
 	// Run context
 	runCtx    context.Context
 	runCancel context.CancelFunc
+
+	// Run details (captured when run starts)
+	runScenario      string   // Scenario being run
+	runTargetIP      string   // Target IP
+	runServerAgent   string   // Server agent name
+	runClientAgent   string   // Client agent name
+	runDuration      string   // Duration in seconds
+	runCapture       bool     // PCAP capture enabled
+	runStatusMsg     string   // Current status message
+	runLogLines      []string // Recent log lines (last N)
 }
 
 // NewOrchestrationPanel creates a new orchestration panel.
@@ -352,6 +365,15 @@ func (p *OrchestrationPanel) updateControllerView(msg tea.KeyMsg) (Panel, tea.Cm
 			// Open bundle directory
 			if p.bundlePath != "" {
 				_ = openInEditor(p.bundlePath)
+			}
+		case "v":
+			// View logs - open stdout log in editor
+			if p.bundlePath != "" {
+				logPath := filepath.Join(p.bundlePath, "client", "stdout.log")
+				if _, err := os.Stat(logPath); err != nil {
+					logPath = filepath.Join(p.bundlePath, "server", "stdout.log")
+				}
+				_ = openInEditor(logPath)
 			}
 		}
 		return p, nil
@@ -553,17 +575,80 @@ func (p *OrchestrationPanel) startRun() (Panel, tea.Cmd) {
 	p.currentPhase = "init"
 	p.runID = p.manifest.RunID
 
-	// Create context
-	ctx, cancel := context.WithCancel(context.Background())
+	// Capture run details from manifest
+	if p.manifest.Roles.Client != nil {
+		p.runScenario = p.manifest.Roles.Client.Scenario
+		p.runDuration = fmt.Sprintf("%d", p.manifest.Roles.Client.DurationSeconds)
+		p.runClientAgent = p.getAgentNameFromTransport(p.manifest.Roles.Client.Agent)
+	}
+	if p.manifest.Roles.Server != nil {
+		p.runServerAgent = p.getAgentNameFromTransport(p.manifest.Roles.Server.Agent)
+	}
+	p.runTargetIP = p.manifest.Network.DataPlane.TargetIP
+	p.runCapture = len(p.manifest.Artifacts.Include) > 0 || p.quickRunCapture
+	p.runStatusMsg = "Initializing orchestration..."
+	p.runLogLines = []string{}
+
+	// Create context with timeout based on manifest duration
+	duration := 60 * time.Second
+	if p.manifest.Roles.Client != nil && p.manifest.Roles.Client.DurationSeconds > 0 {
+		// Add buffer for setup/teardown (30 seconds extra)
+		duration = time.Duration(p.manifest.Roles.Client.DurationSeconds+30) * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	p.runCtx = ctx
 	p.runCancel = cancel
 
-	// Return command to start orchestration
-	// In a full implementation, this would launch the controller
-	return p, func() tea.Msg {
-		// Simulate orchestration phases
-		return orchPhaseMsg{phase: "init", done: false}
+	// Build agent mappings from manifest
+	agents := make(map[string]string)
+	if p.manifest.Roles.Server != nil && p.manifest.Roles.Server.Agent != "" && p.manifest.Roles.Server.Agent != "local" {
+		agents["server"] = p.manifest.Roles.Server.Agent
 	}
+	if p.manifest.Roles.Client != nil && p.manifest.Roles.Client.Agent != "" && p.manifest.Roles.Client.Agent != "local" {
+		agents["client"] = p.manifest.Roles.Client.Agent
+	}
+
+	// Build run config
+	cfg := OrchRunConfig{
+		Manifest:      p.manifest,
+		BundleDir:     filepath.Join(p.workspacePath, "runs"),
+		Timeout:       duration,
+		DryRun:        p.dryRun,
+		Verbose:       p.verbose,
+		Agents:        agents,
+		WorkspaceRoot: p.workspacePath,
+	}
+
+	// Return command to start orchestration via model
+	return p, func() tea.Msg {
+		return startOrchRunMsg{config: cfg}
+	}
+}
+
+// getAgentNameFromTransport extracts a friendly name from an agent transport string.
+func (p *OrchestrationPanel) getAgentNameFromTransport(transport string) string {
+	if transport == "" || transport == "local" {
+		return "local"
+	}
+	// Check if it matches a registered agent
+	for _, agent := range p.registeredAgents {
+		if agent.Transport == transport {
+			return agent.Name
+		}
+	}
+	// Parse SSH URL to get host
+	if strings.HasPrefix(transport, "ssh://") {
+		transport = strings.TrimPrefix(transport, "ssh://")
+	}
+	// Remove query params
+	if idx := strings.Index(transport, "?"); idx != -1 {
+		transport = transport[:idx]
+	}
+	// Get user@host part
+	if idx := strings.LastIndex(transport, "@"); idx != -1 {
+		return transport[idx+1:]
+	}
+	return transport
 }
 
 // updateAgentsView handles input for the agents list view.
@@ -643,6 +728,7 @@ func (p *OrchestrationPanel) updateAgentsView(msg tea.KeyMsg) (Panel, tea.Cmd) {
 		p.addAgentKeys, _ = ui.FindSSHKeys()
 		p.addAgentKeyIdx = 0 // 0 = default (no specific key)
 		p.addAgentOSIdx = 0  // 0 = linux (default)
+		p.addAgentElevate = true // Default to true for PCAP capture
 
 	case "s":
 		// SSH Setup wizard
@@ -692,12 +778,12 @@ func (p *OrchestrationPanel) updateAddAgentView(msg tea.KeyMsg) (Panel, tea.Cmd)
 		return p, nil
 
 	case "tab", "down":
-		p.addAgentField = (p.addAgentField + 1) % 7
+		p.addAgentField = (p.addAgentField + 1) % 8
 
 	case "shift+tab", "up":
 		p.addAgentField--
 		if p.addAgentField < 0 {
-			p.addAgentField = 6
+			p.addAgentField = 7
 		}
 
 	case "left":
@@ -715,6 +801,10 @@ func (p *OrchestrationPanel) updateAddAgentView(msg tea.KeyMsg) (Panel, tea.Cmd)
 				p.addAgentOSIdx = 2 // Wrap to darwin
 			}
 		}
+		// Elevate toggle (field 7)
+		if p.addAgentField == 7 {
+			p.addAgentElevate = !p.addAgentElevate
+		}
 
 	case "right":
 		// Key selection (field 5)
@@ -730,6 +820,10 @@ func (p *OrchestrationPanel) updateAddAgentView(msg tea.KeyMsg) (Panel, tea.Cmd)
 			if p.addAgentOSIdx > 2 {
 				p.addAgentOSIdx = 0 // Wrap to linux
 			}
+		}
+		// Elevate toggle (field 7)
+		if p.addAgentField == 7 {
+			p.addAgentElevate = !p.addAgentElevate
 		}
 
 	case "enter":
@@ -764,11 +858,15 @@ func (p *OrchestrationPanel) updateAddAgentView(msg tea.KeyMsg) (Panel, tea.Cmd)
 			info.OS = osNames[p.addAgentOSIdx]
 		}
 
+		// Set elevation
+		info.Elevate = p.addAgentElevate
+
 		agent := &ui.Agent{
 			Name:        p.addAgentName,
 			Transport:   info.ToTransport(),
 			Description: p.addAgentDesc,
 			Status:      ui.AgentStatusUnknown,
+			Elevate:     p.addAgentElevate,
 		}
 
 		p.agentRegistry.Add(agent)
@@ -852,6 +950,8 @@ func (p *OrchestrationPanel) startSSHWizard() {
 	p.addAgentHost = ""
 	p.addAgentPort = "22"
 	p.addAgentName = ""
+	p.addAgentOSIdx = 0
+	p.addAgentElevate = true // Default to true for PCAP capture
 }
 
 // updateSSHWizardView handles input for the SSH setup wizard.
@@ -972,6 +1072,11 @@ func (p *OrchestrationPanel) handleSSHStepEnterHost(key string) (Panel, tea.Cmd)
 			}
 			return p, nil
 		}
+		// Elevate toggle on field 5
+		if p.addAgentField == 5 {
+			p.addAgentElevate = !p.addAgentElevate
+			return p, nil
+		}
 		// Go back to previous step
 		p.sshWizardStep = SSHStepCheckAgent
 		p.sshWizardMsg = ""
@@ -984,6 +1089,11 @@ func (p *OrchestrationPanel) handleSSHStepEnterHost(key string) (Panel, tea.Cmd)
 			if p.addAgentOSIdx > 2 {
 				p.addAgentOSIdx = 0 // Wrap to linux
 			}
+			return p, nil
+		}
+		// Elevate toggle on field 5
+		if p.addAgentField == 5 {
+			p.addAgentElevate = !p.addAgentElevate
 			return p, nil
 		}
 
@@ -1010,12 +1120,12 @@ func (p *OrchestrationPanel) handleSSHStepEnterHost(key string) (Panel, tea.Cmd)
 		p.sshWizardMsg = ""
 
 	case "tab", "down":
-		p.addAgentField = (p.addAgentField + 1) % 5
+		p.addAgentField = (p.addAgentField + 1) % 6
 
 	case "shift+tab", "up":
 		p.addAgentField--
 		if p.addAgentField < 0 {
-			p.addAgentField = 4
+			p.addAgentField = 5
 		}
 
 	case "backspace":
@@ -1224,12 +1334,15 @@ func (p *OrchestrationPanel) handleSSHStepVerify(key string) (Panel, tea.Cmd) {
 		if p.sshSelectedKeyIdx >= 0 && p.sshSelectedKeyIdx < len(p.sshKeys) {
 			info.KeyFile = p.sshKeys[p.sshSelectedKeyIdx].Path
 		}
+		// Set elevation
+		info.Elevate = p.addAgentElevate
 
 		agent := &ui.Agent{
 			Name:      p.addAgentName,
 			Transport: info.ToTransport(),
 			Status:    ui.AgentStatusOK,
 			LastCheck: time.Now(),
+			Elevate:   p.addAgentElevate,
 		}
 
 		p.agentRegistry.Add(agent)
@@ -1262,11 +1375,14 @@ func (p *OrchestrationPanel) handleSSHStepVerify(key string) (Panel, tea.Cmd) {
 		if p.sshSelectedKeyIdx >= 0 && p.sshSelectedKeyIdx < len(p.sshKeys) {
 			info.KeyFile = p.sshKeys[p.sshSelectedKeyIdx].Path
 		}
+		// Set elevation
+		info.Elevate = p.addAgentElevate
 
 		agent := &ui.Agent{
 			Name:      p.addAgentName,
 			Transport: info.ToTransport(),
 			Status:    ui.AgentStatusUnknown,
+			Elevate:   p.addAgentElevate,
 		}
 
 		p.agentRegistry.Add(agent)
@@ -1307,6 +1423,8 @@ func (p *OrchestrationPanel) checkAgentConnectivity(agent *ui.Agent) {
 		agent.OSArch = caps.OSArch
 		agent.CipdipVer = caps.Version
 		agent.PCAPCapable = caps.PCAPCapable
+		agent.ElevateAvailable = caps.ElevateAvailable
+		agent.ElevateMethod = caps.ElevateMethod
 	}
 	agent.LastCheck = time.Now()
 }
@@ -1587,40 +1705,179 @@ func (p *OrchestrationPanel) renderConfigView(width int, focused bool) string {
 
 func (p *OrchestrationPanel) renderRunningView(width int) string {
 	var b strings.Builder
-	s := p.styles
 
-	b.WriteString(s.Header.Render("Run ID:") + " " + p.runID + "\n")
+	// Color definitions for phases
+	colorInit := lipgloss.Color("#7aa2f7")    // Blue
+	colorStage := lipgloss.Color("#bb9af7")   // Purple
+	colorServer := lipgloss.Color("#9ece6a")  // Green
+	colorClient := lipgloss.Color("#ff9e64")  // Orange
+	colorCollect := lipgloss.Color("#7dcfff") // Cyan
+	colorDone := lipgloss.Color("#9ece6a")    // Green
+	colorDim := lipgloss.Color("#565f89")     // Dim gray
+	colorActive := lipgloss.Color("#f7768e")  // Pink/Red for active
 
-	// Phase display
-	phases := []string{"init", "stage", "server_start", "server_ready", "client_start", "client_done", "server_stop", "collect", "bundle"}
+	// Phase definitions with colors
+	type phaseInfo struct {
+		id    string
+		name  string
+		color lipgloss.Color
+	}
+	phases := []phaseInfo{
+		{"init", "Init", colorInit},
+		{"stage", "Stage", colorStage},
+		{"server_start", "Server Start", colorServer},
+		{"server_ready", "Server Ready", colorServer},
+		{"client_start", "Client Start", colorClient},
+		{"client_done", "Client Done", colorClient},
+		{"server_stop", "Server Stop", colorServer},
+		{"collect", "Collect", colorCollect},
+		{"bundle", "Bundle", colorDone},
+	}
+
 	currentIdx := 0
 	for i, phase := range phases {
-		if phase == p.currentPhase {
+		if phase.id == p.currentPhase {
 			currentIdx = i
 			break
 		}
 	}
 
-	b.WriteString(s.Label.Render("Phase:") + " ")
-	for i := range phases {
-		if i < currentIdx {
-			b.WriteString(s.Success.Render("✓"))
-		} else if i == currentIdx {
-			b.WriteString(s.Info.Render("▶"))
-		} else {
-			b.WriteString(s.Dim.Render("○"))
-		}
+	// Header with run info
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7aa2f7"))
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6"))
+
+	b.WriteString(headerStyle.Render("Run Configuration") + "\n")
+	b.WriteString(labelStyle.Render("  Run ID:    ") + valueStyle.Render(p.runID) + "\n")
+	b.WriteString(labelStyle.Render("  Scenario:  ") + lipgloss.NewStyle().Bold(true).Foreground(colorClient).Render(p.runScenario) + "\n")
+	b.WriteString(labelStyle.Render("  Target:    ") + valueStyle.Render(p.runTargetIP) + "\n")
+	b.WriteString(labelStyle.Render("  Duration:  ") + valueStyle.Render(p.runDuration+"s") + "\n")
+
+	captureStyle := lipgloss.NewStyle().Foreground(colorDim)
+	if p.runCapture {
+		captureStyle = lipgloss.NewStyle().Foreground(colorServer)
 	}
-	b.WriteString(" " + s.Selected.Render(p.currentPhase) + "\n")
+	captureStr := "No"
+	if p.runCapture {
+		captureStr = "Yes"
+	}
+	b.WriteString(labelStyle.Render("  Capture:   ") + captureStyle.Render(captureStr) + "\n")
+	b.WriteString("\n")
+
+	// Agents section with status indicators
+	b.WriteString(headerStyle.Render("Agents") + "\n")
+
+	// Determine server/client status and colors
+	serverStatusText := "pending"
+	serverStatusColor := colorDim
+	clientStatusText := "pending"
+	clientStatusColor := colorDim
+
+	switch p.currentPhase {
+	case "init", "stage":
+		serverStatusText = "pending"
+		clientStatusText = "pending"
+	case "server_start":
+		serverStatusText = "starting..."
+		serverStatusColor = colorActive
+		clientStatusText = "pending"
+	case "server_ready":
+		serverStatusText = "ready"
+		serverStatusColor = colorServer
+		clientStatusText = "pending"
+	case "client_start":
+		serverStatusText = "running"
+		serverStatusColor = colorServer
+		clientStatusText = "starting..."
+		clientStatusColor = colorActive
+	case "client_done":
+		serverStatusText = "running"
+		serverStatusColor = colorServer
+		clientStatusText = "done"
+		clientStatusColor = colorDone
+	case "server_stop":
+		serverStatusText = "stopping..."
+		serverStatusColor = colorActive
+		clientStatusText = "done"
+		clientStatusColor = colorDone
+	case "collect", "bundle":
+		serverStatusText = "stopped"
+		serverStatusColor = colorDone
+		clientStatusText = "done"
+		clientStatusColor = colorDone
+	}
+
+	serverBlock := lipgloss.NewStyle().Foreground(serverStatusColor).Render("⣿")
+	clientBlock := lipgloss.NewStyle().Foreground(clientStatusColor).Render("⣿")
+
+	b.WriteString(fmt.Sprintf("  %s %s %-14s %s\n",
+		serverBlock,
+		labelStyle.Render("Server:"),
+		valueStyle.Render(p.runServerAgent),
+		lipgloss.NewStyle().Foreground(serverStatusColor).Render("["+serverStatusText+"]")))
+	b.WriteString(fmt.Sprintf("  %s %s %-14s %s\n",
+		clientBlock,
+		labelStyle.Render("Client:"),
+		valueStyle.Render(p.runClientAgent),
+		lipgloss.NewStyle().Foreground(clientStatusColor).Render("["+clientStatusText+"]")))
+	b.WriteString("\n")
+
+	// Phase progress with braille blocks and colors
+	b.WriteString(headerStyle.Render("Progress") + "\n")
+
+	// Progress bar using braille blocks
+	b.WriteString("  ")
+	for i, phase := range phases {
+		var blockChar string
+		var blockColor lipgloss.Color
+
+		if i < currentIdx {
+			// Completed phases - full block with phase color
+			blockChar = "⣿"
+			blockColor = phase.color
+		} else if i == currentIdx {
+			// Current phase - animated/bright
+			blockChar = "⣿"
+			blockColor = colorActive
+		} else {
+			// Future phases - dim empty
+			blockChar = "⣀"
+			blockColor = colorDim
+		}
+		b.WriteString(lipgloss.NewStyle().Foreground(blockColor).Render(blockChar))
+	}
+	b.WriteString("\n")
+
+	// Current phase name with color
+	phaseNameStyle := lipgloss.NewStyle().Bold(true).Foreground(phases[currentIdx].color)
+	b.WriteString("  " + phaseNameStyle.Render(phases[currentIdx].name) + "\n")
 
 	// Elapsed time
 	if p.startTime != nil {
 		elapsed := time.Since(*p.startTime)
-		b.WriteString(s.Label.Render("Elapsed:") + " " + formatDuration(elapsed.Seconds()) + "\n")
+		elapsedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff"))
+		b.WriteString("  " + labelStyle.Render("Elapsed: ") + elapsedStyle.Render(formatDuration(elapsed.Seconds())) + "\n")
+	}
+	b.WriteString("\n")
+
+	// Status message with styling
+	if p.runStatusMsg != "" {
+		statusStyle := lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("#a9b1d6"))
+		b.WriteString(statusStyle.Render("  "+p.runStatusMsg) + "\n")
+	}
+
+	// Recent log lines
+	if len(p.runLogLines) > 0 {
+		b.WriteString("\n" + headerStyle.Render("Log") + "\n")
+		logStyle := lipgloss.NewStyle().Foreground(colorDim)
+		for _, line := range p.runLogLines {
+			b.WriteString(logStyle.Render("  "+line) + "\n")
+		}
 	}
 
 	// Actions
-	b.WriteString("\n" + s.Dim.Render("[x] Stop") + "\n")
+	actionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e"))
+	b.WriteString("\n" + actionStyle.Render("[x] Stop") + "\n")
 
 	return b.String()
 }
@@ -1629,22 +1886,107 @@ func (p *OrchestrationPanel) renderResultView(width int) string {
 	var b strings.Builder
 	s := p.styles
 
+	// Color definitions
+	colorSuccess := lipgloss.Color("#9ece6a")
+	colorError := lipgloss.Color("#f7768e")
+	colorInfo := lipgloss.Color("#7aa2f7")
+	colorDim := lipgloss.Color("#565f89")
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(colorInfo)
+	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#a9b1d6"))
+	valueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#c0caf5"))
+
 	if p.orchMode == OrchModeError {
-		b.WriteString(s.Error.Render("Run Failed") + "\n\n")
-		b.WriteString(s.Label.Render("Error:") + " " + p.phaseError + "\n")
+		b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(colorError).Render("⣿ Run Failed") + "\n\n")
+		b.WriteString(labelStyle.Render("Error: ") + s.Error.Render(p.phaseError) + "\n\n")
 	} else {
-		b.WriteString(s.Success.Render("Run Complete") + "\n\n")
+		b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(colorSuccess).Render("⣿ Run Complete") + "\n\n")
 	}
 
-	b.WriteString(s.Label.Render("Run ID:") + " " + p.runID + "\n")
+	// Run summary
+	b.WriteString(headerStyle.Render("Run Summary") + "\n")
+	b.WriteString(labelStyle.Render("  Run ID:    ") + valueStyle.Render(p.runID) + "\n")
+	b.WriteString(labelStyle.Render("  Scenario:  ") + valueStyle.Render(p.runScenario) + "\n")
+	b.WriteString(labelStyle.Render("  Target:    ") + valueStyle.Render(p.runTargetIP) + "\n")
+
+	// Duration
+	if p.startTime != nil {
+		duration := time.Since(*p.startTime)
+		b.WriteString(labelStyle.Render("  Duration:  ") + valueStyle.Render(fmt.Sprintf("%.1fs", duration.Seconds())) + "\n")
+	}
+
+	// Agents
+	b.WriteString("\n" + headerStyle.Render("Agents") + "\n")
+	b.WriteString(labelStyle.Render("  Server:    ") + valueStyle.Render(p.runServerAgent) + "\n")
+	b.WriteString(labelStyle.Render("  Client:    ") + valueStyle.Render(p.runClientAgent) + "\n")
+
+	// Bundle info
 	if p.bundlePath != "" {
-		b.WriteString(s.Label.Render("Bundle:") + " " + p.bundlePath + "\n")
+		b.WriteString("\n" + headerStyle.Render("Bundle") + "\n")
+		b.WriteString(labelStyle.Render("  Path:      ") + valueStyle.Render(p.bundlePath) + "\n")
+
+		// Try to list bundle contents
+		artifacts := p.getBundleArtifacts()
+		if len(artifacts) > 0 {
+			b.WriteString(labelStyle.Render("  Contents:") + "\n")
+			for _, art := range artifacts {
+				b.WriteString(lipgloss.NewStyle().Foreground(colorDim).Render("    • ") + valueStyle.Render(art) + "\n")
+			}
+		}
+	}
+
+	// Recent log lines
+	if len(p.runLogLines) > 0 {
+		b.WriteString("\n" + headerStyle.Render("Recent Output") + "\n")
+		logStyle := lipgloss.NewStyle().Foreground(colorDim)
+		// Show last 5 lines
+		start := len(p.runLogLines) - 5
+		if start < 0 {
+			start = 0
+		}
+		for _, line := range p.runLogLines[start:] {
+			// Truncate long lines
+			if len(line) > width-4 {
+				line = line[:width-7] + "..."
+			}
+			b.WriteString("  " + logStyle.Render(line) + "\n")
+		}
 	}
 
 	// Actions
-	b.WriteString("\n" + s.Dim.Render("[Enter] New Run  [o] Open Bundle") + "\n")
+	b.WriteString("\n" + s.Dim.Render("[Enter] New Run  [o] Open Bundle  [v] View Logs") + "\n")
 
 	return b.String()
+}
+
+// getBundleArtifacts returns a list of key artifacts in the bundle.
+func (p *OrchestrationPanel) getBundleArtifacts() []string {
+	if p.bundlePath == "" {
+		return nil
+	}
+
+	var artifacts []string
+
+	// Check for common bundle files
+	files := []string{
+		"manifest.yaml",
+		"resolved.yaml",
+		"server/stdout.log",
+		"server/stderr.log",
+		"client/stdout.log",
+		"client/stderr.log",
+		"server/server.pcap",
+		"client/client.pcap",
+	}
+
+	for _, f := range files {
+		path := filepath.Join(p.bundlePath, f)
+		if info, err := os.Stat(path); err == nil && info.Size() > 0 {
+			artifacts = append(artifacts, f)
+		}
+	}
+
+	return artifacts
 }
 
 func (p *OrchestrationPanel) renderAgentsView(width int, focused bool) string {
@@ -1748,6 +2090,13 @@ func (p *OrchestrationPanel) renderAgentsView(width int, focused bool) string {
 				pcapStatus = "Yes"
 			}
 			content.WriteString(s.Label.Render("  PCAP:") + "       " + pcapStatus + "\n")
+
+			// Elevation status
+			elevateStatus := "No"
+			if agent.ElevateAvailable {
+				elevateStatus = "Yes (" + agent.ElevateMethod + ")"
+			}
+			content.WriteString(s.Label.Render("  Elevate:") + "    " + elevateStatus + "\n")
 		}
 		if !agent.LastCheck.IsZero() {
 			content.WriteString(s.Label.Render("  Last Check:") + " " + agent.LastCheck.Format("2006-01-02 15:04:05") + "\n")
@@ -1849,6 +2198,18 @@ func (p *OrchestrationPanel) renderAddAgentView(width int, focused bool) string 
 		content.WriteString(fmt.Sprintf("  %-12s %s\n", osLabel, osValue))
 	}
 
+	// Elevate field (field 7) - uses left/right arrows to toggle
+	elevateLabel := s.Label.Render("Elevate:")
+	elevateValue := "No"
+	if p.addAgentElevate {
+		elevateValue = "Yes (sudo)"
+	}
+	if p.addAgentField == 7 {
+		content.WriteString(s.Selected.Render(fmt.Sprintf("▸ %-12s %s [←/→ to toggle]", "Elevate:", elevateValue)) + "\n")
+	} else {
+		content.WriteString(fmt.Sprintf("  %-12s %s\n", elevateLabel, elevateValue))
+	}
+
 	// Error message
 	if p.addAgentError != "" {
 		content.WriteString("\n" + s.Error.Render("Error: "+p.addAgentError) + "\n")
@@ -1867,6 +2228,7 @@ func (p *OrchestrationPanel) renderAddAgentView(width int, focused bool) string 
 		if p.addAgentOSIdx > 0 {
 			info.OS = osNames[p.addAgentOSIdx]
 		}
+		info.Elevate = p.addAgentElevate
 		content.WriteString("\n" + s.Dim.Render("Transport: "+info.ToTransport()) + "\n")
 	}
 
@@ -1997,7 +2359,19 @@ func (p *OrchestrationPanel) renderSSHWizardView(width int, focused bool) string
 			stepContent.WriteString(fmt.Sprintf("  %-12s %s\n", osLabel, osValue))
 		}
 
-		stepContent.WriteString("\n" + s.Dim.Render("[Tab] Next field  [←/→] Change OS  [Enter] Continue") + "\n")
+		// Elevate field (field 5) - uses left/right arrows to toggle
+		elevateLabel := s.Label.Render("Elevate:")
+		elevateValue := "No"
+		if p.addAgentElevate {
+			elevateValue = "Yes (sudo)"
+		}
+		if p.addAgentField == 5 {
+			stepContent.WriteString(s.Selected.Render(fmt.Sprintf("▸ %-12s %s [←/→]", "Elevate:", elevateValue)) + "\n")
+		} else {
+			stepContent.WriteString(fmt.Sprintf("  %-12s %s\n", elevateLabel, elevateValue))
+		}
+
+		stepContent.WriteString("\n" + s.Dim.Render("[Tab] Next field  [←/→] Change  [Enter] Continue") + "\n")
 
 	case SSHStepHostKey:
 		stepContent.WriteString(s.Header.Render("Step 3: Host Key Verification") + "\n\n")
@@ -2104,6 +2478,46 @@ type orchPhaseMsg struct {
 	phase string
 	done  bool
 	err   error
+}
+
+// handleOutputEvent processes real-time output from runners.
+func (p *OrchestrationPanel) handleOutputEvent(event controller.OutputEvent) {
+	// Add to log lines, keeping last 20
+	line := fmt.Sprintf("[%s] %s", event.Role, event.Line)
+	p.runLogLines = append(p.runLogLines, line)
+	if len(p.runLogLines) > 20 {
+		p.runLogLines = p.runLogLines[len(p.runLogLines)-20:]
+	}
+}
+
+// handlePhaseUpdate processes phase change events from the controller.
+func (p *OrchestrationPanel) handlePhaseUpdate(phase, message string) {
+	p.currentPhase = phase
+	p.runStatusMsg = message
+
+	// Add phase message to log
+	line := fmt.Sprintf("[%s] %s", phase, message)
+	p.runLogLines = append(p.runLogLines, line)
+	if len(p.runLogLines) > 20 {
+		p.runLogLines = p.runLogLines[len(p.runLogLines)-20:]
+	}
+}
+
+// handleRunDone processes run completion.
+func (p *OrchestrationPanel) handleRunDone(result *controller.Result, err error) {
+	if err != nil {
+		p.orchMode = OrchModeError
+		p.phaseError = err.Error()
+		p.runStatusMsg = "Run failed: " + err.Error()
+	} else if result != nil {
+		p.orchMode = OrchModeDone
+		p.runID = result.RunID
+		p.bundlePath = result.BundlePath
+		p.currentPhase = "done"
+		p.runStatusMsg = fmt.Sprintf("Run completed: %s", result.Status)
+	}
+
+	p.mode = PanelResult
 }
 
 // version is defined in main.go but we need it here

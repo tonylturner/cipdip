@@ -237,8 +237,8 @@ func (s *SSH) Exec(ctx context.Context, cmd []string, env map[string]string, cwd
 		}
 	}
 
-	// Build command string
-	cmdStr := buildCommandString(cmd, cwd)
+	// Build command string with elevation if configured
+	cmdStr := buildCommandString(cmd, cwd, s.opts.Elevate, s.opts.RemoteOS)
 
 	var stdout, stderr bytes.Buffer
 	session.Stdout = &stdout
@@ -283,8 +283,8 @@ func (s *SSH) ExecStream(ctx context.Context, cmd []string, env map[string]strin
 		session.Setenv(k, v)
 	}
 
-	// Build command string
-	cmdStr := buildCommandString(cmd, cwd)
+	// Build command string with elevation if configured
+	cmdStr := buildCommandString(cmd, cwd, s.opts.Elevate, s.opts.RemoteOS)
 
 	session.Stdout = stdout
 	session.Stderr = stderr
@@ -509,6 +509,11 @@ func (s *SSH) IsWindows() bool {
 	return s.RemoteOS() == "windows"
 }
 
+// NeedsElevation returns true if commands should run with elevated privileges.
+func (s *SSH) NeedsElevation() bool {
+	return s.opts.Elevate
+}
+
 // Helper functions
 
 // sshAgentAuth returns an SSH agent authentication method.
@@ -581,7 +586,7 @@ func defaultKeyPaths() []string {
 }
 
 // buildCommandString builds a shell command string.
-func buildCommandString(cmd []string, cwd string) string {
+func buildCommandString(cmd []string, cwd string, elevate bool, remoteOS string) string {
 	if len(cmd) == 0 {
 		return ""
 	}
@@ -598,7 +603,16 @@ func buildCommandString(cmd []string, cwd string) string {
 
 	cmdStr := strings.Join(parts, " ")
 
+	// Prepend sudo for Unix systems if elevation is requested
+	if elevate && remoteOS != "windows" {
+		cmdStr = "sudo " + cmdStr
+	}
+
 	if cwd != "" {
+		if elevate && remoteOS != "windows" {
+			// For elevated commands with cwd, use sudo for the cd as well
+			return fmt.Sprintf("cd %s && sudo %s", cwd, strings.Join(parts, " "))
+		}
 		return fmt.Sprintf("cd %s && %s", cwd, cmdStr)
 	}
 
