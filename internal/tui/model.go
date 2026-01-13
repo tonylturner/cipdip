@@ -519,12 +519,12 @@ func parsePCAPArgs(args []string) PCAPRunConfig {
 				cfg.InputFile = args[i+1]
 				i++
 			}
-		case "--file1":
+		case "--baseline":
 			if i+1 < len(args) {
 				cfg.InputFile = args[i+1]
 				i++
 			}
-		case "--file2":
+		case "--compare":
 			if i+1 < len(args) {
 				cfg.InputFile2 = args[i+1]
 				i++
