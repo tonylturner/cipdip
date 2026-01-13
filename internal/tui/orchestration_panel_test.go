@@ -49,9 +49,9 @@ func TestOrchestrationPanel_Title(t *testing.T) {
 
 	// Test agent view title
 	panel.mode = PanelIdle
-	panel.view = OrchViewAgent
-	if title := panel.Title(); title != "AGENT STATUS" {
-		t.Errorf("Title() = %s, want AGENT STATUS", title)
+	panel.view = OrchViewAgents
+	if title := panel.Title(); title != "AGENTS" {
+		t.Errorf("Title() = %s, want AGENTS", title)
 	}
 }
 
@@ -69,8 +69,8 @@ func TestOrchestrationPanel_ViewToggle(t *testing.T) {
 	newPanel, _ := panel.Update(msg, true)
 	panel = newPanel.(*OrchestrationPanel)
 
-	if panel.view != OrchViewAgent {
-		t.Errorf("After tab, view = %v, want OrchViewAgent", panel.view)
+	if panel.view != OrchViewAgents {
+		t.Errorf("After tab, view = %v, want OrchViewAgents", panel.view)
 	}
 
 	// Tab again should toggle back to Controller view
@@ -165,9 +165,13 @@ func TestOrchestrationPanel_EscapeFromConfig(t *testing.T) {
 func TestOrchestrationPanel_AgentInfo(t *testing.T) {
 	panel := NewOrchestrationPanel(DefaultStyles)
 
-	// Agent info should be populated on creation
+	// Agent info is lazy loaded - trigger by switching to agents view
+	panel.view = OrchViewAgents
+	_ = panel.View(80, true) // This triggers lazy loading
+
+	// Agent info should now be populated
 	if panel.agentInfo == nil {
-		t.Fatal("agentInfo should be populated on creation")
+		t.Fatal("agentInfo should be populated after viewing agents")
 	}
 
 	// Version should be set
@@ -221,7 +225,7 @@ func TestOrchestrationPanel_View(t *testing.T) {
 	}
 
 	// Test agent view
-	panel.view = OrchViewAgent
+	panel.view = OrchViewAgents
 	view = panel.View(80, true)
 	if view == "" {
 		t.Error("Agent view should not be empty")

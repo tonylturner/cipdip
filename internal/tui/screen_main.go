@@ -49,9 +49,10 @@ type MainScreenModel struct {
 	recentErrors []ErrorEntry
 
 	// Data source tracking
-	hasLiveData bool
-	hasPCAPData bool
-	pcapSource  string
+	hasLiveData     bool
+	hasPCAPData     bool
+	pcapSource      string
+	asyncInitDone   bool
 
 	// Scrolling hint banner
 	hintIndex  int
@@ -121,15 +122,25 @@ func NewMainScreenModel(state *AppState, styles Styles, model *Model) *MainScree
 		latencyHistory: make([]float64, 60),
 	}
 
-	// Try to load PCAP data for initial display
-	m.loadPCAPFallback()
-
-	// If no PCAP data, use minimal placeholder
-	if !m.hasPCAPData && len(m.serviceStats) == 0 {
-		m.usePlaceholderData()
-	}
+	// Use placeholder data initially for fast startup
+	// PCAP data will be loaded lazily on first tick
+	m.usePlaceholderData()
 
 	return m
+}
+
+// InitAsync performs async initialization after the UI is displayed.
+// Call this from the first tick to load PCAP data in the background.
+func (m *MainScreenModel) InitAsync() {
+	if m.asyncInitDone || m.hasPCAPData || m.hasLiveData {
+		return // Already initialized or in progress
+	}
+	m.asyncInitDone = true
+
+	// Load PCAP data in background (this can be slow)
+	go func() {
+		m.loadPCAPFallback()
+	}()
 }
 
 // LoadFromPCAP loads dashboard data from a specific PCAP file.
@@ -1400,32 +1411,46 @@ Bundle Contents:
 [o] Open bundle dir`
 
 	default:
-		if panel.view == OrchViewAgent {
-			return `AGENT STATUS
+		if panel.view == OrchViewAgents {
+			return `AGENTS
 
-Local agent capability
-information.
+Manage remote agents
+for orchestration.
 
-VERSION
-  cipdip version
+AGENT LIST
+  Local + registered
+  remote agents
 
-OS/ARCH
-  Operating system
-  and architecture
+DETAILS
+  Transport URL
+  Status & last check
 
-WORKDIR
-  Agent working dir
-  for temp files
+ACTIONS
+  [a] Add agent
+  [d] Delete
+  [c] Check one
+  [C] Check all
+  [s] SSH wizard
 
-PCAP CAPTURE
-  tcpdump/tshark/bpf
+[R] Refresh
+[Tab] Controller`
+		}
+		if panel.view == OrchViewAgentSetup {
+			return `SSH WIZARD
 
-INTERFACES
-  Network interfaces
-  with bind capability
+Guided SSH setup for
+remote agents.
 
-[R] Refresh status
-[Tab] Controller view`
+STEPS
+  1. Check SSH agent
+  2. Enter host info
+  3. Verify host key
+  4. Test connection
+  5. Copy SSH key
+  6. Save agent
+
+[←] Back step
+[Esc] Cancel`
 		}
 		return `ORCHESTRATION
 
