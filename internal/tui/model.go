@@ -126,6 +126,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case sshCopyIDResultMsg:
+		// Handle ssh-copy-id completion - update orchestration panel
+		if m.orchPanel != nil {
+			if msg.err != nil {
+				m.orchPanel.sshWizardMsg = fmt.Sprintf("ssh-copy-id failed: %v", msg.err)
+			} else {
+				m.orchPanel.sshWizardMsg = "Key copied successfully!"
+				m.orchPanel.sshWizardStep = SSHStepVerify
+			}
+		}
+		return m, nil
+
 	case startClientRunMsg:
 		// Start the actual client run
 		return m.startClientRun(msg.config)

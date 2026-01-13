@@ -152,6 +152,7 @@ type SSHInfo struct {
 	Port     string
 	KeyFile  string
 	Insecure bool
+	OS       string // Remote OS: linux, windows, darwin (empty = linux)
 }
 
 // ParseSSHTransport parses an SSH transport string into components.
@@ -177,6 +178,8 @@ func ParseSSHTransport(transport string) (*SSHInfo, error) {
 						info.KeyFile = parts[1]
 					case "insecure":
 						info.Insecure = parts[1] == "true"
+					case "os":
+						info.OS = parts[1]
 					}
 				}
 			}
@@ -184,7 +187,8 @@ func ParseSSHTransport(transport string) (*SSHInfo, error) {
 	}
 
 	// Parse user@host:port
-	if idx := strings.Index(transport, "@"); idx != -1 {
+	// Use LastIndex because usernames can contain @ (e.g., name@domain@host)
+	if idx := strings.LastIndex(transport, "@"); idx != -1 {
 		info.User = transport[:idx]
 		transport = transport[idx+1:]
 	}
@@ -228,6 +232,9 @@ func (s *SSHInfo) ToTransport() string {
 	if s.Insecure {
 		params = append(params, "insecure=true")
 	}
+	if s.OS != "" && s.OS != "linux" {
+		params = append(params, "os="+s.OS)
+	}
 
 	if len(params) > 0 {
 		sb.WriteString("?")
@@ -240,12 +247,14 @@ func (s *SSHInfo) ToTransport() string {
 // SSHKeyInfo contains information about an SSH key.
 type SSHKeyInfo struct {
 	Path        string
+	Name        string // Base name (e.g., "id_ed25519_cipdip")
 	Type        string // ed25519, rsa, ecdsa
 	Fingerprint string
 	HasPub      bool
 }
 
-// FindSSHKeys finds SSH keys in the default location.
+// FindSSHKeys finds all SSH private keys in ~/.ssh directory.
+// Looks for any file that has a corresponding .pub file, or starts with "id_".
 func FindSSHKeys() ([]SSHKeyInfo, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -253,25 +262,76 @@ func FindSSHKeys() ([]SSHKeyInfo, error) {
 	}
 
 	sshDir := filepath.Join(home, ".ssh")
-	keyTypes := []string{"id_ed25519", "id_rsa", "id_ecdsa", "id_dsa"}
+	entries, err := os.ReadDir(sshDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a set of .pub files to identify private keys
+	pubFiles := make(map[string]bool)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasSuffix(name, ".pub") {
+			// Store the base name (without .pub)
+			pubFiles[strings.TrimSuffix(name, ".pub")] = true
+		}
+	}
 
 	var keys []SSHKeyInfo
-	for _, keyName := range keyTypes {
-		keyPath := filepath.Join(sshDir, keyName)
-		if _, err := os.Stat(keyPath); err == nil {
-			keyType := strings.TrimPrefix(keyName, "id_")
-			pubPath := keyPath + ".pub"
-			hasPub := false
-			if _, err := os.Stat(pubPath); err == nil {
-				hasPub = true
-			}
+	seen := make(map[string]bool)
 
-			keys = append(keys, SSHKeyInfo{
-				Path:   keyPath,
-				Type:   strings.ToUpper(keyType),
-				HasPub: hasPub,
-			})
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
 		}
+		name := entry.Name()
+
+		// Skip .pub files, known_hosts, config, etc.
+		if strings.HasSuffix(name, ".pub") ||
+			name == "known_hosts" ||
+			name == "known_hosts.old" ||
+			name == "config" ||
+			name == "authorized_keys" {
+			continue
+		}
+
+		// A file is likely a private key if:
+		// 1. It has a corresponding .pub file, OR
+		// 2. It starts with "id_"
+		isKey := pubFiles[name] || strings.HasPrefix(name, "id_")
+		if !isKey {
+			continue
+		}
+
+		// Skip if already seen
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+
+		keyPath := filepath.Join(sshDir, name)
+
+		// Determine key type from name
+		keyType := "UNKNOWN"
+		if strings.Contains(name, "ed25519") {
+			keyType = "ED25519"
+		} else if strings.Contains(name, "ecdsa") {
+			keyType = "ECDSA"
+		} else if strings.Contains(name, "rsa") {
+			keyType = "RSA"
+		} else if strings.Contains(name, "dsa") {
+			keyType = "DSA"
+		}
+
+		keys = append(keys, SSHKeyInfo{
+			Path:   keyPath,
+			Name:   name,
+			Type:   keyType,
+			HasPub: pubFiles[name],
+		})
 	}
 
 	return keys, nil
