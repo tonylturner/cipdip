@@ -2,9 +2,13 @@ package tui
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
@@ -139,11 +143,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.result.Error != nil {
 				status = "failed"
 			}
+			endTime := time.Now()
 			summary := ui.RunSummary{
 				Status:     status,
 				Command:    m.clientPanel.BuildRunConfig(m.state.WorkspaceRoot).BuildCommandArgs(),
 				StartedAt:  m.clientPanel.startTime.Format(time.RFC3339),
-				FinishedAt: time.Now().Format(time.RFC3339),
+				FinishedAt: endTime.Format(time.RFC3339),
 				ExitCode:   exitCode,
 			}
 			resolved := map[string]interface{}{
@@ -152,6 +157,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"stats":  msg.result.Stats,
 			}
 			_ = ui.WriteRunArtifacts(m.clientPanel.runDir, resolved, summary.Command, msg.result.Output, summary)
+
+			// Write detailed metrics
+			metrics := ui.BuildMetrics("client", *m.clientPanel.startTime, endTime, ui.StatsUpdate(msg.result.Stats))
+			_ = ui.WriteMetrics(m.clientPanel.runDir, metrics)
 		}
 		return m, nil
 
@@ -179,11 +188,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.err != nil {
 				status = "failed"
 			}
+			endTime := time.Now()
 			summary := ui.RunSummary{
 				Status:     status,
 				Command:    m.serverPanel.BuildRunConfig(m.state.WorkspaceRoot).BuildCommandArgs(),
 				StartedAt:  m.serverPanel.startTime.Format(time.RFC3339),
-				FinishedAt: time.Now().Format(time.RFC3339),
+				FinishedAt: endTime.Format(time.RFC3339),
 				ExitCode:   msg.exitCode,
 			}
 			resolved := map[string]interface{}{
@@ -192,6 +202,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"stats":       m.serverPanel.stats,
 			}
 			_ = ui.WriteRunArtifacts(m.serverPanel.runDir, resolved, summary.Command, msg.output, summary)
+
+			// Write detailed metrics
+			metrics := ui.BuildMetrics("server", *m.serverPanel.startTime, endTime, ui.StatsUpdate(m.serverPanel.stats))
+			_ = ui.WriteMetrics(m.serverPanel.runDir, metrics)
 		}
 		return m, nil
 
@@ -213,9 +227,250 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.pcapPanel.mode = PanelResult
 		return m, nil
+
+	case rerunCommandMsg:
+		// Handle re-run request from runs screen
+		return m.handleRerunCommand(msg)
 	}
 
 	return m, nil
+}
+
+// handleRerunCommand parses a saved command and dispatches to the appropriate runner.
+func (m *Model) handleRerunCommand(msg rerunCommandMsg) (tea.Model, tea.Cmd) {
+	// Parse the command string back into arguments
+	args := parseCommandArgs(msg.command)
+	if len(args) < 2 {
+		m.error = "Invalid command format"
+		return m, nil
+	}
+
+	// Switch to main screen and appropriate panel
+	m.screen = ScreenMain
+
+	switch msg.runType {
+	case "client":
+		// Parse client args and set up panel
+		cfg, _ := parseClientArgs(args)
+		if cfg.TargetIP != "" {
+			m.clientPanel.targetIP = cfg.TargetIP
+			m.clientPanel.port = fmt.Sprintf("%d", cfg.Port)
+			m.clientPanel.mode = PanelRunning
+			m.embeddedPanel = EmbedClient
+			return m.startClientRun(cfg)
+		}
+	case "server":
+		// Parse server args and set up panel
+		cfg, personality := parseServerArgs(args)
+		m.serverPanel.personality = personality
+		m.serverPanel.listenAddr = cfg.ListenAddr
+		m.serverPanel.port = fmt.Sprintf("%d", cfg.Port)
+		m.serverPanel.mode = PanelRunning
+		m.embeddedPanel = EmbedServer
+		return m.startServerRun(cfg)
+	case "pcap":
+		// For PCAP, we can re-run the command directly
+		cfg := parsePCAPArgs(args)
+		if cfg.Mode != "" {
+			m.pcapPanel.mode = PanelRunning
+			m.embeddedPanel = EmbedPCAP
+			return m.startPCAPRun(cfg)
+		}
+	}
+
+	m.error = "Could not parse command for re-run"
+	return m, nil
+}
+
+// parseCommandArgs splits a command string into arguments, handling quoted strings.
+func parseCommandArgs(cmd string) []string {
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := rune(0)
+
+	for _, r := range cmd {
+		switch {
+		case r == '"' || r == '\'':
+			if inQuote && r == quoteChar {
+				inQuote = false
+			} else if !inQuote {
+				inQuote = true
+				quoteChar = r
+			} else {
+				current.WriteRune(r)
+			}
+		case r == ' ' && !inQuote:
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	return args
+}
+
+// parseClientArgs extracts client configuration from command arguments.
+// Returns the config and personality index.
+func parseClientArgs(args []string) (ClientRunConfig, int) {
+	cfg := ClientRunConfig{
+		Port:       44818,
+		DurationS:  300,
+		IntervalMs: 250,
+	}
+	personality := 0
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--ip":
+			if i+1 < len(args) {
+				cfg.TargetIP = args[i+1]
+				i++
+			}
+		case "--port":
+			if i+1 < len(args) {
+				if p, err := strconv.Atoi(args[i+1]); err == nil {
+					cfg.Port = p
+				}
+				i++
+			}
+		case "--scenario":
+			if i+1 < len(args) {
+				cfg.Scenario = args[i+1]
+				i++
+			}
+		case "--duration":
+			if i+1 < len(args) {
+				if d, err := strconv.Atoi(strings.TrimSuffix(args[i+1], "s")); err == nil {
+					cfg.DurationS = d
+				}
+				i++
+			}
+		case "--interval":
+			if i+1 < len(args) {
+				if iv, err := strconv.Atoi(strings.TrimSuffix(args[i+1], "ms")); err == nil {
+					cfg.IntervalMs = iv
+				}
+				i++
+			}
+		case "--profile":
+			if i+1 < len(args) {
+				cfg.Profile = args[i+1]
+				i++
+			}
+		}
+	}
+	return cfg, personality
+}
+
+// parseServerArgs extracts server configuration from command arguments.
+// Returns the config and personality index.
+func parseServerArgs(args []string) (ServerRunConfig, int) {
+	cfg := ServerRunConfig{
+		Port:        44818,
+		ListenAddr:  "0.0.0.0",
+		Personality: "adapter",
+	}
+	personality := 0
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--personality":
+			if i+1 < len(args) {
+				cfg.Personality = args[i+1]
+				switch cfg.Personality {
+				case "adapter":
+					personality = 0
+				case "logix_like":
+					personality = 1
+				}
+				i++
+			}
+		case "--port":
+			if i+1 < len(args) {
+				if p, err := strconv.Atoi(args[i+1]); err == nil {
+					cfg.Port = p
+				}
+				i++
+			}
+		case "--listen":
+			if i+1 < len(args) {
+				cfg.ListenAddr = args[i+1]
+				i++
+			}
+		case "--profile":
+			if i+1 < len(args) {
+				cfg.Profile = args[i+1]
+				i++
+			}
+		}
+	}
+	return cfg, personality
+}
+
+// parsePCAPArgs extracts PCAP configuration from command arguments.
+func parsePCAPArgs(args []string) PCAPRunConfig {
+	cfg := PCAPRunConfig{}
+	if len(args) < 1 {
+		return cfg
+	}
+
+	// Determine mode from command name
+	cmd := args[0]
+	if strings.HasSuffix(cmd, "cipdip") && len(args) > 1 {
+		cmd = args[1]
+	}
+
+	switch {
+	case strings.Contains(cmd, "pcap-summary"):
+		cfg.Mode = "summary"
+	case strings.Contains(cmd, "pcap-report"):
+		cfg.Mode = "report"
+	case strings.Contains(cmd, "pcap-coverage"):
+		cfg.Mode = "coverage"
+	case strings.Contains(cmd, "pcap-replay"):
+		cfg.Mode = "replay"
+	case strings.Contains(cmd, "pcap-rewrite"):
+		cfg.Mode = "rewrite"
+	case strings.Contains(cmd, "pcap-dump"):
+		cfg.Mode = "dump"
+	case strings.Contains(cmd, "pcap-diff"):
+		cfg.Mode = "diff"
+	}
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--input", "-i":
+			if i+1 < len(args) {
+				cfg.InputFile = args[i+1]
+				i++
+			}
+		case "--file1":
+			if i+1 < len(args) {
+				cfg.InputFile = args[i+1]
+				i++
+			}
+		case "--file2":
+			if i+1 < len(args) {
+				cfg.InputFile2 = args[i+1]
+				i++
+			}
+		case "--target":
+			if i+1 < len(args) {
+				cfg.TargetIP = args[i+1]
+				i++
+			}
+		case "--service":
+			if i+1 < len(args) {
+				cfg.ServiceCode = args[i+1]
+				i++
+			}
+		}
+	}
+	return cfg
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -226,7 +481,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "h", "?":
-		if m.mainScreen != nil {
+		m.showHelp = !m.showHelp
+		// Also toggle main screen help if on main screen
+		if m.screen == ScreenMain && m.mainScreen != nil {
 			m.mainScreen.ToggleHelp()
 		}
 		return m, nil
@@ -478,8 +735,106 @@ func (m *Model) View() string {
 }
 
 func (m *Model) renderHelpOverlay(baseContent string) string {
-	// TODO: implement side rail help
-	return baseContent
+	// Skip for main screen - it has its own help system
+	if m.screen == ScreenMain {
+		return baseContent
+	}
+
+	helpContent := m.getHelpForScreen()
+	if helpContent == "" {
+		return baseContent
+	}
+
+	// Render help panel
+	helpWidth := 32
+	s := m.styles
+
+	borderStyle := lipgloss.NewStyle().Foreground(DefaultTheme.Info)
+	b := func(ch string) string { return borderStyle.Render(ch) }
+
+	innerWidth := helpWidth - 4
+	borderWidth := helpWidth - 2
+
+	title := " HELP "
+	titleLen := lipgloss.Width(title)
+	remaining := borderWidth - titleLen - 1
+	if remaining < 0 {
+		remaining = 0
+	}
+	topLine := b("╭─") + s.Header.Render(title) + b(strings.Repeat("─", remaining)+"╮")
+
+	var helpBox strings.Builder
+	helpBox.WriteString(topLine + "\n")
+
+	for _, line := range strings.Split(helpContent, "\n") {
+		lineWidth := lipgloss.Width(line)
+		if lineWidth > innerWidth {
+			line = lipgloss.NewStyle().MaxWidth(innerWidth).Render(line)
+		}
+		paddedLine := lipgloss.PlaceHorizontal(innerWidth, lipgloss.Left, line)
+		helpBox.WriteString(b("│") + " " + paddedLine + " " + b("│") + "\n")
+	}
+	helpBox.WriteString(b("╰" + strings.Repeat("─", borderWidth) + "╯"))
+
+	// Join base content with help panel on right
+	return JoinHorizontal(2, baseContent, helpBox.String())
+}
+
+func (m *Model) getHelpForScreen() string {
+	switch m.screen {
+	case ScreenRuns:
+		if m.runsScreen != nil && m.runsScreen.showDetail {
+			return `RUN DETAILS
+
+Navigation:
+  Up/Down  Select artifact
+  Esc      Back to list
+
+Actions:
+  o        Open in editor
+  r        Re-run command
+  y        Copy command`
+		}
+		return `RUNS HISTORY
+
+Navigation:
+  Tab      Cycle filter
+  Up/Down  Select run
+  Enter    View details
+
+Actions:
+  R        Refresh list
+  d        Delete run
+  o        Open directory
+  r        Re-run
+  y        Copy command
+
+Filters:
+  all      All runs
+  client   Client runs
+  server   Server runs
+  pcap     PCAP analyses`
+
+	case ScreenCatalog:
+		return `CATALOG
+
+Navigation:
+  Up/Down  Navigate entries
+  Enter    Toggle/Select
+  /        Search filter
+  Esc      Clear filter
+
+Service Groups:
+  Browse CIP services
+  by category
+
+Actions:
+  t        Test on device
+  Tab      Cycle view`
+
+	default:
+		return ""
+	}
 }
 
 // startServerRun starts the server operation.

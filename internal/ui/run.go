@@ -21,6 +21,34 @@ type RunSummary struct {
 	ExitCode   int      `json:"exit_code"`
 }
 
+// RunMetrics captures detailed metrics from a run for export.
+type RunMetrics struct {
+	RunType   string  `json:"run_type"` // "client", "server", "pcap"
+	StartedAt string  `json:"started_at"`
+	EndedAt   string  `json:"ended_at"`
+	Duration  float64 `json:"duration_seconds"`
+
+	// Request metrics
+	TotalRequests      int `json:"total_requests"`
+	SuccessfulRequests int `json:"successful_requests"`
+	FailedRequests     int `json:"failed_requests"`
+	Timeouts           int `json:"timeouts"`
+
+	// Connection metrics
+	TotalConnections  int `json:"total_connections"`
+	ActiveConnections int `json:"active_connections"`
+
+	// Error metrics
+	TotalErrors int `json:"total_errors"`
+
+	// Derived metrics
+	RequestRate  float64 `json:"requests_per_second,omitempty"`
+	SuccessRate  float64 `json:"success_rate,omitempty"` // 0-1
+	ErrorRate    float64 `json:"error_rate,omitempty"`   // 0-1
+	TimeoutRate  float64 `json:"timeout_rate,omitempty"` // 0-1
+	AvgLatencyMs float64 `json:"avg_latency_ms,omitempty"`
+}
+
 // RunArtifacts captures the run metadata and log payloads for display.
 type RunArtifacts struct {
 	RunDir    string
@@ -85,6 +113,43 @@ func WriteRunArtifacts(runDir string, resolved interface{}, command []string, st
 		return err
 	}
 	return nil
+}
+
+// WriteMetrics writes detailed metrics to metrics.json in the run directory.
+func WriteMetrics(runDir string, metrics RunMetrics) error {
+	return writeJSON(filepath.Join(runDir, "metrics.json"), metrics)
+}
+
+// BuildMetrics creates a RunMetrics from stats and timing information.
+func BuildMetrics(runType string, startTime, endTime time.Time, stats StatsUpdate) RunMetrics {
+	duration := endTime.Sub(startTime).Seconds()
+	if duration < 0.001 {
+		duration = 0.001 // avoid division by zero
+	}
+
+	metrics := RunMetrics{
+		RunType:            runType,
+		StartedAt:          startTime.Format(time.RFC3339),
+		EndedAt:            endTime.Format(time.RFC3339),
+		Duration:           duration,
+		TotalRequests:      stats.TotalRequests,
+		SuccessfulRequests: stats.SuccessfulRequests,
+		FailedRequests:     stats.FailedRequests,
+		Timeouts:           stats.Timeouts,
+		TotalConnections:   stats.TotalConnections,
+		ActiveConnections:  stats.ActiveConnections,
+		TotalErrors:        stats.TotalErrors,
+	}
+
+	// Calculate derived metrics
+	if metrics.TotalRequests > 0 {
+		metrics.RequestRate = float64(metrics.TotalRequests) / duration
+		metrics.SuccessRate = float64(metrics.SuccessfulRequests) / float64(metrics.TotalRequests)
+		metrics.ErrorRate = float64(metrics.FailedRequests) / float64(metrics.TotalRequests)
+		metrics.TimeoutRate = float64(metrics.Timeouts) / float64(metrics.TotalRequests)
+	}
+
+	return metrics
 }
 
 // LoadRunArtifacts reads the core run artifacts from a run directory.
