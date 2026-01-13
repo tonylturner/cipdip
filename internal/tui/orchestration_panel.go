@@ -1103,7 +1103,13 @@ func (p *OrchestrationPanel) handleSSHStepTestConnection(key string) (Panel, tea
 		// Test connection
 		p.sshWizardMsg = "Testing connection..."
 
-		err := ui.TestSSHConnection(p.addAgentUser, p.addAgentHost, p.addAgentPort)
+		// Get selected key file
+		var keyFile string
+		if p.sshSelectedKeyIdx >= 0 && p.sshSelectedKeyIdx < len(p.sshKeys) {
+			keyFile = p.sshKeys[p.sshSelectedKeyIdx].Path
+		}
+
+		err := ui.TestSSHConnection(p.addAgentUser, p.addAgentHost, p.addAgentPort, keyFile)
 		if err != nil {
 			p.sshTestError = err.Error()
 			p.sshNeedsCopyID = true
@@ -1188,7 +1194,12 @@ func (p *OrchestrationPanel) handleSSHStepVerify(key string) (Panel, tea.Cmd) {
 
 	case "enter", "v", "V":
 		// Final verification and save
-		err := ui.TestSSHConnection(p.addAgentUser, p.addAgentHost, p.addAgentPort)
+		var keyFile string
+		if p.sshSelectedKeyIdx >= 0 && p.sshSelectedKeyIdx < len(p.sshKeys) {
+			keyFile = p.sshKeys[p.sshSelectedKeyIdx].Path
+		}
+
+		err := ui.TestSSHConnection(p.addAgentUser, p.addAgentHost, p.addAgentPort, keyFile)
 		if err != nil {
 			p.sshWizardMsg = fmt.Sprintf("Verification failed: %v", err)
 			return p, nil
@@ -1276,7 +1287,7 @@ func (p *OrchestrationPanel) checkAgentConnectivity(agent *ui.Agent) {
 		return
 	}
 
-	err = ui.TestSSHConnection(info.User, info.Host, info.Port)
+	err = ui.TestSSHConnection(info.User, info.Host, info.Port, info.KeyFile)
 	if err != nil {
 		agent.Status = ui.AgentStatusUnreachable
 		agent.StatusMsg = err.Error()

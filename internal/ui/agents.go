@@ -541,7 +541,8 @@ func GetHostKey(host, port string) (string, string, error) {
 }
 
 // TestSSHConnection tests SSH connectivity to a remote host.
-func TestSSHConnection(user, host, port string) error {
+// keyFile is optional - if empty, uses default SSH key discovery.
+func TestSSHConnection(user, host, port, keyFile string) error {
 	target := host
 	if user != "" {
 		target = user + "@" + host
@@ -551,6 +552,10 @@ func TestSSHConnection(user, host, port string) error {
 		"-o", "BatchMode=yes",
 		"-o", "ConnectTimeout=10",
 		"-o", "StrictHostKeyChecking=accept-new",
+	}
+
+	if keyFile != "" {
+		args = append(args, "-i", keyFile)
 	}
 
 	if port != "" && port != "22" {
