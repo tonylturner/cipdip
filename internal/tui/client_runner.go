@@ -129,8 +129,8 @@ func StartClientRun(ctx context.Context, cfg ClientRunConfig, statsChan chan<- S
 }
 
 // StartClientRunCmd returns a tea.Cmd that starts the client run.
-// This is the bubbletea-compatible version that sends messages back.
-func StartClientRunCmd(ctx context.Context, cfg ClientRunConfig) tea.Cmd {
+// Stats and results are forwarded to the provided channels.
+func StartClientRunCmd(ctx context.Context, cfg ClientRunConfig, statsChan chan<- StatsUpdate, resultChan chan<- CommandResult) tea.Cmd {
 	return func() tea.Msg {
 		// Build command
 		args := cfg.BuildCommandArgs()
@@ -144,23 +144,47 @@ func StartClientRunCmd(ctx context.Context, cfg ClientRunConfig) tea.Cmd {
 		// Use ui's streaming command execution
 		uiStatsChan, uiResultChan, err := ui.StartStreamingCommand(runCtx, command)
 		if err != nil {
+			result := CommandResult{
+				Output:   fmt.Sprintf("Failed to start: %v", err),
+				ExitCode: 1,
+				Err:      err,
+			}
+			if resultChan != nil {
+				resultChan <- result
+			}
 			return clientRunResultMsg{
 				result: ClientRunResult{
 					Error:  err,
-					Output: fmt.Sprintf("Failed to start: %v", err),
+					Output: result.Output,
 				},
 			}
 		}
 
-		// Drain stats channel (we'll handle stats via polling in the model)
+		// Forward stats to the model's channel
 		go func() {
-			for range uiStatsChan {
-				// Stats are polled separately
+			for stats := range uiStatsChan {
+				if statsChan != nil {
+					select {
+					case statsChan <- StatsUpdate(stats):
+					default:
+						// Don't block if channel is full
+					}
+				}
 			}
 		}()
 
 		// Wait for result
 		result := <-uiResultChan
+		cmdResult := CommandResult{
+			Output:   result.Output,
+			ExitCode: result.ExitCode,
+			Err:      result.Err,
+		}
+
+		// Forward result to model's channel
+		if resultChan != nil {
+			resultChan <- cmdResult
+		}
 
 		return clientRunResultMsg{
 			result: ClientRunResult{

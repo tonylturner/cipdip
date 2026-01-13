@@ -76,8 +76,9 @@ func (cfg ServerRunConfig) BuildCommandArgs() []string {
 	return args
 }
 
-// StartServerRunCmd returns a tea.Cmd that starts the server run.
-func StartServerRunCmd(ctx context.Context, cfg ServerRunConfig) tea.Cmd {
+// StartServerRunCmd starts the server and forwards stats to the provided channels.
+// Returns a tea.Cmd that signals when the server exits.
+func StartServerRunCmd(ctx context.Context, cfg ServerRunConfig, statsChan chan<- StatsUpdate, resultChan chan<- CommandResult) tea.Cmd {
 	return func() tea.Msg {
 		// Build command
 		args := cfg.BuildCommandArgs()
@@ -86,22 +87,46 @@ func StartServerRunCmd(ctx context.Context, cfg ServerRunConfig) tea.Cmd {
 		// Use ui's streaming command execution
 		uiStatsChan, uiResultChan, err := ui.StartStreamingCommand(ctx, command)
 		if err != nil {
+			result := CommandResult{
+				Output:   fmt.Sprintf("Failed to start: %v", err),
+				ExitCode: 1,
+				Err:      err,
+			}
+			if resultChan != nil {
+				resultChan <- result
+			}
 			return serverRunResultMsg{
-				output:   fmt.Sprintf("Failed to start: %v", err),
-				exitCode: 1,
-				err:      err,
+				output:   result.Output,
+				exitCode: result.ExitCode,
+				err:      result.Err,
 			}
 		}
 
-		// Drain stats channel (stats are polled separately)
+		// Forward stats to the model's channel
 		go func() {
-			for range uiStatsChan {
-				// Stats are polled separately via handleTick
+			for stats := range uiStatsChan {
+				if statsChan != nil {
+					select {
+					case statsChan <- StatsUpdate(stats):
+					default:
+						// Don't block if channel is full
+					}
+				}
 			}
 		}()
 
 		// Wait for result
 		result := <-uiResultChan
+		cmdResult := CommandResult{
+			Output:   result.Output,
+			ExitCode: result.ExitCode,
+			Err:      result.Err,
+		}
+
+		// Forward result to model's channel
+		if resultChan != nil {
+			resultChan <- cmdResult
+		}
 
 		return serverRunResultMsg{
 			output:   result.Output,
