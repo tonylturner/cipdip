@@ -1,0 +1,134 @@
+CIPDIP Client starting...
+  Scenario: baseline
+  Target: 127.0.0.1:44818
+  Interval: 250 ms
+  Duration: 10 seconds
+  Press Ctrl+C to stop
+
+[CLIENT] Connected and registered session 0x00000001
+[CLIENT] Starting baseline scenario (polling 2 targets every 250ms)
+[CLIENT] Will run for 10 seconds or until interrupted
+
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.11ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.10ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.28ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.15ms
+
+{"stats":{"failed_requests":0,"successful_requests":6,"timeouts":0,"total_requests":6},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.25ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.12ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.26ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.11ms
+
+{"stats":{"failed_requests":0,"successful_requests":12,"timeouts":0,"total_requests":12},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.26ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.26ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.15ms
+
+{"stats":{"failed_requests":0,"successful_requests":18,"timeouts":0,"total_requests":18},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.15ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.09ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.27ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+
+{"stats":{"failed_requests":0,"successful_requests":24,"timeouts":0,"total_requests":24},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.22ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.15ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.21ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.12ms
+
+{"stats":{"failed_requests":0,"successful_requests":30,"timeouts":0,"total_requests":30},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.25ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.15ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.24ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.12ms
+
+{"stats":{"failed_requests":0,"successful_requests":36,"timeouts":0,"total_requests":36},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.22ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.11ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.28ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+
+{"stats":{"failed_requests":0,"successful_requests":42,"timeouts":0,"total_requests":42},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.21ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.16ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.10ms
+
+{"stats":{"failed_requests":0,"successful_requests":48,"timeouts":0,"total_requests":48},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.27ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.17ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.21ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.13ms
+
+{"stats":{"failed_requests":0,"successful_requests":54,"timeouts":0,"total_requests":54},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.19ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.10ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.17ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+
+{"stats":{"failed_requests":0,"successful_requests":60,"timeouts":0,"total_requests":60},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.23ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.15ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.21ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.11ms
+
+{"stats":{"failed_requests":0,"successful_requests":66,"timeouts":0,"total_requests":66},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.24ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.13ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.17ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.10ms
+
+{"stats":{"failed_requests":0,"successful_requests":72,"timeouts":0,"total_requests":72},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.20ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.12ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.29ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.18ms
+
+{"stats":{"failed_requests":0,"successful_requests":78,"timeouts":0,"total_requests":78},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.24ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.15ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.41ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.20ms
+
+{"stats":{"failed_requests":0,"successful_requests":84,"timeouts":0,"total_requests":84},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.26ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.23ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.11ms
+
+{"stats":{"failed_requests":0,"successful_requests":90,"timeouts":0,"total_requests":90},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.17ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.07ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.16ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.10ms
+
+{"stats":{"failed_requests":0,"successful_requests":96,"timeouts":0,"total_requests":96},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.19ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.11ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.25ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.16ms
+
+{"stats":{"failed_requests":0,"successful_requests":102,"timeouts":0,"total_requests":102},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.35ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.20ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.21ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.14ms
+
+{"stats":{"failed_requests":0,"successful_requests":108,"timeouts":0,"total_requests":108},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.21ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.11ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.25ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.18ms
+
+{"stats":{"failed_requests":0,"successful_requests":114,"timeouts":0,"total_requests":114},"type":"stats"}
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.25ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.17ms
+[CLIENT] Read InputBlock1: class=0x0004 instance=0x0065 status=0x00 payload=16 bytes RTT=0.19ms
+[CLIENT] Read InputBlock2: class=0x0004 instance=0x0066 status=0x00 payload=16 bytes RTT=0.13ms
+[CLIENT] Scenario completed after 40 operations
+[CLIENT] Disconnecting...
+
+{"stats":{"failed_requests":0,"successful_requests":120,"timeouts":0,"total_requests":120},"type":"stats"}
+Completed scenario 'baseline' in 10.0s (120 operations, 0 errors)

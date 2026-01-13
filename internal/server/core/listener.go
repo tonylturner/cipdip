@@ -53,6 +53,19 @@ func (s *Server) Start() error {
 	s.wg.Add(1)
 	go s.acceptLoop()
 
+	// Emit server_ready event for orchestration controller readiness detection
+	if s.tuiStats {
+		readyEvent := map[string]interface{}{
+			"event":     "server_ready",
+			"listen":    fmt.Sprintf("%s:%d", s.config.Server.ListenIP, s.config.Server.TCPPort),
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+		}
+		if data, err := json.Marshal(readyEvent); err == nil {
+			fmt.Fprintf(os.Stdout, "%s\n", data)
+			os.Stdout.Sync()
+		}
+	}
+
 	return nil
 }
 

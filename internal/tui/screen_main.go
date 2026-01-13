@@ -1073,6 +1073,11 @@ func (m *MainScreenModel) renderActivePanel(fullWidth int) string {
 		panelTitle = panel.Title()
 		panelContent = panel.ViewContent(panelWidth-4, true)
 		helpContent = m.getCatalogHelp()
+	case EmbedOrch:
+		panel := m.model.GetOrchPanel()
+		panelTitle = panel.Title()
+		panelContent = panel.ViewContent(panelWidth-4, true)
+		helpContent = m.getOrchHelp()
 	}
 
 	activeBox := m.renderActivePanelBox(panelTitle, panelContent, panelWidth)
@@ -1087,7 +1092,7 @@ func (m *MainScreenModel) renderActivePanel(fullWidth int) string {
 
 func (m *MainScreenModel) renderEmptyActivePanel(width int) string {
 	s := m.styles
-	content := s.Dim.Render("Press [c] Client  [s] Server  [p] PCAP  [k] Catalog")
+	content := s.Dim.Render("Press [c] Client  [s] Server  [p] PCAP  [k] Catalog  [o] Orch")
 	return m.panelBox("SELECT ACTION", content, width)
 }
 
@@ -1321,6 +1326,113 @@ TARGETS
 Use 'f' to filter by
 domain. Select a group
 to see its targets.`
+	}
+}
+
+func (m *MainScreenModel) getOrchHelp() string {
+	panel := m.model.GetOrchPanel()
+	switch panel.Mode() {
+	case PanelConfig:
+		return `ORCHESTRATION
+
+Configure and run
+distributed tests using
+Run Manifests.
+
+MANIFEST
+  YAML file defining
+  roles, agents, and
+  network settings.
+
+BUNDLE DIR
+  Output directory for
+  run bundles containing
+  all artifacts.
+
+TIMEOUT
+  Overall run timeout
+  in seconds.
+
+DRY RUN
+  Validate and plan
+  without execution.
+
+[v] Validate manifest
+[e] Edit in editor
+[Tab] Switch to Agent`
+
+	case PanelRunning:
+		return `RUN IN PROGRESS
+
+The controller is
+executing the manifest
+through phases:
+
+1. init - Create bundle
+2. stage - Copy profiles
+3. server_start
+4. server_ready - Wait
+5. client_start
+6. client_done - Wait
+7. server_stop
+8. collect - Artifacts
+9. bundle - Finalize
+
+[x] Stop execution`
+
+	case PanelResult:
+		return `RUN COMPLETE
+
+The run has finished.
+Artifacts are stored
+in the bundle dir.
+
+Bundle Contents:
+- manifest.yaml
+- manifest_resolved.yaml
+- roles/<role>/
+  - *.pcap
+  - stdout.log
+  - role_meta.json
+- hashes.txt
+
+[Enter] New run
+[o] Open bundle dir`
+
+	default:
+		if panel.view == OrchViewAgent {
+			return `AGENT STATUS
+
+Local agent capability
+information.
+
+VERSION
+  cipdip version
+
+OS/ARCH
+  Operating system
+  and architecture
+
+WORKDIR
+  Agent working dir
+  for temp files
+
+PCAP CAPTURE
+  tcpdump/tshark/bpf
+
+INTERFACES
+  Network interfaces
+  with bind capability
+
+[R] Refresh status
+[Tab] Controller view`
+		}
+		return `ORCHESTRATION
+
+Press any key to
+configure orchestration.
+
+[Tab] Switch views`
 	}
 }
 

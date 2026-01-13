@@ -77,6 +77,15 @@ type clientStatusMsg struct {
 	Err      error
 }
 
+// serverStatusMsg represents the final status of a server command.
+type serverStatusMsg struct {
+	Stopped  bool
+	Stdout   string
+	RunDir   string
+	ExitCode int
+	Err      error
+}
+
 // ExecuteStreamingCommand runs a command and streams stats updates as messages.
 // It returns a command that sends stats updates and a final serverStatusMsg or clientStatusMsg.
 func ExecuteStreamingCommand(ctx context.Context, command CommandSpec, isServer bool) tea.Cmd {

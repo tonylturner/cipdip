@@ -35,6 +35,7 @@ const (
 	EmbedServer
 	EmbedPCAP
 	EmbedCatalog
+	EmbedOrch
 )
 
 // Model is the main TUI model.
@@ -52,6 +53,7 @@ type Model struct {
 	serverPanel   *ServerPanel
 	pcapPanel     *PCAPPanel
 	catalogPanel  *CatalogPanel
+	orchPanel     *OrchestrationPanel
 
 	// Screen-specific models (for full-screen views)
 	mainScreen     *MainScreenModel
@@ -73,6 +75,7 @@ func NewModel(state *AppState) *Model {
 		serverPanel:   NewServerPanel(styles),
 		pcapPanel:     NewPCAPPanel(styles),
 		catalogPanel:  NewCatalogPanel(styles, state),
+		orchPanel:     NewOrchestrationPanel(styles),
 	}
 
 	// Refresh PCAP files with workspace context
@@ -621,6 +624,12 @@ func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.embeddedPanel = EmbedCatalog
 		return m, nil
 
+	case "o":
+		// Orchestration panel
+		m.embeddedPanel = EmbedOrch
+		m.orchPanel.mode = PanelConfig
+		return m, nil
+
 	case "K":
 		// Full-screen catalog (CatalogV2)
 		m.screen = ScreenCatalog
@@ -636,7 +645,7 @@ func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "tab":
 		// Cycle through embedded panels
-		m.embeddedPanel = (m.embeddedPanel + 1) % 5 // None, Client, Server, PCAP, Catalog
+		m.embeddedPanel = (m.embeddedPanel + 1) % 6 // None, Client, Server, PCAP, Catalog, Orch
 		return m, nil
 	}
 
@@ -686,6 +695,14 @@ func (m *Model) handleEmbeddedPanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.catalogPanel.Mode() == PanelIdle && msg.String() == "esc" {
 			m.embeddedPanel = EmbedNone
 		}
+
+	case EmbedOrch:
+		newPanel, c := m.orchPanel.Update(msg, true)
+		m.orchPanel = newPanel.(*OrchestrationPanel)
+		cmd = c
+		if m.orchPanel.Mode() == PanelIdle && msg.String() == "esc" {
+			m.embeddedPanel = EmbedNone
+		}
 	}
 
 	return m, cmd
@@ -701,6 +718,8 @@ func (m *Model) getActiveEmbeddedPanel() Panel {
 		return m.pcapPanel
 	case EmbedCatalog:
 		return m.catalogPanel
+	case EmbedOrch:
+		return m.orchPanel
 	}
 	return nil
 }
@@ -1022,4 +1041,9 @@ func (m *Model) GetPCAPPanel() *PCAPPanel {
 // GetCatalogPanel returns the catalog panel.
 func (m *Model) GetCatalogPanel() *CatalogPanel {
 	return m.catalogPanel
+}
+
+// GetOrchPanel returns the orchestration panel.
+func (m *Model) GetOrchPanel() *OrchestrationPanel {
+	return m.orchPanel
 }

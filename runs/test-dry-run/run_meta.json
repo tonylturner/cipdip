@@ -1,0 +1,18 @@
+{
+  "run_id": "test-dry-run",
+  "started_at": "2026-01-13T12:08:01.182738-05:00",
+  "finished_at": "2026-01-13T12:08:11.398148-05:00",
+  "duration_seconds": 10.2126575,
+  "status": "running",
+  "controller_host": "Tonys-MacBook-Pro.local",
+  "phases_completed": [
+    "init",
+    "stage",
+    "server_start",
+    "server_ready",
+    "client_start",
+    "client_done",
+    "server_stop",
+    "collect"
+  ]
+}
