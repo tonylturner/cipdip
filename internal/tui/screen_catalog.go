@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tturner/cipdip/internal/app"
+	"github.com/tturner/cipdip/internal/cip/catalog"
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/protocol"
 	"github.com/tturner/cipdip/internal/cip/spec"
@@ -23,7 +23,7 @@ type CatalogScreenModel struct {
 	mode   string // "browse", "search", "test", "result"
 
 	// Filtering
-	filter     int // 0=all, 1=vendor, 2=core
+	filter     int // 0=all, 1=vendor (logix), 2=core
 	filterText string
 
 	// Test mode
@@ -36,7 +36,7 @@ type CatalogScreenModel struct {
 	testError    string
 
 	// Filtered entries (for cursor mapping)
-	filteredEntries []app.CatalogEntry
+	filteredEntries []*catalog.Entry
 }
 
 // NewCatalogScreenModel creates a new catalog screen.
@@ -54,12 +54,19 @@ func NewCatalogScreenModel(state *AppState, styles Styles) *CatalogScreenModel {
 // updateFilteredEntries rebuilds the filtered entry list based on current filter/search.
 func (m *CatalogScreenModel) updateFilteredEntries() {
 	m.filteredEntries = nil
-	for _, entry := range m.state.Catalog {
-		// Apply scope filter
-		if m.filter == 1 && entry.Scope != "vendor" {
+
+	// Use catalog instance if available
+	if m.state.CatalogInstance == nil {
+		return
+	}
+
+	entries := m.state.CatalogInstance.ListAll()
+	for _, entry := range entries {
+		// Apply domain filter (0=all, 1=logix/vendor, 2=core)
+		if m.filter == 1 && entry.Domain != catalog.DomainLogix {
 			continue
 		}
-		if m.filter == 2 && entry.Scope == "vendor" {
+		if m.filter == 2 && entry.Domain != catalog.DomainCore {
 			continue
 		}
 		// Apply text search
@@ -67,9 +74,9 @@ func (m *CatalogScreenModel) updateFilteredEntries() {
 			q := strings.ToLower(m.filterText)
 			if !strings.Contains(strings.ToLower(entry.Name), q) &&
 				!strings.Contains(strings.ToLower(entry.Key), q) &&
-				!strings.Contains(strings.ToLower(entry.Service), q) &&
-				!strings.Contains(strings.ToLower(entry.Class), q) &&
-				!strings.Contains(strings.ToLower(entry.Notes), q) {
+				!strings.Contains(strings.ToLower(entry.ServiceName), q) &&
+				!strings.Contains(strings.ToLower(entry.ObjectName), q) &&
+				!strings.Contains(strings.ToLower(entry.Description), q) {
 				continue
 			}
 		}
@@ -192,15 +199,22 @@ func (m *CatalogScreenModel) Update(msg tea.KeyMsg) (*CatalogScreenModel, tea.Cm
 	case "enter", "t":
 		// Enter test mode for selected entry
 		if len(m.filteredEntries) > 0 && m.cursor < len(m.filteredEntries) {
-			entry := m.filteredEntries[m.cursor]
 			m.mode = "test"
 			m.testField = 0
-			m.testPayload = entry.PayloadHex
+			m.testPayload = "" // Payload entered manually if needed
 			m.testResult = ""
 			m.testError = ""
 		}
 	case "y":
-		// Copy EPATH to clipboard (TODO: implement)
+		// Copy EPATH to clipboard
+		if len(m.filteredEntries) > 0 && m.cursor < len(m.filteredEntries) {
+			entry := m.filteredEntries[m.cursor]
+			epath := fmt.Sprintf("0x%02X/0x%04X/0x%04X", entry.ServiceCode, entry.EPATH.Class, entry.EPATH.Instance)
+			if entry.EPATH.Attribute != 0 {
+				epath += fmt.Sprintf("/0x%04X", entry.EPATH.Attribute)
+			}
+			return m, copyToClipboard(epath)
+		}
 	case "0":
 		m.filter = 0
 		m.filterText = ""
@@ -284,36 +298,10 @@ func (m *CatalogScreenModel) HandleTestResult(msg TestResultMsg) {
 }
 
 // buildTestRequest constructs a CIP request from a catalog entry.
-func buildTestRequest(entry app.CatalogEntry, payloadHex string) (protocol.CIPRequest, error) {
-	service, err := parseHexValue(entry.Service)
-	if err != nil {
-		return protocol.CIPRequest{}, fmt.Errorf("parse service: %w", err)
-	}
-	class, err := parseHexValue(entry.Class)
-	if err != nil {
-		return protocol.CIPRequest{}, fmt.Errorf("parse class: %w", err)
-	}
-	instance, err := parseHexValue(entry.Instance)
-	if err != nil {
-		return protocol.CIPRequest{}, fmt.Errorf("parse instance: %w", err)
-	}
-	attribute := uint64(0)
-	if entry.Attribute != "" {
-		attribute, err = parseHexValue(entry.Attribute)
-		if err != nil {
-			return protocol.CIPRequest{}, fmt.Errorf("parse attribute: %w", err)
-		}
-	}
-
-	req := protocol.CIPRequest{
-		Service: protocol.CIPServiceCode(service),
-		Path: protocol.CIPPath{
-			Class:     uint16(class),
-			Instance:  uint16(instance),
-			Attribute: uint16(attribute),
-			Name:      entry.Key,
-		},
-	}
+func buildTestRequest(entry *catalog.Entry, payloadHex string) (protocol.CIPRequest, error) {
+	// Use the entry's ToCIPRequest method which handles the conversion
+	req := entry.ToCIPRequest()
+	req.Path.Name = entry.Key
 
 	// Add payload if specified
 	if payloadHex != "" {
@@ -424,14 +412,11 @@ func (m *CatalogScreenModel) renderTestMode(s Styles) []string {
 	lines = append(lines, "")
 
 	// EPATH tuple
-	epath := fmt.Sprintf("%s/%s/%s", entry.Service, entry.Class, entry.Instance)
-	if entry.Attribute != "" {
-		epath += "/" + entry.Attribute
+	epath := fmt.Sprintf("0x%02X/0x%04X/0x%04X", entry.ServiceCode, entry.EPATH.Class, entry.EPATH.Instance)
+	if entry.EPATH.Attribute != 0 {
+		epath += fmt.Sprintf("/0x%04X", entry.EPATH.Attribute)
 	}
-	serviceName := "Unknown"
-	if svc, err := parseHexValue(entry.Service); err == nil {
-		serviceName = spec.ServiceName(protocol.CIPServiceCode(svc))
-	}
+	serviceName := spec.ServiceName(protocol.CIPServiceCode(entry.ServiceCode))
 	lines = append(lines, s.Dim.Render("Path: ")+s.Info.Render(epath)+"  "+s.Dim.Render(serviceName))
 	lines = append(lines, "")
 
@@ -494,9 +479,9 @@ func (m *CatalogScreenModel) renderResultMode(s Styles) []string {
 	lines = append(lines, "")
 
 	// EPATH tuple
-	epath := fmt.Sprintf("%s/%s/%s", entry.Service, entry.Class, entry.Instance)
-	if entry.Attribute != "" {
-		epath += "/" + entry.Attribute
+	epath := fmt.Sprintf("0x%02X/0x%04X/0x%04X", entry.ServiceCode, entry.EPATH.Class, entry.EPATH.Instance)
+	if entry.EPATH.Attribute != 0 {
+		epath += fmt.Sprintf("/0x%04X", entry.EPATH.Attribute)
 	}
 	lines = append(lines, s.Dim.Render("Path: ")+s.Info.Render(epath))
 	lines = append(lines, s.Dim.Render("Target: ")+m.testIP+":"+m.testPort)
@@ -540,9 +525,9 @@ func (m *CatalogScreenModel) renderCatalogContent(s Styles) []string {
 
 	if len(m.filteredEntries) == 0 {
 		lines = append(lines, s.Dim.Render("No catalog entries found."))
-		if len(m.state.Catalog) == 0 {
+		if m.state.CatalogInstance == nil || len(m.state.CatalogEntries) == 0 {
 			lines = append(lines, "")
-			lines = append(lines, s.Dim.Render("Catalog is empty. Add entries via workspace/catalogs/*.yaml"))
+			lines = append(lines, s.Dim.Render("Catalog not loaded. Check /catalogs/core.yaml"))
 		}
 		return lines
 	}
@@ -563,16 +548,13 @@ func (m *CatalogScreenModel) renderCatalogContent(s Styles) []string {
 		entry := m.filteredEntries[i]
 
 		// Build EPATH tuple
-		epath := fmt.Sprintf("%s/%s/%s", entry.Service, entry.Class, entry.Instance)
-		if entry.Attribute != "" && entry.Attribute != "0x00" {
-			epath += "/" + entry.Attribute
+		epath := fmt.Sprintf("0x%02X/0x%04X/0x%04X", entry.ServiceCode, entry.EPATH.Class, entry.EPATH.Instance)
+		if entry.EPATH.Attribute != 0 {
+			epath += fmt.Sprintf("/0x%04X", entry.EPATH.Attribute)
 		}
 
 		// Get service name
-		serviceName := ""
-		if svc, err := parseHexValue(entry.Service); err == nil {
-			serviceName = spec.ServiceName(protocol.CIPServiceCode(svc))
-		}
+		serviceName := spec.ServiceName(protocol.CIPServiceCode(entry.ServiceCode))
 
 		// Cursor and selection
 		cursor := "  "
@@ -583,24 +565,24 @@ func (m *CatalogScreenModel) renderCatalogContent(s Styles) []string {
 		}
 
 		// Format entry line: EPATH | Service Name | Entry Name
-		epathStr := fmt.Sprintf("%-22s", epath)
+		epathStr := fmt.Sprintf("%-24s", epath)
 		serviceStr := fmt.Sprintf("%-22s", truncateString(serviceName, 20))
 		nameStr := truncateString(entry.Name, 28)
 
 		line := cursor + s.Info.Render(epathStr) + " " + s.Dim.Render(serviceStr) + " " + nameStyle.Render(nameStr)
 		lines = append(lines, line)
 
-		// Show scope/vendor as secondary info for selected item
-		if i == m.cursor && (entry.Scope != "" || entry.Notes != "") {
+		// Show domain/vendor as secondary info for selected item
+		if i == m.cursor && (entry.Domain != "" || entry.Description != "") {
 			extra := "     "
-			if entry.Scope != "" {
-				extra += s.Dim.Render("["+entry.Scope+"]") + " "
+			if entry.Domain != "" {
+				extra += s.Dim.Render("["+string(entry.Domain)+"]") + " "
 			}
 			if entry.Vendor != "" {
 				extra += s.Dim.Render("vendor:"+entry.Vendor) + " "
 			}
-			if entry.Notes != "" {
-				extra += s.Dim.Render(truncateString(entry.Notes, 50))
+			if entry.Description != "" {
+				extra += s.Dim.Render(truncateString(entry.Description, 50))
 			}
 			lines = append(lines, extra)
 		}
@@ -643,7 +625,7 @@ func (m *CatalogScreenModel) renderHeader(width int) string {
 
 	subtitle := s.Dim.Render("CIP Object Browser")
 
-	count := s.Dim.Render(fmt.Sprintf("%d entries", len(m.state.Catalog)))
+	count := s.Dim.Render(fmt.Sprintf("%d entries", len(m.state.CatalogEntries)))
 
 	left := title + "  " + subtitle
 	right := count

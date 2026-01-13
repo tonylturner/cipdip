@@ -104,16 +104,13 @@ func Run(workspaceRoot string) error {
 	// Load initial data
 	profiles, _ := ListProfiles(ws.Root)
 	runs, _ := ListRuns(ws.Root, 20)
-	catalog, _ := ListCatalogEntries(ws.Root)
-	catalogSources, _ := ListCatalogSources(ws.Root)
 
 	state := &AppState{
-		WorkspaceRoot:  ws.Root,
-		WorkspaceName:  ws.Config.Name,
-		Profiles:       profiles,
-		Runs:           runs,
-		Catalog:        catalog,
-		CatalogSources: catalogSources,
+		WorkspaceRoot: ws.Root,
+		WorkspaceName: ws.Config.Name,
+		Profiles:      profiles,
+		Runs:          runs,
+		// Catalog is loaded by CatalogPanel from /catalogs/core.yaml
 	}
 
 	model := NewModel(state)

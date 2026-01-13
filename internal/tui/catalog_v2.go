@@ -142,19 +142,75 @@ func (m *CatalogV2Model) handleSearchInput(msg tea.KeyMsg) (*CatalogV2Model, tea
 	case "esc":
 		m.searchMode = false
 		m.searchQuery = ""
+		m.updateGroups() // Reset to full list
+		m.groupCursor = 0
+		m.groupScroll = 0
 	case "enter":
 		m.searchMode = false
-		// TODO: Apply search filter
+		m.applySearchFilter()
 	case "backspace":
 		if len(m.searchQuery) > 0 {
 			m.searchQuery = m.searchQuery[:len(m.searchQuery)-1]
 		}
+		// Live filter as user types
+		m.applySearchFilter()
 	default:
 		if len(msg.String()) == 1 {
 			m.searchQuery += msg.String()
 		}
+		// Live filter as user types
+		m.applySearchFilter()
 	}
 	return m, nil
+}
+
+// applySearchFilter filters groups based on search query.
+func (m *CatalogV2Model) applySearchFilter() {
+	if m.catalog == nil {
+		return
+	}
+
+	if m.searchQuery == "" {
+		m.updateGroups()
+		m.groupCursor = 0
+		m.groupScroll = 0
+		return
+	}
+
+	query := strings.ToLower(m.searchQuery)
+
+	// Get all groups (respecting domain filter)
+	var allGroups []*catalog.ServiceGroup
+	if m.domainFilter != "" {
+		allGroups = m.catalog.GroupsByDomain(m.domainFilter)
+	} else {
+		allGroups = m.catalog.Groups()
+	}
+
+	// Filter groups by search query
+	var filtered []*catalog.ServiceGroup
+	for _, g := range allGroups {
+		// Match against service name, object name, or entry names/keys
+		if strings.Contains(strings.ToLower(g.ServiceName), query) ||
+			strings.Contains(strings.ToLower(g.ObjectName), query) {
+			filtered = append(filtered, g)
+			continue
+		}
+
+		// Check entries within the group
+		for _, e := range g.Entries {
+			if strings.Contains(strings.ToLower(e.Key), query) ||
+				strings.Contains(strings.ToLower(e.Name), query) ||
+				strings.Contains(strings.ToLower(e.Description), query) {
+				filtered = append(filtered, g)
+				break
+			}
+		}
+	}
+
+	m.groups = filtered
+	m.groupCursor = 0
+	m.groupScroll = 0
 }
 
 func (m *CatalogV2Model) updateScreen1(msg tea.KeyMsg) (*CatalogV2Model, tea.Cmd) {

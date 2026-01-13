@@ -4,14 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/tturner/cipdip/internal/app"
+	"github.com/tturner/cipdip/internal/cip/catalog"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
-// Type aliases from app package for convenience
-type CatalogEntry = app.CatalogEntry
-type CatalogPayload = app.CatalogPayload
-type CatalogFile = app.CatalogFile
+// Type aliases from catalog package - single source of truth
+type CatalogEntry = catalog.Entry
+type CatalogFile = catalog.File
+type Catalog = catalog.Catalog
+type ServiceGroup = catalog.ServiceGroup
 
 // Type aliases from ui package to consolidate duplicates
 type StatsUpdate = ui.StatsUpdate
@@ -42,10 +43,13 @@ type AppState struct {
 	WorkspaceName string
 
 	// Cached data
-	Profiles       []ProfileInfo
-	Runs           []string
-	Catalog        []CatalogEntry
-	CatalogSources []string
+	Profiles []ProfileInfo
+	Runs     []string
+
+	// Catalog - single source of truth from /catalogs/core.yaml
+	CatalogInstance *Catalog // The loaded catalog with lookup methods
+	CatalogEntries  []*CatalogEntry
+	CatalogGroups   []*ServiceGroup
 
 	// Active operations
 	ServerRunning    bool
@@ -71,34 +75,37 @@ func NewAppState(workspaceRoot, workspaceName string) *AppState {
 	}
 }
 
-// Helper functions for loading data - these delegate to app package
+// Helper functions for loading catalog - uses internal/cip/catalog
 
-// LoadCatalogFile loads a catalog file.
-func LoadCatalogFile(path string) (*CatalogFile, error) {
-	return app.LoadCatalogFile(path)
+// LoadCoreCatalog loads the core catalog from /catalogs/core.yaml.
+// This is the single source of truth for all catalog operations.
+func LoadCoreCatalog() (*Catalog, error) {
+	// Find the core catalog relative to current working directory
+	catalogPath, err := catalog.FindCoreCatalog(".")
+	if err != nil {
+		return nil, err
+	}
+
+	file, err := catalog.LoadAndValidate(catalogPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return catalog.NewCatalog(file), nil
 }
 
-// SaveCatalogFile saves a catalog file.
-func SaveCatalogFile(path string, catalog CatalogFile) error {
-	return app.SaveCatalogFile(path, catalog)
+// FindCatalogEntry finds a catalog entry by key using the catalog instance.
+func FindCatalogEntry(cat *Catalog, key string) (*CatalogEntry, bool) {
+	if cat == nil {
+		return nil, false
+	}
+	return cat.Lookup(key)
 }
 
-// ListCatalogEntries lists all catalog entries in a workspace.
-func ListCatalogEntries(workspaceRoot string) ([]CatalogEntry, error) {
-	return app.ListCatalogEntries(workspaceRoot)
-}
-
-// ListCatalogSources lists catalog source files in a workspace.
-func ListCatalogSources(workspaceRoot string) ([]string, error) {
-	return app.ListCatalogSources(workspaceRoot)
-}
-
-// FindCatalogEntry finds a catalog entry by key.
-func FindCatalogEntry(entries []CatalogEntry, key string) *CatalogEntry {
-	return app.FindCatalogEntry(entries, key)
-}
-
-// FilterCatalogEntries filters catalog entries by query.
-func FilterCatalogEntries(entries []CatalogEntry, query string) []CatalogEntry {
-	return app.FilterCatalogEntries(entries, query)
+// SearchCatalog searches for entries matching a query.
+func SearchCatalog(cat *Catalog, query string) []*CatalogEntry {
+	if cat == nil {
+		return nil
+	}
+	return cat.Search(query)
 }

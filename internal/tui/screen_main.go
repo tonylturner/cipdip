@@ -316,7 +316,7 @@ func (m *MainScreenModel) renderSystemPanel(width int) string {
 	items := [][]string{
 		{"Workspace", wsName},
 		{"Profiles", fmt.Sprintf("%d", len(m.state.Profiles))},
-		{"Catalog", fmt.Sprintf("%d", len(m.state.Catalog))},
+		{"Catalog", fmt.Sprintf("%d", len(m.state.CatalogEntries))},
 		{"Runs", fmt.Sprintf("%d", len(m.state.Runs))},
 	}
 
@@ -788,32 +788,32 @@ to see its targets.`
 
 func (m *MainScreenModel) renderCatalogContent(width int) string {
 	s := m.styles
-	catalog := m.state.Catalog
+	entries := m.state.CatalogEntries
 
 	var lines []string
 
-	if len(catalog) == 0 {
+	if len(entries) == 0 {
 		lines = append(lines, s.Dim.Render("No catalog entries loaded."))
 		lines = append(lines, "")
-		lines = append(lines, s.Dim.Render("Add entries via:"))
-		lines = append(lines, s.Dim.Render("  workspace/catalogs/*.yaml"))
+		lines = append(lines, s.Dim.Render("Catalog loaded from:"))
+		lines = append(lines, s.Dim.Render("  /catalogs/core.yaml"))
 	} else {
 		// Header
-		lines = append(lines, s.Dim.Render(fmt.Sprintf("Entries: %d", len(catalog))))
+		lines = append(lines, s.Dim.Render(fmt.Sprintf("Entries: %d", len(entries))))
 		lines = append(lines, "")
 
 		// Show entries with full EPATH tuple
 		maxShow := 12
-		if len(catalog) < maxShow {
-			maxShow = len(catalog)
+		if len(entries) < maxShow {
+			maxShow = len(entries)
 		}
 
 		for i := 0; i < maxShow; i++ {
-			entry := catalog[i]
+			entry := entries[i]
 			// Build EPATH: Service/Class/Instance/Attribute
-			epath := fmt.Sprintf("%s/%s/%s", entry.Service, entry.Class, entry.Instance)
-			if entry.Attribute != "" && entry.Attribute != "0x00" {
-				epath += "/" + entry.Attribute
+			epath := fmt.Sprintf("0x%02X/0x%04X/0x%04X", entry.ServiceCode, entry.EPATH.Class, entry.EPATH.Instance)
+			if entry.EPATH.Attribute != 0 {
+				epath += fmt.Sprintf("/0x%04X", entry.EPATH.Attribute)
 			}
 
 			// Truncate name if needed
@@ -829,13 +829,13 @@ func (m *MainScreenModel) renderCatalogContent(width int) string {
 				name = name[:maxName-3] + "..."
 			}
 
-			line := fmt.Sprintf("%-22s %s", epath, name)
+			line := fmt.Sprintf("%-26s %s", epath, name)
 			lines = append(lines, line)
 		}
 
-		if len(catalog) > maxShow {
+		if len(entries) > maxShow {
 			lines = append(lines, "")
-			lines = append(lines, s.Dim.Render(fmt.Sprintf("  +%d more...", len(catalog)-maxShow)))
+			lines = append(lines, s.Dim.Render(fmt.Sprintf("  +%d more...", len(entries)-maxShow)))
 		}
 	}
 

@@ -133,6 +133,12 @@ type ClientPanel struct {
 	avgLatency    float64
 	successRate   float64
 
+	// Log view
+	showLog    bool
+	logLines   []string
+	logScroll  int
+	maxLogLines int
+
 	// Run control
 	runCtx    context.Context
 	runCancel context.CancelFunc
@@ -174,6 +180,8 @@ func NewClientPanel(styles Styles) *ClientPanel {
 		interval:     "250",
 		modePreset:   1, // Standard
 		recentErrors: make([]string, 0),
+		maxLogLines:  100,
+		logLines:     make([]string, 0),
 	}
 	cp.loadProfiles()
 	cp.updateAutoDetectedInterface()
@@ -589,6 +597,30 @@ func (p *ClientPanel) updateRunning(msg tea.KeyMsg) (Panel, tea.Cmd) {
 			Output:   fmt.Sprintf("Stopped by user after %v", elapsed.Round(time.Second)),
 			ExitCode: 1,
 		}
+	case "l":
+		// Toggle log view
+		p.showLog = !p.showLog
+		p.logScroll = 0
+	case "up", "k":
+		// Scroll log up
+		if p.showLog && p.logScroll > 0 {
+			p.logScroll--
+		}
+	case "down", "j":
+		// Scroll log down
+		if p.showLog && p.logScroll < len(p.logLines)-10 {
+			p.logScroll++
+		}
+	case "g":
+		// Go to top of log
+		if p.showLog {
+			p.logScroll = 0
+		}
+	case "G":
+		// Go to bottom of log
+		if p.showLog && len(p.logLines) > 10 {
+			p.logScroll = len(p.logLines) - 10
+		}
 	}
 	return p, nil
 }
@@ -959,6 +991,11 @@ func (p *ClientPanel) viewRunningContent(width int, focused bool) string {
 		progress = 100
 	}
 
+	// If showing log view, display log output
+	if p.showLog {
+		return p.viewLogContent(width, elapsed, durationSec, progress)
+	}
+
 	// Calculate success rate
 	successRate := 0.0
 	if p.stats.TotalRequests > 0 {
@@ -1025,7 +1062,61 @@ func (p *ClientPanel) viewRunningContent(width int, focused bool) string {
 	}
 
 	lines = append(lines, "")
-	lines = append(lines, s.KeyBinding.Render("[Esc/x]")+" Stop  "+s.KeyBinding.Render("[Space]")+" Pause")
+	lines = append(lines, s.KeyBinding.Render("[Esc/x]")+" Stop  "+s.KeyBinding.Render("[l]")+" Log  "+s.KeyBinding.Render("[Space]")+" Pause")
+
+	return strings.Join(lines, "\n")
+}
+
+// viewLogContent displays the log output view.
+func (p *ClientPanel) viewLogContent(width int, elapsed time.Duration, durationSec int, progress float64) string {
+	s := p.styles
+
+	lines := []string{
+		s.Running.Render("● RUNNING") + " " + s.Dim.Render("(Log View)"),
+		"",
+		fmt.Sprintf("Progress: %s / %s (%.0f%%)", formatDuration(elapsed.Seconds()), formatDuration(float64(durationSec)), progress),
+		"",
+		s.Header.Render("─── Output Log ───"),
+	}
+
+	// Calculate how many lines we can show
+	maxDisplayLines := 15
+	if len(p.logLines) == 0 {
+		lines = append(lines, s.Dim.Render("  (no output yet)"))
+	} else {
+		// Get visible portion of log
+		startIdx := p.logScroll
+		endIdx := startIdx + maxDisplayLines
+		if endIdx > len(p.logLines) {
+			endIdx = len(p.logLines)
+		}
+		if startIdx >= len(p.logLines) {
+			startIdx = 0
+			if len(p.logLines) < maxDisplayLines {
+				endIdx = len(p.logLines)
+			} else {
+				endIdx = maxDisplayLines
+			}
+		}
+
+		for i := startIdx; i < endIdx; i++ {
+			line := p.logLines[i]
+			// Truncate long lines
+			if len(line) > width-4 {
+				line = line[:width-7] + "..."
+			}
+			lines = append(lines, "  "+s.Dim.Render(line))
+		}
+
+		// Show scroll position
+		if len(p.logLines) > maxDisplayLines {
+			scrollInfo := fmt.Sprintf("  [%d-%d of %d lines]", startIdx+1, endIdx, len(p.logLines))
+			lines = append(lines, s.Dim.Render(scrollInfo))
+		}
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, s.KeyBinding.Render("[Esc/x]")+" Stop  "+s.KeyBinding.Render("[l]")+" Stats  "+s.KeyBinding.Render("[↑↓]")+" Scroll")
 
 	return strings.Join(lines, "\n")
 }
@@ -1121,6 +1212,21 @@ func (p *ClientPanel) UpdateStats(stats StatsUpdate) {
 func (p *ClientPanel) SetResult(result CommandResult) {
 	p.result = &result
 	p.mode = PanelResult
+}
+
+// AddLogLine adds a line to the log buffer.
+func (p *ClientPanel) AddLogLine(line string) {
+	p.logLines = append(p.logLines, line)
+	if len(p.logLines) > p.maxLogLines {
+		p.logLines = p.logLines[len(p.logLines)-p.maxLogLines:]
+	}
+}
+
+// ClearLog clears the log buffer.
+func (p *ClientPanel) ClearLog() {
+	p.logLines = make([]string, 0)
+	p.logScroll = 0
+	p.showLog = false
 }
 
 // --------------------------------------------------------------------------
@@ -3104,6 +3210,18 @@ func (p *CatalogPanel) loadCatalog() {
 	}
 	p.catalog = catalog.NewCatalog(file)
 	p.updateGroups()
+
+	// Share catalog with state for other components
+	if p.state != nil {
+		p.state.CatalogInstance = p.catalog
+		p.state.CatalogEntries = p.catalog.ListAll()
+		p.state.CatalogGroups = p.catalog.Groups()
+	}
+}
+
+// GetCatalog returns the loaded catalog.
+func (p *CatalogPanel) GetCatalog() *catalog.Catalog {
+	return p.catalog
 }
 
 func (p *CatalogPanel) updateGroups() {
