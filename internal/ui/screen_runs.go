@@ -515,5 +515,5 @@ func (m *RunsScreenModel) Footer() string {
 	if m.showDetail {
 		return "o: open artifact    r: re-run    y: copy command    Esc: back    m: menu"
 	}
-	return "Enter: view details    d: delete    Tab: filter    m: menu"
+	return "Enter: view details    d: delete    Tab: filter    m: menu    ?/h: help"
 }

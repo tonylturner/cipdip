@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/catalog"
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/codec"
 	"github.com/tturner/cipdip/internal/cip/protocol"
@@ -51,6 +52,18 @@ func (s *Server) handleSendRRData(encap enip.ENIPEncapsulation, remoteAddr strin
 		uint8(cipReq.Service), cipReq.Path.Class, cipReq.Path.Instance, cipReq.Path.Attribute)
 	if s.config.Logging.IncludeHexDump {
 		s.logger.LogHex("CIP Request", cipData)
+	}
+
+	// Validate against catalog first (returns 0x08 if service not supported)
+	if catalogResp := s.validateAgainstCatalog(cipReq); catalogResp != nil {
+		fmt.Printf("[SERVER] Catalog validation rejected: service 0x%02X not supported for class 0x%04X\n",
+			uint8(cipReq.Service), cipReq.Path.Class)
+		cipRespData, err := protocol.EncodeCIPResponse(*catalogResp)
+		if err != nil {
+			s.logger.Error("Encode CIP response error: %v", err)
+			return s.buildErrorResponse(encap, enip.ENIPStatusInvalidLength)
+		}
+		return s.buildCIPResponse(encap, cipRespData)
 	}
 
 	if policyResp, ok := s.applyCIPPolicy(cipReq); ok {
@@ -374,6 +387,11 @@ func (s *Server) handleMultipleService(encap enip.ENIPEncapsulation, req protoco
 }
 
 func (s *Server) handleEmbeddedRequest(req protocol.CIPRequest) protocol.CIPResponse {
+	// Validate against catalog first
+	if catalogResp := s.validateAgainstCatalog(req); catalogResp != nil {
+		return *catalogResp
+	}
+
 	resp, handled, err := s.handlers.Handle(s.ctx, req)
 	if !handled {
 		return protocol.CIPResponse{
@@ -396,4 +414,50 @@ func parseForwardCloseConnectionID(cipData []byte) uint32 {
 		}
 	}
 	return 0
+}
+
+// validateAgainstCatalog checks if the request service+class is supported by the catalog.
+// Returns a CIP response with status 0x08 (Service_Not_Supported) if not found.
+// If catalog is nil, validation is disabled, or the service is found, returns nil (allow processing).
+func (s *Server) validateAgainstCatalog(req protocol.CIPRequest) *protocol.CIPResponse {
+	// Skip validation if disabled in config or no catalog loaded
+	if !s.config.CIP.CatalogValidation || s.catalog == nil {
+		return nil
+	}
+
+	// Skip validation for special services handled separately
+	switch req.Service {
+	case spec.CIPServiceForwardOpen, spec.CIPServiceForwardClose, spec.CIPServiceLargeForwardOpen:
+		return nil // Handled separately
+	case spec.CIPServiceUnconnectedSend, spec.CIPServiceMultipleService:
+		return nil // Container services - validate inner requests
+	}
+
+	// Look up service+class combination in catalog
+	entries := s.catalog.LookupByServiceClass(uint8(req.Service), req.Path.Class)
+	if len(entries) == 0 {
+		// No catalog entry for this service+class combination
+		s.logger.Debug("Catalog validation: service 0x%02X on class 0x%04X not found", req.Service, req.Path.Class)
+		return &protocol.CIPResponse{
+			Service: req.Service,
+			Status:  0x08, // Service_Not_Supported
+			Path:    req.Path,
+		}
+	}
+
+	// Check if any entry matches the server personality
+	for _, entry := range entries {
+		if entry.Personality == catalog.PersonalityAny || entry.Personality == s.personality {
+			return nil // Found matching entry for this personality
+		}
+	}
+
+	// Service exists in catalog but not for this personality
+	s.logger.Debug("Catalog validation: service 0x%02X on class 0x%04X not supported for personality %s",
+		req.Service, req.Path.Class, s.personality)
+	return &protocol.CIPResponse{
+		Service: req.Service,
+		Status:  0x08, // Service_Not_Supported
+		Path:    req.Path,
+	}
 }

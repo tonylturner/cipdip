@@ -44,9 +44,15 @@ func newSingleCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "single",
-		Short: "Send a single CIP service request (one-off check)",
-		Long: `Send a single CIP service request without editing YAML configs.
-Use this for quick firewall/DPI checks on a specific service/class/instance/attribute.`,
+		Short: "Send a single CIP service request (DEPRECATED: use 'catalog test')",
+		Long: `DEPRECATED: Use 'cipdip catalog test <key>' instead.
+
+Send a single CIP service request without editing YAML configs.
+Use this for quick firewall/DPI checks on a specific service/class/instance/attribute.
+
+Migration examples:
+  OLD: cipdip single --ip 10.0.0.50 --service 0x0E --class 0x01 --instance 0x01 --attribute 0x01
+  NEW: cipdip catalog test identity.vendor_id --ip 10.0.0.50`,
 		Example: `  # Get_Attribute_Single (0x0E) for Identity Vendor ID
   cipdip single --ip 10.0.0.50 --service 0x0E --class 0x01 --instance 0x01 --attribute 0x01
 
