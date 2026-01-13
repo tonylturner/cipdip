@@ -919,6 +919,9 @@ func (m *Model) startServerRun(cfg ServerRunConfig) (tea.Model, tea.Cmd) {
 
 	// Create run directory for artifacts
 	runName := "server_" + cfg.Personality
+	if cfg.Profile != "" {
+		runName = "server_" + cfg.Profile
+	}
 	if runDir, err := ui.CreateRunDir(m.state.WorkspaceRoot, runName); err == nil {
 		m.serverPanel.runDir = runDir
 	}
@@ -935,8 +938,14 @@ func (m *Model) startServerRun(cfg ServerRunConfig) (tea.Model, tea.Cmd) {
 	m.serverPanel.runCtx = ctx
 	m.serverPanel.runCancel = cancel
 
-	// Start the server run command using ui's execution
-	return m, StartServerRunCmd(ctx, cfg)
+	// Create channels for stats and result forwarding
+	statsChan := make(chan StatsUpdate, 100)
+	resultChan := make(chan CommandResult, 1)
+	m.state.ServerStatsChan = statsChan
+	m.state.ServerResultChan = resultChan
+
+	// Start the server run command with channels for stats forwarding
+	return m, StartServerRunCmd(ctx, cfg, statsChan, resultChan)
 }
 
 // startPCAPRun starts the PCAP operation.
@@ -980,8 +989,14 @@ func (m *Model) startClientRun(cfg ClientRunConfig) (tea.Model, tea.Cmd) {
 	m.clientPanel.runCtx = ctx
 	m.clientPanel.runCancel = cancel
 
-	// Start the client run command using ui's execution
-	return m, StartClientRunCmd(ctx, cfg)
+	// Create channels for stats and result forwarding
+	statsChan := make(chan StatsUpdate, 100)
+	resultChan := make(chan CommandResult, 1)
+	m.state.ClientStatsChan = statsChan
+	m.state.ClientResultChan = resultChan
+
+	// Start the client run command with channels for stats forwarding
+	return m, StartClientRunCmd(ctx, cfg, statsChan, resultChan)
 }
 
 // GetEmbeddedPanel returns the current embedded panel for rendering.
