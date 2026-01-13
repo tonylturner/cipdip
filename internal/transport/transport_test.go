@@ -1,0 +1,479 @@
+package transport
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func TestNewLocal(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	if l == nil {
+		t.Fatal("NewLocal returned nil")
+	}
+	if l.String() != "local" {
+		t.Errorf("String() = %v, want local", l.String())
+	}
+}
+
+func TestLocal_Exec(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+
+	// Test simple command
+	exitCode, stdout, stderr, err := l.Exec(ctx, []string{"echo", "hello"}, nil, "")
+	if err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+	if exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", exitCode)
+	}
+	if stdout != "hello\n" {
+		t.Errorf("stdout = %q, want %q", stdout, "hello\n")
+	}
+	if stderr != "" {
+		t.Errorf("stderr = %q, want empty", stderr)
+	}
+}
+
+func TestLocal_Exec_EmptyCommand(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+
+	_, _, _, err := l.Exec(ctx, nil, nil, "")
+	if err == nil {
+		t.Error("Exec() should fail with empty command")
+	}
+}
+
+func TestLocal_Exec_NonZeroExit(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+
+	exitCode, _, _, err := l.Exec(ctx, []string{"sh", "-c", "exit 42"}, nil, "")
+	if err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+	if exitCode != 42 {
+		t.Errorf("exitCode = %d, want 42", exitCode)
+	}
+}
+
+func TestLocal_Exec_WithEnv(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+
+	env := map[string]string{"TEST_VAR": "test_value"}
+	exitCode, stdout, _, err := l.Exec(ctx, []string{"sh", "-c", "echo $TEST_VAR"}, env, "")
+	if err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+	if exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", exitCode)
+	}
+	if stdout != "test_value\n" {
+		t.Errorf("stdout = %q, want %q", stdout, "test_value\n")
+	}
+}
+
+func TestLocal_Exec_WithCwd(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	exitCode, stdout, _, err := l.Exec(ctx, []string{"pwd"}, nil, tmpDir)
+	if err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+	if exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", exitCode)
+	}
+	// stdout should contain the temp directory path
+	if stdout[:len(stdout)-1] != tmpDir { // Remove trailing newline
+		t.Errorf("stdout = %q, want %q", stdout, tmpDir+"\n")
+	}
+}
+
+func TestLocal_ExecStream(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+
+	var stdout, stderr bytes.Buffer
+	exitCode, err := l.ExecStream(ctx, []string{"echo", "hello"}, nil, "", &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("ExecStream() error = %v", err)
+	}
+	if exitCode != 0 {
+		t.Errorf("exitCode = %d, want 0", exitCode)
+	}
+	if stdout.String() != "hello\n" {
+		t.Errorf("stdout = %q, want %q", stdout.String(), "hello\n")
+	}
+}
+
+func TestLocal_PutGet(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Create source file
+	srcPath := filepath.Join(tmpDir, "source.txt")
+	content := []byte("test content")
+	if err := os.WriteFile(srcPath, content, 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	// Put (copy)
+	dstPath := filepath.Join(tmpDir, "dest.txt")
+	if err := l.Put(ctx, srcPath, dstPath); err != nil {
+		t.Fatalf("Put() error = %v", err)
+	}
+
+	// Verify destination exists
+	data, err := os.ReadFile(dstPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(data) != string(content) {
+		t.Errorf("content = %q, want %q", string(data), string(content))
+	}
+
+	// Get (copy back)
+	dst2Path := filepath.Join(tmpDir, "dest2.txt")
+	if err := l.Get(ctx, dstPath, dst2Path); err != nil {
+		t.Fatalf("Get() error = %v", err)
+	}
+
+	// Verify
+	data, err = os.ReadFile(dst2Path)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if string(data) != string(content) {
+		t.Errorf("content = %q, want %q", string(data), string(content))
+	}
+}
+
+func TestLocal_Mkdir(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	newDir := filepath.Join(tmpDir, "a", "b", "c")
+	if err := l.Mkdir(ctx, newDir); err != nil {
+		t.Fatalf("Mkdir() error = %v", err)
+	}
+
+	info, err := os.Stat(newDir)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if !info.IsDir() {
+		t.Error("Path should be a directory")
+	}
+}
+
+func TestLocal_Stat(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Create file
+	filePath := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	info, err := l.Stat(ctx, filePath)
+	if err != nil {
+		t.Fatalf("Stat() error = %v", err)
+	}
+	if info.Name() != "test.txt" {
+		t.Errorf("Name() = %v, want test.txt", info.Name())
+	}
+	if info.IsDir() {
+		t.Error("IsDir() should be false")
+	}
+}
+
+func TestLocal_Remove(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	// Create file
+	filePath := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	// Remove
+	if err := l.Remove(ctx, filePath); err != nil {
+		t.Fatalf("Remove() error = %v", err)
+	}
+
+	// Verify gone
+	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
+		t.Error("File should not exist after Remove()")
+	}
+}
+
+func TestLocal_Close(t *testing.T) {
+	l := NewLocal(DefaultOptions())
+	if err := l.Close(); err != nil {
+		t.Errorf("Close() error = %v", err)
+	}
+}
+
+func TestLocal_Timeout(t *testing.T) {
+	opts := DefaultOptions()
+	opts.Timeout = 100 * time.Millisecond
+	l := NewLocal(opts)
+	ctx := context.Background()
+
+	// This should timeout - either returns an error or a non-zero exit code
+	// because the process is killed by context deadline
+	start := time.Now()
+	exitCode, _, _, err := l.Exec(ctx, []string{"sleep", "10"}, nil, "")
+	elapsed := time.Since(start)
+
+	// Should complete in around the timeout duration, not 10 seconds
+	if elapsed > 2*time.Second {
+		t.Errorf("Exec() took %v, should have timed out around %v", elapsed, opts.Timeout)
+	}
+
+	// Either we get an error or a non-zero exit (signal killed)
+	if err == nil && exitCode == 0 {
+		t.Error("Exec() should fail or exit non-zero with timeout")
+	}
+}
+
+// Parse tests
+
+func TestParse_Local(t *testing.T) {
+	tests := []string{"local", ""}
+	for _, spec := range tests {
+		t.Run(spec, func(t *testing.T) {
+			tr, err := Parse(spec)
+			if err != nil {
+				t.Fatalf("Parse(%q) error = %v", spec, err)
+			}
+			if tr.String() != "local" {
+				t.Errorf("String() = %v, want local", tr.String())
+			}
+		})
+	}
+}
+
+func TestParse_SSH(t *testing.T) {
+	tests := []struct {
+		spec     string
+		wantHost string
+		wantUser string
+		wantPort int
+	}{
+		{
+			spec:     "ssh://user@host:2222",
+			wantHost: "host",
+			wantUser: "user",
+			wantPort: 2222,
+		},
+		{
+			spec:     "ssh://host",
+			wantHost: "host",
+			wantPort: 0, // default
+		},
+		{
+			spec:     "user@host",
+			wantHost: "host",
+			wantUser: "user",
+		},
+		{
+			spec:     "host",
+			wantHost: "host",
+		},
+		{
+			spec:     "user@host:22",
+			wantHost: "host",
+			wantUser: "user",
+			wantPort: 22,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.spec, func(t *testing.T) {
+			tr, err := Parse(tt.spec)
+			if err != nil {
+				t.Fatalf("Parse(%q) error = %v", tt.spec, err)
+			}
+
+			ssh, ok := tr.(*SSH)
+			if !ok {
+				t.Fatalf("Parse(%q) returned %T, want *SSH", tt.spec, tr)
+			}
+
+			if ssh.host != tt.wantHost {
+				t.Errorf("host = %v, want %v", ssh.host, tt.wantHost)
+			}
+			if tt.wantUser != "" && ssh.opts.User != tt.wantUser {
+				t.Errorf("user = %v, want %v", ssh.opts.User, tt.wantUser)
+			}
+			if tt.wantPort != 0 && ssh.opts.Port != tt.wantPort {
+				t.Errorf("port = %v, want %v", ssh.opts.Port, tt.wantPort)
+			}
+		})
+	}
+}
+
+func TestParse_SSHWithOptions(t *testing.T) {
+	tr, err := Parse("ssh://user@host?key=/path/to/key&insecure=true")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	ssh, ok := tr.(*SSH)
+	if !ok {
+		t.Fatalf("Parse() returned %T, want *SSH", tr)
+	}
+
+	if ssh.opts.KeyFile != "/path/to/key" {
+		t.Errorf("KeyFile = %v, want /path/to/key", ssh.opts.KeyFile)
+	}
+	if !ssh.opts.InsecureIgnoreHost {
+		t.Error("InsecureIgnoreHost should be true")
+	}
+}
+
+func TestParse_InvalidScheme(t *testing.T) {
+	_, err := Parse("ftp://host")
+	if err == nil {
+		t.Error("Parse() should fail with unsupported scheme")
+	}
+}
+
+func TestIsLocal(t *testing.T) {
+	if !IsLocal("") {
+		t.Error("IsLocal(\"\") should be true")
+	}
+	if !IsLocal("local") {
+		t.Error("IsLocal(\"local\") should be true")
+	}
+	if IsLocal("host") {
+		t.Error("IsLocal(\"host\") should be false")
+	}
+}
+
+func TestIsSSH(t *testing.T) {
+	if IsSSH("") {
+		t.Error("IsSSH(\"\") should be false")
+	}
+	if IsSSH("local") {
+		t.Error("IsSSH(\"local\") should be false")
+	}
+	if !IsSSH("host") {
+		t.Error("IsSSH(\"host\") should be true")
+	}
+	if !IsSSH("ssh://host") {
+		t.Error("IsSSH(\"ssh://host\") should be true")
+	}
+}
+
+func TestMustParse(t *testing.T) {
+	tr := MustParse("local")
+	if tr.String() != "local" {
+		t.Errorf("String() = %v, want local", tr.String())
+	}
+}
+
+func TestMustParse_Panic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("MustParse should panic on invalid scheme")
+		}
+	}()
+	MustParse("invalid://scheme")
+}
+
+func TestBuildCommandString(t *testing.T) {
+	tests := []struct {
+		cmd  []string
+		cwd  string
+		want string
+	}{
+		{
+			cmd:  []string{"echo", "hello"},
+			want: "echo hello",
+		},
+		{
+			cmd:  []string{"echo", "hello world"},
+			want: "echo 'hello world'",
+		},
+		{
+			cmd:  []string{"ls", "-la"},
+			cwd:  "/tmp",
+			want: "cd /tmp && ls -la",
+		},
+		{
+			cmd:  []string{"sh", "-c", "echo $HOME"},
+			want: "sh -c 'echo $HOME'",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			got := buildCommandString(tt.cmd, tt.cwd)
+			if got != tt.want {
+				t.Errorf("buildCommandString() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNeedsQuoting(t *testing.T) {
+	tests := []struct {
+		s    string
+		want bool
+	}{
+		{"hello", false},
+		{"hello world", true},
+		{"$HOME", true},
+		{"file.txt", false},
+		{"path/to/file", false},
+		{"echo 'test'", true},
+		{"a|b", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			if got := needsQuoting(tt.s); got != tt.want {
+				t.Errorf("needsQuoting(%q) = %v, want %v", tt.s, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefaultOptions(t *testing.T) {
+	opts := DefaultOptions()
+	if opts.Timeout != 5*time.Minute {
+		t.Errorf("Timeout = %v, want 5m", opts.Timeout)
+	}
+	if opts.RetryAttempts != 3 {
+		t.Errorf("RetryAttempts = %d, want 3", opts.RetryAttempts)
+	}
+}
+
+func TestDefaultSSHOptions(t *testing.T) {
+	opts := DefaultSSHOptions()
+	if opts.Port != 22 {
+		t.Errorf("Port = %d, want 22", opts.Port)
+	}
+	if opts.ConnectTimeout != 30*time.Second {
+		t.Errorf("ConnectTimeout = %v, want 30s", opts.ConnectTimeout)
+	}
+	if !opts.Agent {
+		t.Error("Agent should be true by default")
+	}
+}
