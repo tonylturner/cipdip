@@ -316,9 +316,37 @@ func checkPcapCapability() (bool, string) {
 		return true, "tcpdump"
 	}
 
-	// Check for tshark
+	// Check for tshark in PATH
 	if _, err := exec.LookPath("tshark"); err == nil {
 		return true, "tshark"
+	}
+
+	// On Windows, check standard installation locations
+	if runtime.GOOS == "windows" {
+		// Check for tshark in standard Wireshark install location
+		programFiles := os.Getenv("ProgramFiles")
+		if programFiles == "" {
+			programFiles = `C:\Program Files`
+		}
+		tsharkPath := filepath.Join(programFiles, "Wireshark", "tshark.exe")
+		if _, err := os.Stat(tsharkPath); err == nil {
+			return true, "tshark"
+		}
+
+		// Check for npcap DLL in System32\Npcap (standard install)
+		systemRoot := os.Getenv("SystemRoot")
+		if systemRoot == "" {
+			systemRoot = `C:\Windows`
+		}
+		npcapPath := filepath.Join(systemRoot, "System32", "Npcap", "wpcap.dll")
+		if _, err := os.Stat(npcapPath); err == nil {
+			return true, "npcap"
+		}
+		// Check for WinPcap compatibility mode (wpcap.dll in System32)
+		wpcapPath := filepath.Join(systemRoot, "System32", "wpcap.dll")
+		if _, err := os.Stat(wpcapPath); err == nil {
+			return true, "npcap"
+		}
 	}
 
 	// On Linux, check for raw socket capability
