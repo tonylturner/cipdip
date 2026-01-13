@@ -2,12 +2,14 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tturner/cipdip/internal/ui"
 )
 
 // RunsScreenModel handles the full-screen runs history view.
@@ -22,6 +24,7 @@ type RunsScreenModel struct {
 	selectedArtifact int
 	artifacts        []string
 	artifactContent  string
+	currentRunDir    string
 
 	// Confirmation
 	confirmDelete bool
@@ -31,12 +34,49 @@ var runsFilterTypes = []string{"all", "client", "server", "pcap"}
 
 // NewRunsScreenModel creates a new runs screen.
 func NewRunsScreenModel(state *AppState, styles Styles) *RunsScreenModel {
-	return &RunsScreenModel{
+	m := &RunsScreenModel{
 		state:      state,
 		styles:     styles,
 		filterType: "all",
 		artifacts:  []string{"command.txt", "stdout.log", "resolved.yaml", "summary.json"},
 	}
+	// Load runs from workspace
+	m.loadRuns()
+	return m
+}
+
+// loadRuns loads run directories from the workspace.
+func (m *RunsScreenModel) loadRuns() {
+	if m.state.WorkspaceRoot == "" {
+		return
+	}
+	runs, err := ui.ListRuns(m.state.WorkspaceRoot, 0)
+	if err == nil {
+		m.state.Runs = runs
+	}
+}
+
+// loadArtifactContent loads the content of the selected artifact.
+func (m *RunsScreenModel) loadArtifactContent() {
+	if m.currentRunDir == "" || m.selectedArtifact >= len(m.artifacts) {
+		m.artifactContent = ""
+		return
+	}
+
+	artifactPath := filepath.Join(m.currentRunDir, m.artifacts[m.selectedArtifact])
+	data, err := os.ReadFile(artifactPath)
+	if err != nil {
+		m.artifactContent = fmt.Sprintf("Error loading: %v", err)
+		return
+	}
+
+	content := string(data)
+	// Limit content size for display
+	lines := strings.Split(content, "\n")
+	if len(lines) > 20 {
+		lines = append(lines[:20], "... (truncated)")
+	}
+	m.artifactContent = strings.Join(lines, "\n")
 }
 
 // Update handles input for the runs screen.
@@ -57,13 +97,17 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 		switch msg.String() {
 		case "esc", "backspace":
 			m.showDetail = false
+			m.currentRunDir = ""
+			m.artifactContent = ""
 		case "up", "k":
 			if m.selectedArtifact > 0 {
 				m.selectedArtifact--
+				m.loadArtifactContent()
 			}
 		case "down", "j":
 			if m.selectedArtifact < len(m.artifacts)-1 {
 				m.selectedArtifact++
+				m.loadArtifactContent()
 			}
 		case "o":
 			// TODO: Open in editor
@@ -98,6 +142,9 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 		if m.cursor < len(filtered) {
 			m.showDetail = true
 			m.selectedArtifact = 0
+			// Set the current run directory and load artifact content
+			m.currentRunDir = filepath.Join(m.state.WorkspaceRoot, "runs", filtered[m.cursor])
+			m.loadArtifactContent()
 		}
 	case "o":
 		// Open selected run in editor
@@ -113,6 +160,9 @@ func (m *RunsScreenModel) Update(msg tea.KeyMsg) (*RunsScreenModel, tea.Cmd) {
 		if m.cursor < len(filtered) {
 			m.confirmDelete = true
 		}
+	case "R":
+		// Refresh runs list
+		m.loadRuns()
 	}
 	return m, nil
 }
@@ -225,6 +275,12 @@ func (m *RunsScreenModel) renderListView(s Styles) string {
 				scenario = parts[3]
 			}
 
+			// Try to load actual status from summary.json
+			summaryPath := filepath.Join(m.state.WorkspaceRoot, "runs", run, "summary.json")
+			if summary, err := ui.LoadRunSummary(summaryPath); err == nil {
+				status = summary.Status
+			}
+
 			cursor := "  "
 			if i == m.cursor {
 				cursor = s.Selected.Render("> ")
@@ -290,26 +346,17 @@ func (m *RunsScreenModel) renderDetailView(s Styles, width int) string {
 		lines = append(lines, fmt.Sprintf("%s%s %s", cursor, icon, artifact))
 	}
 
-	// Sample artifact content preview
+	// Artifact content preview
 	lines = append(lines, "")
-	lines = append(lines, s.Header.Render("Preview:"))
-	switch m.artifacts[m.selectedArtifact] {
-	case "command.txt":
-		lines = append(lines, s.Dim.Render("  cipdip client --ip 192.168.1.100 --scenario baseline"))
-	case "stdout.log":
-		lines = append(lines, s.Dim.Render("  [INFO] Starting client scenario"))
-		lines = append(lines, s.Dim.Render("  [INFO] Connected to 192.168.1.100:44818"))
-		lines = append(lines, s.Dim.Render("  [INFO] Running baseline tests..."))
-	case "resolved.yaml":
-		lines = append(lines, s.Dim.Render("  target_ip: 192.168.1.100"))
-		lines = append(lines, s.Dim.Render("  port: 44818"))
-		lines = append(lines, s.Dim.Render("  scenario: baseline"))
-	case "summary.json":
-		lines = append(lines, s.Dim.Render("  {"))
-		lines = append(lines, s.Dim.Render("    \"status\": \"success\","))
-		lines = append(lines, s.Dim.Render("    \"requests\": 1234,"))
-		lines = append(lines, s.Dim.Render("    \"errors\": 0"))
-		lines = append(lines, s.Dim.Render("  }"))
+	lines = append(lines, s.Header.Render("Content:"))
+
+	if m.artifactContent != "" {
+		// Show actual artifact content
+		for _, line := range strings.Split(m.artifactContent, "\n") {
+			lines = append(lines, s.Dim.Render("  "+line))
+		}
+	} else {
+		lines = append(lines, s.Dim.Render("  (no content)"))
 	}
 
 	return strings.Join(lines, "\n")

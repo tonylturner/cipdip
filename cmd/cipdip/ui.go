@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tturner/cipdip/internal/tui"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
@@ -42,6 +43,7 @@ type uiFlags struct {
 	showPalette       bool
 	showHome          bool
 	startTUI          bool
+	classicTUI        bool // Use old screen-based TUI instead of dashboard
 	cliMode           bool
 	noRun             bool
 	printCommand      bool
@@ -51,11 +53,13 @@ func newUICmd() *cobra.Command {
 	flags := &uiFlags{}
 	cmd := &cobra.Command{
 		Use:   "ui",
-		Short: "Open the CIPDIP TUI",
-		Long: `Launch the CIPDIP TUI for workspace-based runs.
+		Short: "Open the CIPDIP dashboard",
+		Long: `Launch the CIPDIP TUI dashboard for workspace-based runs.
 
-The TUI is a thin layer over the CLI. It creates repeatable runs and emits
-workspace artifacts for every execution.`,
+The dashboard provides a unified interface for client, server, PCAP analysis,
+and catalog browsing. All operations run from the same screen with live stats.
+
+Use --classic for the older screen-based navigation.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUI(flags)
 		},
@@ -89,6 +93,7 @@ workspace artifacts for every execution.`,
 	cmd.Flags().StringVar(&flags.paletteQuery, "palette-query", "", "Filter palette results by search term")
 	cmd.Flags().BoolVar(&flags.showHome, "home", false, "Show the home screen preview and exit")
 	cmd.Flags().BoolVar(&flags.startTUI, "tui", false, "Start the interactive TUI (Bubble Tea)")
+	cmd.Flags().BoolVar(&flags.classicTUI, "classic", false, "Use classic screen-based TUI instead of dashboard")
 	cmd.Flags().BoolVar(&flags.cliMode, "cli", false, "Force non-interactive output (no TUI)")
 	cmd.Flags().BoolVar(&flags.noRun, "no-run", false, "Do not execute commands, only prepare workspace")
 	cmd.Flags().BoolVar(&flags.printCommand, "print-command", false, "Print generated command and exit")
@@ -130,7 +135,10 @@ func runUI(flags *uiFlags) error {
 
 	fmt.Fprintf(os.Stdout, "Workspace loaded: %s\n", ws.Root)
 	if flags.startTUI {
-		return ui.RunTUIV2(ws.Root)
+		if flags.classicTUI {
+			return ui.RunTUIV2(ws.Root)
+		}
+		return tui.Run(ws.Root)
 	}
 	previewOnly := flags.cliMode || flags.noRun || flags.printCommand || flags.showCatalog || flags.showPalette || flags.showHome || flags.wizard != "" || flags.profile != ""
 	if flags.showCatalog {
@@ -168,7 +176,10 @@ func runUI(flags *uiFlags) error {
 		return nil
 	}
 	if !previewOnly {
-		return ui.RunTUIV2(ws.Root)
+		if flags.classicTUI {
+			return ui.RunTUIV2(ws.Root)
+		}
+		return tui.Run(ws.Root)
 	}
 	var profiles []ui.ProfileInfo
 	if flags.wizard == "" {

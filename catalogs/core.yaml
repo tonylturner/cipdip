@@ -1,0 +1,701 @@
+# =============================================================================
+# CIP Service Catalog - Definitive Source of Truth
+# =============================================================================
+#
+# Key Convention: <object>.<target>
+#   - identity.vendor_id, symbol.read_tag, connmgr.forward_open, etc.
+#
+# Domains: core (ODVA standard), logix (Rockwell), legacy (File/PCCC)
+#
+# Usage:
+#   CLI:  cipdip catalog list
+#         cipdip catalog test identity.vendor_id --ip 10.0.0.50
+#   TUI:  Press 'k' for catalog panel, 't' for quick test (highlighted item)
+#
+# =============================================================================
+
+version: 1
+name: core
+
+entries:
+  # ---------------------------------------------------------------------------
+  # CORE: Identity Object (0x01)
+  # ---------------------------------------------------------------------------
+  - key: identity.vendor_id
+    name: Vendor ID
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x01
+    category: discovery
+    domain: core
+    personality: any
+    description: Manufacturer identifier (UINT)
+
+  - key: identity.device_type
+    name: Device Type
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x02
+    category: discovery
+    domain: core
+    personality: any
+    description: Product category (UINT)
+
+  - key: identity.product_code
+    name: Product Code
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x03
+    category: discovery
+    domain: core
+    personality: any
+    description: Model identifier (UINT)
+
+  - key: identity.revision
+    name: Revision
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x04
+    category: discovery
+    domain: core
+    personality: any
+    description: Firmware revision major.minor (STRUCT)
+
+  - key: identity.status
+    name: Status
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x05
+    category: discovery
+    domain: core
+    personality: any
+    description: Device status word (WORD)
+
+  - key: identity.serial_number
+    name: Serial Number
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x06
+    category: discovery
+    domain: core
+    personality: any
+    description: Unique serial number (UDINT)
+
+  - key: identity.product_name
+    name: Product Name
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+      attribute: 0x07
+    category: discovery
+    domain: core
+    personality: any
+    description: Human-readable product name (SHORT_STRING)
+
+  - key: identity.all
+    name: All Attributes
+    service_code: 0x01
+    service_name: Get_Attributes_All
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+    category: discovery
+    domain: core
+    personality: any
+    description: All identity attributes in one request
+
+  - key: identity.reset
+    name: Reset
+    service_code: 0x05
+    service_name: Reset
+    object_name: Identity
+    object_class: 0x01
+    epath:
+      kind: logical
+      class: 0x01
+      instance: 0x01
+    category: discovery
+    domain: core
+    personality: any
+    description: Reset device
+
+  # ---------------------------------------------------------------------------
+  # CORE: TCP/IP Interface Object (0xF5)
+  # ---------------------------------------------------------------------------
+  - key: tcpip.status
+    name: Interface Status
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: TCP_IP_Interface
+    object_class: 0xF5
+    epath:
+      kind: logical
+      class: 0xF5
+      instance: 0x01
+      attribute: 0x01
+    category: discovery
+    domain: core
+    personality: any
+    description: Interface status flags (DWORD)
+
+  - key: tcpip.config_capability
+    name: Config Capability
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: TCP_IP_Interface
+    object_class: 0xF5
+    epath:
+      kind: logical
+      class: 0xF5
+      instance: 0x01
+      attribute: 0x02
+    category: discovery
+    domain: core
+    personality: any
+    description: Configuration capability flags (DWORD)
+
+  - key: tcpip.config_control
+    name: Config Control
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: TCP_IP_Interface
+    object_class: 0xF5
+    epath:
+      kind: logical
+      class: 0xF5
+      instance: 0x01
+      attribute: 0x03
+    category: discovery
+    domain: core
+    personality: any
+    description: Configuration control flags (DWORD)
+
+  - key: tcpip.phys_link
+    name: Physical Link Object
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: TCP_IP_Interface
+    object_class: 0xF5
+    epath:
+      kind: logical
+      class: 0xF5
+      instance: 0x01
+      attribute: 0x04
+    category: discovery
+    domain: core
+    personality: any
+    description: Path to Ethernet Link object (EPATH)
+
+  - key: tcpip.interface_config
+    name: Interface Configuration
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: TCP_IP_Interface
+    object_class: 0xF5
+    epath:
+      kind: logical
+      class: 0xF5
+      instance: 0x01
+      attribute: 0x05
+    category: discovery
+    domain: core
+    personality: any
+    description: IP address, subnet mask, gateway (STRUCT)
+
+  - key: tcpip.hostname
+    name: Hostname
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: TCP_IP_Interface
+    object_class: 0xF5
+    epath:
+      kind: logical
+      class: 0xF5
+      instance: 0x01
+      attribute: 0x06
+    category: discovery
+    domain: core
+    personality: any
+    description: Device hostname (STRING)
+
+  # ---------------------------------------------------------------------------
+  # CORE: Ethernet Link Object (0xF6)
+  # ---------------------------------------------------------------------------
+  - key: ethlink.speed
+    name: Interface Speed
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Ethernet_Link
+    object_class: 0xF6
+    epath:
+      kind: logical
+      class: 0xF6
+      instance: 0x01
+      attribute: 0x01
+    category: discovery
+    domain: core
+    personality: any
+    description: Interface speed in Mbps (UDINT)
+
+  - key: ethlink.flags
+    name: Interface Flags
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Ethernet_Link
+    object_class: 0xF6
+    epath:
+      kind: logical
+      class: 0xF6
+      instance: 0x01
+      attribute: 0x02
+    category: discovery
+    domain: core
+    personality: any
+    description: Interface capability flags (DWORD)
+
+  - key: ethlink.mac_address
+    name: MAC Address
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Ethernet_Link
+    object_class: 0xF6
+    epath:
+      kind: logical
+      class: 0xF6
+      instance: 0x01
+      attribute: 0x03
+    category: discovery
+    domain: core
+    personality: any
+    description: Physical MAC address (6 bytes)
+
+  # ---------------------------------------------------------------------------
+  # CORE: Message Router (0x02)
+  # ---------------------------------------------------------------------------
+  - key: router.multiple_service
+    name: Multiple Service Packet
+    service_code: 0x0A
+    service_name: Multiple_Service_Packet
+    object_name: Message_Router
+    object_class: 0x02
+    epath:
+      kind: logical
+      class: 0x02
+      instance: 0x01
+    category: transport
+    domain: core
+    personality: any
+    payload_schema:
+      type: multiple_service
+    description: Bundle multiple CIP requests
+
+  # ---------------------------------------------------------------------------
+  # CORE: Connection Manager (0x06)
+  # ---------------------------------------------------------------------------
+  - key: connmgr.forward_open
+    name: Forward Open
+    service_code: 0x54
+    service_name: Forward_Open
+    object_name: Connection_Manager
+    object_class: 0x06
+    epath:
+      kind: logical
+      class: 0x06
+      instance: 0x01
+    category: connection
+    domain: core
+    personality: any
+    payload_schema:
+      type: forward_open
+    description: Establish I/O or explicit connection
+
+  - key: connmgr.large_forward_open
+    name: Large Forward Open
+    service_code: 0x5B
+    service_name: Large_Forward_Open
+    object_name: Connection_Manager
+    object_class: 0x06
+    epath:
+      kind: logical
+      class: 0x06
+      instance: 0x01
+    category: connection
+    domain: core
+    personality: any
+    payload_schema:
+      type: forward_open
+    description: Large connection (>511 byte sizes)
+
+  - key: connmgr.forward_close
+    name: Forward Close
+    service_code: 0x4E
+    service_name: Forward_Close
+    object_name: Connection_Manager
+    object_class: 0x06
+    epath:
+      kind: logical
+      class: 0x06
+      instance: 0x01
+    category: connection
+    domain: core
+    personality: any
+    payload_schema:
+      type: forward_close
+    description: Close an existing connection
+
+  - key: connmgr.unconnected_send
+    name: Unconnected Send
+    service_code: 0x52
+    service_name: Unconnected_Send
+    object_name: Connection_Manager
+    object_class: 0x06
+    epath:
+      kind: ucmm_wrap
+      class: 0x06
+      instance: 0x01
+    category: connection
+    domain: core
+    personality: any
+    payload_schema:
+      type: unconnected_send
+    description: Route an explicit message
+
+  # ---------------------------------------------------------------------------
+  # LOGIX: Symbol Object (0x6B) - Rockwell
+  # ---------------------------------------------------------------------------
+  - key: symbol.read_tag
+    name: Read Tag
+    service_code: 0x4C
+    service_name: Read_Tag
+    object_name: Symbol
+    object_class: 0x6B
+    epath:
+      kind: symbolic
+    category: data_access
+    domain: logix
+    vendor: rockwell
+    personality: logix_like
+    requires_input:
+      - symbol_path
+    payload_schema:
+      type: read_tag
+    description: Read atomic tag value
+
+  - key: symbol.write_tag
+    name: Write Tag
+    service_code: 0x4D
+    service_name: Write_Tag
+    object_name: Symbol
+    object_class: 0x6B
+    epath:
+      kind: symbolic
+    category: data_access
+    domain: logix
+    vendor: rockwell
+    personality: logix_like
+    requires_input:
+      - symbol_path
+    payload_schema:
+      type: write_tag
+    description: Write atomic tag value
+
+  - key: symbol.read_modify_write
+    name: Read Modify Write
+    service_code: 0x4E
+    service_name: Read_Modify_Write
+    object_name: Symbol
+    object_class: 0x6B
+    epath:
+      kind: symbolic
+    category: data_access
+    domain: logix
+    vendor: rockwell
+    personality: logix_like
+    requires_input:
+      - symbol_path
+    payload_schema:
+      type: read_modify_write
+    description: Atomic read-modify-write operation
+
+  - key: symbol.read_tag_fragmented
+    name: Read Tag Fragmented
+    service_code: 0x52
+    service_name: Read_Tag_Fragmented
+    object_name: Symbol
+    object_class: 0x6B
+    epath:
+      kind: symbolic
+    category: data_access
+    domain: logix
+    vendor: rockwell
+    personality: logix_like
+    requires_input:
+      - symbol_path
+    payload_schema:
+      type: read_tag_fragmented
+    description: Read large tag/array/UDT
+
+  - key: symbol.write_tag_fragmented
+    name: Write Tag Fragmented
+    service_code: 0x53
+    service_name: Write_Tag_Fragmented
+    object_name: Symbol
+    object_class: 0x6B
+    epath:
+      kind: symbolic
+    category: data_access
+    domain: logix
+    vendor: rockwell
+    personality: logix_like
+    requires_input:
+      - symbol_path
+    payload_schema:
+      type: write_tag_fragmented
+    description: Write large tag/array/UDT
+
+  # ---------------------------------------------------------------------------
+  # LOGIX: Template Object (0x6C) - Rockwell
+  # ---------------------------------------------------------------------------
+  - key: template.read
+    name: Read Template
+    service_code: 0x4C
+    service_name: Read_Tag
+    object_name: Template
+    object_class: 0x6C
+    epath:
+      kind: logical
+      class: 0x6C
+      instance: 0x01
+    category: data_access
+    domain: logix
+    vendor: rockwell
+    personality: logix_like
+    requires_input:
+      - template_id
+    payload_schema:
+      type: read_template
+    description: Read UDT template definition
+
+  # ---------------------------------------------------------------------------
+  # LEGACY: File Object (0x37)
+  # ---------------------------------------------------------------------------
+  - key: file.initiate_upload
+    name: Initiate Upload
+    service_code: 0x4B
+    service_name: Initiate_Upload
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: file_object
+    description: Begin file upload from device
+
+  - key: file.initiate_download
+    name: Initiate Download
+    service_code: 0x4C
+    service_name: Initiate_Download
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: file_object
+    description: Begin file download to device
+
+  - key: file.upload_transfer
+    name: Upload Transfer
+    service_code: 0x4F
+    service_name: Upload_Transfer
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: file_object
+    description: Transfer file data from device
+
+  - key: file.download_transfer
+    name: Download Transfer
+    service_code: 0x50
+    service_name: Download_Transfer
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: file_object
+    description: Transfer file data to device
+
+  - key: file.initiate_partial_read
+    name: Initiate Partial Read
+    service_code: 0x4D
+    service_name: Initiate_Partial_Read
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: file_object
+    description: Begin partial file read
+
+  - key: file.initiate_partial_write
+    name: Initiate Partial Write
+    service_code: 0x4E
+    service_name: Initiate_Partial_Write
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: file_object
+    description: Begin partial file write
+
+  - key: file.clear
+    name: Clear File
+    service_code: 0x51
+    service_name: Clear_File
+    object_name: File
+    object_class: 0x37
+    epath:
+      kind: logical
+      class: 0x37
+      instance: 0x01
+    category: file_transfer
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    description: Clear file contents
+
+  # ---------------------------------------------------------------------------
+  # LEGACY: PCCC Object (0x67)
+  # ---------------------------------------------------------------------------
+  - key: pccc.execute
+    name: Execute PCCC
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+    category: legacy
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    payload_schema:
+      type: pccc_execute
+    description: Execute legacy PCCC command
+
+  - key: pccc.typed_read
+    name: Typed Read
+    service_code: 0x4C
+    service_name: Typed_Read
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+    category: legacy
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    description: PCCC typed read
+
+  - key: pccc.typed_write
+    name: Typed Write
+    service_code: 0x4D
+    service_name: Typed_Write
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+    category: legacy
+    domain: legacy
+    vendor: rockwell
+    personality: logix_like
+    description: PCCC typed write

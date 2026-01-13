@@ -1,0 +1,32 @@
+{
+  "run_id": "20260112-203157",
+  "start_time": "2026-01-12T20:31:57.161091-05:00",
+  "end_time": "2026-01-12T20:32:02.168611-05:00",
+  "duration": "5.007485542s",
+  "profile": "Batch Mixing Tank",
+  "role": "hmi",
+  "personality": "logix_like",
+  "target_ip": "192.168.1.100",
+  "target_port": 44818,
+  "poll_interval_ms": 500,
+  "batch_size": 12,
+  "stats": {
+    "total_operations": 0,
+    "successful_ops": 0,
+    "failed_ops": 0,
+    "timeout_count": 0,
+    "reconnect_count": 0,
+    "avg_rtt_ms": 0,
+    "p50_rtt_ms": 0,
+    "p95_rtt_ms": 0,
+    "p99_rtt_ms": 0,
+    "max_rtt_ms": 0
+  },
+  "exit_code": 1,
+  "error": "connect: Failed to communicate with device at 192.168.1.100:44818\n  Reason: Connection timeout - device may be offline or unreachable\n  Hint: Device may not be a CIP/EtherNet-IP device, or there may be a network connectivity issue\n  Try: cipdip test --ip 192.168.1.100 --port 44818\n  Details: dial TCP: dial tcp 192.168.1.100:44818: i/o timeout",
+  "artifacts": {
+    "run_json": "run.json",
+    "metrics_csv": "metrics_20260112-203157.csv",
+    "summary_txt": "summary_20260112-203157.txt"
+  }
+}

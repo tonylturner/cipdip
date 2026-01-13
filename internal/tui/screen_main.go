@@ -531,8 +531,9 @@ func (m *MainScreenModel) renderActivePanel(fullWidth int) string {
 		panelContent = panel.ViewContent(panelWidth-4, true)
 		helpContent = m.getPCAPHelp()
 	case EmbedCatalog:
-		panelTitle = "CATALOG"
-		panelContent = m.renderCatalogContent(panelWidth - 4)
+		panel := m.model.GetCatalogPanel()
+		panelTitle = panel.Title()
+		panelContent = panel.ViewContent(panelWidth-4, true)
 		helpContent = m.getCatalogHelp()
 	}
 
@@ -697,42 +698,145 @@ Navigation:
 }
 
 func (m *MainScreenModel) getCatalogHelp() string {
-	return `CATALOG HELP
+	panel := m.model.GetCatalogPanel()
+	switch panel.Mode() {
+	case PanelConfig:
+		return `TEST CONFIGURATION
 
-Browse CIP objects
-and definitions.
+Send a CIP request to a
+real EtherNet/IP device.
 
-Navigation:
-  Up/Down  Select item
-  Enter    View details
-  /        Search
-  Esc      Close
+The EPATH is built from
+the selected catalog
+entry (service, class,
+instance, attribute).
 
-Categories:
-  Identity objects
-  Network objects
-  Application objects`
+Target IP
+  IPv4 of the device
+
+Port
+  Default 44818 (ENIP)
+
+Payload
+  Optional request data
+  in hex (e.g. 01020304)`
+
+	case PanelRunning:
+		return `REQUEST IN PROGRESS
+
+Connecting to target
+via TCP port 44818.
+
+Sequence:
+1. TCP connect
+2. RegisterSession
+3. SendRRData with
+   embedded CIP request
+4. Parse response
+
+Press Esc to abort.`
+
+	case PanelResult:
+		return `CIP RESPONSE
+
+Common Status Codes:
+
+0x00 Success
+     Request completed
+
+0x04 Path Segment Error
+     Invalid class/inst
+
+0x08 Service Not Supported
+     Unknown service code
+
+0x0E Attribute Not Settable
+     Read-only attribute
+
+0x14 Not Enough Data
+     Payload too short`
+
+	default:
+		return `CIP SERVICE CATALOG
+
+Groups services by their
+service code + object
+class combination.
+
+DOMAIN
+  Core   ODVA standard
+  Logix  Rockwell-specific
+  Legacy Older protocols
+
+SERVICE
+  CIP service name and
+  hex code (e.g. 0x0E)
+
+OBJECT
+  Target class/instance
+  (e.g. Identity 0x01)
+
+TARGETS
+  Available attributes
+  or instances to query
+
+Use 'f' to filter by
+domain. Select a group
+to see its targets.`
+	}
 }
 
 func (m *MainScreenModel) renderCatalogContent(width int) string {
 	s := m.styles
-
-	categories := []struct {
-		name  string
-		items []string
-	}{
-		{"Identity", []string{"Identity (0x01)", "MsgRouter (0x02)", "Assembly (0x04)"}},
-		{"Network", []string{"TCP/IP (0xF5)", "EthLink (0xF6)", "ConnMgr (0x06)"}},
-		{"Application", []string{"Parameter (0x0F)", "File (0x37)", "TimeSync (0x43)"}},
-	}
+	catalog := m.state.Catalog
 
 	var lines []string
-	for _, cat := range categories {
-		lines = append(lines, s.Header.Render(cat.name))
-		for _, item := range cat.items {
-			lines = append(lines, "  "+item)
-		}
+
+	if len(catalog) == 0 {
+		lines = append(lines, s.Dim.Render("No catalog entries loaded."))
 		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render("Add entries via:"))
+		lines = append(lines, s.Dim.Render("  workspace/catalogs/*.yaml"))
+	} else {
+		// Header
+		lines = append(lines, s.Dim.Render(fmt.Sprintf("Entries: %d", len(catalog))))
+		lines = append(lines, "")
+
+		// Show entries with full EPATH tuple
+		maxShow := 12
+		if len(catalog) < maxShow {
+			maxShow = len(catalog)
+		}
+
+		for i := 0; i < maxShow; i++ {
+			entry := catalog[i]
+			// Build EPATH: Service/Class/Instance/Attribute
+			epath := fmt.Sprintf("%s/%s/%s", entry.Service, entry.Class, entry.Instance)
+			if entry.Attribute != "" && entry.Attribute != "0x00" {
+				epath += "/" + entry.Attribute
+			}
+
+			// Truncate name if needed
+			name := entry.Name
+			if name == "" {
+				name = entry.Key
+			}
+			maxName := width - len(epath) - 4
+			if maxName < 10 {
+				maxName = 10
+			}
+			if len(name) > maxName {
+				name = name[:maxName-3] + "..."
+			}
+
+			line := fmt.Sprintf("%-22s %s", epath, name)
+			lines = append(lines, line)
+		}
+
+		if len(catalog) > maxShow {
+			lines = append(lines, "")
+			lines = append(lines, s.Dim.Render(fmt.Sprintf("  +%d more...", len(catalog)-maxShow)))
+		}
 	}
 
 	// Pad content

@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"context"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tturner/cipdip/internal/ui"
 )
 
 // Screen represents the current active screen.
@@ -44,11 +46,13 @@ type Model struct {
 	clientPanel   *ClientPanel
 	serverPanel   *ServerPanel
 	pcapPanel     *PCAPPanel
+	catalogPanel  *CatalogPanel
 
 	// Screen-specific models (for full-screen views)
-	mainScreen    *MainScreenModel
-	catalogScreen *CatalogScreenModel
-	runsScreen    *RunsScreenModel
+	mainScreen     *MainScreenModel
+	catalogScreen  *CatalogScreenModel
+	catalogV2      *CatalogV2Model // New enhanced catalog workflow
+	runsScreen     *RunsScreenModel
 }
 
 // NewModel creates a new TUI model.
@@ -63,10 +67,14 @@ func NewModel(state *AppState) *Model {
 		clientPanel:   NewClientPanel(styles),
 		serverPanel:   NewServerPanel(styles),
 		pcapPanel:     NewPCAPPanel(styles),
+		catalogPanel:  NewCatalogPanel(styles, state),
 	}
 
 	// Initialize main screen
 	m.mainScreen = NewMainScreenModel(state, styles, m)
+
+	// Initialize enhanced catalog (V2) model
+	m.catalogV2 = NewCatalogV2Model(styles)
 
 	return m
 }
@@ -99,6 +107,112 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+
+	case TestResultMsg:
+		// Handle catalog test result
+		if m.catalogV2 != nil {
+			m.catalogV2.HandleTestResult(msg)
+		}
+		return m, nil
+
+	case startClientRunMsg:
+		// Start the actual client run
+		return m.startClientRun(msg.config)
+
+	case clientRunResultMsg:
+		// Client run completed
+		exitCode := 0
+		if msg.result.Error != nil {
+			exitCode = 1
+		}
+		m.clientPanel.SetResult(CommandResult{
+			Output:   msg.result.Output,
+			ExitCode: exitCode,
+			Err:      msg.result.Error,
+		})
+		m.clientPanel.stats = msg.result.Stats
+		m.state.ClientRunning = false
+
+		// Save run artifacts
+		if m.clientPanel.runDir != "" && m.clientPanel.startTime != nil {
+			status := "success"
+			if msg.result.Error != nil {
+				status = "failed"
+			}
+			summary := ui.RunSummary{
+				Status:     status,
+				Command:    m.clientPanel.BuildRunConfig(m.state.WorkspaceRoot).BuildCommandArgs(),
+				StartedAt:  m.clientPanel.startTime.Format(time.RFC3339),
+				FinishedAt: time.Now().Format(time.RFC3339),
+				ExitCode:   exitCode,
+			}
+			resolved := map[string]interface{}{
+				"type":   "client",
+				"target": m.clientPanel.targetIP,
+				"stats":  msg.result.Stats,
+			}
+			_ = ui.WriteRunArtifacts(m.clientPanel.runDir, resolved, summary.Command, msg.result.Output, summary)
+		}
+		return m, nil
+
+	case clientStatsMsg:
+		// Update client stats
+		m.clientPanel.UpdateStats(msg.stats)
+		return m, nil
+
+	case startServerRunMsg:
+		// Start the actual server run
+		return m.startServerRun(msg.config)
+
+	case serverRunResultMsg:
+		// Server run completed
+		m.serverPanel.SetResult(CommandResult{
+			Output:   msg.output,
+			ExitCode: msg.exitCode,
+			Err:      msg.err,
+		})
+		m.state.ServerRunning = false
+
+		// Save run artifacts
+		if m.serverPanel.runDir != "" && m.serverPanel.startTime != nil {
+			status := "success"
+			if msg.err != nil {
+				status = "failed"
+			}
+			summary := ui.RunSummary{
+				Status:     status,
+				Command:    m.serverPanel.BuildRunConfig(m.state.WorkspaceRoot).BuildCommandArgs(),
+				StartedAt:  m.serverPanel.startTime.Format(time.RFC3339),
+				FinishedAt: time.Now().Format(time.RFC3339),
+				ExitCode:   msg.exitCode,
+			}
+			resolved := map[string]interface{}{
+				"type":        "server",
+				"personality": serverPersonalities[m.serverPanel.personality],
+				"stats":       m.serverPanel.stats,
+			}
+			_ = ui.WriteRunArtifacts(m.serverPanel.runDir, resolved, summary.Command, msg.output, summary)
+		}
+		return m, nil
+
+	case serverStatsMsg:
+		// Update server stats
+		m.serverPanel.UpdateStats(msg.stats)
+		return m, nil
+
+	case startPCAPRunMsg:
+		// Start the actual PCAP run
+		return m.startPCAPRun(msg.config)
+
+	case pcapRunResultMsg:
+		// PCAP run completed
+		m.pcapPanel.result = &CommandResult{
+			Output:   msg.output,
+			ExitCode: msg.exitCode,
+			Err:      msg.err,
+		}
+		m.pcapPanel.mode = PanelResult
+		return m, nil
 	}
 
 	return m, nil
@@ -142,15 +256,20 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// If an embedded panel is active and in CONFIG/RUNNING mode, route to it
+	// Check if an embedded panel is active and needs keys routed to it
+	// Panels in Config/Running mode get keys FIRST (so 'p' for profile works in client)
+	// Catalog always gets keys (browse mode needs key handling)
 	if m.embeddedPanel != EmbedNone {
 		panel := m.getActiveEmbeddedPanel()
-		if panel != nil && panel.Mode() != PanelIdle {
-			return m.handleEmbeddedPanelKey(msg)
+		if panel != nil {
+			panelNeedsKeys := m.embeddedPanel == EmbedCatalog || panel.Mode() != PanelIdle
+			if panelNeedsKeys {
+				return m.handleEmbeddedPanelKey(msg)
+			}
 		}
 	}
 
-	// Panel activation keys
+	// Panel switching keys - only processed when no active panel or panel is idle
 	switch msg.String() {
 	case "c":
 		m.embeddedPanel = EmbedClient
@@ -169,14 +288,14 @@ func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.pcapPanel.mode = PanelConfig
 		return m, nil
 
-	case "tab":
-		// Cycle through embedded panels
-		m.embeddedPanel = (m.embeddedPanel + 1) % 5 // None, Client, Server, PCAP, Catalog
-		return m, nil
-
 	case "k":
 		// Catalog in embedded panel
 		m.embeddedPanel = EmbedCatalog
+		return m, nil
+
+	case "K":
+		// Full-screen catalog (CatalogV2)
+		m.screen = ScreenCatalog
 		return m, nil
 
 	case "r":
@@ -186,9 +305,14 @@ func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.runsScreen = NewRunsScreenModel(m.state, m.styles)
 		}
 		return m, nil
+
+	case "tab":
+		// Cycle through embedded panels
+		m.embeddedPanel = (m.embeddedPanel + 1) % 5 // None, Client, Server, PCAP, Catalog
+		return m, nil
 	}
 
-	// If embedded panel is idle, route remaining keys to main screen
+	// Route remaining keys to main screen
 	if m.mainScreen != nil {
 		newScreen, cmd := m.mainScreen.Update(msg)
 		m.mainScreen = newScreen
@@ -226,6 +350,14 @@ func (m *Model) handleEmbeddedPanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.pcapPanel.Mode() == PanelIdle && msg.String() == "esc" {
 			m.embeddedPanel = EmbedNone
 		}
+
+	case EmbedCatalog:
+		newPanel, c := m.catalogPanel.Update(msg, true)
+		m.catalogPanel = newPanel.(*CatalogPanel)
+		cmd = c
+		if m.catalogPanel.Mode() == PanelIdle && msg.String() == "esc" {
+			m.embeddedPanel = EmbedNone
+		}
 	}
 
 	return m, cmd
@@ -239,6 +371,8 @@ func (m *Model) getActiveEmbeddedPanel() Panel {
 		return m.serverPanel
 	case EmbedPCAP:
 		return m.pcapPanel
+	case EmbedCatalog:
+		return m.catalogPanel
 	}
 	return nil
 }
@@ -248,12 +382,9 @@ func (m *Model) updateScreen(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch m.screen {
 	case ScreenCatalog:
-		if m.catalogScreen == nil {
-			m.catalogScreen = NewCatalogScreenModel(m.state, m.styles)
+		if m.catalogV2 != nil {
+			m.catalogV2, cmd = m.catalogV2.Update(msg)
 		}
-		newScreen, c := m.catalogScreen.Update(msg)
-		m.catalogScreen = newScreen
-		cmd = c
 
 	case ScreenRuns:
 		if m.runsScreen == nil {
@@ -315,9 +446,9 @@ func (m *Model) View() string {
 			footer = m.mainScreen.Footer()
 		}
 	case ScreenCatalog:
-		if m.catalogScreen != nil {
-			content = m.catalogScreen.View()
-			footer = m.catalogScreen.Footer()
+		if m.catalogV2 != nil {
+			content = m.catalogV2.View()
+			footer = m.catalogV2.Footer()
 		} else {
 			content = "Loading catalog screen..."
 		}
@@ -351,6 +482,81 @@ func (m *Model) renderHelpOverlay(baseContent string) string {
 	return baseContent
 }
 
+// startServerRun starts the server operation.
+func (m *Model) startServerRun(cfg ServerRunConfig) (tea.Model, tea.Cmd) {
+	// Set up workspace path if available
+	if m.state.WorkspaceRoot != "" {
+		cfg.OutputDir = m.state.WorkspaceRoot
+	}
+
+	m.state.ServerRunning = true
+
+	// Create run directory for artifacts
+	runName := "server_" + cfg.Personality
+	if runDir, err := ui.CreateRunDir(m.state.WorkspaceRoot, runName); err == nil {
+		m.serverPanel.runDir = runDir
+	}
+
+	// Record start time
+	now := time.Now()
+	m.serverPanel.startTime = &now
+
+	// Create context for this run
+	ctx, cancel := context.WithCancel(context.Background())
+	m.state.ServerCtx = ctx
+	m.state.ServerCancel = cancel
+	m.serverPanel.runCtx = ctx
+	m.serverPanel.runCancel = cancel
+
+	// Start the server run command using ui's execution
+	return m, StartServerRunCmd(ctx, cfg)
+}
+
+// startPCAPRun starts the PCAP operation.
+func (m *Model) startPCAPRun(cfg PCAPRunConfig) (tea.Model, tea.Cmd) {
+	// Set up workspace path if available
+	if m.state.WorkspaceRoot != "" {
+		cfg.OutputDir = m.state.WorkspaceRoot
+	}
+
+	// Start the PCAP run command
+	ctx := context.Background()
+	return m, StartPCAPRunCmd(ctx, cfg)
+}
+
+// startClientRun starts the client operation.
+func (m *Model) startClientRun(cfg ClientRunConfig) (tea.Model, tea.Cmd) {
+	// Set up workspace path if available
+	if m.state.WorkspaceRoot != "" {
+		cfg.OutputDir = m.state.WorkspaceRoot
+	}
+
+	m.state.ClientRunning = true
+
+	// Create run directory for artifacts
+	runName := "client_" + cfg.Scenario
+	if cfg.Profile != "" {
+		runName = "client_" + cfg.Profile
+	}
+	if runDir, err := ui.CreateRunDir(m.state.WorkspaceRoot, runName); err == nil {
+		m.clientPanel.runDir = runDir
+	}
+
+	// Record start time
+	now := time.Now()
+	m.clientPanel.startTime = &now
+
+	// Create context for this run
+	ctx, cancel := context.WithCancel(context.Background())
+	m.state.ClientCtx = ctx
+	m.state.ClientCancel = cancel
+	m.clientPanel.runCtx = ctx
+	m.clientPanel.runCancel = cancel
+
+	// Start the client run command using ui's execution
+	return m, StartClientRunCmd(ctx, cfg)
+}
+
 // GetEmbeddedPanel returns the current embedded panel for rendering.
 func (m *Model) GetEmbeddedPanel() EmbeddedPanel {
 	return m.embeddedPanel
@@ -369,4 +575,9 @@ func (m *Model) GetServerPanel() *ServerPanel {
 // GetPCAPPanel returns the PCAP panel.
 func (m *Model) GetPCAPPanel() *PCAPPanel {
 	return m.pcapPanel
+}
+
+// GetCatalogPanel returns the catalog panel.
+func (m *Model) GetCatalogPanel() *CatalogPanel {
+	return m.catalogPanel
 }
