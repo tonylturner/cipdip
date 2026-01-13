@@ -28,6 +28,8 @@ func ExecuteCommand(ctx context.Context, command CommandSpec) (string, int, erro
 		args = command.Args[1:]
 	}
 	cmd := exec.CommandContext(ctx, executable, args...)
+	cmd.Stdin = nil
+	hideWindow(cmd)
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
@@ -184,6 +186,13 @@ func StartStreamingCommand(ctx context.Context, command CommandSpec) (<-chan Sta
 	args = append(args, "--tui-stats")
 
 	cmd := exec.CommandContext(ctx, executable, args...)
+
+	// Prevent subprocess from inheriting terminal stdin
+	cmd.Stdin = nil
+
+	// On Windows, hide subprocess console window to prevent output bleeding
+	hideWindow(cmd)
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, nil, err
