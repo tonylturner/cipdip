@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 
+	"github.com/tturner/cipdip/internal/cip/catalog"
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
@@ -53,6 +55,27 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// Determine personality for catalog filtering
+	var personality catalog.Personality
+	switch cfg.Server.Personality {
+	case "adapter":
+		personality = catalog.PersonalityAdapter
+	case "logix_like":
+		personality = catalog.PersonalityLogixLike
+	default:
+		personality = catalog.PersonalityAny
+	}
+
+	// Try to load catalog for service validation (optional - server works without it)
+	var cat *catalog.Catalog
+	cwd, _ := os.Getwd()
+	if catalogPath, err := catalog.FindCoreCatalog(cwd); err == nil {
+		if file, err := catalog.Load(catalogPath); err == nil {
+			cat = catalog.NewCatalog(file)
+			logger.Info("Loaded CIP service catalog from %s (%d entries)", catalogPath, len(file.Entries))
+		}
+	}
+
 	s := &Server{
 		config:        cfg,
 		logger:        logger,
@@ -67,6 +90,8 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 		coalesceQueue: make(map[*net.TCPConn][]byte),
 		ctx:           ctx,
 		cancel:        cancel,
+		catalog:       cat,
+		personality:   personality,
 	}
 
 	return s, nil

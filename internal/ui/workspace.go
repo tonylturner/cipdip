@@ -30,7 +30,6 @@ type Workspace struct {
 
 var workspaceDirs = []string{
 	"profiles",
-	"catalogs",
 	"pcaps",
 	"runs",
 	"reports",
@@ -52,19 +51,6 @@ func CreateWorkspace(root string, name string) (*Workspace, error) {
 		path := filepath.Join(root, dir)
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return nil, fmt.Errorf("create workspace dir %s: %w", dir, err)
-		}
-	}
-
-	catalogPath := filepath.Join(root, "catalogs", "core.yaml")
-	if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
-		if err := SaveCatalogFile(catalogPath, DefaultCatalog()); err != nil {
-			return nil, err
-		}
-	}
-	extendedPath := filepath.Join(root, "catalogs", "extended.yaml")
-	if _, err := os.Stat(extendedPath); os.IsNotExist(err) {
-		if err := SaveCatalogFile(extendedPath, DefaultExtendedCatalog()); err != nil {
-			return nil, err
 		}
 	}
 
@@ -119,18 +105,6 @@ func EnsureWorkspaceLayout(root string) error {
 		path := filepath.Join(root, dir)
 		if err := os.MkdirAll(path, 0755); err != nil {
 			return fmt.Errorf("create workspace dir %s: %w", dir, err)
-		}
-	}
-	catalogPath := filepath.Join(root, "catalogs", "core.yaml")
-	if _, err := os.Stat(catalogPath); os.IsNotExist(err) {
-		if err := SaveCatalogFile(catalogPath, DefaultCatalog()); err != nil {
-			return err
-		}
-	}
-	extendedPath := filepath.Join(root, "catalogs", "extended.yaml")
-	if _, err := os.Stat(extendedPath); os.IsNotExist(err) {
-		if err := SaveCatalogFile(extendedPath, DefaultExtendedCatalog()); err != nil {
-			return err
 		}
 	}
 	profilesDir := filepath.Join(root, "profiles")

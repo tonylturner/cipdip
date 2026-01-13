@@ -24,7 +24,7 @@ type ClientScreenModel struct {
 
 	// Advanced options
 	ShowAdvanced     bool
-	ModeIndex        int    // Index into modePresets
+	ModeIndex        int    // Index into ModePresets
 	Duration         string // Custom duration in seconds
 	Interval         string // Custom interval in milliseconds
 	FirewallVendor   int    // Index into firewallVendors (when firewall scenario selected)
@@ -120,14 +120,15 @@ var firewallVendors = []struct {
 	{"Dynics", "firewall_dynics", "Dynics firewall"},
 }
 
-// Mode presets for duration/interval
-type modePreset struct {
+// ModePreset defines duration/interval presets for client runs.
+type ModePreset struct {
 	Name     string
 	Duration int // seconds
 	Interval int // milliseconds
 }
 
-var modePresets = []modePreset{
+// ModePresets contains the standard duration presets.
+var ModePresets = []ModePreset{
 	{"Quick", 30, 250},
 	{"Standard", 300, 250},
 	{"Extended", 1800, 250},
@@ -214,7 +215,7 @@ func (m *ClientScreenModel) generatePcapFilename() string {
 	if scenarioName == "firewall" {
 		scenarioName = firewallVendors[m.FirewallVendor].Scenario
 	}
-	modeName := modePresets[m.ModeIndex].Name
+	modeName := ModePresets[m.ModeIndex].Name
 	timestamp := time.Now().UTC().Format("2006-01-02T150405Z")
 	filename := fmt.Sprintf("client_%s_%s_%s.pcap", scenarioName, modeName, timestamp)
 	return filepath.Join(m.state.WorkspaceRoot, "pcaps", filename)
@@ -384,10 +385,10 @@ read_targets:
 	case clientFieldMode:
 		switch msg.String() {
 		case " ", "right", "l":
-			m.ModeIndex = (m.ModeIndex + 1) % len(modePresets)
+			m.ModeIndex = (m.ModeIndex + 1) % len(ModePresets)
 			m.applyModePreset()
 		case "left", "h":
-			m.ModeIndex = (m.ModeIndex - 1 + len(modePresets)) % len(modePresets)
+			m.ModeIndex = (m.ModeIndex - 1 + len(ModePresets)) % len(ModePresets)
 			m.applyModePreset()
 		}
 	case clientFieldCIPProfiles:
@@ -453,7 +454,7 @@ func (m *ClientScreenModel) nextField(dir int) int {
 	}
 	visibleFields = append(visibleFields, clientFieldMode, clientFieldPcap)
 	if m.ShowAdvanced {
-		if modePresets[m.ModeIndex].Name == "Custom" {
+		if ModePresets[m.ModeIndex].Name == "Custom" {
 			visibleFields = append(visibleFields, clientFieldDuration, clientFieldInterval)
 		}
 		visibleFields = append(visibleFields, clientFieldCIPProfiles, clientFieldProtocol, clientFieldMetrics)
@@ -475,7 +476,7 @@ func (m *ClientScreenModel) nextField(dir int) int {
 
 // applyModePreset sets duration/interval based on selected mode
 func (m *ClientScreenModel) applyModePreset() {
-	preset := modePresets[m.ModeIndex]
+	preset := ModePresets[m.ModeIndex]
 	if preset.Name != "Custom" {
 		m.Duration = fmt.Sprintf("%d", preset.Duration)
 		m.Interval = fmt.Sprintf("%d", preset.Interval)
@@ -802,7 +803,7 @@ func (m *ClientScreenModel) viewEditing() string {
 
 	// Mode selector
 	modeLine := "\nMode: "
-	for i, mode := range modePresets {
+	for i, mode := range ModePresets {
 		if i == m.ModeIndex {
 			modeLine += fmt.Sprintf("[%s] ", mode.Name)
 		} else {
@@ -817,8 +818,8 @@ func (m *ClientScreenModel) viewEditing() string {
 	b.WriteString("\n")
 
 	// Show duration/interval summary for non-custom modes
-	if modePresets[m.ModeIndex].Name != "Custom" {
-		preset := modePresets[m.ModeIndex]
+	if ModePresets[m.ModeIndex].Name != "Custom" {
+		preset := ModePresets[m.ModeIndex]
 		b.WriteString(dimStyle.Render(fmt.Sprintf("      Duration: %ds, Interval: %dms", preset.Duration, preset.Interval)))
 		b.WriteString("\n")
 	}
@@ -901,7 +902,7 @@ func (m *ClientScreenModel) viewEditing() string {
 		b.WriteString("\n")
 
 		// Duration/Interval (only for Custom mode)
-		if modePresets[m.ModeIndex].Name == "Custom" {
+		if ModePresets[m.ModeIndex].Name == "Custom" {
 			durLabel := "Duration (sec): "
 			durValue := m.Duration
 			if durValue == "" {
@@ -1157,12 +1158,12 @@ func (m *ClientScreenModel) Footer() string {
 		return "Enter/Esc: back to config    r: re-run    o: open artifacts    m: menu"
 	}
 	if m.ShowAdvanced {
-		return "Tab: next    ←→: select    Enter: run    a: hide adv    p: profile    m: menu"
+		return "Tab: next    ←→: select    Enter: run    a: hide adv    p: profile    m: menu    ?/h: help"
 	}
 	if m.focusIndex == clientFieldPcap && m.PcapEnabled {
-		return "Space: toggle    i: interface    Enter: run    p: profile    m: menu"
+		return "Space: toggle    i: interface    Enter: run    p: profile    m: menu    ?/h: help"
 	}
-	return "Tab: next    ←→: select    Enter: run    a: adv    p: profile    y: copy    m: menu"
+	return "Tab: next    ←→: select    Enter: run    a: adv    p: profile    m: menu    ?/h: help"
 }
 
 // clientTickMsg is sent periodically while client is running to poll for stats.

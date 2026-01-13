@@ -984,15 +984,15 @@ func (m *ServerScreenModel) Footer() string {
 		return "Enter/Esc: back to config    r: restart    o: open log    m: menu"
 	}
 	if m.ShowAdvanced {
-		return "Tab: next    ←→: select    Enter: start    a: hide adv    p: toggle mode    m: menu"
+		return "Tab: next    ←→: select    Enter: start    a: hide adv    p: toggle mode    m: menu    ?/h: help"
 	}
 	if m.focusIndex == serverFieldPcap && m.PcapEnabled {
-		return "Space: toggle    i: interface    Enter: start    p: toggle mode    m: menu"
+		return "Space: toggle    i: interface    Enter: start    p: toggle mode    m: menu    ?/h: help"
 	}
 	if m.ProfileMode {
-		return "Tab: next    ←→: select    Enter: start    p: config mode    y: copy    m: menu"
+		return "Tab: next    ←→: select    Enter: start    p: config mode    m: menu    ?/h: help"
 	}
-	return "Tab: next    ←→: select    Enter: start    p: profile    e: edit    y: copy    m: menu"
+	return "Tab: next    ←→: select    Enter: start    p: profile    e: edit    m: menu    ?/h: help"
 }
 
 func formatDuration(d time.Duration) string {

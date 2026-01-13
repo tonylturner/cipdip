@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tturner/cipdip/internal/cip/catalog"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
 	"github.com/tturner/cipdip/internal/server/handlers"
@@ -34,6 +35,10 @@ type Server struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	wg              sync.WaitGroup
+
+	// Catalog-based service validation
+	catalog     *catalog.Catalog
+	personality catalog.Personality
 
 	// Stats tracking
 	stats      ServerStats

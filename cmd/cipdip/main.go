@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version = "0.1"
+	version = "0.2.1"
 	commit  = "unknown"
 	date    = "unknown"
 )
@@ -43,6 +43,7 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 	rootCmd.AddCommand(newTestCmd())
 	rootCmd.AddCommand(newSelfTestCmd())
 	rootCmd.AddCommand(newSingleCmd())
+	rootCmd.AddCommand(newCatalogCmd())
 	rootCmd.AddCommand(newEmitBytesCmd())
 	rootCmd.AddCommand(newValidateBytesCmd())
 	rootCmd.AddCommand(newBaselineCmd())

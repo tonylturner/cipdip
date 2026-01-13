@@ -2,25 +2,16 @@ package ui
 
 import "github.com/tturner/cipdip/internal/app"
 
+// Note: Workspace-based catalogs have been removed.
+// The single source of truth is /catalogs/core.yaml at repo root.
+// See internal/cip/catalog for the canonical catalog implementation.
+
+// These legacy types and functions are kept for backward compatibility
+// with existing code that uses them (e.g., single command, emit-bytes).
+
 type CatalogEntry = app.CatalogEntry
 type CatalogPayload = app.CatalogPayload
 type CatalogFile = app.CatalogFile
-
-func LoadCatalogFile(path string) (*CatalogFile, error) {
-	return app.LoadCatalogFile(path)
-}
-
-func SaveCatalogFile(path string, catalog CatalogFile) error {
-	return app.SaveCatalogFile(path, catalog)
-}
-
-func DefaultCatalog() CatalogFile {
-	return app.DefaultCatalog()
-}
-
-func DefaultExtendedCatalog() CatalogFile {
-	return app.DefaultExtendedCatalog()
-}
 
 func ListCatalogEntries(workspaceRoot string) ([]CatalogEntry, error) {
 	return app.ListCatalogEntries(workspaceRoot)
