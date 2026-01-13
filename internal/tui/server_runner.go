@@ -41,14 +41,24 @@ type serverStatsMsg struct {
 
 // BuildCommandArgs builds CLI arguments from the config.
 func (cfg ServerRunConfig) BuildCommandArgs() []string {
-	args := []string{"cipdip", "server",
-		"--listen", cfg.ListenAddr,
-		"--port", strconv.Itoa(cfg.Port),
-		"--personality", cfg.Personality,
+	args := []string{"cipdip", "server"}
+
+	// Always pass listen address and port if set
+	if cfg.ListenAddr != "" {
+		args = append(args, "--listen-ip", cfg.ListenAddr)
+	}
+	if cfg.Port != 0 {
+		args = append(args, "--listen-port", strconv.Itoa(cfg.Port))
 	}
 
 	if cfg.Profile != "" {
+		// Profile sets personality and data model
 		args = append(args, "--profile", cfg.Profile)
+	} else {
+		// Manual config - need personality
+		if cfg.Personality != "" {
+			args = append(args, "--personality", cfg.Personality)
+		}
 	}
 
 	if cfg.PCAPFile != "" {
