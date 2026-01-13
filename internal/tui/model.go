@@ -923,9 +923,10 @@ func (m *Model) startServerRun(cfg ServerRunConfig) (tea.Model, tea.Cmd) {
 		m.serverPanel.runDir = runDir
 	}
 
-	// Record start time
+	// Record start time (and clear end time from previous run)
 	now := time.Now()
 	m.serverPanel.startTime = &now
+	m.serverPanel.endTime = nil
 
 	// Create context for this run
 	ctx, cancel := context.WithCancel(context.Background())
