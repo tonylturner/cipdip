@@ -615,8 +615,8 @@ func GetRemoteAgentCapabilities(info *SSHInfo) (*AgentCapabilities, error) {
 
 	// Parse output - looks for lines like:
 	// OS/Arch: darwin/arm64
-	// Version: v0.1.0
-	// PCAP Capable: true
+	// Version: 0.2.1
+	// Status:   OK (tcpdump)  or  Status:   NOT AVAILABLE
 	caps := &AgentCapabilities{}
 	for _, line := range strings.Split(string(output), "\n") {
 		line = strings.TrimSpace(line)
@@ -624,9 +624,10 @@ func GetRemoteAgentCapabilities(info *SSHInfo) (*AgentCapabilities, error) {
 			caps.OSArch = strings.TrimSpace(strings.TrimPrefix(line, "OS/Arch:"))
 		} else if strings.HasPrefix(line, "Version:") {
 			caps.Version = strings.TrimSpace(strings.TrimPrefix(line, "Version:"))
-		} else if strings.HasPrefix(line, "PCAP Capable:") {
-			val := strings.TrimSpace(strings.TrimPrefix(line, "PCAP Capable:"))
-			caps.PCAPCapable = val == "true"
+		} else if strings.HasPrefix(line, "Status:") {
+			val := strings.TrimSpace(strings.TrimPrefix(line, "Status:"))
+			// PCAP is available if status contains "OK" (e.g., "OK (tcpdump)" or "OK (npcap)")
+			caps.PCAPCapable = strings.Contains(val, "OK")
 		}
 	}
 
