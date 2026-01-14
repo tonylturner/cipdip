@@ -228,9 +228,10 @@ func (c *Controller) Run(ctx context.Context) (*Result, error) {
 		if ctx.Err() == context.DeadlineExceeded {
 			result.Status = "timeout"
 		}
-	} else {
-		result.Status = "success"
+		// Write run_meta on failure if bundle was created
+		c.writeRunMetaOnError(result)
 	}
+	// Note: status is set to "success" in phaseBundle for successful runs
 
 	result.EndTime = time.Now()
 	return result, result.Error
@@ -247,6 +248,7 @@ func (c *Controller) runPhases(ctx context.Context, result *Result) error {
 	if c.opts.DryRun {
 		c.reportPhase(PhaseDone, "Dry run complete")
 		result.PhasesCompleted = append(result.PhasesCompleted, PhaseDone)
+		result.Status = "success"
 		return nil
 	}
 
@@ -811,10 +813,10 @@ func (c *Controller) phaseClientDone(ctx context.Context, result *Result) error 
 
 	if exitCode != 0 {
 		c.reportPhase(PhaseClientDone, fmt.Sprintf("Client exited with code %d", exitCode))
-	} else {
-		c.reportPhase(PhaseClientDone, "Client completed successfully")
+		return fmt.Errorf("client exited with non-zero code: %d", exitCode)
 	}
 
+	c.reportPhase(PhaseClientDone, "Client completed successfully")
 	return nil
 }
 
@@ -876,6 +878,9 @@ func (c *Controller) phaseCollect(ctx context.Context, result *Result) error {
 func (c *Controller) phaseBundle(ctx context.Context, result *Result) error {
 	c.reportPhase(PhaseBundle, "Finalizing bundle")
 
+	// Set status to success now - we only reach this phase if all previous phases passed
+	result.Status = "success"
+
 	// Write run metadata
 	runMeta := &bundle.RunMeta{
 		RunID:           result.RunID,
@@ -919,6 +924,30 @@ func (c *Controller) phaseBundle(ctx context.Context, result *Result) error {
 // phaseAnalyze and phaseDiff are implemented in analysis.go
 
 // Helper functions
+
+// writeRunMetaOnError writes run metadata when the run fails.
+// This ensures we have a record of failed runs in the bundle.
+func (c *Controller) writeRunMetaOnError(result *Result) {
+	if c.bundle == nil {
+		return // Bundle wasn't created (init phase failed)
+	}
+
+	runMeta := &bundle.RunMeta{
+		RunID:           result.RunID,
+		StartedAt:       result.StartTime,
+		FinishedAt:      time.Now(),
+		DurationSeconds: time.Since(result.StartTime).Seconds(),
+		Status:          result.Status,
+		ControllerHost:  hostname(),
+		PhasesCompleted: phaseStrings(result.PhasesCompleted),
+	}
+	if result.Error != nil {
+		runMeta.Error = result.Error.Error()
+	}
+
+	// Best effort - ignore write errors on failure path
+	c.bundle.WriteRunMeta(runMeta)
+}
 
 func hostname() string {
 	h, err := os.Hostname()

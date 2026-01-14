@@ -138,8 +138,12 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 	}
 
 	if isWindows {
-		// On Windows, cipdip should be in PATH already (no need for shell wrapper)
-		// The command is passed as-is
+		// On Windows, use PowerShell to find cipdip in PATH or common locations
+		// SSH sessions may not have the same PATH as interactive sessions
+		// Install locations per install.go: C:\Windows\System32, C:\Windows, or first writable PATH dir
+		args := strings.Join(cmd[1:], " ")
+		psScript := fmt.Sprintf(`$ErrorActionPreference='Stop'; $paths=@('cipdip','cipdip.exe','C:\Windows\System32\cipdip.exe','C:\Windows\cipdip.exe',"$env:USERPROFILE\go\bin\cipdip.exe"); foreach($p in $paths){try{$cmd=Get-Command $p -ErrorAction SilentlyContinue; if($cmd){& $cmd.Source %s; exit $LASTEXITCODE}}catch{}}; Write-Error 'cipdip not found in PATH or common locations'; exit 1`, args)
+		cmd = []string{"powershell", "-NoProfile", "-Command", psScript}
 	} else {
 		// On Unix, wrap in shell to find cipdip in common locations
 		// (PATH may not include /usr/local/bin in non-interactive SSH)
