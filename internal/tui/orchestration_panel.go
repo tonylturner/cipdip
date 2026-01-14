@@ -39,6 +39,7 @@ const (
 	OrchModeIdle OrchMode = iota
 	OrchModeValidating
 	OrchModeRunning
+	OrchModeStopping
 	OrchModeDone
 	OrchModeError
 )
@@ -161,6 +162,8 @@ type OrchestrationPanel struct {
 	quickRunServerProfile int    // Index into available profiles
 	quickRunClientProfile int    // Index into available profiles
 	quickRunScenario    int      // Index into scenarios
+	quickRunClientRole  int      // Index into available roles (0=all, 1+=specific role)
+	quickRunAvailableRoles []string // Available roles from selected profile
 	quickRunTimeout     string   // Timeout in seconds
 	quickRunCapture     bool     // Enable PCAP capture
 	quickRunInterface   int      // Index into interfaces (0=auto, 1+=specific)
@@ -346,13 +349,12 @@ func (p *OrchestrationPanel) updateControllerView(msg tea.KeyMsg) (Panel, tea.Cm
 	case PanelRunning:
 		// Allow cancel during run
 		if key == "x" || key == "ctrl+c" || key == "esc" {
-			if p.runCancel != nil {
+			if p.runCancel != nil && p.orchMode != OrchModeStopping {
 				p.runCancel()
+				p.orchMode = OrchModeStopping
+				p.currentPhase = "stopping"
+				p.phaseError = ""
 			}
-			p.orchMode = OrchModeIdle
-			p.mode = PanelConfig
-			p.currentPhase = ""
-			p.phaseError = "Cancelled by user"
 		}
 		return p, nil
 
@@ -593,8 +595,8 @@ func (p *OrchestrationPanel) startRun() (Panel, tea.Cmd) {
 	// Create context with timeout based on manifest duration
 	duration := 60 * time.Second
 	if p.manifest.Roles.Client != nil && p.manifest.Roles.Client.DurationSeconds > 0 {
-		// Add buffer for setup/teardown (30 seconds extra)
-		duration = time.Duration(p.manifest.Roles.Client.DurationSeconds+30) * time.Second
+		// Add 120s buffer for setup/teardown/collect/analysis phases
+		duration = time.Duration(p.manifest.Roles.Client.DurationSeconds+120) * time.Second
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	p.runCtx = ctx
@@ -1729,7 +1731,7 @@ func (p *OrchestrationPanel) renderRunningView(width int) string {
 		{"server_start", "Server Start", colorServer},
 		{"server_ready", "Server Ready", colorServer},
 		{"client_start", "Client Start", colorClient},
-		{"client_done", "Client Done", colorClient},
+		{"client_done", "Client Running", colorClient},
 		{"server_stop", "Server Stop", colorServer},
 		{"collect", "Collect", colorCollect},
 		{"bundle", "Bundle", colorDone},
@@ -1794,8 +1796,8 @@ func (p *OrchestrationPanel) renderRunningView(width int) string {
 	case "client_done":
 		serverStatusText = "running"
 		serverStatusColor = colorServer
-		clientStatusText = "done"
-		clientStatusColor = colorDone
+		clientStatusText = "running"
+		clientStatusColor = colorClient
 	case "server_stop":
 		serverStatusText = "stopping..."
 		serverStatusColor = colorActive
@@ -1806,6 +1808,11 @@ func (p *OrchestrationPanel) renderRunningView(width int) string {
 		serverStatusColor = colorDone
 		clientStatusText = "done"
 		clientStatusColor = colorDone
+	case "stopping":
+		serverStatusText = "stopping..."
+		serverStatusColor = colorActive
+		clientStatusText = "stopping..."
+		clientStatusColor = colorActive
 	}
 
 	serverBlock := lipgloss.NewStyle().Foreground(serverStatusColor).Render("⣿")
@@ -1826,32 +1833,45 @@ func (p *OrchestrationPanel) renderRunningView(width int) string {
 	// Phase progress with braille blocks and colors
 	b.WriteString(headerStyle.Render("Progress") + "\n")
 
-	// Progress bar using braille blocks
-	b.WriteString("  ")
-	for i, phase := range phases {
-		var blockChar string
-		var blockColor lipgloss.Color
-
-		if i < currentIdx {
-			// Completed phases - full block with phase color
-			blockChar = "⣿"
-			blockColor = phase.color
-		} else if i == currentIdx {
-			// Current phase - animated/bright
-			blockChar = "⣿"
-			blockColor = colorActive
-		} else {
-			// Future phases - dim empty
-			blockChar = "⣀"
-			blockColor = colorDim
+	// Handle stopping phase specially
+	if p.currentPhase == "stopping" {
+		// Show all blocks as stopping (orange/warning)
+		stopColor := lipgloss.Color("#e0af68") // Warning orange
+		b.WriteString("  ")
+		for range phases {
+			b.WriteString(lipgloss.NewStyle().Foreground(stopColor).Render("⣿"))
 		}
-		b.WriteString(lipgloss.NewStyle().Foreground(blockColor).Render(blockChar))
-	}
-	b.WriteString("\n")
+		b.WriteString("\n")
+		phaseNameStyle := lipgloss.NewStyle().Bold(true).Foreground(stopColor)
+		b.WriteString("  " + phaseNameStyle.Render("Stopping...") + "\n")
+	} else {
+		// Progress bar using braille blocks
+		b.WriteString("  ")
+		for i, phase := range phases {
+			var blockChar string
+			var blockColor lipgloss.Color
 
-	// Current phase name with color
-	phaseNameStyle := lipgloss.NewStyle().Bold(true).Foreground(phases[currentIdx].color)
-	b.WriteString("  " + phaseNameStyle.Render(phases[currentIdx].name) + "\n")
+			if i < currentIdx {
+				// Completed phases - full block with phase color
+				blockChar = "⣿"
+				blockColor = phase.color
+			} else if i == currentIdx {
+				// Current phase - animated/bright
+				blockChar = "⣿"
+				blockColor = colorActive
+			} else {
+				// Future phases - dim empty
+				blockChar = "⣀"
+				blockColor = colorDim
+			}
+			b.WriteString(lipgloss.NewStyle().Foreground(blockColor).Render(blockChar))
+		}
+		b.WriteString("\n")
+
+		// Current phase name with color
+		phaseNameStyle := lipgloss.NewStyle().Bold(true).Foreground(phases[currentIdx].color)
+		b.WriteString("  " + phaseNameStyle.Render(phases[currentIdx].name) + "\n")
+	}
 
 	// Elapsed time
 	if p.startTime != nil {
@@ -1877,8 +1897,13 @@ func (p *OrchestrationPanel) renderRunningView(width int) string {
 	}
 
 	// Actions
-	actionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e"))
-	b.WriteString("\n" + actionStyle.Render("[x] Stop") + "\n")
+	if p.currentPhase == "stopping" {
+		stoppingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#e0af68")).Italic(true)
+		b.WriteString("\n" + stoppingStyle.Render("Stopping remote processes...") + "\n")
+	} else {
+		actionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#f7768e"))
+		b.WriteString("\n" + actionStyle.Render("[x] Stop") + "\n")
+	}
 
 	return b.String()
 }
@@ -2506,16 +2531,31 @@ func (p *OrchestrationPanel) handlePhaseUpdate(phase, message string) {
 
 // handleRunDone processes run completion.
 func (p *OrchestrationPanel) handleRunDone(result *controller.Result, err error) {
+	// Check if we were stopping (user cancelled)
+	wasStopping := p.orchMode == OrchModeStopping
+
 	if err != nil {
-		p.orchMode = OrchModeError
-		p.phaseError = err.Error()
-		p.runStatusMsg = "Run failed: " + err.Error()
+		if wasStopping {
+			// User initiated stop - not an error
+			p.orchMode = OrchModeDone
+			p.phaseError = ""
+			p.currentPhase = "done"
+			p.runStatusMsg = "Run cancelled by user"
+		} else {
+			p.orchMode = OrchModeError
+			p.phaseError = err.Error()
+			p.runStatusMsg = "Run failed: " + err.Error()
+		}
 	} else if result != nil {
 		p.orchMode = OrchModeDone
 		p.runID = result.RunID
 		p.bundlePath = result.BundlePath
 		p.currentPhase = "done"
-		p.runStatusMsg = fmt.Sprintf("Run completed: %s", result.Status)
+		if wasStopping {
+			p.runStatusMsg = "Run cancelled by user"
+		} else {
+			p.runStatusMsg = fmt.Sprintf("Run completed: %s", result.Status)
+		}
 	}
 
 	p.mode = PanelResult
@@ -2612,6 +2652,8 @@ func (p *OrchestrationPanel) startQuickRun() {
 	p.quickRunServerProfile = 0
 	p.quickRunClientProfile = 0
 	p.quickRunScenario = 0
+	p.quickRunClientRole = 0 // 0 = "all" roles
+	p.quickRunAvailableRoles = []string{} // Will be populated when profile selected
 	p.quickRunTimeout = "60"
 	p.quickRunCapture = false
 	p.quickRunInterface = 0 // 0 = auto
@@ -2659,10 +2701,10 @@ func (p *OrchestrationPanel) startQuickRun() {
 func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd) {
 	key := msg.String()
 
-	// Fields: 0=server agent, 1=client agent, 2=scenario, 3=profile, 4=duration, 5=target IP, 6=capture, 7=interface
-	maxField := 6
+	// Fields: 0=server agent, 1=client agent, 2=scenario, 3=profile, 4=role, 5=duration, 6=target IP, 7=capture, 8=interface
+	maxField := 7
 	if p.quickRunCapture {
-		maxField = 7 // Show interface field when capture is enabled
+		maxField = 8 // Show interface field when capture is enabled
 	}
 
 	switch key {
@@ -2676,12 +2718,20 @@ func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd)
 			p.quickRunField = maxField
 		}
 		// Skip interface field if capture is disabled
-		if p.quickRunField == 7 && !p.quickRunCapture {
-			p.quickRunField = 6
+		if p.quickRunField == 8 && !p.quickRunCapture {
+			p.quickRunField = 7
+		}
+		// Skip role field if no roles available (generic profiles)
+		if p.quickRunField == 4 && len(p.quickRunAvailableRoles) == 0 {
+			p.quickRunField = 3
 		}
 
 	case "down", "j":
 		p.quickRunField++
+		// Skip role field if no roles available (generic profiles)
+		if p.quickRunField == 4 && len(p.quickRunAvailableRoles) == 0 {
+			p.quickRunField = 5
+		}
 		if p.quickRunField > maxField {
 			p.quickRunField = 0
 		}
@@ -2693,7 +2743,7 @@ func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd)
 		p.handleQuickRunRight()
 
 	case " ", "space":
-		if p.quickRunField == 6 { // capture toggle
+		if p.quickRunField == 7 { // capture toggle
 			p.quickRunCapture = !p.quickRunCapture
 		}
 
@@ -2702,11 +2752,11 @@ func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd)
 		return p.generateQuickRunManifest()
 
 	case "backspace":
-		if p.quickRunField == 4 { // duration
+		if p.quickRunField == 5 { // duration
 			if len(p.quickRunTimeout) > 0 {
 				p.quickRunTimeout = p.quickRunTimeout[:len(p.quickRunTimeout)-1]
 			}
-		} else if p.quickRunField == 5 { // target IP
+		} else if p.quickRunField == 6 { // target IP
 			if len(p.quickRunTargetIP) > 0 {
 				p.quickRunTargetIP = p.quickRunTargetIP[:len(p.quickRunTargetIP)-1]
 			}
@@ -2715,11 +2765,11 @@ func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd)
 	default:
 		// Text input for editable fields
 		if len(key) == 1 {
-			if p.quickRunField == 4 { // duration - only digits
+			if p.quickRunField == 5 { // duration - only digits
 				if key >= "0" && key <= "9" {
 					p.quickRunTimeout += key
 				}
-			} else if p.quickRunField == 5 { // target IP
+			} else if p.quickRunField == 6 { // target IP
 				// Allow digits and dots for IP
 				if (key >= "0" && key <= "9") || key == "." {
 					p.quickRunTargetIP += key
@@ -2756,9 +2806,18 @@ func (p *OrchestrationPanel) handleQuickRunLeft() {
 		if p.quickRunServerProfile < 0 {
 			p.quickRunServerProfile = len(p.quickRunProfiles) - 1
 		}
-	case 6: // capture toggle
+		p.updateAvailableRoles() // Reload roles when profile changes
+	case 4: // client role
+		if len(p.quickRunAvailableRoles) > 0 {
+			totalRoles := 1 + len(p.quickRunAvailableRoles) // "all" + specific roles
+			p.quickRunClientRole--
+			if p.quickRunClientRole < 0 {
+				p.quickRunClientRole = totalRoles - 1
+			}
+		}
+	case 7: // capture toggle
 		p.quickRunCapture = !p.quickRunCapture
-	case 7: // interface
+	case 8: // interface
 		totalIfaces := 1 + len(p.agentInfo.Interfaces) // auto + interfaces
 		p.quickRunInterface--
 		if p.quickRunInterface < 0 {
@@ -2792,15 +2851,63 @@ func (p *OrchestrationPanel) handleQuickRunRight() {
 		if p.quickRunServerProfile >= len(p.quickRunProfiles) {
 			p.quickRunServerProfile = 0
 		}
-	case 6: // capture toggle
+		p.updateAvailableRoles() // Reload roles when profile changes
+	case 4: // client role
+		if len(p.quickRunAvailableRoles) > 0 {
+			totalRoles := 1 + len(p.quickRunAvailableRoles) // "all" + specific roles
+			p.quickRunClientRole++
+			if p.quickRunClientRole >= totalRoles {
+				p.quickRunClientRole = 0
+			}
+		}
+	case 7: // capture toggle
 		p.quickRunCapture = !p.quickRunCapture
-	case 7: // interface
+	case 8: // interface
 		totalIfaces := 1 + len(p.agentInfo.Interfaces) // auto + interfaces
 		p.quickRunInterface++
 		if p.quickRunInterface >= totalIfaces {
 			p.quickRunInterface = 0
 		}
 	}
+}
+
+// updateAvailableRoles loads roles from the currently selected profile.
+func (p *OrchestrationPanel) updateAvailableRoles() {
+	p.quickRunAvailableRoles = []string{}
+	p.quickRunClientRole = 0 // Reset to "all"
+
+	if p.quickRunServerProfile >= len(p.quickRunProfiles) {
+		return
+	}
+
+	profileInfo := p.quickRunProfiles[p.quickRunServerProfile]
+	if profileInfo.Path == "" {
+		// Generic profile (adapter/logix_like) - no roles
+		return
+	}
+
+	// Load profile to get roles
+	prof, err := profile.LoadProfile(profileInfo.Path)
+	if err != nil {
+		return
+	}
+
+	// Get role names
+	p.quickRunAvailableRoles = prof.RoleNames()
+}
+
+// getSelectedRole returns the selected role name, or "all" for stress testing all roles.
+func (p *OrchestrationPanel) getSelectedRole() string {
+	if len(p.quickRunAvailableRoles) == 0 {
+		return "" // No roles available (generic profile)
+	}
+	if p.quickRunClientRole == 0 {
+		return "all" // Stress test all roles
+	}
+	if p.quickRunClientRole-1 < len(p.quickRunAvailableRoles) {
+		return p.quickRunAvailableRoles[p.quickRunClientRole-1]
+	}
+	return ""
 }
 
 // getAgentName returns the display name for an agent index.
@@ -2882,6 +2989,7 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 			Client: &manifest.ClientRoleConfig{
 				Agent:           p.getAgentTransport(p.quickRunClientAgent),
 				Scenario:        strings.TrimSuffix(p.quickRunScenarios[p.quickRunScenario], "*"),
+				ProfileRole:     p.getSelectedRole(),
 				DurationSeconds: duration,
 				IntervalMs:      100,
 			},
@@ -2916,6 +3024,11 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 		}
 		if interfaceName != "" {
 			m.Roles.Client.Args["capture-interface"] = interfaceName
+		}
+
+		// Enable post-run analysis when capturing pcaps
+		m.PostRun = manifest.PostRunConfig{
+			Analyze: true,
 		}
 	}
 
@@ -3031,15 +3144,30 @@ func (p *OrchestrationPanel) renderQuickRunView(width int, focused bool) string 
 		content.WriteString(fmt.Sprintf("  %s        %s\n", s.Label.Render("Profile:"), profileDisplay))
 	}
 
-	// Duration field (4)
-	if p.quickRunField == 4 {
+	// Client Role field (4) - only shown when profile has roles
+	roleName := "all"
+	if len(p.quickRunAvailableRoles) > 0 {
+		if p.quickRunClientRole == 0 {
+			roleName = "all (stress)"
+		} else if p.quickRunClientRole-1 < len(p.quickRunAvailableRoles) {
+			roleName = p.quickRunAvailableRoles[p.quickRunClientRole-1]
+		}
+		if p.quickRunField == 4 {
+			content.WriteString(s.Selected.Render(fmt.Sprintf("▸ Client Role:    < %s >", roleName)) + "\n")
+		} else {
+			content.WriteString(fmt.Sprintf("  %s    %s\n", s.Label.Render("Client Role:"), roleName))
+		}
+	}
+
+	// Duration field (5)
+	if p.quickRunField == 5 {
 		content.WriteString(s.Selected.Render(fmt.Sprintf("▸ Duration (s):   %s_", p.quickRunTimeout)) + "\n")
 	} else {
 		content.WriteString(fmt.Sprintf("  %s   %s\n", s.Label.Render("Duration (s):"), p.quickRunTimeout))
 	}
 
-	// Target IP field (5) - used for both server listen and client target
-	if p.quickRunField == 5 {
+	// Target IP field (6) - used for both server listen and client target
+	if p.quickRunField == 6 {
 		content.WriteString(s.Selected.Render(fmt.Sprintf("▸ Target IP:      %s_", p.quickRunTargetIP)) + "\n")
 	} else {
 		content.WriteString(fmt.Sprintf("  %s      %s\n", s.Label.Render("Target IP:"), p.quickRunTargetIP))
@@ -3047,21 +3175,21 @@ func (p *OrchestrationPanel) renderQuickRunView(width int, focused bool) string 
 
 	content.WriteString("\n")
 
-	// PCAP Capture toggle (6)
+	// PCAP Capture toggle (7)
 	captureValue := "[ ] Off"
 	if p.quickRunCapture {
 		captureValue = "[✓] On"
 	}
-	if p.quickRunField == 6 {
+	if p.quickRunField == 7 {
 		content.WriteString(s.Selected.Render(fmt.Sprintf("▸ PCAP Capture:   %s", captureValue)) + "\n")
 	} else {
 		content.WriteString(fmt.Sprintf("  %s   %s\n", s.Label.Render("PCAP Capture:"), captureValue))
 	}
 
-	// Interface field (7) - only shown when capture is enabled
+	// Interface field (8) - only shown when capture is enabled
 	if p.quickRunCapture {
 		interfaceName := p.getInterfaceName(p.quickRunInterface)
-		if p.quickRunField == 7 {
+		if p.quickRunField == 8 {
 			content.WriteString(s.Selected.Render(fmt.Sprintf("▸ Interface:      < %s >", interfaceName)) + "\n")
 		} else {
 			content.WriteString(fmt.Sprintf("  %s      %s\n", s.Label.Render("Interface:"), interfaceName))
@@ -3078,7 +3206,11 @@ func (p *OrchestrationPanel) renderQuickRunView(width int, focused bool) string 
 	content.WriteString("\n" + s.Dim.Render("─────────────────────────────────────────────") + "\n")
 	content.WriteString(s.Header.Render("Summary:") + "\n")
 	content.WriteString(fmt.Sprintf("  Server: %s will run emulator (%s)\n", serverAgentName, profileDisplay))
-	content.WriteString(fmt.Sprintf("  Client: %s will run scenario '%s'\n", clientAgentName, scenarioName))
+	roleDisplay := ""
+	if len(p.quickRunAvailableRoles) > 0 {
+		roleDisplay = fmt.Sprintf(" as %s", roleName)
+	}
+	content.WriteString(fmt.Sprintf("  Client: %s will run scenario '%s'%s\n", clientAgentName, scenarioName, roleDisplay))
 	content.WriteString(fmt.Sprintf("  Target: %s:44818 for %ss\n", p.quickRunTargetIP, p.quickRunTimeout))
 	if p.quickRunCapture {
 		content.WriteString(fmt.Sprintf("  Capture: %s\n", p.getInterfaceName(p.quickRunInterface)))
