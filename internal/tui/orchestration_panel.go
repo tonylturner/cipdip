@@ -364,19 +364,20 @@ func (p *OrchestrationPanel) updateControllerView(msg tea.KeyMsg) (Panel, tea.Cm
 			// Return to config
 			p.mode = PanelConfig
 			p.orchMode = OrchModeIdle
+			return p, nil
 		case "o":
-			// Open bundle directory
+			// Open bundle directory in Finder/Explorer
 			if p.bundlePath != "" {
-				_ = openInEditor(p.bundlePath)
+				return p, openInEditor(p.bundlePath)
 			}
 		case "v":
 			// View logs - open stdout log in editor
 			if p.bundlePath != "" {
-				logPath := filepath.Join(p.bundlePath, "client", "stdout.log")
+				logPath := filepath.Join(p.bundlePath, "roles", "client", "stdout.log")
 				if _, err := os.Stat(logPath); err != nil {
-					logPath = filepath.Join(p.bundlePath, "server", "stdout.log")
+					logPath = filepath.Join(p.bundlePath, "roles", "server", "stdout.log")
 				}
-				_ = openInEditor(logPath)
+				return p, openInEditor(logPath)
 			}
 		}
 		return p, nil
