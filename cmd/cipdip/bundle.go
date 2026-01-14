@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -26,6 +28,8 @@ a distributed test run, including manifests, pcaps, logs, and metadata.`,
 	cmd.AddCommand(newBundleVerifyCmd())
 	cmd.AddCommand(newBundleInfoCmd())
 	cmd.AddCommand(newBundleReportCmd())
+	cmd.AddCommand(newBundleLastCmd())
+	cmd.AddCommand(newBundleOpenCmd())
 
 	return cmd
 }
@@ -527,4 +531,120 @@ func printStatRow(out *strings.Builder, label string, client, server, width int)
 	out.WriteString(serverStyle.Render(fmt.Sprintf("%d", server)))
 	out.WriteString(match)
 	out.WriteString("\n")
+}
+
+func newBundleLastCmd() *cobra.Command {
+	var flags struct {
+		open bool
+	}
+
+	cmd := &cobra.Command{
+		Use:   "last",
+		Short: "Show report for the most recent run",
+		Long: `Display a styled report for the most recent run in the workspace.
+
+Automatically finds and displays the latest completed run.
+
+Examples:
+  cipdip bundle last          # Show report
+  cipdip bundle last --open   # Open bundle in Finder`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			bundlePath := findLatestRun()
+			if bundlePath == "" {
+				return fmt.Errorf("no runs found in workspaces/workspace/runs/")
+			}
+
+			if flags.open {
+				return openBundleDir(bundlePath)
+			}
+
+			return printStyledReport(bundlePath)
+		},
+	}
+
+	cmd.Flags().BoolVar(&flags.open, "open", false, "Open bundle directory in Finder instead of showing report")
+
+	return cmd
+}
+
+func newBundleOpenCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "open [bundle-path]",
+		Short: "Open a bundle directory in Finder",
+		Long: `Open a run bundle directory in Finder/Explorer.
+
+If no path is provided, opens the most recent run.
+
+Examples:
+  cipdip bundle open                              # Open latest run
+  cipdip bundle open workspaces/workspace/runs/auto`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var bundlePath string
+			if len(args) > 0 {
+				bundlePath = args[0]
+			} else {
+				bundlePath = findLatestRun()
+				if bundlePath == "" {
+					return fmt.Errorf("no runs found")
+				}
+			}
+
+			return openBundleDir(bundlePath)
+		},
+	}
+
+	return cmd
+}
+
+func findLatestRun() string {
+	runsDir := "workspaces/workspace/runs"
+
+	// Check for "auto" first (most common)
+	autoPath := filepath.Join(runsDir, "auto")
+	if _, err := os.Stat(filepath.Join(autoPath, "run_meta.json")); err == nil {
+		return autoPath
+	}
+
+	// Find most recent by modification time
+	entries, err := os.ReadDir(runsDir)
+	if err != nil {
+		return ""
+	}
+
+	var latest string
+	var latestTime int64
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		runPath := filepath.Join(runsDir, entry.Name())
+		metaPath := filepath.Join(runPath, "run_meta.json")
+		info, err := os.Stat(metaPath)
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Unix() > latestTime {
+			latestTime = info.ModTime().Unix()
+			latest = runPath
+		}
+	}
+
+	return latest
+}
+
+func openBundleDir(path string) error {
+	fmt.Printf("Opening: %s\n", path)
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+
+	return cmd.Run()
 }
