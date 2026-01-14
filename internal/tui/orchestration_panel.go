@@ -1983,6 +1983,13 @@ func (p *OrchestrationPanel) renderResultView(width int) string {
 	// Actions
 	b.WriteString("\n" + s.Dim.Render("[Enter] New Run  [o] Open Bundle  [v] View Logs") + "\n")
 
+	// Show copyable commands
+	if p.bundlePath != "" {
+		b.WriteString("\n" + s.Dim.Render("Commands:") + "\n")
+		b.WriteString(s.Dim.Render("  Report: ") + lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render("./cipdip bundle report "+p.bundlePath) + "\n")
+		b.WriteString(s.Dim.Render("  Open:   ") + lipgloss.NewStyle().Foreground(lipgloss.Color("#7dcfff")).Render("open "+p.bundlePath) + "\n")
+	}
+
 	return b.String()
 }
 
@@ -2701,6 +2708,50 @@ func (p *OrchestrationPanel) startQuickRun() {
 // updateQuickRunView handles input for the quick run configuration view.
 func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd) {
 	key := msg.String()
+
+	// Handle result mode (after run completes)
+	if p.mode == PanelResult {
+		switch key {
+		case "enter", "r", "n":
+			// Return to quick run config for another run
+			p.mode = PanelConfig
+			p.orchMode = OrchModeIdle
+			return p, nil
+		case "o":
+			// Open bundle directory in Finder/Explorer
+			if p.bundlePath != "" {
+				return p, openInEditor(p.bundlePath)
+			}
+		case "v":
+			// View logs - open stdout log in editor
+			if p.bundlePath != "" {
+				logPath := filepath.Join(p.bundlePath, "roles", "client", "stdout.log")
+				if _, err := os.Stat(logPath); err != nil {
+					logPath = filepath.Join(p.bundlePath, "roles", "server", "stdout.log")
+				}
+				return p, openInEditor(logPath)
+			}
+		case "esc":
+			p.view = OrchViewController
+			p.mode = PanelConfig
+			p.orchMode = OrchModeIdle
+			return p, nil
+		}
+		return p, nil
+	}
+
+	// Handle running mode (allow cancel)
+	if p.mode == PanelRunning {
+		if key == "x" || key == "ctrl+c" || key == "esc" {
+			if p.runCancel != nil && p.orchMode != OrchModeStopping {
+				p.runCancel()
+				p.orchMode = OrchModeStopping
+				p.currentPhase = "stopping"
+				p.phaseError = ""
+			}
+		}
+		return p, nil
+	}
 
 	// Fields: 0=server agent, 1=client agent, 2=scenario, 3=profile, 4=role, 5=duration, 6=target IP, 7=capture, 8=interface
 	maxField := 7
