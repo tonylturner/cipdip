@@ -2621,27 +2621,28 @@ func (p *OrchestrationPanel) startQuickRun() {
 	// Load available scenarios
 	p.quickRunScenarios = getAvailableScenarios()
 
-	// Find profiles with metadata (friendly names)
-	p.quickRunProfiles = nil
+	// Start with generic/built-in personalities (no profile file needed)
+	p.quickRunProfiles = []profile.ProfileInfo{
+		{Name: "Generic Adapter", Path: "", Personality: "adapter"},
+		{Name: "Generic Logix-Like", Path: "", Personality: "logix_like"},
+	}
+
+	// Add application-specific profiles from files
 	searchPaths := []string{
 		filepath.Join(p.workspacePath, "profiles"),
 		"profiles",
 	}
+	seen := make(map[string]bool)
 	for _, dir := range searchPaths {
 		if infos, err := profile.ListProfiles(dir); err == nil {
-			p.quickRunProfiles = append(p.quickRunProfiles, infos...)
+			for _, pi := range infos {
+				if !seen[pi.Path] {
+					seen[pi.Path] = true
+					p.quickRunProfiles = append(p.quickRunProfiles, pi)
+				}
+			}
 		}
 	}
-	// Deduplicate by path
-	seen := make(map[string]bool)
-	deduped := make([]profile.ProfileInfo, 0, len(p.quickRunProfiles))
-	for _, pi := range p.quickRunProfiles {
-		if !seen[pi.Path] {
-			seen[pi.Path] = true
-			deduped = append(deduped, pi)
-		}
-	}
-	p.quickRunProfiles = deduped
 
 	// Make sure agent registry is loaded
 	if p.agentRegistry == nil {
@@ -2848,10 +2849,12 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 		targetIP = "127.0.0.1"
 	}
 
-	// Build profile path
+	// Build profile path and personality
 	profilePath := ""
+	personality := ""
 	if p.quickRunServerProfile < len(p.quickRunProfiles) {
 		profilePath = p.quickRunProfiles[p.quickRunServerProfile].Path
+		personality = p.quickRunProfiles[p.quickRunServerProfile].Personality
 	}
 
 	// Get duration from timeout
@@ -2864,10 +2867,6 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 	m := &manifest.Manifest{
 		APIVersion: manifest.APIVersion,
 		RunID:      "auto",
-		Profile: manifest.ProfileConfig{
-			Path:         profilePath,
-			Distribution: "inline",
-		},
 		Network: manifest.NetworkConfig{
 			DataPlane: manifest.DataPlaneConfig{
 				ServerListenIP: targetIP,
@@ -2879,7 +2878,6 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 			Server: &manifest.ServerRoleConfig{
 				Agent: p.getAgentTransport(p.quickRunServerAgent),
 				Mode:  "emulator",
-				// Personality inherited from profile - don't override
 			},
 			Client: &manifest.ClientRoleConfig{
 				Agent:           p.getAgentTransport(p.quickRunClientAgent),
@@ -2919,6 +2917,18 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 		if interfaceName != "" {
 			m.Roles.Client.Args["capture-interface"] = interfaceName
 		}
+	}
+
+	// Set profile path or personality
+	if profilePath != "" {
+		// Use application-specific profile file
+		m.Profile = manifest.ProfileConfig{
+			Path:         profilePath,
+			Distribution: "inline",
+		}
+	} else if personality != "" {
+		// Use generic personality without profile file
+		m.Roles.Server.Personality = personality
 	}
 
 	// Save manifest to temp file
