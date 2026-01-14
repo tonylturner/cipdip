@@ -591,11 +591,17 @@ func buildCommandString(cmd []string, cwd string, elevate bool, remoteOS string)
 		return ""
 	}
 
-	// Quote arguments that need it
+	// Quote arguments that need it - Windows uses double quotes, Unix uses single quotes
 	var parts []string
 	for _, arg := range cmd {
 		if needsQuoting(arg) {
-			parts = append(parts, fmt.Sprintf("'%s'", strings.ReplaceAll(arg, "'", "'\\''")))
+			if remoteOS == "windows" {
+				// Windows: use double quotes, escape internal double quotes
+				parts = append(parts, fmt.Sprintf("\"%s\"", strings.ReplaceAll(arg, "\"", "\\\"")))
+			} else {
+				// Unix: use single quotes, escape internal single quotes
+				parts = append(parts, fmt.Sprintf("'%s'", strings.ReplaceAll(arg, "'", "'\\''")))
+			}
 		} else {
 			parts = append(parts, arg)
 		}
@@ -612,6 +618,10 @@ func buildCommandString(cmd []string, cwd string, elevate bool, remoteOS string)
 		if elevate && remoteOS != "windows" {
 			// For elevated commands with cwd, use sudo for the cd as well
 			return fmt.Sprintf("cd %s && sudo %s", cwd, strings.Join(parts, " "))
+		}
+		if remoteOS == "windows" {
+			// Windows uses different syntax for chaining commands
+			return fmt.Sprintf("cd /d %s && %s", cwd, cmdStr)
 		}
 		return fmt.Sprintf("cd %s && %s", cwd, cmdStr)
 	}

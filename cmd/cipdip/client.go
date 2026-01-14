@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -125,6 +126,7 @@ Use --verbose or --debug for detailed logging, and --metrics-file to save metric
 			}
 			err := runClient(flags)
 			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				os.Exit(2)
 			}
 			return nil

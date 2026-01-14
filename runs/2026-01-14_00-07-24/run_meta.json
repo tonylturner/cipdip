@@ -1,0 +1,18 @@
+{
+  "run_id": "2026-01-14_00-07-24",
+  "started_at": "2026-01-13T19:07:25.376616-05:00",
+  "finished_at": "2026-01-13T19:07:36.024165-05:00",
+  "duration_seconds": 10.648084458,
+  "status": "running",
+  "controller_host": "Tonys-MacBook-Pro.local",
+  "phases_completed": [
+    "init",
+    "stage",
+    "server_start",
+    "server_ready",
+    "client_start",
+    "client_done",
+    "server_stop",
+    "collect"
+  ]
+}

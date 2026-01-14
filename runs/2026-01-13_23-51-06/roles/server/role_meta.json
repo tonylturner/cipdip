@@ -1,0 +1,20 @@
+{
+  "role": "server",
+  "agent_id": "ssh://tturner@192.168.100.25?key=/Users/tturner/.ssh/id_ed25519_cipdip\u0026os=darwin\u0026elevate=true",
+  "argv": [
+    "cipdip",
+    "server",
+    "--listen-ip",
+    "192.168.10.99",
+    "--listen-port",
+    "44818",
+    "--personality",
+    "adapter",
+    "--tui-stats",
+    "--server-config",
+    "/tmp/cipdip-server/cipdip_server.yaml"
+  ],
+  "started_at": "2026-01-13T18:51:06.96543-05:00",
+  "finished_at": "2026-01-13T18:51:07.114513-05:00",
+  "exit_code": -1
+}

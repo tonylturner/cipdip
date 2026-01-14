@@ -82,7 +82,7 @@ Examples:
 				return printExecutionPlan(m)
 			}
 
-			// Parse agent mappings
+			// Parse agent mappings from CLI flags
 			agents := make(map[string]string)
 			for _, a := range flags.agents {
 				parts := strings.SplitN(a, "=", 2)
@@ -94,6 +94,18 @@ Examples:
 					return fmt.Errorf("invalid agent role %q: must be 'server' or 'client'", role)
 				}
 				agents[role] = parts[1]
+			}
+
+			// Also extract agent specs from manifest (CLI flags override manifest)
+			if m.Roles.Server != nil && m.Roles.Server.Agent != "" {
+				if _, ok := agents["server"]; !ok {
+					agents["server"] = m.Roles.Server.Agent
+				}
+			}
+			if m.Roles.Client != nil && m.Roles.Client.Agent != "" {
+				if _, ok := agents["client"]; !ok {
+					agents["client"] = m.Roles.Client.Agent
+				}
 			}
 
 			// Set up controller options

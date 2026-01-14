@@ -1,0 +1,174 @@
+CIPDIP Client starting...
+  Scenario: baseline
+  Target: 192.168.10.99:44818
+  Interval: 250 ms
+  Duration: 10 seconds
+  Press Ctrl+C to stop
+
+[CLIENT] Connected and registered session 0x00000001
+[CLIENT] Starting baseline scenario (polling 3 targets every 250ms)
+[CLIENT] Will run for 10 seconds or until interrupted
+
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.16ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.74ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.57ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.22ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.03ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.01ms
+
+{"stats":{"failed_requests":0,"successful_requests":6,"timeouts":0,"total_requests":6},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.82ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.76ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.45ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.66ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.67ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.25ms
+
+{"stats":{"failed_requests":0,"successful_requests":12,"timeouts":0,"total_requests":12},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.52ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.77ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.11ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.70ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+
+{"stats":{"failed_requests":0,"successful_requests":18,"timeouts":0,"total_requests":18},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.57ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.23ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.63ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.81ms
+
+{"stats":{"failed_requests":0,"successful_requests":24,"timeouts":0,"total_requests":24},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.62ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.77ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.23ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.52ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.79ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.90ms
+
+{"stats":{"failed_requests":0,"successful_requests":30,"timeouts":0,"total_requests":30},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.25ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.08ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.61ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.54ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.91ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.72ms
+
+{"stats":{"failed_requests":0,"successful_requests":36,"timeouts":0,"total_requests":36},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.63ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.54ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.93ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.34ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.79ms
+
+{"stats":{"failed_requests":0,"successful_requests":42,"timeouts":0,"total_requests":42},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.95ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.88ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.62ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.82ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.59ms
+
+{"stats":{"failed_requests":0,"successful_requests":48,"timeouts":0,"total_requests":48},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.10ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.60ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.92ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.68ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.04ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.89ms
+
+{"stats":{"failed_requests":0,"successful_requests":54,"timeouts":0,"total_requests":54},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.23ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.75ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.77ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.96ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.98ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+
+{"stats":{"failed_requests":0,"successful_requests":60,"timeouts":0,"total_requests":60},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.35ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.66ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.64ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.85ms
+
+{"stats":{"failed_requests":0,"successful_requests":66,"timeouts":0,"total_requests":66},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.70ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.53ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.01ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.66ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+
+{"stats":{"failed_requests":0,"successful_requests":72,"timeouts":0,"total_requests":72},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.51ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.23ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.51ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.72ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.67ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.40ms
+
+{"stats":{"failed_requests":0,"successful_requests":78,"timeouts":0,"total_requests":78},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.05ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.77ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.94ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.51ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.75ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.79ms
+
+{"stats":{"failed_requests":0,"successful_requests":84,"timeouts":0,"total_requests":84},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.69ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.46ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.45ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.28ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.34ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+
+{"stats":{"failed_requests":0,"successful_requests":90,"timeouts":0,"total_requests":90},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.53ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.30ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.20ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.51ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.80ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.82ms
+
+{"stats":{"failed_requests":0,"successful_requests":96,"timeouts":0,"total_requests":96},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.51ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.76ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.70ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.64ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.08ms
+
+{"stats":{"failed_requests":0,"successful_requests":102,"timeouts":0,"total_requests":102},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.52ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.50ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.52ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.58ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.39ms
+
+{"stats":{"failed_requests":0,"successful_requests":108,"timeouts":0,"total_requests":108},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.53ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.83ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.25ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.75ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.73ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.06ms
+
+{"stats":{"failed_requests":0,"successful_requests":114,"timeouts":0,"total_requests":114},"type":"stats"}
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=2.08ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=0.51ms
+[CLIENT] Read Phase: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.69ms
+[CLIENT] Read PhaseName: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.16ms
+[CLIENT] Read TankLevel: class=0x0001 instance=0x0001 status=0x00 payload=2 bytes RTT=1.49ms
+
+{"stats":{"failed_requests":0,"successful_requests":120,"timeouts":0,"total_requests":120},"type":"stats"}
+[CLIENT] Scenario completed after 40 operations
+[CLIENT] Disconnecting...
+Completed scenario 'baseline' in 10.0s (120 operations, 0 errors)

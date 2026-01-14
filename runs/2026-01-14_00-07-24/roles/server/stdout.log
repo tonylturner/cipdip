@@ -1,0 +1,267 @@
+CIPDIP Server starting...
+[SERVER] TCP server listening on 192.168.10.99:44818
+{"event":"server_ready","listen":"192.168.10.99:44818","timestamp":"2026-01-14T00:07:25Z"}
+Server started successfully
+[SERVER] New connection from 192.168.200.11:60620
+[SERVER] Registered session 1
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":7,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":13,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":19,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":25,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":31,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":37,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":43,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":49,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":55,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":61,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":67,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":73,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":79,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":85,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":91,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":97,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":103,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":109,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":112,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":118,"total_errors":0,"recent_clients":["192.168.200.11:60620"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0001 instance=0x0001 attribute=0x01
+[SERVER] Responded: service=0x0E status=0x00 payload=2 bytes
+[SERVER] Connection closed by client: 192.168.200.11:60620

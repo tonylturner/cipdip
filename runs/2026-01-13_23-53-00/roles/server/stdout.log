@@ -1,0 +1,187 @@
+CIPDIP Server starting...
+[SERVER] TCP server listening on 192.168.10.99:44818
+{"event":"server_ready","listen":"192.168.10.99:44818","timestamp":"2026-01-13T23:53:01Z"}
+Server started successfully
+[SERVER] New connection from 192.168.200.11:34615
+[SERVER] Registered session 1
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":5,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":9,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":13,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":17,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":21,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":25,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":29,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":33,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":37,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":41,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":45,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":49,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":53,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":57,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":61,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":65,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":69,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":73,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":77,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0065 attribute=0x03
+[SERVER] Responded: service=0x0E status=0x00 payload=16 bytes
+[SERVER] Received CIP request: service=0x0E class=0x0004 instance=0x0066 attribute=0x03
+[SERVER] Request failed: assembly not found: class=0x0004 instance=0x0066 attribute=0x03
+{"stats":{"active_connections":1,"total_connections":1,"total_requests":81,"total_errors":0,"recent_clients":["192.168.200.11:34615"]},"type":"stats"}
+[SERVER] Connection closed by client: 192.168.200.11:34615

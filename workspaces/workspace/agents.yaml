@@ -1,0 +1,19 @@
+agents:
+    mac-1:
+        name: mac-1
+        transport: ssh://tturner@192.168.100.25?key=/Users/tturner/.ssh/id_ed25519_cipdip&os=darwin&elevate=true
+        last_check: 2026-01-13T18:12:53.068579-05:00
+        status: ok
+        elevate: true
+    win-1:
+        name: win-1
+        transport: ssh://tony@sentinel24.com@192.168.100.15?key=/Users/tturner/.ssh/id_ed25519_cipdip&os=windows&elevate=true
+        last_check: 2026-01-13T18:11:50.44252-05:00
+        status: ok
+        status_msg: Connected
+        elevate: true
+        os_arch: windows/amd64
+        cipdip_version: 0.2.1
+        pcap_capable: true
+        elevate_available: true
+        elevate_method: admin

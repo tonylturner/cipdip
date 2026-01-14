@@ -131,6 +131,23 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 		cmd = append([]string{"cipdip"}, cmd...)
 	}
 
+	// Check if remote is Windows
+	isWindows := false
+	if sshTransport, ok := r.transport.(*transport.SSH); ok && sshTransport.IsWindows() {
+		isWindows = true
+	}
+
+	if isWindows {
+		// On Windows, cipdip should be in PATH already (no need for shell wrapper)
+		// The command is passed as-is
+	} else {
+		// On Unix, wrap in shell to find cipdip in common locations
+		// (PATH may not include /usr/local/bin in non-interactive SSH)
+		cipdipCmd := strings.Join(cmd, " ")
+		shellCmd := fmt.Sprintf(`PATH=/usr/local/bin:/opt/homebrew/bin:$HOME/go/bin:$PATH %s`, cipdipCmd)
+		cmd = []string{"sh", "-c", shellCmd}
+	}
+
 	// Create writers that capture to our buffers and check for readiness
 	stdoutWriter := &readinessWriter{
 		buf:      &r.stdoutBuf,
