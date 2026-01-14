@@ -268,14 +268,21 @@ func RunClient(opts ClientOptions) error {
 			return fmt.Errorf("load profile '%s': %w", opts.Profile, err)
 		}
 
-		// Validate role exists
-		role := p.GetRole(opts.Role)
-		if role == nil {
-			availableRoles := make([]string, 0, len(p.Roles))
-			for name := range p.Roles {
-				availableRoles = append(availableRoles, name)
+		// Validate role exists (unless "all" for stress testing)
+		if opts.Role == "all" {
+			// "all" is a special value that runs all roles in rotation (stress mode)
+			if len(p.Roles) == 0 {
+				return fmt.Errorf("profile '%s' has no roles defined", opts.Profile)
 			}
-			return fmt.Errorf("role '%s' not found in profile '%s'; available roles: %v", opts.Role, opts.Profile, availableRoles)
+		} else {
+			role := p.GetRole(opts.Role)
+			if role == nil {
+				availableRoles := make([]string, 0, len(p.Roles))
+				for name := range p.Roles {
+					availableRoles = append(availableRoles, name)
+				}
+				return fmt.Errorf("role '%s' not found in profile '%s'; available roles: %v", opts.Role, opts.Profile, availableRoles)
+			}
 		}
 
 		scenarioImpl = &scenario.ProfileScenario{
@@ -287,7 +294,13 @@ func RunClient(opts ClientOptions) error {
 		// Configure output manager for profile run
 		if outputMgr != nil {
 			outputMgr.SetProfile(opts.Profile, opts.Role, p.Metadata.Personality)
-			outputMgr.SetConfig(int(role.PollInterval.MustParse().Milliseconds()), role.BatchSize)
+			if opts.Role == "all" {
+				// For "all" mode, use a default interval (will be overridden by scenario)
+				outputMgr.SetConfig(100, 1)
+			} else {
+				role := p.GetRole(opts.Role)
+				outputMgr.SetConfig(int(role.PollInterval.MustParse().Milliseconds()), role.BatchSize)
+			}
 		}
 	} else {
 		var err error
