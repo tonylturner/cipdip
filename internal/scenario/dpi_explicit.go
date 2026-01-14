@@ -27,17 +27,18 @@ type DPIPhase struct {
 	Number      int
 	Name        string
 	Description string
-	Duration    time.Duration // Fixed duration for this phase
+	Weight      float64 // Proportional weight for duration calculation
 }
 
-// Phase durations per spec - total 330 seconds minimum
+// Phase weights (proportional to total duration)
+// Weights sum to 1.0 - actual duration calculated at runtime from params.Duration
 var dpiPhases = []DPIPhase{
-	{0, "Baseline Sanity", "Control - verify basic explicit messaging works", 30 * time.Second},
-	{1, "Read-Only Ambiguity", "Test single vs MSP encoding assumptions", 45 * time.Second},
-	{2, "Connection Lifecycle", "Primary breakage test - ForwardOpen/Close churn (MANDATORY)", 75 * time.Second},
-	{3, "Large Payloads", "Fragmentation pressure and reassembly", 75 * time.Second},
-	{4, "Realistic Violations", "Invalid classes/instances/attributes, error handling", 45 * time.Second},
-	{5, "Allowlist Precision", "Class/service filtering granularity", 60 * time.Second},
+	{0, "Baseline Sanity", "Control - verify basic explicit messaging works", 0.09},       // ~9%
+	{1, "Read-Only Ambiguity", "Test single vs MSP encoding assumptions", 0.14},           // ~14%
+	{2, "Connection Lifecycle", "ForwardOpen/Close churn stress test", 0.23},              // ~23%
+	{3, "Large Payloads", "Fragmentation pressure and reassembly", 0.23},                  // ~23%
+	{4, "Realistic Violations", "Invalid classes/instances/attributes, error handling", 0.14}, // ~14%
+	{5, "Allowlist Precision", "Class/service filtering granularity", 0.17},               // ~17%
 }
 
 // PhaseResult tracks results for a single phase.
@@ -67,24 +68,12 @@ func jitterSleep(ctx context.Context) {
 	}
 }
 
-// Run executes the DPI explicit scenario for the FULL duration.
-// This scenario NEVER exits early - it runs all phases for their specified durations.
+// Run executes the DPI explicit scenario for the requested duration.
+// Duration is divided proportionally across 6 phases based on weights.
 func (s *DPIExplicitScenario) Run(ctx context.Context, client cipclient.Client, cfg *config.Config, params ScenarioParams) error {
-	params.Logger.Info("Starting dpi_explicit scenario (STRESS MODE)")
+	params.Logger.Info("Starting dpi_explicit scenario")
 	params.Logger.Info("Target: %s:%d", params.IP, params.Port)
-	params.Logger.Info("Requested duration: %v", params.Duration)
-
-	// Calculate total phase time
-	var totalPhaseTime time.Duration
-	for _, p := range dpiPhases {
-		totalPhaseTime += p.Duration
-	}
-	params.Logger.Info("Minimum scenario duration: %v (6 phases)", totalPhaseTime)
-
-	// If user requested longer than minimum, we'll loop phases
-	if params.Duration < totalPhaseTime {
-		params.Logger.Info("NOTE: Duration %v is less than minimum %v - will run full minimum", params.Duration, totalPhaseTime)
-	}
+	params.Logger.Info("Duration: %v", params.Duration)
 
 	port := params.Port
 	if port == 0 {
@@ -94,92 +83,75 @@ func (s *DPIExplicitScenario) Run(ctx context.Context, client cipclient.Client, 
 		}
 	}
 
+	// Calculate phase durations from weights
+	phaseDurations := make([]time.Duration, len(dpiPhases))
+	for i, phase := range dpiPhases {
+		phaseDurations[i] = time.Duration(float64(params.Duration) * phase.Weight)
+		// Ensure minimum 1 second per phase
+		if phaseDurations[i] < time.Second {
+			phaseDurations[i] = time.Second
+		}
+	}
+
+	// Log phase breakdown
+	params.Logger.Info("Phase breakdown:")
+	for i, phase := range dpiPhases {
+		params.Logger.Info("  Phase %d (%s): %v", phase.Number, phase.Name, phaseDurations[i].Round(time.Second))
+	}
+
 	startTime := time.Now()
 	var allResults []PhaseResult
-	iteration := 0
 
-	// Loop until we've run at least the requested duration
-	// AND completed full phase cycles
-	for {
-		iteration++
-		elapsed := time.Since(startTime)
-
-		params.Logger.Info("")
-		params.Logger.Info("══════════════════════════════════════════════════════════════")
-		params.Logger.Info("  ITERATION %d (elapsed: %v)", iteration, elapsed.Round(time.Second))
-		params.Logger.Info("══════════════════════════════════════════════════════════════")
-
-		// Run all 6 phases with their specified durations
-		for _, phase := range dpiPhases {
-			phaseStart := time.Now()
-
-			params.Logger.Info("")
-			params.Logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			params.Logger.Info("Phase %d: %s (duration: %v)", phase.Number, phase.Name, phase.Duration)
-			params.Logger.Info("  %s", phase.Description)
-			params.Logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-			result := PhaseResult{Phase: phase}
-
-			// Create phase context with the phase's specific duration
-			phaseCtx, phaseCancel := context.WithTimeout(ctx, phase.Duration)
-
-			// Run the phase for its FULL duration
-			switch phase.Number {
-			case 0:
-				s.runBaselineSanityLoop(phaseCtx, client, params, port, &result)
-			case 1:
-				s.runReadOnlyAmbiguityLoop(phaseCtx, client, params, port, &result)
-			case 2:
-				s.runConnectionLifecycleLoop(phaseCtx, client, params, port, &result)
-			case 3:
-				s.runLargePayloadsLoop(phaseCtx, client, params, port, &result)
-			case 4:
-				s.runRealisticViolationsLoop(phaseCtx, client, params, port, &result)
-			case 5:
-				s.runAllowlistPrecisionLoop(phaseCtx, client, params, port, &result)
-			}
-
-			phaseCancel()
-
-			// Wait for remaining phase duration if phase completed early
-			phaseElapsed := time.Since(phaseStart)
-			if phaseElapsed < phase.Duration {
-				remaining := phase.Duration - phaseElapsed
-				params.Logger.Info("  Phase completed early, waiting %v to maintain timing...", remaining.Round(time.Millisecond))
-				select {
-				case <-ctx.Done():
-				case <-time.After(remaining):
-				}
-			}
-
-			allResults = append(allResults, result)
-			s.logPhaseSummary(params, &result)
-		}
-
-		// Check if we've met the duration requirement
-		totalElapsed := time.Since(startTime)
-		if totalElapsed >= params.Duration && totalElapsed >= totalPhaseTime {
-			params.Logger.Info("")
-			params.Logger.Info("Duration requirement met: %v elapsed (requested: %v, minimum: %v)",
-				totalElapsed.Round(time.Second), params.Duration, totalPhaseTime)
-			break
-		}
-
-		// Check for context cancellation (Ctrl+C)
+	// Run all 6 phases
+	for i, phase := range dpiPhases {
+		// Check if overall context is done
 		select {
 		case <-ctx.Done():
-			params.Logger.Info("")
-			params.Logger.Info("Context cancelled after %v", time.Since(startTime).Round(time.Second))
+			params.Logger.Info("Context cancelled, stopping scenario")
 			s.logFinalSummary(params, allResults)
 			return ctx.Err()
 		default:
 		}
 
+		phaseDuration := phaseDurations[i]
+		elapsed := time.Since(startTime)
+
 		params.Logger.Info("")
-		params.Logger.Info("Continuing to next iteration (elapsed: %v, target: %v)...",
-			totalElapsed.Round(time.Second), params.Duration)
+		params.Logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		params.Logger.Info("Phase %d: %s (duration: %v, elapsed: %v)", phase.Number, phase.Name, phaseDuration.Round(time.Second), elapsed.Round(time.Second))
+		params.Logger.Info("  %s", phase.Description)
+		params.Logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+		result := PhaseResult{Phase: phase}
+
+		// Create phase context with calculated duration
+		phaseCtx, phaseCancel := context.WithTimeout(ctx, phaseDuration)
+
+		// Run the phase for its duration
+		switch phase.Number {
+		case 0:
+			s.runBaselineSanityLoop(phaseCtx, client, params, port, &result)
+		case 1:
+			s.runReadOnlyAmbiguityLoop(phaseCtx, client, params, port, &result)
+		case 2:
+			s.runConnectionLifecycleLoop(phaseCtx, client, params, port, &result)
+		case 3:
+			s.runLargePayloadsLoop(phaseCtx, client, params, port, &result)
+		case 4:
+			s.runRealisticViolationsLoop(phaseCtx, client, params, port, &result)
+		case 5:
+			s.runAllowlistPrecisionLoop(phaseCtx, client, params, port, &result)
+		}
+
+		phaseCancel()
+		allResults = append(allResults, result)
+		s.logPhaseSummary(params, &result)
 	}
+
+	// Log completion
+	totalElapsed := time.Since(startTime)
+	params.Logger.Info("")
+	params.Logger.Info("Scenario completed: %v elapsed (requested: %v)", totalElapsed.Round(time.Second), params.Duration)
 
 	s.logFinalSummary(params, allResults)
 	return nil
@@ -744,7 +716,7 @@ func (s *DPIExplicitScenario) testRequestExpectError(ctx context.Context, client
 func (s *DPIExplicitScenario) logPhaseSummary(params ScenarioParams, result *PhaseResult) {
 	params.Logger.Info("")
 	params.Logger.Info("  Phase %d Summary:", result.Phase.Number)
-	params.Logger.Info("    Duration: %v (actual)", result.Phase.Duration)
+	params.Logger.Info("    Weight: %.0f%%", result.Phase.Weight*100)
 	params.Logger.Info("    Requests: %d total, %d success, %d fail", result.TotalRequests, result.Successes, result.Failures)
 	if result.Timeouts > 0 {
 		params.Logger.Info("    Timeouts: %d", result.Timeouts)
