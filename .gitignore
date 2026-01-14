@@ -34,6 +34,7 @@ workspaces/**/runs/
 workspaces/**/reports/
 workspaces/**/tmp/
 workspaces/**/manifests/
+workspaces/**/run.json
 
 # Root-level run artifacts (orchestration runs)
 runs/
