@@ -1,4 +1,0 @@
-CIPDIP Server starting...
-[SERVER] TCP server listening on 192.168.10.99:44818
-{"event":"server_ready","listen":"192.168.10.99:44818","timestamp":"2026-01-13T23:48:26Z"}
-Server started successfully
