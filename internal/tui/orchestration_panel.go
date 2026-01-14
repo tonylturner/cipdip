@@ -16,6 +16,7 @@ import (
 	"github.com/tturner/cipdip/internal/manifest"
 	"github.com/tturner/cipdip/internal/orch/bundle"
 	"github.com/tturner/cipdip/internal/orch/controller"
+	"github.com/tturner/cipdip/internal/profile"
 	"github.com/tturner/cipdip/internal/ui"
 )
 
@@ -163,9 +164,9 @@ type OrchestrationPanel struct {
 	quickRunTimeout     string   // Timeout in seconds
 	quickRunCapture     bool     // Enable PCAP capture
 	quickRunInterface   int      // Index into interfaces (0=auto, 1+=specific)
-	quickRunTargetIP    string   // Target IP address
-	quickRunProfiles    []string // Available profile paths
-	quickRunScenarios   []string // Available scenarios
+	quickRunTargetIP    string                // Target IP address
+	quickRunProfiles    []profile.ProfileInfo // Available profiles with metadata
+	quickRunScenarios   []string              // Available scenarios
 	quickRunError       string   // Error message
 
 	// Manifest picker
@@ -2558,20 +2559,21 @@ func verifyBundle(path string) (*bundle.VerifyResult, error) {
 }
 
 // getAvailableScenarios returns a list of known scenario names.
+// Scenarios marked with * require manual config (not auto-generated from profiles).
 func getAvailableScenarios() []string {
 	return []string{
-		"baseline",
-		"mixed",
-		"stress",
-		"io",
-		"churn",
-		"dpi_explicit",
-		"edge_valid",
-		"edge_vendor",
-		"rockwell",
-		"vendor_variants",
-		"mixed_state",
-		"unconnected_send",
+		"baseline",           // ✓ auto-generates read_targets from profile
+		"mixed",              // ✓ auto-generates read/write_targets from profile
+		"stress",             // ✓ auto-generates read_targets from profile
+		"churn",              // ✓ auto-generates read_targets from profile
+		"io",                 // ✓ auto-generates io_connections for adapter profiles
+		"dpi_explicit",       // ✓ built-in targets
+		"edge_valid*",        // * requires edge_targets in config
+		"edge_vendor*",       // * requires edge_targets in config
+		"rockwell*",          // * requires rockwell-specific config
+		"vendor_variants*",   // * requires protocol_variants in config
+		"mixed_state*",       // * requires both read_targets and io_connections
+		"unconnected_send*",  // * requires edge_targets in config
 	}
 }
 
@@ -2619,12 +2621,27 @@ func (p *OrchestrationPanel) startQuickRun() {
 	// Load available scenarios
 	p.quickRunScenarios = getAvailableScenarios()
 
-	// Find profile files
-	p.quickRunProfiles = findProfileFiles(p.workspacePath)
-	if len(p.quickRunProfiles) == 0 {
-		// Add a placeholder
-		p.quickRunProfiles = []string{"(no profiles found)"}
+	// Find profiles with metadata (friendly names)
+	p.quickRunProfiles = nil
+	searchPaths := []string{
+		filepath.Join(p.workspacePath, "profiles"),
+		"profiles",
 	}
+	for _, dir := range searchPaths {
+		if infos, err := profile.ListProfiles(dir); err == nil {
+			p.quickRunProfiles = append(p.quickRunProfiles, infos...)
+		}
+	}
+	// Deduplicate by path
+	seen := make(map[string]bool)
+	deduped := make([]profile.ProfileInfo, 0, len(p.quickRunProfiles))
+	for _, pi := range p.quickRunProfiles {
+		if !seen[pi.Path] {
+			seen[pi.Path] = true
+			deduped = append(deduped, pi)
+		}
+	}
+	p.quickRunProfiles = deduped
 
 	// Make sure agent registry is loaded
 	if p.agentRegistry == nil {
@@ -2833,8 +2850,8 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 
 	// Build profile path
 	profilePath := ""
-	if p.quickRunServerProfile < len(p.quickRunProfiles) && !strings.HasPrefix(p.quickRunProfiles[p.quickRunServerProfile], "(") {
-		profilePath = p.quickRunProfiles[p.quickRunServerProfile]
+	if p.quickRunServerProfile < len(p.quickRunProfiles) {
+		profilePath = p.quickRunProfiles[p.quickRunServerProfile].Path
 	}
 
 	// Get duration from timeout
@@ -2860,13 +2877,13 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 		},
 		Roles: manifest.RolesConfig{
 			Server: &manifest.ServerRoleConfig{
-				Agent:       p.getAgentTransport(p.quickRunServerAgent),
-				Mode:        "emulator",
-				Personality: "adapter",
+				Agent: p.getAgentTransport(p.quickRunServerAgent),
+				Mode:  "emulator",
+				// Personality inherited from profile - don't override
 			},
 			Client: &manifest.ClientRoleConfig{
 				Agent:           p.getAgentTransport(p.quickRunClientAgent),
-				Scenario:        p.quickRunScenarios[p.quickRunScenario],
+				Scenario:        strings.TrimSuffix(p.quickRunScenarios[p.quickRunScenario], "*"),
 				DurationSeconds: duration,
 				IntervalMs:      100,
 			},
@@ -2878,6 +2895,30 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 		Artifacts: manifest.ArtifactsConfig{
 			BundleFormat: "dir",
 		},
+	}
+
+	// Add PCAP capture if enabled
+	if p.quickRunCapture {
+		// Get interface name (empty string means auto-detect)
+		interfaceName := ""
+		if p.quickRunInterface > 0 && p.quickRunInterface <= len(p.agentInfo.Interfaces) {
+			interfaceName = p.agentInfo.Interfaces[p.quickRunInterface-1].Name
+		}
+
+		// Add pcap args to server and client roles
+		m.Roles.Server.Args = map[string]any{
+			"pcap": "server.pcap",
+		}
+		if interfaceName != "" {
+			m.Roles.Server.Args["capture-interface"] = interfaceName
+		}
+
+		m.Roles.Client.Args = map[string]any{
+			"pcap": "client.pcap",
+		}
+		if interfaceName != "" {
+			m.Roles.Client.Args["capture-interface"] = interfaceName
+		}
 	}
 
 	// Save manifest to temp file
@@ -2964,13 +3005,20 @@ func (p *OrchestrationPanel) renderQuickRunView(width int, focused bool) string 
 
 	// Profile field (3)
 	profileName := "(none)"
+	profilePersonality := ""
 	if p.quickRunServerProfile < len(p.quickRunProfiles) {
-		profileName = filepath.Base(p.quickRunProfiles[p.quickRunServerProfile])
+		pi := p.quickRunProfiles[p.quickRunServerProfile]
+		profileName = pi.Name
+		profilePersonality = pi.Personality
+	}
+	profileDisplay := profileName
+	if profilePersonality != "" {
+		profileDisplay = fmt.Sprintf("%s (%s)", profileName, profilePersonality)
 	}
 	if p.quickRunField == 3 {
-		content.WriteString(s.Selected.Render(fmt.Sprintf("▸ Profile:        < %s >", profileName)) + "\n")
+		content.WriteString(s.Selected.Render(fmt.Sprintf("▸ Profile:        < %s >", profileDisplay)) + "\n")
 	} else {
-		content.WriteString(fmt.Sprintf("  %s        %s\n", s.Label.Render("Profile:"), profileName))
+		content.WriteString(fmt.Sprintf("  %s        %s\n", s.Label.Render("Profile:"), profileDisplay))
 	}
 
 	// Duration field (4)
@@ -3019,7 +3067,7 @@ func (p *OrchestrationPanel) renderQuickRunView(width int, focused bool) string 
 	// Summary
 	content.WriteString("\n" + s.Dim.Render("─────────────────────────────────────────────") + "\n")
 	content.WriteString(s.Header.Render("Summary:") + "\n")
-	content.WriteString(fmt.Sprintf("  Server: %s will run emulator (%s)\n", serverAgentName, "adapter"))
+	content.WriteString(fmt.Sprintf("  Server: %s will run emulator (%s)\n", serverAgentName, profileDisplay))
 	content.WriteString(fmt.Sprintf("  Client: %s will run scenario '%s'\n", clientAgentName, scenarioName))
 	content.WriteString(fmt.Sprintf("  Target: %s:44818 for %ss\n", p.quickRunTargetIP, p.quickRunTimeout))
 	if p.quickRunCapture {

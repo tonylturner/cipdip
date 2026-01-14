@@ -9,9 +9,12 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/manifest"
 	"github.com/tturner/cipdip/internal/orch/bundle"
+	"github.com/tturner/cipdip/internal/profile"
 	"github.com/tturner/cipdip/internal/transport"
+	"gopkg.in/yaml.v3"
 )
 
 // Phase represents an execution phase.
@@ -132,7 +135,13 @@ func (c *Controller) ValidateAgents(ctx context.Context) map[string]error {
 
 	for role, t := range c.transports {
 		// Try a simple command to validate connectivity
-		exitCode, _, _, err := t.Exec(ctx, []string{"true"}, nil, "")
+		// Use shell-based echo which works on both Unix and Windows SSH
+		cmd := []string{"sh", "-c", "echo OK"}
+		if sshTransport, ok := t.(*transport.SSH); ok && sshTransport.IsWindows() {
+			// On Windows, use cmd.exe
+			cmd = []string{"cmd", "/c", "echo OK"}
+		}
+		exitCode, _, _, err := t.Exec(ctx, cmd, nil, "")
 		if err != nil {
 			results[role] = fmt.Errorf("connectivity check failed: %w", err)
 		} else if exitCode != 0 {
@@ -402,6 +411,281 @@ func (c *Controller) phaseStage(ctx context.Context, result *Result) error {
 		}
 	}
 
+	// Generate and push server config to server agent
+	if t, ok := c.transports["server"]; ok {
+		c.reportPhase(PhaseStage, "Generating server config for remote server agent")
+		if err := c.pushServerConfig(ctx, t); err != nil {
+			return fmt.Errorf("push server config: %w", err)
+		}
+	}
+
+	// Generate and push client config to client agent
+	if t, ok := c.transports["client"]; ok {
+		c.reportPhase(PhaseStage, "Generating client config for remote client agent")
+		if err := c.pushClientConfig(ctx, t); err != nil {
+			return fmt.Errorf("push client config: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// pushServerConfig generates a server config from the profile and pushes it to the server agent.
+func (c *Controller) pushServerConfig(ctx context.Context, t transport.Transport) error {
+	// Start with default server config
+	serverCfg := config.CreateDefaultServerConfig()
+
+	// Apply listen IP from manifest
+	if c.manifest.Network.DataPlane.ServerListenIP != "" {
+		serverCfg.Server.ListenIP = c.manifest.Network.DataPlane.ServerListenIP
+	}
+
+	// Apply port from manifest
+	if c.manifest.Network.DataPlane.TargetPort != 0 {
+		serverCfg.Server.TCPPort = c.manifest.Network.DataPlane.TargetPort
+	}
+
+	// Load profile if specified to get personality and data model
+	if c.resolved.ProfilePath != "" {
+		prof, err := profile.LoadProfile(c.resolved.ProfilePath)
+		if err != nil {
+			return fmt.Errorf("load profile for server config: %w", err)
+		}
+
+		// Use profile personality (manifest can override)
+		serverCfg.Server.Personality = prof.Metadata.Personality
+		if c.manifest.Roles.Server != nil && c.manifest.Roles.Server.Personality != "" {
+			serverCfg.Server.Personality = c.manifest.Roles.Server.Personality
+		}
+
+		// Generate data model from profile
+		if serverCfg.Server.Personality == "logix_like" {
+			// Convert profile tags to server LogixTags config
+			serverCfg.LogixTags = make([]config.LogixTagConfig, 0, len(prof.DataModel.Tags))
+			for _, tag := range prof.DataModel.Tags {
+				// Server config requires array_length >= 1 (0 in profile means single element)
+				arrayLen := tag.ArrayLength
+				if arrayLen < 1 {
+					arrayLen = 1
+				}
+				// Map profile update rules to valid server patterns
+				// Valid patterns: counter, static, random, sine, sawtooth
+				updatePattern := mapUpdateRule(tag.UpdateRule)
+				serverCfg.LogixTags = append(serverCfg.LogixTags, config.LogixTagConfig{
+					Name:          tag.Name,
+					Type:          tag.Type,
+					ArrayLength:   arrayLen,
+					UpdatePattern: updatePattern,
+				})
+			}
+			// Clear default adapter assemblies for logix_like
+			serverCfg.AdapterAssemblies = nil
+			c.reportPhase(PhaseStage, fmt.Sprintf("Server config using logix_like personality with %d tags from profile", len(serverCfg.LogixTags)))
+		} else {
+			// Convert profile assemblies to server AdapterAssemblies config
+			if len(prof.DataModel.Assemblies) > 0 {
+				serverCfg.AdapterAssemblies = make([]config.AdapterAssemblyConfig, 0, len(prof.DataModel.Assemblies))
+				for _, asm := range prof.DataModel.Assemblies {
+					serverCfg.AdapterAssemblies = append(serverCfg.AdapterAssemblies, config.AdapterAssemblyConfig{
+						Name:          asm.Name,
+						Class:         asm.Class,
+						Instance:      asm.Instance,
+						Attribute:     asm.Attribute,
+						SizeBytes:     asm.SizeBytes,
+						Writable:      asm.Writable,
+						UpdatePattern: asm.UpdateRule,
+					})
+				}
+				c.reportPhase(PhaseStage, fmt.Sprintf("Server config using adapter personality with %d assemblies from profile", len(serverCfg.AdapterAssemblies)))
+			}
+			// Clear logix tags for adapter mode
+			serverCfg.LogixTags = nil
+		}
+	} else {
+		// No profile - apply personality from manifest if specified
+		if c.manifest.Roles.Server != nil && c.manifest.Roles.Server.Personality != "" {
+			serverCfg.Server.Personality = c.manifest.Roles.Server.Personality
+		}
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(serverCfg)
+	if err != nil {
+		return fmt.Errorf("marshal server config: %w", err)
+	}
+
+	// Write to local temp file
+	tmpFile, err := os.CreateTemp("", "cipdip-server-*.yaml")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Create remote work directory
+	remoteWorkDir := "/tmp/cipdip-server"
+	if err := t.Mkdir(ctx, remoteWorkDir); err != nil {
+		return fmt.Errorf("create remote workdir: %w", err)
+	}
+
+	// Push to remote
+	remotePath := remoteWorkDir + "/cipdip_server.yaml"
+	if err := t.Put(ctx, tmpFile.Name(), remotePath); err != nil {
+		return fmt.Errorf("push server config: %w", err)
+	}
+
+	c.reportPhase(PhaseStage, fmt.Sprintf("Server config pushed: %s", remotePath))
+	return nil
+}
+
+// pushClientConfig generates a client config from the profile and pushes it to the client agent.
+func (c *Controller) pushClientConfig(ctx context.Context, t transport.Transport) error {
+	// Start with default client config
+	clientCfg := config.CreateDefaultClientConfig()
+
+	// Apply port from manifest (IP is passed via CLI)
+	if c.manifest.Network.DataPlane.TargetPort != 0 {
+		clientCfg.Adapter.Port = c.manifest.Network.DataPlane.TargetPort
+	}
+
+	// Load profile if specified to generate matching read/write targets
+	if c.resolved.ProfilePath != "" {
+		prof, err := profile.LoadProfile(c.resolved.ProfilePath)
+		if err != nil {
+			return fmt.Errorf("load profile for client config: %w", err)
+		}
+
+		personality := prof.Metadata.Personality
+		if c.manifest.Roles.Server != nil && c.manifest.Roles.Server.Personality != "" {
+			personality = c.manifest.Roles.Server.Personality
+		}
+
+		if personality == "adapter" {
+			// Generate targets from profile assemblies
+			clientCfg.ReadTargets = nil
+			clientCfg.WriteTargets = nil
+			clientCfg.IOConnections = nil
+
+			var inputAsm, outputAsm *profile.AssemblyDefinition
+			for i := range prof.DataModel.Assemblies {
+				asm := &prof.DataModel.Assemblies[i]
+				target := config.CIPTarget{
+					Name:      asm.Name,
+					Service:   config.ServiceGetAttributeSingle,
+					Class:     asm.Class,
+					Instance:  asm.Instance,
+					Attribute: asm.Attribute,
+				}
+
+				if asm.Writable {
+					target.Service = config.ServiceSetAttributeSingle
+					target.Pattern = "increment"
+					clientCfg.WriteTargets = append(clientCfg.WriteTargets, target)
+					if outputAsm == nil {
+						outputAsm = asm
+					}
+				} else {
+					clientCfg.ReadTargets = append(clientCfg.ReadTargets, target)
+					if inputAsm == nil {
+						inputAsm = asm
+					}
+				}
+			}
+
+			// Generate io_connections for 'io' scenario support
+			if inputAsm != nil && outputAsm != nil {
+				clientCfg.IOConnections = []config.IOConnectionConfig{
+					{
+						Name:                  "ProfileIO",
+						Transport:             "tcp",
+						OToTRPIMs:             100,
+						TToORPIMs:             100,
+						OToTSizeBytes:         outputAsm.SizeBytes,
+						TToOSizeBytes:         inputAsm.SizeBytes,
+						Priority:              "low",
+						TransportClassTrigger: 1,
+						Class:                 inputAsm.Class,
+						Instance:              inputAsm.Instance,
+					},
+				}
+				c.reportPhase(PhaseStage, fmt.Sprintf("Client config: %d read, %d write targets, 1 io_connection from profile",
+					len(clientCfg.ReadTargets), len(clientCfg.WriteTargets)))
+			} else {
+				c.reportPhase(PhaseStage, fmt.Sprintf("Client config: %d read targets, %d write targets from profile assemblies",
+					len(clientCfg.ReadTargets), len(clientCfg.WriteTargets)))
+			}
+		} else {
+			// For logix_like, the baseline scenario uses Get Attribute Single on standard objects
+			// The profile scenario would use ReadTag by name via ClientEngine
+			// Keep default targets for non-profile scenarios, or generate from tags for profile
+			clientCfg.ReadTargets = nil
+			clientCfg.WriteTargets = nil
+
+			for _, tag := range prof.DataModel.Tags {
+				// For baseline-style scenarios, we can't directly read logix tags via class/instance/attribute
+				// The profile scenario handles this via ReadTagByName
+				// Generate placeholder targets that reference Identity object for basic connectivity
+				// Actual tag reads would be handled by profile scenario
+				if !tag.Writable {
+					clientCfg.ReadTargets = append(clientCfg.ReadTargets, config.CIPTarget{
+						Name:      tag.Name,
+						Service:   config.ServiceGetAttributeSingle,
+						Class:     0x01, // Identity object
+						Instance:  0x01,
+						Attribute: 0x01, // Vendor ID
+					})
+				}
+			}
+			// Limit to a few basic targets for baseline scenarios
+			if len(clientCfg.ReadTargets) > 3 {
+				clientCfg.ReadTargets = clientCfg.ReadTargets[:3]
+			}
+			c.reportPhase(PhaseStage, fmt.Sprintf("Client config: %d read targets for logix_like profile (profile scenario uses tag names)",
+				len(clientCfg.ReadTargets)))
+		}
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(clientCfg)
+	if err != nil {
+		return fmt.Errorf("marshal client config: %w", err)
+	}
+
+	// Write to local temp file
+	tmpFile, err := os.CreateTemp("", "cipdip-client-*.yaml")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Determine remote work directory (Windows vs Unix)
+	remoteWorkDir := "/tmp/cipdip-client"
+	if sshTransport, ok := t.(*transport.SSH); ok && sshTransport.IsWindows() {
+		remoteWorkDir = "C:/Windows/Temp/cipdip-client"
+	}
+
+	if err := t.Mkdir(ctx, remoteWorkDir); err != nil {
+		return fmt.Errorf("create remote workdir: %w", err)
+	}
+
+	// Push to remote
+	remotePath := remoteWorkDir + "/cipdip_client.yaml"
+	if err := t.Put(ctx, tmpFile.Name(), remotePath); err != nil {
+		return fmt.Errorf("push client config: %w", err)
+	}
+
+	c.reportPhase(PhaseStage, fmt.Sprintf("Client config pushed: %s", remotePath))
 	return nil
 }
 
@@ -427,7 +711,14 @@ func (c *Controller) pushProfileToRemote(ctx context.Context, localPath, role st
 func (c *Controller) phaseServerStart(ctx context.Context, result *Result) error {
 	c.reportPhase(PhaseServerStart, "Starting server")
 
-	runner, err := c.createRunner("server", c.resolved.ServerArgs)
+	// Build server args, adding --server-config for remote agents
+	serverArgs := c.resolved.ServerArgs
+	if _, isRemote := c.transports["server"]; isRemote {
+		// For remote agents, point to the pushed server config
+		serverArgs = append(serverArgs, "--server-config", "/tmp/cipdip-server/cipdip_server.yaml")
+	}
+
+	runner, err := c.createRunner("server", serverArgs)
 	if err != nil {
 		return fmt.Errorf("create server runner: %w", err)
 	}
@@ -481,7 +772,18 @@ func (c *Controller) phaseServerReady(ctx context.Context, result *Result) error
 func (c *Controller) phaseClientStart(ctx context.Context, result *Result) error {
 	c.reportPhase(PhaseClientStart, "Starting client")
 
-	runner, err := c.createRunner("client", c.resolved.ClientArgs)
+	// Build client args, adding --config for remote agents
+	clientArgs := c.resolved.ClientArgs
+	if t, isRemote := c.transports["client"]; isRemote {
+		// For remote agents, point to the pushed client config
+		configPath := "/tmp/cipdip-client/cipdip_client.yaml"
+		if sshTransport, ok := t.(*transport.SSH); ok && sshTransport.IsWindows() {
+			configPath = "C:/Windows/Temp/cipdip-client/cipdip_client.yaml"
+		}
+		clientArgs = append(clientArgs, "--config", configPath)
+	}
+
+	runner, err := c.createRunner("client", clientArgs)
 	if err != nil {
 		return fmt.Errorf("create client runner: %w", err)
 	}
@@ -646,4 +948,34 @@ func getVersion() string {
 
 func getCommit() string {
 	return buildCommit
+}
+
+// mapUpdateRule maps profile update rules to valid server config patterns.
+// Profile rules: latch, ramp, static, counter, toggle, sine
+// Server patterns: counter, static, random, sine, sawtooth
+func mapUpdateRule(rule string) string {
+	switch rule {
+	case "counter":
+		return "counter"
+	case "static":
+		return "static"
+	case "sine":
+		return "sine"
+	case "sawtooth":
+		return "sawtooth"
+	case "random":
+		return "random"
+	case "latch":
+		// latch holds last written value, map to static
+		return "static"
+	case "ramp":
+		// ramp increases linearly, map to sawtooth
+		return "sawtooth"
+	case "toggle":
+		// toggle alternates, map to random for variability
+		return "random"
+	default:
+		// Default to static for unknown patterns
+		return "static"
+	}
 }

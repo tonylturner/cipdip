@@ -405,17 +405,33 @@ func checkRemoteAgent(ctx context.Context, t transport.Transport, spec string) *
 		Detail: fmt.Sprintf("latency %dms", result.Latency.Milliseconds()),
 	})
 
-	// Check 2: cipdip installed
-	exitCode, stdout, _, err := t.Exec(ctx, []string{"cipdip", "version"}, nil, "")
-	if err != nil || exitCode != 0 {
+	// Check 2: cipdip installed - try PATH first, then common locations
+	cipdipPaths := []string{
+		"cipdip",
+		"/usr/local/bin/cipdip",
+		"/opt/homebrew/bin/cipdip",
+		"/usr/bin/cipdip",
+		"$HOME/go/bin/cipdip",
+	}
+	var cipdipFound bool
+	var cipdipVersion string
+	for _, cipdipPath := range cipdipPaths {
+		exitCode, stdout, _, err := t.Exec(ctx, []string{"sh", "-c", cipdipPath + " version"}, nil, "")
+		if err == nil && exitCode == 0 {
+			cipdipFound = true
+			cipdipVersion = parseVersionOutput(stdout)
+			break
+		}
+	}
+	if !cipdipFound {
 		result.Checks = append(result.Checks, CheckItem{
 			Name:   "cipdip_installed",
 			Status: "fail",
-			Detail: "cipdip not found in PATH",
+			Detail: "cipdip not found in PATH or common locations",
 		})
 	} else {
 		result.CipdipFound = true
-		result.Version = parseVersionOutput(stdout)
+		result.Version = cipdipVersion
 		result.Checks = append(result.Checks, CheckItem{
 			Name:   "cipdip_installed",
 			Status: "pass",
@@ -424,6 +440,7 @@ func checkRemoteAgent(ctx context.Context, t transport.Transport, spec string) *
 	}
 
 	// Check 3: Get OS/Arch
+	var stdout string
 	exitCode, stdout, _, _ = t.Exec(ctx, []string{"uname", "-s"}, nil, "")
 	if exitCode == 0 {
 		result.RemoteOS = trimOutput(stdout)

@@ -66,9 +66,10 @@ func RunClient(opts ClientOptions) error {
 			"firewall_moxa":       true,
 			"firewall_dynics":     true,
 			"firewall_pack":       true,
+			"dpi_explicit":        true,
 		}
 		if !validScenarios[opts.Scenario] {
-			return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack", opts.Scenario)
+			return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack, dpi_explicit", opts.Scenario)
 		}
 
 		if opts.IntervalMs == 0 {
@@ -96,6 +97,8 @@ func RunClient(opts ClientOptions) error {
 			case "unconnected_send":
 				opts.IntervalMs = 100
 			case "firewall_hirschmann", "firewall_moxa", "firewall_dynics", "firewall_pack":
+				opts.IntervalMs = 100
+			case "dpi_explicit":
 				opts.IntervalMs = 100
 			}
 		}
