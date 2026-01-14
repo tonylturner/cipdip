@@ -1,11 +1,15 @@
 package scenario
 
-// DPI Explicit scenario: vendor-neutral DPI explicit messaging test for TCP 44818.
-// Tests 6 phases to identify DPI weaknesses and breakage points.
+// DPI Explicit scenario: vendor-neutral DPI explicit messaging stress test for TCP 44818.
+// Tests 6 phases with TIME-DRIVEN loops to stress DPI state tracking.
+//
+// SPEC: Minimum 300 seconds (5 minutes) runtime. NO early termination.
+// Phase durations: 30s + 45s + 75s + 75s + 45s + 60s = 330s minimum.
 
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	cipclient "github.com/tturner/cipdip/internal/cip/client"
@@ -13,10 +17,9 @@ import (
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/metrics"
-	"github.com/tturner/cipdip/internal/progress"
 )
 
-// DPIExplicitScenario implements vendor-neutral DPI explicit messaging tests.
+// DPIExplicitScenario implements vendor-neutral DPI explicit messaging stress tests.
 type DPIExplicitScenario struct{}
 
 // DPIPhase represents a test phase in the DPI scenario.
@@ -24,15 +27,17 @@ type DPIPhase struct {
 	Number      int
 	Name        string
 	Description string
+	Duration    time.Duration // Fixed duration for this phase
 }
 
+// Phase durations per spec - total 330 seconds minimum
 var dpiPhases = []DPIPhase{
-	{0, "Baseline Sanity", "Control - verify basic explicit messaging works"},
-	{1, "Read-Only Ambiguity", "Test single vs MSP encoding assumptions"},
-	{2, "Connection Lifecycle", "Primary breakage test - ForwardOpen/Close churn"},
-	{3, "Large Payloads", "Fragmentation pressure and reassembly"},
-	{4, "Realistic Violations", "Invalid classes/instances/attributes, error handling"},
-	{5, "Allowlist Precision", "Class/service filtering granularity"},
+	{0, "Baseline Sanity", "Control - verify basic explicit messaging works", 30 * time.Second},
+	{1, "Read-Only Ambiguity", "Test single vs MSP encoding assumptions", 45 * time.Second},
+	{2, "Connection Lifecycle", "Primary breakage test - ForwardOpen/Close churn (MANDATORY)", 75 * time.Second},
+	{3, "Large Payloads", "Fragmentation pressure and reassembly", 75 * time.Second},
+	{4, "Realistic Violations", "Invalid classes/instances/attributes, error handling", 45 * time.Second},
+	{5, "Allowlist Precision", "Class/service filtering granularity", 60 * time.Second},
 }
 
 // PhaseResult tracks results for a single phase.
@@ -47,11 +52,39 @@ type PhaseResult struct {
 	Notes         []string
 }
 
-// Run executes the DPI explicit scenario.
+// Jitter configuration
+const (
+	minJitterMs = 50
+	maxJitterMs = 200
+)
+
+// jitterSleep adds randomized delay between requests
+func jitterSleep(ctx context.Context) {
+	jitter := time.Duration(minJitterMs+rand.Intn(maxJitterMs-minJitterMs)) * time.Millisecond
+	select {
+	case <-ctx.Done():
+	case <-time.After(jitter):
+	}
+}
+
+// Run executes the DPI explicit scenario for the FULL duration.
+// This scenario NEVER exits early - it runs all phases for their specified durations.
 func (s *DPIExplicitScenario) Run(ctx context.Context, client cipclient.Client, cfg *config.Config, params ScenarioParams) error {
-	params.Logger.Info("Starting dpi_explicit scenario")
+	params.Logger.Info("Starting dpi_explicit scenario (STRESS MODE)")
 	params.Logger.Info("Target: %s:%d", params.IP, params.Port)
-	params.Logger.Info("Duration: %v", params.Duration)
+	params.Logger.Info("Requested duration: %v", params.Duration)
+
+	// Calculate total phase time
+	var totalPhaseTime time.Duration
+	for _, p := range dpiPhases {
+		totalPhaseTime += p.Duration
+	}
+	params.Logger.Info("Minimum scenario duration: %v (6 phases)", totalPhaseTime)
+
+	// If user requested longer than minimum, we'll loop phases
+	if params.Duration < totalPhaseTime {
+		params.Logger.Info("NOTE: Duration %v is less than minimum %v - will run full minimum", params.Duration, totalPhaseTime)
+	}
 
 	port := params.Port
 	if port == 0 {
@@ -61,370 +94,498 @@ func (s *DPIExplicitScenario) Run(ctx context.Context, client cipclient.Client, 
 		}
 	}
 
-	// Calculate time per phase
-	phaseTime := params.Duration / time.Duration(len(dpiPhases))
-	if phaseTime < 10*time.Second {
-		phaseTime = 10 * time.Second
-	}
+	startTime := time.Now()
+	var allResults []PhaseResult
+	iteration := 0
 
-	totalOps := int64(len(dpiPhases))
-	progressBar := progress.NewProgressBar(totalOps, "DPI Explicit Test")
-	defer progressBar.Finish()
+	// Loop until we've run at least the requested duration
+	// AND completed full phase cycles
+	for {
+		iteration++
+		elapsed := time.Since(startTime)
 
-	results := make([]PhaseResult, len(dpiPhases))
+		params.Logger.Info("")
+		params.Logger.Info("══════════════════════════════════════════════════════════════")
+		params.Logger.Info("  ITERATION %d (elapsed: %v)", iteration, elapsed.Round(time.Second))
+		params.Logger.Info("══════════════════════════════════════════════════════════════")
 
-	for i, phase := range dpiPhases {
+		// Run all 6 phases with their specified durations
+		for _, phase := range dpiPhases {
+			phaseStart := time.Now()
+
+			params.Logger.Info("")
+			params.Logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			params.Logger.Info("Phase %d: %s (duration: %v)", phase.Number, phase.Name, phase.Duration)
+			params.Logger.Info("  %s", phase.Description)
+			params.Logger.Info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+			result := PhaseResult{Phase: phase}
+
+			// Create phase context with the phase's specific duration
+			phaseCtx, phaseCancel := context.WithTimeout(ctx, phase.Duration)
+
+			// Run the phase for its FULL duration
+			switch phase.Number {
+			case 0:
+				s.runBaselineSanityLoop(phaseCtx, client, params, port, &result)
+			case 1:
+				s.runReadOnlyAmbiguityLoop(phaseCtx, client, params, port, &result)
+			case 2:
+				s.runConnectionLifecycleLoop(phaseCtx, client, params, port, &result)
+			case 3:
+				s.runLargePayloadsLoop(phaseCtx, client, params, port, &result)
+			case 4:
+				s.runRealisticViolationsLoop(phaseCtx, client, params, port, &result)
+			case 5:
+				s.runAllowlistPrecisionLoop(phaseCtx, client, params, port, &result)
+			}
+
+			phaseCancel()
+
+			// Wait for remaining phase duration if phase completed early
+			phaseElapsed := time.Since(phaseStart)
+			if phaseElapsed < phase.Duration {
+				remaining := phase.Duration - phaseElapsed
+				params.Logger.Info("  Phase completed early, waiting %v to maintain timing...", remaining.Round(time.Millisecond))
+				select {
+				case <-ctx.Done():
+				case <-time.After(remaining):
+				}
+			}
+
+			allResults = append(allResults, result)
+			s.logPhaseSummary(params, &result)
+		}
+
+		// Check if we've met the duration requirement
+		totalElapsed := time.Since(startTime)
+		if totalElapsed >= params.Duration && totalElapsed >= totalPhaseTime {
+			params.Logger.Info("")
+			params.Logger.Info("Duration requirement met: %v elapsed (requested: %v, minimum: %v)",
+				totalElapsed.Round(time.Second), params.Duration, totalPhaseTime)
+			break
+		}
+
+		// Check for context cancellation (Ctrl+C)
 		select {
 		case <-ctx.Done():
-			params.Logger.Info("DPI scenario cancelled")
-			return nil
+			params.Logger.Info("")
+			params.Logger.Info("Context cancelled after %v", time.Since(startTime).Round(time.Second))
+			s.logFinalSummary(params, allResults)
+			return ctx.Err()
 		default:
 		}
 
 		params.Logger.Info("")
-		params.Logger.Info("═══════════════════════════════════════════════════════════")
-		params.Logger.Info("Phase %d: %s", phase.Number, phase.Name)
-		params.Logger.Info("  %s", phase.Description)
-		params.Logger.Info("═══════════════════════════════════════════════════════════")
-
-		result := PhaseResult{Phase: phase}
-
-		phaseCtx, cancel := context.WithTimeout(ctx, phaseTime)
-
-		switch phase.Number {
-		case 0:
-			s.runBaselineSanity(phaseCtx, client, params, port, &result)
-		case 1:
-			s.runReadOnlyAmbiguity(phaseCtx, client, params, port, &result)
-		case 2:
-			s.runConnectionLifecycle(phaseCtx, client, params, port, &result)
-		case 3:
-			s.runLargePayloads(phaseCtx, client, params, port, &result)
-		case 4:
-			s.runRealisticViolations(phaseCtx, client, params, port, &result)
-		case 5:
-			s.runAllowlistPrecision(phaseCtx, client, params, port, &result)
-		}
-
-		cancel()
-		results[i] = result
-
-		// Log phase summary
-		s.logPhaseSummary(params, &result)
-		progressBar.Increment()
+		params.Logger.Info("Continuing to next iteration (elapsed: %v, target: %v)...",
+			totalElapsed.Round(time.Second), params.Duration)
 	}
 
-	// Final summary
-	s.logFinalSummary(params, results)
-
+	s.logFinalSummary(params, allResults)
 	return nil
 }
 
-// Phase 0: Baseline Sanity - verify basic explicit messaging works
-func (s *DPIExplicitScenario) runBaselineSanity(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
-	params.Logger.Info("  Testing basic connectivity and identity read...")
+// Phase 0: Baseline Sanity - TIME-DRIVEN LOOP
+func (s *DPIExplicitScenario) runBaselineSanityLoop(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
+	params.Logger.Info("  Running baseline sanity checks in loop until phase timeout...")
 
-	// Connect
-	if err := client.Connect(ctx, params.IP, port); err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("CRITICAL: Cannot connect: %v", err))
-		result.Failures++
-		return
-	}
-	defer client.Disconnect(ctx)
-
-	// Test 1: List Identity
-	s.testRequest(ctx, client, params, result, "Identity Read", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeAll,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
-	})
-
-	// Test 2: Read Identity Vendor ID
-	s.testRequest(ctx, client, params, result, "Vendor ID Read", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01},
-	})
-
-	// Test 3: Read Identity Product Type
-	s.testRequest(ctx, client, params, result, "Product Type Read", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x02},
-	})
-
-	// Test 4: Message Router status
-	s.testRequest(ctx, client, params, result, "Message Router", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeAll,
-		Path:    protocol.CIPPath{Class: 0x02, Instance: 0x01},
-	})
-
-	if result.Failures == 0 {
-		result.Notes = append(result.Notes, "Baseline sanity PASSED - basic messaging works")
-	} else {
-		result.Notes = append(result.Notes, "WARNING: Baseline failures detected - DPI may be blocking basic traffic")
-	}
-}
-
-// Phase 1: Read-Only Ambiguity - test single vs MSP encoding
-func (s *DPIExplicitScenario) runReadOnlyAmbiguity(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
-	params.Logger.Info("  Testing single request vs MSP encoding ambiguity...")
-
-	if err := client.Connect(ctx, params.IP, port); err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("Cannot connect: %v", err))
-		result.Failures++
-		return
-	}
-	defer client.Disconnect(ctx)
-
-	// Test single requests
-	s.testRequest(ctx, client, params, result, "Single Read (Identity)", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01},
-	})
-
-	// Test Multiple Service Packet with same request
-	mspRequests := []protocol.CIPRequest{
-		{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01}},
-		{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x02}},
-		{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x03}},
-	}
-
-	mspReq, err := cipclient.BuildMultipleServiceRequest(mspRequests)
-	if err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("MSP build error: %v", err))
-		result.Failures++
-	} else {
-		s.testRequest(ctx, client, params, result, "MSP Read (3 attributes)", mspReq)
-	}
-
-	// Test MSP with mixed services
-	mixedMSP := []protocol.CIPRequest{
-		{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01}},
-		{Service: spec.CIPServiceGetAttributeAll, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01}},
-	}
-
-	mixedReq, err := cipclient.BuildMultipleServiceRequest(mixedMSP)
-	if err == nil {
-		s.testRequest(ctx, client, params, result, "MSP Mixed Services", mixedReq)
-	}
-}
-
-// Phase 2: Connection Lifecycle - ForwardOpen/Close churn
-func (s *DPIExplicitScenario) runConnectionLifecycle(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
-	params.Logger.Info("  Testing ForwardOpen/Close connection churn...")
-
-	if err := client.Connect(ctx, params.IP, port); err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("Cannot connect: %v", err))
-		result.Failures++
-		return
-	}
-	defer client.Disconnect(ctx)
-
-	// Churn connections
-	churnCount := 5
-	for i := 0; i < churnCount; i++ {
+	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 
-		connParams := cipclient.ConnectionParams{
-			Name:          fmt.Sprintf("dpi_churn_%d", i),
-			OToTRPIMs:     100, // 100ms
-			TToORPIMs:     100,
-			OToTSizeBytes: 500,
-			TToOSizeBytes: 500,
+		// Connect for this iteration
+		if err := client.Connect(ctx, params.IP, port); err != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Connect failed: %v", err))
+			result.Failures++
+			jitterSleep(ctx)
+			continue
 		}
 
-		start := time.Now()
-		conn, err := client.ForwardOpen(ctx, connParams)
-		rtt := time.Since(start).Seconds() * 1000
+		// Test 1: List Identity
+		s.testRequest(ctx, client, params, result, "Identity Read", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeAll,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
+		})
+		jitterSleep(ctx)
 
-		result.TotalRequests++
-		if err != nil {
+		// Test 2: Read Identity Vendor ID
+		s.testRequest(ctx, client, params, result, "Vendor ID Read", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Test 3: Read Identity Product Type
+		s.testRequest(ctx, client, params, result, "Product Type Read", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x02},
+		})
+		jitterSleep(ctx)
+
+		// Test 4: Message Router status
+		s.testRequest(ctx, client, params, result, "Message Router", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeAll,
+			Path:    protocol.CIPPath{Class: 0x02, Instance: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Test 5: Serial Number
+		s.testRequest(ctx, client, params, result, "Serial Number", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x06},
+		})
+		jitterSleep(ctx)
+
+		// Test 6: Product Name
+		s.testRequest(ctx, client, params, result, "Product Name", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x07},
+		})
+
+		client.Disconnect(ctx)
+		jitterSleep(ctx)
+	}
+}
+
+// Phase 1: Read-Only Ambiguity - TIME-DRIVEN LOOP
+func (s *DPIExplicitScenario) runReadOnlyAmbiguityLoop(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
+	params.Logger.Info("  Running MSP encoding tests in loop until phase timeout...")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if err := client.Connect(ctx, params.IP, port); err != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Connect failed: %v", err))
 			result.Failures++
-			result.Notes = append(result.Notes, fmt.Sprintf("ForwardOpen %d failed: %v", i, err))
+			jitterSleep(ctx)
+			continue
+		}
 
-			// Record metric
+		// Single request
+		s.testRequest(ctx, client, params, result, "Single Read (Identity)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// MSP with 3 requests
+		mspRequests := []protocol.CIPRequest{
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01}},
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x02}},
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x03}},
+		}
+		if mspReq, err := cipclient.BuildMultipleServiceRequest(mspRequests); err == nil {
+			s.testRequest(ctx, client, params, result, "MSP Read (3 attrs)", mspReq)
+		}
+		jitterSleep(ctx)
+
+		// MSP with 5 requests
+		msp5 := []protocol.CIPRequest{
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01}},
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x02}},
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x03}},
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x06}},
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x07}},
+		}
+		if mspReq, err := cipclient.BuildMultipleServiceRequest(msp5); err == nil {
+			s.testRequest(ctx, client, params, result, "MSP Read (5 attrs)", mspReq)
+		}
+		jitterSleep(ctx)
+
+		// MSP with mixed services
+		mixedMSP := []protocol.CIPRequest{
+			{Service: spec.CIPServiceGetAttributeSingle, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x01}},
+			{Service: spec.CIPServiceGetAttributeAll, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01}},
+		}
+		if mixedReq, err := cipclient.BuildMultipleServiceRequest(mixedMSP); err == nil {
+			s.testRequest(ctx, client, params, result, "MSP Mixed Services", mixedReq)
+		}
+		jitterSleep(ctx)
+
+		// MSP targeting different classes
+		multiClassMSP := []protocol.CIPRequest{
+			{Service: spec.CIPServiceGetAttributeAll, Path: protocol.CIPPath{Class: 0x01, Instance: 0x01}},
+			{Service: spec.CIPServiceGetAttributeAll, Path: protocol.CIPPath{Class: 0x02, Instance: 0x01}},
+		}
+		if mcReq, err := cipclient.BuildMultipleServiceRequest(multiClassMSP); err == nil {
+			s.testRequest(ctx, client, params, result, "MSP Multi-Class", mcReq)
+		}
+
+		client.Disconnect(ctx)
+		jitterSleep(ctx)
+	}
+}
+
+// Phase 2: Connection Lifecycle - TIME-DRIVEN ForwardOpen/Close churn (MANDATORY)
+func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
+	params.Logger.Info("  Running ForwardOpen/Close churn loop (MANDATORY STRESS TEST)...")
+
+	connectionID := 0
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if err := client.Connect(ctx, params.IP, port); err != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Connect failed: %v", err))
+			result.Failures++
+			jitterSleep(ctx)
+			continue
+		}
+
+		// Do multiple ForwardOpen/Close cycles per connection
+		for cycle := 0; cycle < 3; cycle++ {
+			select {
+			case <-ctx.Done():
+				client.Disconnect(ctx)
+				return
+			default:
+			}
+
+			connectionID++
+			connParams := cipclient.ConnectionParams{
+				Name:          fmt.Sprintf("dpi_churn_%d", connectionID),
+				OToTRPIMs:     100,
+				TToORPIMs:     100,
+				OToTSizeBytes: 500,
+				TToOSizeBytes: 500,
+			}
+
+			// ForwardOpen
+			start := time.Now()
+			conn, err := client.ForwardOpen(ctx, connParams)
+			rtt := time.Since(start).Seconds() * 1000
+
+			result.TotalRequests++
+			if err != nil {
+				result.Failures++
+				result.Notes = append(result.Notes, fmt.Sprintf("ForwardOpen %d failed: %v", connectionID, err))
+				params.MetricsSink.Record(metrics.Metric{
+					Timestamp:  time.Now(),
+					Scenario:   "dpi_explicit",
+					TargetType: params.TargetType,
+					Operation:  metrics.OperationForwardOpen,
+					TargetName: fmt.Sprintf("churn_%d", connectionID),
+					Success:    false,
+					RTTMs:      rtt,
+					Error:      err.Error(),
+				})
+				jitterSleep(ctx)
+				continue
+			}
+
+			result.Successes++
+			result.RTTs = append(result.RTTs, rtt)
 			params.MetricsSink.Record(metrics.Metric{
 				Timestamp:  time.Now(),
 				Scenario:   "dpi_explicit",
 				TargetType: params.TargetType,
 				Operation:  metrics.OperationForwardOpen,
-				TargetName: fmt.Sprintf("churn_%d", i),
-				Success:    false,
-				RTTMs:      rtt,
-				Error:      err.Error(),
-			})
-			continue
-		}
-
-		result.Successes++
-		result.RTTs = append(result.RTTs, rtt)
-
-		params.MetricsSink.Record(metrics.Metric{
-			Timestamp:  time.Now(),
-			Scenario:   "dpi_explicit",
-			TargetType: params.TargetType,
-			Operation:  metrics.OperationForwardOpen,
-			TargetName: fmt.Sprintf("churn_%d", i),
-			Success:    true,
-			RTTMs:      rtt,
-		})
-
-		// Brief pause then close
-		time.Sleep(100 * time.Millisecond)
-
-		start = time.Now()
-		err = client.ForwardClose(ctx, conn)
-		closeRTT := time.Since(start).Seconds() * 1000
-
-		result.TotalRequests++
-		if err != nil {
-			result.Failures++
-			params.MetricsSink.Record(metrics.Metric{
-				Timestamp:  time.Now(),
-				Scenario:   "dpi_explicit",
-				TargetType: params.TargetType,
-				Operation:  metrics.OperationForwardClose,
-				TargetName: fmt.Sprintf("churn_%d", i),
-				Success:    false,
-				RTTMs:      closeRTT,
-				Error:      err.Error(),
-			})
-		} else {
-			result.Successes++
-			result.RTTs = append(result.RTTs, closeRTT)
-			params.MetricsSink.Record(metrics.Metric{
-				Timestamp:  time.Now(),
-				Scenario:   "dpi_explicit",
-				TargetType: params.TargetType,
-				Operation:  metrics.OperationForwardClose,
-				TargetName: fmt.Sprintf("churn_%d", i),
+				TargetName: fmt.Sprintf("churn_%d", connectionID),
 				Success:    true,
-				RTTMs:      closeRTT,
+				RTTMs:      rtt,
 			})
+
+			// Brief hold time before close
+			jitterSleep(ctx)
+
+			// ForwardClose
+			start = time.Now()
+			err = client.ForwardClose(ctx, conn)
+			closeRTT := time.Since(start).Seconds() * 1000
+
+			result.TotalRequests++
+			if err != nil {
+				result.Failures++
+				params.MetricsSink.Record(metrics.Metric{
+					Timestamp:  time.Now(),
+					Scenario:   "dpi_explicit",
+					TargetType: params.TargetType,
+					Operation:  metrics.OperationForwardClose,
+					TargetName: fmt.Sprintf("churn_%d", connectionID),
+					Success:    false,
+					RTTMs:      closeRTT,
+					Error:      err.Error(),
+				})
+			} else {
+				result.Successes++
+				result.RTTs = append(result.RTTs, closeRTT)
+				params.MetricsSink.Record(metrics.Metric{
+					Timestamp:  time.Now(),
+					Scenario:   "dpi_explicit",
+					TargetType: params.TargetType,
+					Operation:  metrics.OperationForwardClose,
+					TargetName: fmt.Sprintf("churn_%d", connectionID),
+					Success:    true,
+					RTTMs:      closeRTT,
+				})
+			}
+
+			jitterSleep(ctx)
 		}
 
-		// Brief pause between churn cycles
-		time.Sleep(200 * time.Millisecond)
-	}
-
-	if result.Failures > 0 {
-		result.Notes = append(result.Notes, fmt.Sprintf("Connection lifecycle: %d/%d failures - potential DPI state tracking issue", result.Failures, result.TotalRequests))
-	} else {
-		result.Notes = append(result.Notes, "Connection lifecycle PASSED")
+		client.Disconnect(ctx)
+		jitterSleep(ctx)
 	}
 }
 
-// Phase 3: Large Payloads - fragmentation and reassembly
-func (s *DPIExplicitScenario) runLargePayloads(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
-	params.Logger.Info("  Testing large payload fragmentation and reassembly...")
+// Phase 3: Large Payloads - TIME-DRIVEN fragmentation stress
+func (s *DPIExplicitScenario) runLargePayloadsLoop(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
+	params.Logger.Info("  Running large payload fragmentation tests in loop...")
 
-	if err := client.Connect(ctx, params.IP, port); err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("Cannot connect: %v", err))
-		result.Failures++
-		return
-	}
-	defer client.Disconnect(ctx)
+	payloadSizes := []int{100, 500, 1000, 1400, 2000, 2500}
 
-	// Test various payload sizes
-	payloadSizes := []int{100, 500, 1000, 1400, 2000}
-
-	for _, size := range payloadSizes {
+	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 
-		// Build large MSP request
-		numRequests := size / 20 // Roughly 20 bytes per request
-		if numRequests < 2 {
-			numRequests = 2
-		}
-		if numRequests > 50 {
-			numRequests = 50
-		}
-
-		requests := make([]protocol.CIPRequest, numRequests)
-		for i := 0; i < numRequests; i++ {
-			requests[i] = protocol.CIPRequest{
-				Service: spec.CIPServiceGetAttributeSingle,
-				Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: uint16((i % 7) + 1)},
-			}
-		}
-
-		mspReq, err := cipclient.BuildMultipleServiceRequest(requests)
-		if err != nil {
-			result.Notes = append(result.Notes, fmt.Sprintf("MSP build error for size %d: %v", size, err))
+		if err := client.Connect(ctx, params.IP, port); err != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Connect failed: %v", err))
+			result.Failures++
+			jitterSleep(ctx)
 			continue
 		}
 
-		testName := fmt.Sprintf("Large MSP (~%d bytes, %d requests)", size, numRequests)
-		s.testRequest(ctx, client, params, result, testName, mspReq)
-	}
+		for _, size := range payloadSizes {
+			select {
+			case <-ctx.Done():
+				client.Disconnect(ctx)
+				return
+			default:
+			}
 
-	// Test Get Attribute All on larger objects
-	s.testRequest(ctx, client, params, result, "Get All Attributes (Identity)", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeAll,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
-	})
+			// Build large MSP request
+			numRequests := size / 20
+			if numRequests < 2 {
+				numRequests = 2
+			}
+			if numRequests > 50 {
+				numRequests = 50
+			}
+
+			requests := make([]protocol.CIPRequest, numRequests)
+			for i := 0; i < numRequests; i++ {
+				requests[i] = protocol.CIPRequest{
+					Service: spec.CIPServiceGetAttributeSingle,
+					Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: uint16((i % 7) + 1)},
+				}
+			}
+
+			mspReq, err := cipclient.BuildMultipleServiceRequest(requests)
+			if err != nil {
+				result.Notes = append(result.Notes, fmt.Sprintf("MSP build error for size %d: %v", size, err))
+				continue
+			}
+
+			testName := fmt.Sprintf("Large MSP (~%d bytes, %d reqs)", size, numRequests)
+			s.testRequest(ctx, client, params, result, testName, mspReq)
+			jitterSleep(ctx)
+		}
+
+		// Also test Get Attribute All
+		s.testRequest(ctx, client, params, result, "Get All Attributes (Identity)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeAll,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
+		})
+		jitterSleep(ctx)
+
+		s.testRequest(ctx, client, params, result, "Get All Attributes (TCP/IP)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeAll,
+			Path:    protocol.CIPPath{Class: 0xF5, Instance: 0x01},
+		})
+
+		client.Disconnect(ctx)
+		jitterSleep(ctx)
+	}
 }
 
-// Phase 4: Realistic Violations - invalid classes/instances/attributes
-func (s *DPIExplicitScenario) runRealisticViolations(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
-	params.Logger.Info("  Testing error handling for invalid requests...")
+// Phase 4: Realistic Violations - TIME-DRIVEN error handling tests
+func (s *DPIExplicitScenario) runRealisticViolationsLoop(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
+	params.Logger.Info("  Running error handling tests in loop...")
 
-	if err := client.Connect(ctx, params.IP, port); err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("Cannot connect: %v", err))
-		result.Failures++
-		return
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if err := client.Connect(ctx, params.IP, port); err != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Connect failed: %v", err))
+			result.Failures++
+			jitterSleep(ctx)
+			continue
+		}
+
+		// Invalid class
+		s.testRequestExpectError(ctx, client, params, result, "Invalid Class (0xFF)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0xFF, Instance: 0x01, Attribute: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Invalid instance
+		s.testRequestExpectError(ctx, client, params, result, "Invalid Instance (0xFFFF)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0xFFFF, Attribute: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Invalid attribute
+		s.testRequestExpectError(ctx, client, params, result, "Invalid Attribute (0xFF)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0xFF},
+		})
+		jitterSleep(ctx)
+
+		// Invalid service
+		s.testRequestExpectError(ctx, client, params, result, "Invalid Service (0xFF)", protocol.CIPRequest{
+			Service: protocol.CIPServiceCode(0xFF),
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Zero instance
+		s.testRequest(ctx, client, params, result, "Zero Instance", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x00, Attribute: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Reserved class
+		s.testRequestExpectError(ctx, client, params, result, "Reserved Class (0x64)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeAll,
+			Path:    protocol.CIPPath{Class: 0x64, Instance: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// High instance number
+		s.testRequestExpectError(ctx, client, params, result, "High Instance (0x1000)", protocol.CIPRequest{
+			Service: spec.CIPServiceGetAttributeAll,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x1000},
+		})
+
+		client.Disconnect(ctx)
+		jitterSleep(ctx)
 	}
-	defer client.Disconnect(ctx)
-
-	// Invalid class
-	s.testRequestExpectError(ctx, client, params, result, "Invalid Class (0xFF)", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0xFF, Instance: 0x01, Attribute: 0x01},
-	})
-
-	// Invalid instance
-	s.testRequestExpectError(ctx, client, params, result, "Invalid Instance (0xFFFF)", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0xFFFF, Attribute: 0x01},
-	})
-
-	// Invalid attribute
-	s.testRequestExpectError(ctx, client, params, result, "Invalid Attribute (0xFF)", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0xFF},
-	})
-
-	// Invalid service
-	s.testRequestExpectError(ctx, client, params, result, "Invalid Service (0xFF)", protocol.CIPRequest{
-		Service: protocol.CIPServiceCode(0xFF),
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
-	})
-
-	// Zero instance (often special)
-	s.testRequest(ctx, client, params, result, "Zero Instance", protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x00, Attribute: 0x01},
-	})
 }
 
-// Phase 5: Allowlist Precision - class/service filtering granularity
-func (s *DPIExplicitScenario) runAllowlistPrecision(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
-	params.Logger.Info("  Testing class/service filtering precision...")
+// Phase 5: Allowlist Precision - TIME-DRIVEN filtering tests
+func (s *DPIExplicitScenario) runAllowlistPrecisionLoop(ctx context.Context, client cipclient.Client, params ScenarioParams, port int, result *PhaseResult) {
+	params.Logger.Info("  Running allowlist precision tests in loop...")
 
-	if err := client.Connect(ctx, params.IP, port); err != nil {
-		result.Notes = append(result.Notes, fmt.Sprintf("Cannot connect: %v", err))
-		result.Failures++
-		return
-	}
-	defer client.Disconnect(ctx)
-
-	// Common CIP classes that should be accessible
 	allowedClasses := []struct {
 		class uint16
 		name  string
@@ -436,25 +597,56 @@ func (s *DPIExplicitScenario) runAllowlistPrecision(ctx context.Context, client 
 		{0xF6, "Ethernet Link"},
 	}
 
-	for _, ac := range allowedClasses {
-		s.testRequest(ctx, client, params, result, fmt.Sprintf("Class 0x%02X (%s)", ac.class, ac.name), protocol.CIPRequest{
-			Service: spec.CIPServiceGetAttributeAll,
-			Path:    protocol.CIPPath{Class: ac.class, Instance: 0x01},
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		if err := client.Connect(ctx, params.IP, port); err != nil {
+			result.Notes = append(result.Notes, fmt.Sprintf("Connect failed: %v", err))
+			result.Failures++
+			jitterSleep(ctx)
+			continue
+		}
+
+		// Test all allowed classes
+		for _, ac := range allowedClasses {
+			s.testRequest(ctx, client, params, result, fmt.Sprintf("Class 0x%02X (%s)", ac.class, ac.name), protocol.CIPRequest{
+				Service: spec.CIPServiceGetAttributeAll,
+				Path:    protocol.CIPPath{Class: ac.class, Instance: 0x01},
+			})
+			jitterSleep(ctx)
+		}
+
+		// Test write service (should be restricted)
+		s.testRequest(ctx, client, params, result, "Set Attribute (may be blocked)", protocol.CIPRequest{
+			Service: spec.CIPServiceSetAttributeSingle,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x07},
+			Payload: []byte("Test"),
 		})
+		jitterSleep(ctx)
+
+		// Test reset service (should be restricted)
+		s.testRequest(ctx, client, params, result, "Reset Service (should be blocked)", protocol.CIPRequest{
+			Service: spec.CIPServiceReset,
+			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
+		})
+		jitterSleep(ctx)
+
+		// Test various individual attributes
+		for attr := uint16(1); attr <= 7; attr++ {
+			s.testRequest(ctx, client, params, result, fmt.Sprintf("Identity Attr %d", attr), protocol.CIPRequest{
+				Service: spec.CIPServiceGetAttributeSingle,
+				Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: attr},
+			})
+			jitterSleep(ctx)
+		}
+
+		client.Disconnect(ctx)
+		jitterSleep(ctx)
 	}
-
-	// Test write service (should typically be restricted)
-	s.testRequest(ctx, client, params, result, "Set Attribute (may be blocked)", protocol.CIPRequest{
-		Service: spec.CIPServiceSetAttributeSingle,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x07}, // Product Name
-		Payload: []byte("Test"),
-	})
-
-	// Test reset service (should be restricted)
-	s.testRequest(ctx, client, params, result, "Reset Service (should be blocked)", protocol.CIPRequest{
-		Service: spec.CIPServiceReset,
-		Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01},
-	})
 }
 
 // testRequest executes a request and records results
@@ -510,7 +702,6 @@ func (s *DPIExplicitScenario) testRequestExpectError(ctx context.Context, client
 
 	result.TotalRequests++
 
-	// For error tests, success means we got a proper CIP error response (not a timeout/reset)
 	gotProperError := err == nil && resp.Status != 0
 	gotSuccess := err == nil && resp.Status == 0
 
@@ -553,6 +744,7 @@ func (s *DPIExplicitScenario) testRequestExpectError(ctx context.Context, client
 func (s *DPIExplicitScenario) logPhaseSummary(params ScenarioParams, result *PhaseResult) {
 	params.Logger.Info("")
 	params.Logger.Info("  Phase %d Summary:", result.Phase.Number)
+	params.Logger.Info("    Duration: %v (actual)", result.Phase.Duration)
 	params.Logger.Info("    Requests: %d total, %d success, %d fail", result.TotalRequests, result.Successes, result.Failures)
 	if result.Timeouts > 0 {
 		params.Logger.Info("    Timeouts: %d", result.Timeouts)
@@ -572,7 +764,7 @@ func (s *DPIExplicitScenario) logPhaseSummary(params ScenarioParams, result *Pha
 func (s *DPIExplicitScenario) logFinalSummary(params ScenarioParams, results []PhaseResult) {
 	params.Logger.Info("")
 	params.Logger.Info("═══════════════════════════════════════════════════════════")
-	params.Logger.Info("DPI EXPLICIT TEST SUMMARY")
+	params.Logger.Info("DPI EXPLICIT STRESS TEST SUMMARY")
 	params.Logger.Info("═══════════════════════════════════════════════════════════")
 
 	totalRequests := 0
@@ -598,7 +790,11 @@ func (s *DPIExplicitScenario) logFinalSummary(params ScenarioParams, results []P
 	}
 
 	params.Logger.Info("")
-	params.Logger.Info("Overall: %d/%d requests succeeded (%.1f%%)", totalSuccesses, totalRequests, float64(totalSuccesses)/float64(totalRequests)*100)
+	if totalRequests > 0 {
+		params.Logger.Info("Overall: %d/%d requests succeeded (%.1f%%)", totalSuccesses, totalRequests, float64(totalSuccesses)/float64(totalRequests)*100)
+	} else {
+		params.Logger.Info("Overall: No requests completed")
+	}
 	if totalTimeouts > 0 {
 		params.Logger.Info("Timeouts: %d (potential silent drops)", totalTimeouts)
 	}
