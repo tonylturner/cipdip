@@ -53,10 +53,14 @@ func SaveProfile(path string, profile Profile) error {
 }
 
 // ListProfiles returns profile metadata under the workspace profiles directory.
+// Returns nil, nil if the profiles directory does not exist.
 func ListProfiles(workspaceRoot string) ([]ProfileInfo, error) {
 	profilesDir := filepath.Join(workspaceRoot, "profiles")
 	entries, err := os.ReadDir(profilesDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("read profiles dir: %w", err)
 	}
 	profiles := make([]ProfileInfo, 0)

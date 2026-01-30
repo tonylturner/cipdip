@@ -57,10 +57,9 @@ type Model struct {
 	orchPanel     *OrchestrationPanel
 
 	// Screen-specific models (for full-screen views)
-	mainScreen     *MainScreenModel
-	catalogScreen  *CatalogScreenModel
-	catalogV2      *CatalogV2Model // New enhanced catalog workflow
-	runsScreen     *RunsScreenModel
+	mainScreen *MainScreenModel
+	catalogV2  *CatalogV2Model // Enhanced catalog workflow
+	runsScreen *RunsScreenModel
 }
 
 // NewModel creates a new TUI model.

@@ -94,6 +94,9 @@ func (cfg PCAPRunConfig) BuildCommandArgs() []string {
 	case "diff":
 		return []string{"cipdip", "pcap-diff", "--baseline", cfg.InputFile, "--compare", cfg.InputFile2}
 
+	case "multi":
+		return []string{"cipdip", "pcap-multi", "--input", cfg.InputFile}
+
 	default:
 		return []string{"cipdip", "pcap-summary", "--input", cfg.InputFile}
 	}
@@ -123,7 +126,7 @@ func (p *PCAPPanel) BuildPCAPRunConfig(workspaceRoot string) PCAPRunConfig {
 	}
 
 	// Set mode based on modeIndex
-	modes := []string{"summary", "report", "coverage", "replay", "rewrite", "dump", "diff"}
+	modes := []string{"summary", "report", "coverage", "replay", "rewrite", "dump", "diff", "multi"}
 	if p.modeIndex < len(modes) {
 		cfg.Mode = modes[p.modeIndex]
 	} else {

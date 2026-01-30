@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/ipv4"
+
 	"github.com/tturner/cipdip/internal/cip/catalog"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
@@ -19,6 +21,7 @@ type Server struct {
 	logger          *logging.Logger
 	tcpListener     *net.TCPListener
 	udpListener     *net.UDPConn
+	multicastConn   *ipv4.PacketConn
 	metricsListener net.Listener
 	sessions        map[uint32]*Session
 	sessionsMu      sync.RWMutex

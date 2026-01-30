@@ -16,6 +16,11 @@ type ReferencePacket struct {
 	Source      string // e.g., "Wireshark capture", "ODVA spec example", "Real device"
 }
 
+// EXPERIMENTAL: Reference packet comparison is currently incomplete.
+// The reference packet library provides a framework for byte-level validation
+// against known-good ODVA-compliant packets, but packet data has not yet been
+// populated from real device captures.
+//
 // ReferencePackets is a library of known-good ODVA-compliant packets.
 // Populated from:
 // - CIPDIP baseline captures (baseline_captures/*.pcap)
@@ -29,41 +34,43 @@ type ReferencePacket struct {
 //
 // The generated file contains init() functions that populate this map.
 var ReferencePackets = map[string]ReferencePacket{
-	// Placeholder structure - to be populated with actual reference packets.
+	// Reference packet stubs - data to be populated from real device captures.
+	// Use ValidatePacketStructure() for structural validation, or
+	// CompareWithReference() for byte-level comparison once data is populated.
 	"RegisterSession_Request": {
 		Name:        "RegisterSession_Request",
 		Description: "Standard RegisterSession request",
-		Data:        nil, // TODO: Add actual reference packet.
+		Data:        nil, // Pending: Extract from baseline captures
 		Source:      "ODVA Specification",
 	},
 	"RegisterSession_Response": {
 		Name:        "RegisterSession_Response",
 		Description: "Standard RegisterSession response",
-		Data:        nil, // TODO: Add actual reference packet.
+		Data:        nil, // Pending: Extract from baseline captures
 		Source:      "ODVA Specification",
 	},
 	"GetAttributeSingle_Request": {
 		Name:        "GetAttributeSingle_Request",
 		Description: "Get_Attribute_Single request for class 0x04, instance 0x65, attribute 0x03",
-		Data:        nil, // TODO: Add actual reference packet.
+		Data:        nil, // Pending: Extract from baseline captures
 		Source:      "Wireshark Capture",
 	},
 	"GetAttributeSingle_Response": {
 		Name:        "GetAttributeSingle_Response",
 		Description: "Get_Attribute_Single response with 4-byte DINT value",
-		Data:        nil, // TODO: Add actual reference packet.
+		Data:        nil, // Pending: Extract from baseline captures
 		Source:      "Wireshark Capture",
 	},
 	"ForwardOpen_Request": {
 		Name:        "ForwardOpen_Request",
 		Description: "Forward_Open request for I/O connection",
-		Data:        nil, // TODO: Add actual reference packet.
+		Data:        nil, // Pending: Extract from baseline captures
 		Source:      "ODVA Specification",
 	},
 	"ForwardOpen_Response": {
 		Name:        "ForwardOpen_Response",
 		Description: "Forward_Open response with connection IDs",
-		Data:        nil, // TODO: Add actual reference packet.
+		Data:        nil, // Pending: Extract from baseline captures
 		Source:      "ODVA Specification",
 	},
 }
@@ -77,6 +84,8 @@ func ResetReferencePackets() {
 }
 
 // CompareWithReference compares a generated packet with a reference packet.
+// Note: This function returns an error if the reference packet has not been populated.
+// Use ValidatePacketStructure() for structural validation without byte-level comparison.
 func CompareWithReference(name string, generated []byte) (bool, error) {
 	ref, ok := ReferencePackets[name]
 	if !ok {
@@ -84,7 +93,7 @@ func CompareWithReference(name string, generated []byte) (bool, error) {
 	}
 
 	if len(ref.Data) == 0 {
-		return false, fmt.Errorf("reference packet %s has no data (not yet populated)", name)
+		return false, fmt.Errorf("reference packet %s not yet populated (use ValidatePacketStructure for structural validation)", name)
 	}
 
 	// Compare byte-by-byte; mismatch is a non-error result.

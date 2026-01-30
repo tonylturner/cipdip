@@ -136,6 +136,7 @@ func (s *SSH) buildSSHConfig() (*ssh.ClientConfig, error) {
 	// Host key callback
 	var hostKeyCallback ssh.HostKeyCallback
 	if s.opts.InsecureIgnoreHost {
+		// SECURITY: Only allow insecure mode when explicitly requested
 		hostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else if s.opts.KnownHostsFile != "" {
 		var err error
@@ -152,9 +153,10 @@ func (s *SSH) buildSSHConfig() (*ssh.ClientConfig, error) {
 			}
 		}
 		if hostKeyCallback == nil {
-			// Fall back to insecure if no known_hosts available
-			// In production, you'd want to handle this more carefully
-			hostKeyCallback = ssh.InsecureIgnoreHostKey()
+			// SECURITY: Fail securely instead of falling back to insecure mode.
+			// Users must explicitly set InsecureIgnoreHost=true or provide known_hosts.
+			return nil, fmt.Errorf("SSH host key verification failed: no known_hosts file found for %s; "+
+				"either add the host key to ~/.ssh/known_hosts or use --insecure-ignore-host-key to bypass verification (not recommended)", s.host)
 		}
 	}
 
@@ -585,6 +587,55 @@ func defaultKeyPaths() []string {
 	}
 }
 
+// ValidatePath checks if a path is safe and doesn't attempt directory traversal.
+// It returns an error if the path contains traversal attempts or is otherwise unsafe.
+// This is used to validate paths that come from potentially untrusted sources.
+func ValidatePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("empty path")
+	}
+
+	// Clean the path to normalize it
+	clean := filepath.Clean(path)
+
+	// Check for traversal attempts - path starts with ..
+	if strings.HasPrefix(clean, "..") {
+		return fmt.Errorf("path traversal detected: %s", path)
+	}
+
+	// Check for hidden traversal in the middle of the path
+	// e.g., "/safe/../../../etc/passwd"
+	parts := strings.Split(clean, string(filepath.Separator))
+	for i, part := range parts {
+		if part == ".." && i > 0 {
+			// ".." is only allowed at the start (already checked above)
+			return fmt.Errorf("path traversal detected: %s", path)
+		}
+	}
+
+	return nil
+}
+
+// ValidateRelativePath checks if a path is a valid relative path within a base directory.
+// It ensures the path doesn't escape the base directory.
+func ValidateRelativePath(basePath, relativePath string) error {
+	if err := ValidatePath(relativePath); err != nil {
+		return err
+	}
+
+	// Compute the absolute path
+	absPath := filepath.Join(basePath, relativePath)
+	cleanBase := filepath.Clean(basePath)
+	cleanAbs := filepath.Clean(absPath)
+
+	// Verify the absolute path is within the base directory
+	if !strings.HasPrefix(cleanAbs, cleanBase) {
+		return fmt.Errorf("path %q escapes base directory %q", relativePath, basePath)
+	}
+
+	return nil
+}
+
 // buildCommandString builds a shell command string.
 func buildCommandString(cmd []string, cwd string, elevate bool, remoteOS string) string {
 	if len(cmd) == 0 {
@@ -615,15 +666,23 @@ func buildCommandString(cmd []string, cwd string, elevate bool, remoteOS string)
 	}
 
 	if cwd != "" {
+		// SECURITY: Quote the cwd path to prevent injection attacks
+		var quotedCwd string
+		if remoteOS == "windows" {
+			quotedCwd = fmt.Sprintf("\"%s\"", strings.ReplaceAll(cwd, "\"", "\\\""))
+		} else {
+			quotedCwd = fmt.Sprintf("'%s'", strings.ReplaceAll(cwd, "'", "'\\''"))
+		}
+
 		if elevate && remoteOS != "windows" {
 			// For elevated commands with cwd, use sudo for the cd as well
-			return fmt.Sprintf("cd %s && sudo %s", cwd, strings.Join(parts, " "))
+			return fmt.Sprintf("cd %s && sudo %s", quotedCwd, strings.Join(parts, " "))
 		}
 		if remoteOS == "windows" {
 			// Windows uses different syntax for chaining commands
-			return fmt.Sprintf("cd /d %s && %s", cwd, cmdStr)
+			return fmt.Sprintf("cd /d %s && %s", quotedCwd, cmdStr)
 		}
-		return fmt.Sprintf("cd %s && %s", cwd, cmdStr)
+		return fmt.Sprintf("cd %s && %s", quotedCwd, cmdStr)
 	}
 
 	return cmdStr

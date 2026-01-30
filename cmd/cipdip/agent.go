@@ -406,17 +406,24 @@ func checkRemoteAgent(ctx context.Context, t transport.Transport, spec string) *
 	})
 
 	// Check 2: cipdip installed - try PATH first, then common locations
+	// Note: We use argv arrays directly to avoid shell injection risks.
+	// For paths with shell variables, we expand them first.
 	cipdipPaths := []string{
 		"cipdip",
 		"/usr/local/bin/cipdip",
 		"/opt/homebrew/bin/cipdip",
 		"/usr/bin/cipdip",
-		"$HOME/go/bin/cipdip",
+	}
+	// Try to get HOME for the go/bin path - works for both local and SSH
+	exitCode, homeOut, _, _ := t.Exec(ctx, []string{"sh", "-c", "echo $HOME"}, nil, "")
+	if exitCode == 0 && trimOutput(homeOut) != "" {
+		cipdipPaths = append(cipdipPaths, filepath.Join(trimOutput(homeOut), "go", "bin", "cipdip"))
 	}
 	var cipdipFound bool
 	var cipdipVersion string
 	for _, cipdipPath := range cipdipPaths {
-		exitCode, stdout, _, err := t.Exec(ctx, []string{"sh", "-c", cipdipPath + " version"}, nil, "")
+		// Use argv array directly - no shell interpolation
+		exitCode, stdout, _, err := t.Exec(ctx, []string{cipdipPath, "version"}, nil, "")
 		if err == nil && exitCode == 0 {
 			cipdipFound = true
 			cipdipVersion = parseVersionOutput(stdout)
@@ -459,8 +466,12 @@ func checkRemoteAgent(ctx context.Context, t transport.Transport, spec string) *
 	}
 
 	// Check 4: Workdir writable
-	exitCode, _, _, _ = t.Exec(ctx, []string{"sh", "-c", "mkdir -p /tmp/cipdip-test && rm -rf /tmp/cipdip-test"}, nil, "")
-	if exitCode == 0 {
+	// Use transport.Mkdir instead of shell to avoid injection risks
+	testDir := "/tmp/cipdip-test"
+	mkdirErr := t.Mkdir(ctx, testDir)
+	if mkdirErr == nil {
+		// Clean up - use rm with argv array
+		t.Exec(ctx, []string{"rm", "-rf", testDir}, nil, "")
 		result.Checks = append(result.Checks, CheckItem{
 			Name:   "workdir_writable",
 			Status: "pass",

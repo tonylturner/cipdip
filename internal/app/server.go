@@ -16,21 +16,24 @@ import (
 )
 
 type ServerOptions struct {
-	ListenIP         string
-	ListenPort       int
-	Personality      string
-	ConfigPath       string
-	EnableUDPIO      bool
-	PCAPFile         string
-	CaptureInterface string
-	CIPProfile       string
-	Mode             string
-	Target           string
-	LogFormat        string
-	LogLevel         string
-	LogEvery         int
-	TUIStats         bool
-	Profile          string // Process profile name (loads data model from profile)
+	ListenIP           string
+	ListenPort         int
+	Personality        string
+	ConfigPath         string
+	EnableUDPIO        bool
+	UDPPort            int
+	PCAPFile           string
+	CaptureInterface   string
+	CIPProfile         string
+	Mode               string
+	Target             string
+	LogFormat          string
+	LogLevel           string
+	LogEvery           int
+	TUIStats           bool
+	Profile            string // Process profile name (loads data model from profile)
+	MulticastGroup     string
+	MulticastInterface string
 }
 
 func RunServer(opts ServerOptions) error {
@@ -75,8 +78,8 @@ func RunServer(opts ServerOptions) error {
 		fmt.Fprintf(os.Stdout, "  Personality: %s\n", p.Metadata.Personality)
 		fmt.Fprintf(os.Stdout, "  Tags/Assemblies: %d\n", len(p.DataModel.Tags)+len(p.DataModel.Assemblies))
 	} else {
-		if opts.Personality != "adapter" && opts.Personality != "logix_like" {
-			return fmt.Errorf("invalid personality '%s'; must be 'adapter' or 'logix_like'", opts.Personality)
+		if opts.Personality != "adapter" && opts.Personality != "logix_like" && opts.Personality != "pccc" && opts.Personality != "minimal" {
+			return fmt.Errorf("invalid personality '%s'; must be 'adapter', 'logix_like', 'pccc', or 'minimal'", opts.Personality)
 		}
 
 		var err error
@@ -125,6 +128,15 @@ func RunServer(opts ServerOptions) error {
 	}
 	if opts.EnableUDPIO {
 		cfg.Server.EnableUDPIO = true
+	}
+	if opts.UDPPort != 0 {
+		cfg.Server.UDPIOPort = opts.UDPPort
+	}
+	if opts.MulticastGroup != "" {
+		cfg.Server.MulticastGroup = opts.MulticastGroup
+	}
+	if opts.MulticastInterface != "" {
+		cfg.Server.MulticastInterface = opts.MulticastInterface
 	}
 	if opts.LogFormat != "" {
 		cfg.Logging.Format = opts.LogFormat

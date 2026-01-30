@@ -399,32 +399,85 @@ func TestMustParse_Panic(t *testing.T) {
 
 func TestBuildCommandString(t *testing.T) {
 	tests := []struct {
-		cmd  []string
-		cwd  string
-		want string
+		name     string
+		cmd      []string
+		cwd      string
+		elevate  bool
+		remoteOS string
+		want     string
 	}{
 		{
+			name: "simple command",
 			cmd:  []string{"echo", "hello"},
 			want: "echo hello",
 		},
 		{
+			name: "command with spaces",
 			cmd:  []string{"echo", "hello world"},
 			want: "echo 'hello world'",
 		},
 		{
+			name: "command with cwd",
 			cmd:  []string{"ls", "-la"},
 			cwd:  "/tmp",
-			want: "cd /tmp && ls -la",
+			want: "cd '/tmp' && ls -la",
 		},
 		{
+			name: "shell command",
 			cmd:  []string{"sh", "-c", "echo $HOME"},
 			want: "sh -c 'echo $HOME'",
+		},
+		{
+			name:    "elevated command unix",
+			cmd:     []string{"cat", "/etc/shadow"},
+			elevate: true,
+			want:    "sudo cat /etc/shadow",
+		},
+		{
+			name:     "elevated command windows ignored",
+			cmd:      []string{"type", "C:\\file.txt"},
+			elevate:  true,
+			remoteOS: "windows",
+			want:     "type \"C:\\file.txt\"",
+		},
+		{
+			name:    "elevated with cwd unix",
+			cmd:     []string{"ls", "-la"},
+			cwd:     "/root",
+			elevate: true,
+			want:    "cd '/root' && sudo ls -la",
+		},
+		{
+			name:     "command with cwd windows",
+			cmd:      []string{"dir"},
+			cwd:      "C:\\Users",
+			remoteOS: "windows",
+			want:     "cd /d \"C:\\Users\" && dir",
+		},
+		// Security tests - verify malicious inputs are properly escaped
+		{
+			name: "cwd injection attempt unix",
+			cmd:  []string{"ls"},
+			cwd:  "/tmp; rm -rf /",
+			want: "cd '/tmp; rm -rf /' && ls",
+		},
+		{
+			name:     "cwd injection attempt windows",
+			cmd:      []string{"dir"},
+			cwd:      "C:\\Users & del C:\\",
+			remoteOS: "windows",
+			want:     "cd /d \"C:\\Users & del C:\\\" && dir",
+		},
+		{
+			name: "command injection attempt",
+			cmd:  []string{"echo", "$(whoami)"},
+			want: "echo '$(whoami)'",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.want, func(t *testing.T) {
-			got := buildCommandString(tt.cmd, tt.cwd)
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildCommandString(tt.cmd, tt.cwd, tt.elevate, tt.remoteOS)
 			if got != tt.want {
 				t.Errorf("buildCommandString() = %q, want %q", got, tt.want)
 			}
@@ -475,5 +528,55 @@ func TestDefaultSSHOptions(t *testing.T) {
 	}
 	if !opts.Agent {
 		t.Error("Agent should be true by default")
+	}
+}
+
+func TestValidatePath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantErr bool
+	}{
+		{"simple relative", "foo/bar", false},
+		{"simple filename", "file.txt", false},
+		{"absolute path", "/etc/passwd", false},
+		{"traversal at start", "../etc/passwd", true},
+		{"traversal double", "../../etc/passwd", true},
+		{"traversal in middle", "foo/../../../etc/passwd", true},
+		{"current dir", "./foo", false},
+		{"empty path", "", true},
+		{"just dots", "..", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePath(tt.path)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidatePath(%q) error = %v, wantErr %v", tt.path, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateRelativePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		basePath string
+		relPath  string
+		wantErr  bool
+	}{
+		{"simple relative", "/home/user/work", "subdir/file.txt", false},
+		{"nested relative", "/home/user/work", "a/b/c/file.txt", false},
+		{"traversal escape", "/home/user/work", "../../etc/passwd", true},
+		{"hidden traversal", "/home/user/work", "subdir/../../etc/passwd", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateRelativePath(tt.basePath, tt.relPath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateRelativePath(%q, %q) error = %v, wantErr %v", tt.basePath, tt.relPath, err, tt.wantErr)
+			}
+		})
 	}
 }

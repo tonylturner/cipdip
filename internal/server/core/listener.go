@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/net/ipv4"
+
 	"github.com/tturner/cipdip/internal/enip"
 )
 
@@ -48,6 +50,25 @@ func (s *Server) Start() error {
 
 		s.wg.Add(1)
 		go s.handleUDP()
+
+		// Join multicast group if configured (uses the UDP listener socket).
+		if s.config.Server.MulticastGroup != "" {
+			group := net.ParseIP(s.config.Server.MulticastGroup)
+			if group != nil {
+				p := ipv4.NewPacketConn(s.udpListener)
+				var ifi *net.Interface
+				if s.config.Server.MulticastInterface != "" {
+					ifi, _ = net.InterfaceByName(s.config.Server.MulticastInterface)
+				}
+				if err := p.JoinGroup(ifi, &net.UDPAddr{IP: group}); err != nil {
+					s.logger.Error("Failed to join multicast group %s: %v", s.config.Server.MulticastGroup, err)
+				} else {
+					s.multicastConn = p
+					s.logger.Info("Joined multicast group %s for I/O data", s.config.Server.MulticastGroup)
+					fmt.Printf("[SERVER] Joined multicast group %s\n", s.config.Server.MulticastGroup)
+				}
+			}
+		}
 	}
 
 	s.wg.Add(1)
@@ -90,6 +111,20 @@ func (s *Server) Stop() error {
 
 	if s.metricsListener != nil {
 		s.metricsListener.Close()
+	}
+
+	if s.multicastConn != nil {
+		if s.config.Server.MulticastGroup != "" {
+			group := net.ParseIP(s.config.Server.MulticastGroup)
+			if group != nil {
+				var ifi *net.Interface
+				if s.config.Server.MulticastInterface != "" {
+					ifi, _ = net.InterfaceByName(s.config.Server.MulticastInterface)
+				}
+				_ = s.multicastConn.LeaveGroup(ifi, &net.UDPAddr{IP: group})
+			}
+		}
+		s.multicastConn = nil
 	}
 
 	if s.udpListener != nil {
