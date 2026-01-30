@@ -290,10 +290,23 @@ func (s *Server) handleUDP() {
 		if encap.Command == enip.ENIPCommandSendUnitData && s.enipSupport.sendUnitData {
 			resp := s.handleSendUnitData(encap, addr.String())
 			if resp != nil {
-				if _, err := s.udpListener.WriteToUDP(resp, addr); err != nil {
-					s.logger.Error("UDP write error to %s: %v", addr.String(), err)
+				// If multicast is configured and this is I/O data, send to multicast group
+				if s.multicastConn != nil && s.config.Server.MulticastGroup != "" {
+					if err := s.sendMulticastIOData(resp); err != nil {
+						s.logger.Debug("Multicast send error: %v", err)
+						// Fall back to unicast
+						if _, err := s.udpListener.WriteToUDP(resp, addr); err != nil {
+							s.logger.Error("UDP write error to %s: %v", addr.String(), err)
+						}
+					} else {
+						s.logger.Debug("UDP I/O response sent to multicast group %s: %d bytes", s.config.Server.MulticastGroup, len(resp))
+					}
 				} else {
-					s.logger.Debug("UDP I/O response sent to %s: %d bytes", addr.String(), len(resp))
+					if _, err := s.udpListener.WriteToUDP(resp, addr); err != nil {
+						s.logger.Error("UDP write error to %s: %v", addr.String(), err)
+					} else {
+						s.logger.Debug("UDP I/O response sent to %s: %d bytes", addr.String(), len(resp))
+					}
 				}
 			}
 		} else if encap.Command == enip.ENIPCommandListIdentity && s.enipSupport.listIdentity {
@@ -307,6 +320,33 @@ func (s *Server) handleUDP() {
 			s.logger.Debug("UDP packet from %s: unsupported command 0x%04X", addr.String(), encap.Command)
 		}
 	}
+}
+
+// sendMulticastIOData sends I/O data to the configured multicast group.
+func (s *Server) sendMulticastIOData(data []byte) error {
+	if s.multicastConn == nil {
+		return fmt.Errorf("multicast not configured")
+	}
+
+	group := net.ParseIP(s.config.Server.MulticastGroup)
+	if group == nil {
+		return fmt.Errorf("invalid multicast group: %s", s.config.Server.MulticastGroup)
+	}
+
+	port := s.config.Server.UDPIOPort
+	if port == 0 {
+		port = 2222
+	}
+
+	dst := &net.UDPAddr{IP: group, Port: port}
+	_, err := s.multicastConn.WriteTo(data, nil, dst)
+	return err
+}
+
+// SendMulticastIOData is the public method for sending I/O data to the multicast group.
+// This can be called by connection state handlers to send T→O data.
+func (s *Server) SendMulticastIOData(data []byte) error {
+	return s.sendMulticastIOData(data)
 }
 
 func (s *Server) startMetricsListener() error {
