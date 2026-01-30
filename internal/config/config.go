@@ -63,7 +63,7 @@ type CIPTarget struct {
 // IOConnectionConfig represents configuration for a connected I/O connection
 type IOConnectionConfig struct {
 	Name                  string   `yaml:"name"`
-	Transport             string   `yaml:"transport"` // "udp" (default) or "tcp"
+	Transport             string   `yaml:"transport"` // "udp" (default), "tcp", or "multicast"
 	OToTRPIMs             int      `yaml:"o_to_t_rpi_ms"`
 	TToORPIMs             int      `yaml:"t_to_o_rpi_ms"`
 	OToTSizeBytes         int      `yaml:"o_to_t_size_bytes"`
@@ -73,6 +73,8 @@ type IOConnectionConfig struct {
 	Class                 uint16   `yaml:"class"`
 	Instance              uint16   `yaml:"instance"`
 	ConnectionPathHex     string   `yaml:"connection_path_hex,omitempty"`
+	MulticastGroup        string   `yaml:"multicast_group,omitempty"` // multicast group address (e.g. "239.192.1.0")
+	MulticastTTL          int      `yaml:"multicast_ttl,omitempty"`   // multicast TTL (default 32)
 	Tags                  []string `yaml:"tags,omitempty"`
 }
 
@@ -119,6 +121,8 @@ type ServerConfigSection struct {
 	TCPPort             int    `yaml:"tcp_port"`
 	UDPIOPort           int    `yaml:"udp_io_port"`
 	EnableUDPIO         bool   `yaml:"enable_udp_io"`
+	MulticastGroup      string `yaml:"multicast_group,omitempty"`     // multicast group for I/O reception
+	MulticastInterface  string `yaml:"multicast_interface,omitempty"` // network interface for multicast
 	ConnectionTimeoutMs int    `yaml:"connection_timeout_ms"`
 	RNGSeed             int64  `yaml:"rng_seed"`
 	IdentityVendorID    uint16 `yaml:"identity_vendor_id,omitempty"`
@@ -260,6 +264,13 @@ type LogixTagConfig struct {
 	UpdatePattern string `yaml:"update_pattern"` // "counter", "static", "random", "sine", "sawtooth"
 }
 
+// PCCCDataTableConfig defines a PCCC data table for the pccc personality.
+type PCCCDataTableConfig struct {
+	FileType   string `yaml:"file_type"`   // "N", "B", "T", "C", "R", "F", "ST", "O", "I", "S", "A", "L"
+	FileNumber uint8  `yaml:"file_number"` // Data file number
+	Elements   int    `yaml:"elements"`    // Number of elements
+}
+
 // ServerConfig represents the server configuration
 type ServerConfig struct {
 	Server            ServerConfigSection     `yaml:"server"`
@@ -274,6 +285,20 @@ type ServerConfig struct {
 	AdapterAssemblies []AdapterAssemblyConfig `yaml:"adapter_assemblies"`
 	LogixTags         []LogixTagConfig        `yaml:"logix_tags"`
 	TagNamespace      string                  `yaml:"tag_namespace"`
+	PCCCDataTables    []PCCCDataTableConfig   `yaml:"pccc_data_tables,omitempty"`
+	ModbusConfig      ModbusServerConfig      `yaml:"modbus,omitempty"`
+}
+
+// ModbusServerConfig configures the Modbus emulation (both CIP-tunneled and standalone TCP).
+type ModbusServerConfig struct {
+	Enabled              bool   `yaml:"enabled"`
+	TCPPort              int    `yaml:"tcp_port,omitempty"`                // Standalone Modbus TCP port (default 502)
+	UnitID               uint8  `yaml:"unit_id,omitempty"`                // Default slave address (default 1)
+	CoilCount            int    `yaml:"coil_count,omitempty"`             // Number of coils (default 9999)
+	DiscreteInputCount   int    `yaml:"discrete_input_count,omitempty"`   // Number of discrete inputs
+	InputRegisterCount   int    `yaml:"input_register_count,omitempty"`   // Number of input registers
+	HoldingRegisterCount int    `yaml:"holding_register_count,omitempty"` // Number of holding registers
+	CIPTunnel            bool   `yaml:"cip_tunnel,omitempty"`             // Register class 0x44 handler (default true when enabled)
 }
 
 // CreateDefaultClientConfig creates a default client configuration
@@ -558,8 +583,8 @@ func validateIOConnection(conn IOConnectionConfig, index int) error {
 	}
 
 	// Validate transport
-	if conn.Transport != "" && conn.Transport != "udp" && conn.Transport != "tcp" {
-		return fmt.Errorf("io_connections[%d]: transport must be 'udp' or 'tcp', got '%s'", index, conn.Transport)
+	if conn.Transport != "" && conn.Transport != "udp" && conn.Transport != "tcp" && conn.Transport != "multicast" {
+		return fmt.Errorf("io_connections[%d]: transport must be 'udp', 'tcp', or 'multicast', got '%s'", index, conn.Transport)
 	}
 
 	// Validate RPIs

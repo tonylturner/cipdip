@@ -18,13 +18,7 @@ type ServiceGroup = catalog.ServiceGroup
 // Type aliases from ui package to consolidate duplicates
 type StatsUpdate = ui.StatsUpdate
 type CommandResult = ui.CommandResult
-
-// ProfileInfo contains information about a profile.
-type ProfileInfo struct {
-	Path string
-	Name string
-	Kind string
-}
+type ProfileInfo = ui.ProfileInfo
 
 // RecentRun represents a recent operation for display.
 type RecentRun struct {

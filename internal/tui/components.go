@@ -383,3 +383,20 @@ func padLeft(s string, width int) string {
 	}
 	return strings.Repeat(" ", width-w) + s
 }
+
+// truncateString truncates a string to max length, adding "..." if truncated.
+func truncateString(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	if max <= 3 {
+		return s[:max]
+	}
+	return s[:max-3] + "..."
+}
+
+// TestResultMsg represents the result of a catalog test execution.
+type TestResultMsg struct {
+	Result string
+	Error  string
+}

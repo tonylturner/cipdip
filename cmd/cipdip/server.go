@@ -13,21 +13,24 @@ import (
 )
 
 type serverFlags struct {
-	listenIP         string
-	listenPort       int
-	personality      string
-	serverConfig     string
-	enableUDPIO      bool
-	pcapFile         string
-	captureInterface string
-	cipProfile       string
-	mode             string
-	target           string
-	logFormat        string
-	logLevel         string
-	logEvery         int
-	tuiStats         bool
-	profile          string
+	listenIP           string
+	listenPort         int
+	personality        string
+	serverConfig       string
+	enableUDPIO        bool
+	udpPort            int
+	pcapFile           string
+	captureInterface   string
+	cipProfile         string
+	mode               string
+	target             string
+	logFormat          string
+	logLevel           string
+	logEvery           int
+	tuiStats           bool
+	profile            string
+	multicastGroup     string
+	multicastInterface string
 }
 
 func newServerCmd() *cobra.Command {
@@ -195,7 +198,8 @@ func registerServerFlags(cmd *cobra.Command, flags *serverFlags) {
 	cmd.Flags().IntVar(&flags.listenPort, "listen-port", 44818, "Listen port (default 44818)")
 	cmd.Flags().StringVar(&flags.personality, "personality", "adapter", "Server personality: adapter|logix_like (default \"adapter\")")
 	cmd.Flags().StringVar(&flags.serverConfig, "server-config", "cipdip_server.yaml", "Server config file path (default \"cipdip_server.yaml\")")
-	cmd.Flags().BoolVar(&flags.enableUDPIO, "enable-udp-io", false, "Enable UDP I/O on port 2222 (default false)")
+	cmd.Flags().BoolVar(&flags.enableUDPIO, "enable-udp-io", false, "Enable UDP I/O (default port 2222)")
+	cmd.Flags().IntVar(&flags.udpPort, "udp-port", 2222, "UDP I/O port (default 2222)")
 	cmd.Flags().StringVar(&flags.pcapFile, "pcap", "", "Capture packets to PCAP file (e.g., server_capture.pcap)")
 	cmd.Flags().StringVar(&flags.captureInterface, "capture-interface", "", "Network interface for PCAP capture (auto-detected if not specified)")
 	cmd.Flags().StringVar(&flags.cipProfile, "cip-profile", "", "CIP application profile(s): energy|safety|motion|all (comma-separated)")
@@ -206,24 +210,29 @@ func registerServerFlags(cmd *cobra.Command, flags *serverFlags) {
 	cmd.Flags().IntVar(&flags.logEvery, "log-every-n", 0, "Log every N events (override)")
 	cmd.Flags().BoolVar(&flags.tuiStats, "tui-stats", false, "Enable JSON stats output for TUI consumption")
 	cmd.Flags().StringVar(&flags.profile, "profile", "", "Process profile name (e.g., water_pump_station) - loads data model from profile")
+	cmd.Flags().StringVar(&flags.multicastGroup, "multicast-group", "", "Multicast group address for I/O data (e.g., 239.192.1.0)")
+	cmd.Flags().StringVar(&flags.multicastInterface, "multicast-interface", "", "Network interface for multicast (auto if empty)")
 }
 
 func runServer(flags *serverFlags) error {
 	return app.RunServer(app.ServerOptions{
-		ListenIP:         flags.listenIP,
-		ListenPort:       flags.listenPort,
-		Personality:      flags.personality,
-		ConfigPath:       flags.serverConfig,
-		EnableUDPIO:      flags.enableUDPIO,
-		PCAPFile:         flags.pcapFile,
-		CaptureInterface: flags.captureInterface,
-		CIPProfile:       flags.cipProfile,
-		Mode:             flags.mode,
-		Target:           flags.target,
-		LogFormat:        flags.logFormat,
-		LogLevel:         flags.logLevel,
-		LogEvery:         flags.logEvery,
-		TUIStats:         flags.tuiStats,
-		Profile:          flags.profile,
+		ListenIP:           flags.listenIP,
+		ListenPort:         flags.listenPort,
+		Personality:        flags.personality,
+		ConfigPath:         flags.serverConfig,
+		EnableUDPIO:        flags.enableUDPIO,
+		UDPPort:            flags.udpPort,
+		PCAPFile:           flags.pcapFile,
+		CaptureInterface:   flags.captureInterface,
+		CIPProfile:         flags.cipProfile,
+		Mode:               flags.mode,
+		Target:             flags.target,
+		LogFormat:          flags.logFormat,
+		LogLevel:           flags.logLevel,
+		LogEvery:           flags.logEvery,
+		TUIStats:           flags.tuiStats,
+		Profile:            flags.profile,
+		MulticastGroup:     flags.multicastGroup,
+		MulticastInterface: flags.multicastInterface,
 	})
 }

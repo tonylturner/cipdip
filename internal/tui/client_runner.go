@@ -23,6 +23,7 @@ type ClientRunConfig struct {
 	Profile    string
 	Role       string
 	OutputDir  string
+	TargetTags string // Comma-separated list of tags to filter targets
 }
 
 // ClientRunResult is sent when the client run completes.
@@ -78,6 +79,10 @@ func (cfg ClientRunConfig) BuildCommandArgs() []string {
 
 	if cfg.OutputDir != "" {
 		args = append(args, "--output-dir", cfg.OutputDir)
+	}
+
+	if cfg.TargetTags != "" {
+		args = append(args, "--target-tags", cfg.TargetTags)
 	}
 
 	return args

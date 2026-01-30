@@ -60,10 +60,14 @@ type RunArtifacts struct {
 }
 
 // ListRuns returns run directory names ordered by descending name.
+// Returns nil, nil if the runs directory does not exist.
 func ListRuns(workspaceRoot string, limit int) ([]string, error) {
 	runsDir := filepath.Join(workspaceRoot, "runs")
 	entries, err := os.ReadDir(runsDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("read runs dir: %w", err)
 	}
 	runs := make([]string, 0)

@@ -14,8 +14,9 @@ import (
 type TransportType string
 
 const (
-	TransportTCP TransportType = "tcp"
-	TransportUDP TransportType = "udp"
+	TransportTCP       TransportType = "tcp"
+	TransportUDP       TransportType = "udp"
+	TransportMulticast TransportType = "multicast"
 )
 
 // Transport represents a network transport connection

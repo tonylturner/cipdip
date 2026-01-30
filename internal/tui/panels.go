@@ -124,6 +124,9 @@ type ClientPanel struct {
 	// Firewall options (when firewall scenario selected)
 	firewallVendor int
 
+	// Target filtering
+	targetTags string // Comma-separated list of tags to filter targets
+
 	// Running stats
 	stats         StatsUpdate
 	statsHistory  []float64
@@ -148,7 +151,14 @@ type ClientPanel struct {
 	result *CommandResult
 }
 
-var clientScenarios = []string{"baseline", "stress", "io", "edge", "mixed", "firewall", "vendor_variants"}
+var clientScenarios = []string{
+	"baseline", "stress", "io", "mixed", "churn",
+	"edge_valid", "edge_vendor", "rockwell", "vendor_variants",
+	"mixed_state", "unconnected_send", "dpi_explicit",
+	"firewall_hirschmann", "firewall_moxa", "firewall_dynics", "firewall_pack",
+	"pccc", "modbus", "modbus_pipeline",
+	"evasion_segment", "evasion_fuzz", "evasion_anomaly", "evasion_timing",
+}
 var protocolVariants = []string{"strict_odva", "rockwell_enbt", "schneider_m580", "siemens_s7_1200"}
 var firewallVendors = []string{"All", "Hirschmann EAGLE", "Moxa EDR", "Dynics"}
 
@@ -293,6 +303,10 @@ func (p *ClientPanel) BuildRunConfig(workspaceRoot string) ClientRunConfig {
 		cfg.Scenario = clientScenarios[p.scenario]
 	}
 
+	if p.targetTags != "" {
+		cfg.TargetTags = p.targetTags
+	}
+
 	if p.pcapEnabled {
 		cfg.PCAPFile = p.generatePcapFilename()
 		if p.pcapInterface != "" {
@@ -341,7 +355,7 @@ func (p *ClientPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 		maxField = 6 // Add role field
 	}
 	if p.showAdvanced {
-		maxField += 7 // Add: duration, interval, CIP profiles x3, protocol, firewall
+		maxField += 8 // Add: duration, interval, CIP profiles x3, protocol, firewall, target tags
 	}
 
 	switch msg.String() {
@@ -550,6 +564,10 @@ func (p *ClientPanel) handleBackspace() {
 		if len(p.interval) > 0 {
 			p.interval = p.interval[:len(p.interval)-1]
 		}
+	case 12 + advOffset: // Target tags (in advanced mode)
+		if len(p.targetTags) > 0 {
+			p.targetTags = p.targetTags[:len(p.targetTags)-1]
+		}
 	}
 }
 
@@ -580,6 +598,12 @@ func (p *ClientPanel) handleChar(ch string) {
 		if ch >= "0" && ch <= "9" {
 			p.interval += ch
 			p.modePreset = 3 // Switch to Custom
+		}
+	case 12 + advOffset: // Target tags (in advanced mode)
+		// Allow letters, numbers, commas, underscores, hyphens for tag list
+		if (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") ||
+			(ch >= "0" && ch <= "9") || ch == "," || ch == "_" || ch == "-" {
+			p.targetTags += ch
 		}
 	}
 }
@@ -675,7 +699,7 @@ func (p *ClientPanel) Title() string {
 func (p *ClientPanel) viewIdleContent(width int, focused bool) string {
 	s := p.styles
 	var modeInfo string
-	if p.useProfile && len(p.profiles) > 0 {
+	if p.useProfile && p.profileIndex < len(p.profiles) {
 		prof := p.profiles[p.profileIndex]
 		role := "default"
 		if p.roleIndex < len(p.roles) {
@@ -753,6 +777,8 @@ func (p *ClientPanel) viewConfigContent(width int, focused bool) string {
 				pType := "logix"
 				if prof.Personality == "adapter" {
 					pType = "i/o"
+				} else if prof.Personality == "pccc" {
+					pType = "pccc"
 				}
 				label := fmt.Sprintf("%-18s [%s]", prof.Name, pType)
 				style := s.Dim
@@ -867,6 +893,18 @@ func (p *ClientPanel) viewConfigContent(width int, focused bool) string {
 			} else {
 				rightCol = append(rightCol, s.Dim.Render("FW Vendor")+": "+firewallVendors[p.firewallVendor])
 			}
+		}
+
+		// Target tags filter (advanced field 7)
+		rightCol = append(rightCol, "")
+		tagsDisplay := p.targetTags
+		if tagsDisplay == "" {
+			tagsDisplay = "(all)"
+		}
+		if p.focusedField == 12+advOffset {
+			rightCol = append(rightCol, s.Selected.Render("Target Tags")+": "+p.targetTags+s.Cursor.Render("█"))
+		} else {
+			rightCol = append(rightCol, s.Dim.Render("Target Tags")+": "+tagsDisplay)
 		}
 	}
 
@@ -1251,12 +1289,38 @@ type ServerPanel struct {
 	opMode      int // Operating mode
 
 	// Advanced options
-	showAdvanced bool
-	cipEnergy    bool
-	cipSafety    bool
-	cipMotion    bool
-	udpIO        bool
-	udpPort      string
+	showAdvanced       bool
+	cipEnergy          bool
+	cipSafety          bool
+	cipMotion          bool
+	udpIO              bool
+	udpPort            string
+	multicastIO        bool
+	multicastGroup     string
+	multicastInterface string
+
+	// Fault injection (advanced)
+	faultEnabled         bool
+	latencyBaseMs        string
+	latencyJitterMs      string
+	dropResponseEveryN   string
+	closeConnEveryN      string
+
+	// Session policy (advanced)
+	maxSessions      string
+	maxSessionsPerIP string
+	sessionTimeoutMs string
+
+	// Identity customization (advanced)
+	vendorID    string
+	deviceType  string
+	productCode string
+	productName string
+
+	// Modbus configuration (advanced)
+	modbusEnabled   bool
+	modbusCIPTunnel bool
+	modbusPort      string
 
 	// PCAP capture
 	pcapEnabled           bool
@@ -1287,18 +1351,35 @@ type ServerPanel struct {
 	logScroll  int
 }
 
-var serverPersonalities = []string{"adapter", "logix_like", "minimal"}
+var serverPersonalities = []string{"adapter", "logix_like", "pccc", "minimal"}
 var serverOpModes = []string{"baseline", "realistic", "dpi-torture", "perf"}
 
 // NewServerPanel creates a new server panel.
 func NewServerPanel(styles Styles) *ServerPanel {
 	sp := &ServerPanel{
-		mode:       PanelIdle,
-		styles:     styles,
-		listenAddr: "0.0.0.0",
-		port:       "44818",
-		udpPort:    "2222",
-		recentReqs: make([]string, 0),
+		mode:           PanelIdle,
+		styles:         styles,
+		listenAddr:     "0.0.0.0",
+		port:           "44818",
+		udpPort:        "2222",
+		multicastGroup: "239.192.1.0",
+		recentReqs:     make([]string, 0),
+		// Fault injection defaults
+		latencyBaseMs:      "0",
+		latencyJitterMs:    "0",
+		dropResponseEveryN: "0",
+		closeConnEveryN:    "0",
+		// Session policy defaults
+		maxSessions:      "256",
+		maxSessionsPerIP: "64",
+		sessionTimeoutMs: "60000",
+		// Identity defaults (empty = use defaults)
+		vendorID:    "",
+		deviceType:  "",
+		productCode: "",
+		productName: "",
+		// Modbus defaults
+		modbusPort: "502",
 	}
 	sp.loadProfiles()
 	sp.updateAutoDetectedInterface()
@@ -1319,6 +1400,8 @@ func (p *ServerPanel) loadProfiles() {
 			p.personality = 0
 		} else if profiles[0].Personality == "logix_like" {
 			p.personality = 1
+		} else if profiles[0].Personality == "pccc" {
+			p.personality = 2
 		}
 	}
 }
@@ -1359,6 +1442,17 @@ func (p *ServerPanel) BuildRunConfig(workspaceRoot string) ServerRunConfig {
 		cfg.Profile = p.profiles[p.profileIndex].Name
 	}
 
+	if p.udpIO {
+		cfg.EnableUDPIO = true
+		udpPort, _ := strconv.Atoi(p.udpPort)
+		cfg.UDPPort = udpPort
+	}
+
+	if p.multicastIO {
+		cfg.MulticastGroup = p.multicastGroup
+		cfg.MulticastInterface = p.multicastInterface
+	}
+
 	if p.pcapEnabled {
 		cfg.PCAPFile = p.generatePcapFilename()
 		if p.pcapInterface != "" {
@@ -1368,6 +1462,33 @@ func (p *ServerPanel) BuildRunConfig(workspaceRoot string) ServerRunConfig {
 
 	if workspaceRoot != "" {
 		cfg.OutputDir = workspaceRoot
+	}
+
+	// Fault injection
+	cfg.FaultEnabled = p.faultEnabled
+	if p.faultEnabled {
+		cfg.LatencyBaseMs, _ = strconv.Atoi(p.latencyBaseMs)
+		cfg.LatencyJitterMs, _ = strconv.Atoi(p.latencyJitterMs)
+		cfg.DropResponseEveryN, _ = strconv.Atoi(p.dropResponseEveryN)
+		cfg.CloseConnEveryN, _ = strconv.Atoi(p.closeConnEveryN)
+	}
+
+	// Session policy
+	cfg.MaxSessions, _ = strconv.Atoi(p.maxSessions)
+	cfg.MaxSessionsPerIP, _ = strconv.Atoi(p.maxSessionsPerIP)
+	cfg.SessionTimeoutMs, _ = strconv.Atoi(p.sessionTimeoutMs)
+
+	// Identity customization
+	cfg.VendorID, _ = strconv.Atoi(p.vendorID)
+	cfg.DeviceType, _ = strconv.Atoi(p.deviceType)
+	cfg.ProductCode, _ = strconv.Atoi(p.productCode)
+	cfg.ProductName = p.productName
+
+	// Modbus configuration
+	cfg.ModbusEnabled = p.modbusEnabled
+	cfg.ModbusCIPTunnel = p.modbusCIPTunnel
+	if p.modbusEnabled {
+		cfg.ModbusPort, _ = strconv.Atoi(p.modbusPort)
 	}
 
 	return cfg
@@ -1407,7 +1528,15 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 	// Basic fields: listen, port, personality, op mode, PCAP
 	maxField := 5
 	if p.showAdvanced {
-		maxField = 10 // Add: CIP x3, UDP I/O, UDP port
+		// Advanced fields:
+		// 5-7: CIP profiles (Energy, Safety, Motion)
+		// 8-9: UDP I/O, UDP port
+		// 10-12: Multicast I/O, Group, Interface
+		// 13-17: Fault injection (enabled, latency base/jitter, drop every N, close every N)
+		// 18-20: Session policy (max sessions, per IP, timeout)
+		// 21-24: Identity (vendor, device, product code, product name)
+		// 25-27: Modbus (enabled, CIP tunnel, port)
+		maxField = 28
 	}
 
 	switch msg.String() {
@@ -1438,12 +1567,14 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 	case "p":
 		p.useProfile = !p.useProfile
 		p.focusedField = 0
-		if p.useProfile && len(p.profiles) > 0 {
+		if p.useProfile && p.profileIndex < len(p.profiles) {
 			// Set personality based on selected profile
 			if p.profiles[p.profileIndex].Personality == "adapter" {
 				p.personality = 0
 			} else if p.profiles[p.profileIndex].Personality == "logix_like" {
 				p.personality = 1
+			} else if p.profiles[p.profileIndex].Personality == "pccc" {
+				p.personality = 2
 			}
 		}
 	case "r":
@@ -1467,6 +1598,8 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 						p.personality = 0
 					} else if p.profiles[p.profileIndex].Personality == "logix_like" {
 						p.personality = 1
+					} else if p.profiles[p.profileIndex].Personality == "pccc" {
+						p.personality = 2
 					}
 				}
 			} else {
@@ -1490,6 +1623,8 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 						p.personality = 0
 					} else if p.profiles[p.profileIndex].Personality == "logix_like" {
 						p.personality = 1
+					} else if p.profiles[p.profileIndex].Personality == "pccc" {
+						p.personality = 2
 					}
 				}
 			} else {
@@ -1517,6 +1652,14 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 			p.cipMotion = !p.cipMotion
 		case 8: // UDP I/O (advanced)
 			p.udpIO = !p.udpIO
+		case 10: // Multicast I/O (advanced)
+			p.multicastIO = !p.multicastIO
+		case 13: // Fault Enabled (advanced)
+			p.faultEnabled = !p.faultEnabled
+		case 25: // Modbus Enabled (advanced)
+			p.modbusEnabled = !p.modbusEnabled
+		case 26: // Modbus CIP Tunnel (advanced)
+			p.modbusCIPTunnel = !p.modbusCIPTunnel
 		}
 	case "backspace":
 		p.handleBackspace()
@@ -1545,25 +1688,142 @@ func (p *ServerPanel) handleBackspace() {
 		if len(p.udpPort) > 0 {
 			p.udpPort = p.udpPort[:len(p.udpPort)-1]
 		}
+	case 11: // Multicast Group (advanced)
+		if len(p.multicastGroup) > 0 {
+			p.multicastGroup = p.multicastGroup[:len(p.multicastGroup)-1]
+		}
+	case 12: // Multicast Interface (advanced)
+		if len(p.multicastInterface) > 0 {
+			p.multicastInterface = p.multicastInterface[:len(p.multicastInterface)-1]
+		}
+	// Fault injection fields
+	case 14: // Latency Base Ms
+		if len(p.latencyBaseMs) > 0 {
+			p.latencyBaseMs = p.latencyBaseMs[:len(p.latencyBaseMs)-1]
+		}
+	case 15: // Latency Jitter Ms
+		if len(p.latencyJitterMs) > 0 {
+			p.latencyJitterMs = p.latencyJitterMs[:len(p.latencyJitterMs)-1]
+		}
+	case 16: // Drop Response Every N
+		if len(p.dropResponseEveryN) > 0 {
+			p.dropResponseEveryN = p.dropResponseEveryN[:len(p.dropResponseEveryN)-1]
+		}
+	case 17: // Close Conn Every N
+		if len(p.closeConnEveryN) > 0 {
+			p.closeConnEveryN = p.closeConnEveryN[:len(p.closeConnEveryN)-1]
+		}
+	// Session policy fields
+	case 18: // Max Sessions
+		if len(p.maxSessions) > 0 {
+			p.maxSessions = p.maxSessions[:len(p.maxSessions)-1]
+		}
+	case 19: // Max Sessions Per IP
+		if len(p.maxSessionsPerIP) > 0 {
+			p.maxSessionsPerIP = p.maxSessionsPerIP[:len(p.maxSessionsPerIP)-1]
+		}
+	case 20: // Session Timeout Ms
+		if len(p.sessionTimeoutMs) > 0 {
+			p.sessionTimeoutMs = p.sessionTimeoutMs[:len(p.sessionTimeoutMs)-1]
+		}
+	// Identity fields
+	case 21: // Vendor ID
+		if len(p.vendorID) > 0 {
+			p.vendorID = p.vendorID[:len(p.vendorID)-1]
+		}
+	case 22: // Device Type
+		if len(p.deviceType) > 0 {
+			p.deviceType = p.deviceType[:len(p.deviceType)-1]
+		}
+	case 23: // Product Code
+		if len(p.productCode) > 0 {
+			p.productCode = p.productCode[:len(p.productCode)-1]
+		}
+	case 24: // Product Name
+		if len(p.productName) > 0 {
+			p.productName = p.productName[:len(p.productName)-1]
+		}
+	// Modbus fields
+	case 27: // Modbus Port
+		if len(p.modbusPort) > 0 {
+			p.modbusPort = p.modbusPort[:len(p.modbusPort)-1]
+		}
 	}
 }
 
 func (p *ServerPanel) handleChar(ch string) {
+	isDigit := ch >= "0" && ch <= "9"
 	switch p.focusedField {
 	case 0:
-		if ch == "." || (ch >= "0" && ch <= "9") {
+		if ch == "." || isDigit {
 			p.listenAddr += ch
 			if p.pcapEnabled {
 				p.updateAutoDetectedInterface()
 			}
 		}
 	case 1:
-		if ch >= "0" && ch <= "9" {
+		if isDigit {
 			p.port += ch
 		}
 	case 9: // UDP port (advanced)
-		if ch >= "0" && ch <= "9" {
+		if isDigit {
 			p.udpPort += ch
+		}
+	case 11: // Multicast Group (advanced)
+		if ch == "." || isDigit {
+			p.multicastGroup += ch
+		}
+	case 12: // Multicast Interface (advanced)
+		p.multicastInterface += ch
+	// Fault injection fields (numeric)
+	case 14: // Latency Base Ms
+		if isDigit {
+			p.latencyBaseMs += ch
+		}
+	case 15: // Latency Jitter Ms
+		if isDigit {
+			p.latencyJitterMs += ch
+		}
+	case 16: // Drop Response Every N
+		if isDigit {
+			p.dropResponseEveryN += ch
+		}
+	case 17: // Close Conn Every N
+		if isDigit {
+			p.closeConnEveryN += ch
+		}
+	// Session policy fields (numeric)
+	case 18: // Max Sessions
+		if isDigit {
+			p.maxSessions += ch
+		}
+	case 19: // Max Sessions Per IP
+		if isDigit {
+			p.maxSessionsPerIP += ch
+		}
+	case 20: // Session Timeout Ms
+		if isDigit {
+			p.sessionTimeoutMs += ch
+		}
+	// Identity fields
+	case 21: // Vendor ID (numeric)
+		if isDigit {
+			p.vendorID += ch
+		}
+	case 22: // Device Type (numeric)
+		if isDigit {
+			p.deviceType += ch
+		}
+	case 23: // Product Code (numeric)
+		if isDigit {
+			p.productCode += ch
+		}
+	case 24: // Product Name (text)
+		p.productName += ch
+	// Modbus fields
+	case 27: // Modbus Port (numeric)
+		if isDigit {
+			p.modbusPort += ch
 		}
 	}
 }
@@ -1736,7 +1996,7 @@ func (p *ServerPanel) Title() string {
 func (p *ServerPanel) viewIdleContent(width int, focused bool) string {
 	s := p.styles
 	var modeInfo string
-	if p.useProfile && len(p.profiles) > 0 {
+	if p.useProfile && p.profileIndex < len(p.profiles) {
 		prof := p.profiles[p.profileIndex]
 		modeInfo = fmt.Sprintf("Profile: %s (%s)", s.Dim.Render(prof.Name), s.Dim.Render(prof.Personality))
 	} else {
@@ -1810,6 +2070,8 @@ func (p *ServerPanel) viewConfigContent(width int, focused bool) string {
 				pType := "logix"
 				if prof.Personality == "adapter" {
 					pType = "i/o"
+				} else if prof.Personality == "pccc" {
+					pType = "pccc"
 				}
 				label := fmt.Sprintf("%-18s [%s]", prof.Name, pType)
 				style := s.Dim
@@ -1869,6 +2131,60 @@ func (p *ServerPanel) viewConfigContent(width int, focused bool) string {
 			} else {
 				rightCol = append(rightCol, "  "+s.Dim.Render("UDP Port")+": "+p.udpPort)
 			}
+		}
+
+		// Multicast I/O (advanced fields 10,11,12)
+		rightCol = append(rightCol, p.renderCheckbox("Multicast I/O", p.multicastIO, p.focusedField == 10, s))
+		if p.multicastIO {
+			if p.focusedField == 11 {
+				rightCol = append(rightCol, "  "+s.Selected.Render("Group")+": "+p.multicastGroup+s.Cursor.Render("█"))
+			} else {
+				rightCol = append(rightCol, "  "+s.Dim.Render("Group")+": "+p.multicastGroup)
+			}
+			if p.focusedField == 12 {
+				rightCol = append(rightCol, "  "+s.Selected.Render("Interface")+": "+p.multicastInterface+s.Cursor.Render("█"))
+			} else {
+				iface := p.multicastInterface
+				if iface == "" {
+					iface = "(auto)"
+				}
+				rightCol = append(rightCol, "  "+s.Dim.Render("Interface")+": "+iface)
+			}
+		}
+
+		// Fault Injection (advanced fields 13-17)
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, s.Header.Render("Fault Injection:"))
+		rightCol = append(rightCol, p.renderCheckbox("Enable Faults", p.faultEnabled, p.focusedField == 13, s))
+		if p.faultEnabled {
+			rightCol = append(rightCol, p.renderTextField("Latency Base (ms)", p.latencyBaseMs, p.focusedField == 14, s))
+			rightCol = append(rightCol, p.renderTextField("Latency Jitter (ms)", p.latencyJitterMs, p.focusedField == 15, s))
+			rightCol = append(rightCol, p.renderTextField("Drop Every N", p.dropResponseEveryN, p.focusedField == 16, s))
+			rightCol = append(rightCol, p.renderTextField("Close Every N", p.closeConnEveryN, p.focusedField == 17, s))
+		}
+
+		// Session Policy (advanced fields 18-20)
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, s.Header.Render("Session Policy:"))
+		rightCol = append(rightCol, p.renderTextField("Max Sessions", p.maxSessions, p.focusedField == 18, s))
+		rightCol = append(rightCol, p.renderTextField("Max Per IP", p.maxSessionsPerIP, p.focusedField == 19, s))
+		rightCol = append(rightCol, p.renderTextField("Timeout (ms)", p.sessionTimeoutMs, p.focusedField == 20, s))
+
+		// Identity Customization (advanced fields 21-24)
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, s.Header.Render("Identity Object:"))
+		rightCol = append(rightCol, p.renderTextField("Vendor ID", p.vendorID, p.focusedField == 21, s))
+		rightCol = append(rightCol, p.renderTextField("Device Type", p.deviceType, p.focusedField == 22, s))
+		rightCol = append(rightCol, p.renderTextField("Product Code", p.productCode, p.focusedField == 23, s))
+		rightCol = append(rightCol, p.renderTextField("Product Name", p.productName, p.focusedField == 24, s))
+
+		// Modbus Configuration (advanced fields 25-27)
+		rightCol = append(rightCol, "")
+		rightCol = append(rightCol, s.Header.Render("Modbus:"))
+		rightCol = append(rightCol, p.renderCheckbox("Enable Modbus", p.modbusEnabled, p.focusedField == 25, s))
+		if p.modbusEnabled {
+			rightCol = append(rightCol, p.renderCheckbox("CIP Tunnel (0x44)", p.modbusCIPTunnel, p.focusedField == 26, s))
+			rightCol = append(rightCol, p.renderTextField("TCP Port", p.modbusPort, p.focusedField == 27, s))
 		}
 	}
 
@@ -1965,6 +2281,17 @@ func (p *ServerPanel) renderCheckbox(label string, checked bool, focused bool, s
 	return box + " " + s.Dim.Render(label)
 }
 
+func (p *ServerPanel) renderTextField(label string, value string, focused bool, s Styles) string {
+	displayVal := value
+	if displayVal == "" {
+		displayVal = "(default)"
+	}
+	if focused {
+		return "  " + s.Selected.Render(label) + ": " + value + s.Cursor.Render("█")
+	}
+	return "  " + s.Dim.Render(label) + ": " + displayVal
+}
+
 func (p *ServerPanel) viewRunningContent(width int, focused bool) string {
 	s := p.styles
 
@@ -1993,6 +2320,11 @@ func (p *ServerPanel) viewRunningContent(width int, focused bool) string {
 	// UDP I/O status if enabled
 	if p.udpIO {
 		lines = append(lines, fmt.Sprintf("UDP I/O:     %s", s.Info.Render("port "+p.udpPort)))
+	}
+
+	// Multicast status if enabled
+	if p.multicastIO {
+		lines = append(lines, fmt.Sprintf("Multicast:   %s", s.Info.Render(p.multicastGroup)))
 	}
 
 	// Recent requests
@@ -2259,7 +2591,7 @@ type PacketInfo struct {
 	Summary   string
 }
 
-var pcapModes = []string{"Summary", "Report", "Coverage", "Replay", "Rewrite", "Dump", "Diff"}
+var pcapModes = []string{"Summary", "Report", "Coverage", "Replay", "Rewrite", "Dump", "Diff", "Multi-Proto", "Validate"}
 
 // NewPCAPPanel creates a new PCAP panel.
 func NewPCAPPanel(styles Styles) *PCAPPanel {
@@ -3083,6 +3415,21 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 		}
 		lines = append(lines, "")
 		lines = append(lines, s.Dim.Render("[b] Browse  [←/→] Switch  [↑/↓] Select"))
+
+	case 7: // Multi-Proto
+		lines = append(lines, s.Header.Render("Multi-protocol analysis:"))
+		lines = append(lines, "")
+		for i := range p.files {
+			cursor := "  "
+			if i == p.selectedFile {
+				cursor = s.Selected.Render("> ")
+			}
+			lines = append(lines, cursor+p.getFileEntry(i, width-4))
+		}
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render("[b] Browse for file"))
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render("Analyzes: ENIP, Modbus TCP, DH+"))
 	}
 
 	lines = append(lines, "")
@@ -3128,6 +3475,8 @@ func (p *PCAPPanel) viewResultContent(width int, focused bool) string {
 		return p.viewDumpResultContent(width, focused)
 	case 6: // Diff
 		return p.viewDiffResultContent(width, focused)
+	case 7: // Multi-Proto
+		return p.viewSummaryResultContent(width, focused)
 	default:
 		return p.viewSummaryResultContent(width, focused)
 	}
@@ -4592,4 +4941,377 @@ func getServiceName(code string) string {
 	}
 
 	return "Unknown"
+}
+
+// --------------------------------------------------------------------------
+// DiscoverPanel - Device discovery using ListIdentity
+// --------------------------------------------------------------------------
+
+// DiscoverPanel handles device discovery operations.
+type DiscoverPanel struct {
+	mode         PanelMode
+	focusedField int
+	styles       Styles
+
+	// Config fields
+	interfaceName string        // Network interface (empty = all)
+	timeout       string        // Timeout in seconds
+	outputFormat  int           // 0=text, 1=json
+
+	// Available interfaces
+	interfaces []string
+
+	// Running state
+	runCtx    context.Context
+	runCancel context.CancelFunc
+	startTime *time.Time
+
+	// Result
+	result       *CommandResult
+	resultScroll int
+	resultLines  []string
+
+	// Discovered devices
+	devices []DiscoveredDevice
+}
+
+// DiscoveredDevice represents a discovered CIP device.
+type DiscoveredDevice struct {
+	IP          string
+	VendorID    int
+	DeviceType  int
+	ProductCode int
+	Revision    string
+	Serial      string
+	ProductName string
+	State       string
+}
+
+var discoverOutputFormats = []string{"text", "json"}
+
+// NewDiscoverPanel creates a new discover panel.
+func NewDiscoverPanel(styles Styles) *DiscoverPanel {
+	dp := &DiscoverPanel{
+		mode:    PanelIdle,
+		styles:  styles,
+		timeout: "5",
+	}
+	dp.detectInterfaces()
+	return dp
+}
+
+// detectInterfaces detects available network interfaces.
+func (p *DiscoverPanel) detectInterfaces() {
+	interfaces, err := netdetect.ListInterfaces()
+	if err != nil {
+		p.interfaces = []string{"(auto)"}
+		return
+	}
+
+	p.interfaces = []string{"(auto)"} // First option is auto-detect
+	for _, iface := range interfaces {
+		if !iface.IsLoopback && iface.IsUp {
+			displayName := netdetect.GetInterfaceDisplayName(iface)
+			p.interfaces = append(p.interfaces, displayName)
+		}
+	}
+}
+
+func (p *DiscoverPanel) Mode() PanelMode { return p.mode }
+func (p *DiscoverPanel) Name() string    { return "discover" }
+
+// Title returns the panel title based on current mode.
+func (p *DiscoverPanel) Title() string {
+	switch p.mode {
+	case PanelConfig:
+		return "DISCOVER (Config)"
+	case PanelRunning:
+		return "DISCOVER (Scanning)"
+	case PanelResult:
+		return "DISCOVER (Results)"
+	default:
+		return "DISCOVER"
+	}
+}
+
+// BuildRunConfig creates a DiscoverRunConfig from the current panel settings.
+func (p *DiscoverPanel) BuildRunConfig() DiscoverRunConfig {
+	timeoutSec, _ := strconv.Atoi(p.timeout)
+	if timeoutSec <= 0 {
+		timeoutSec = 5
+	}
+
+	cfg := DiscoverRunConfig{
+		Timeout: time.Duration(timeoutSec) * time.Second,
+		Output:  discoverOutputFormats[p.outputFormat],
+	}
+
+	// Set interface if not auto
+	if p.focusedField == 0 && len(p.interfaces) > 0 && p.interfaceName != "" && p.interfaceName != "(auto)" {
+		cfg.Interface = p.interfaceName
+	}
+
+	return cfg
+}
+
+func (p *DiscoverPanel) Update(msg tea.KeyMsg, focused bool) (Panel, tea.Cmd) {
+	if !focused {
+		return p, nil
+	}
+
+	switch p.mode {
+	case PanelIdle:
+		return p.updateIdle(msg)
+	case PanelConfig:
+		return p.updateConfig(msg)
+	case PanelRunning:
+		return p.updateRunning(msg)
+	case PanelResult:
+		return p.updateResult(msg)
+	}
+	return p, nil
+}
+
+func (p *DiscoverPanel) updateIdle(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	switch msg.String() {
+	case "enter", "d":
+		p.mode = PanelConfig
+		p.focusedField = 0
+	}
+	return p, nil
+}
+
+func (p *DiscoverPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	maxField := 3 // interface, timeout, format
+
+	switch msg.String() {
+	case "esc":
+		p.mode = PanelIdle
+	case "enter":
+		p.mode = PanelRunning
+		now := time.Now()
+		p.startTime = &now
+		p.runCtx, p.runCancel = context.WithCancel(context.Background())
+		return p, func() tea.Msg {
+			return startDiscoverRunMsg{config: p.BuildRunConfig()}
+		}
+	case "tab":
+		p.focusedField = (p.focusedField + 1) % maxField
+	case "shift+tab":
+		p.focusedField = (p.focusedField - 1 + maxField) % maxField
+	case "up":
+		switch p.focusedField {
+		case 2: // output format
+			if p.outputFormat > 0 {
+				p.outputFormat--
+			}
+		}
+	case "down":
+		switch p.focusedField {
+		case 2: // output format
+			if p.outputFormat < len(discoverOutputFormats)-1 {
+				p.outputFormat++
+			}
+		}
+	case "backspace":
+		if p.focusedField == 1 && len(p.timeout) > 0 {
+			p.timeout = p.timeout[:len(p.timeout)-1]
+		}
+	default:
+		if len(msg.String()) == 1 {
+			ch := msg.String()
+			if p.focusedField == 1 && ch >= "0" && ch <= "9" {
+				p.timeout += ch
+			}
+		}
+	}
+	return p, nil
+}
+
+func (p *DiscoverPanel) updateRunning(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "x":
+		if p.runCancel != nil {
+			p.runCancel()
+		}
+		p.mode = PanelResult
+		p.result = &CommandResult{
+			Output:   "Cancelled by user",
+			ExitCode: 1,
+		}
+	}
+	return p, nil
+}
+
+func (p *DiscoverPanel) updateResult(msg tea.KeyMsg) (Panel, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "enter":
+		p.mode = PanelIdle
+		p.result = nil
+		p.resultLines = nil
+	case "r":
+		// Re-run discovery
+		p.mode = PanelRunning
+		now := time.Now()
+		p.startTime = &now
+		p.runCtx, p.runCancel = context.WithCancel(context.Background())
+		return p, func() tea.Msg {
+			return startDiscoverRunMsg{config: p.BuildRunConfig()}
+		}
+	case "up", "k":
+		if p.resultScroll > 0 {
+			p.resultScroll--
+		}
+	case "down", "j":
+		if p.resultScroll < len(p.resultLines)-10 {
+			p.resultScroll++
+		}
+	}
+	return p, nil
+}
+
+func (p *DiscoverPanel) View(width int, focused bool) string {
+	return p.ViewContent(width, focused)
+}
+
+// ViewContent returns the panel content.
+func (p *DiscoverPanel) ViewContent(width int, focused bool) string {
+	switch p.mode {
+	case PanelConfig:
+		return p.viewConfigContent(width, focused)
+	case PanelRunning:
+		return p.viewRunningContent(width, focused)
+	case PanelResult:
+		return p.viewResultContent(width, focused)
+	default:
+		return p.viewIdleContent(width, focused)
+	}
+}
+
+func (p *DiscoverPanel) viewIdleContent(width int, focused bool) string {
+	s := p.styles
+	content := []string{
+		"Discover CIP devices on the network",
+		"",
+		fmt.Sprintf("Interface: %s", s.Dim.Render(p.getInterfaceDisplay())),
+		fmt.Sprintf("Timeout:   %s", s.Dim.Render(p.timeout+"s")),
+		"",
+	}
+	if focused {
+		content = append(content, s.KeyBinding.Render("[Enter]")+" Configure  "+s.KeyBinding.Render("[d]")+" Quick scan")
+	} else {
+		content = append(content, s.Dim.Render("[d] Configure"))
+	}
+	return strings.Join(content, "\n")
+}
+
+func (p *DiscoverPanel) getInterfaceDisplay() string {
+	if p.interfaceName == "" || p.interfaceName == "(auto)" {
+		return "all interfaces"
+	}
+	return p.interfaceName
+}
+
+func (p *DiscoverPanel) viewConfigContent(width int, focused bool) string {
+	s := p.styles
+	lines := []string{
+		s.Header.Render("Discovery Configuration"),
+		"",
+	}
+
+	// Interface selection
+	ifaceLabel := "Interface"
+	ifaceValue := p.getInterfaceDisplay()
+	if p.focusedField == 0 {
+		lines = append(lines, s.Selected.Render(ifaceLabel)+": "+ifaceValue+" "+s.Dim.Render("(↑↓ to change)"))
+	} else {
+		lines = append(lines, s.Dim.Render(ifaceLabel)+": "+ifaceValue)
+	}
+
+	// Timeout
+	timeoutLabel := "Timeout"
+	if p.focusedField == 1 {
+		lines = append(lines, s.Selected.Render(timeoutLabel)+": "+p.timeout+s.Cursor.Render("█")+"s")
+	} else {
+		lines = append(lines, s.Dim.Render(timeoutLabel)+": "+p.timeout+"s")
+	}
+
+	// Output format
+	formatLabel := "Format"
+	formatValue := discoverOutputFormats[p.outputFormat]
+	if p.focusedField == 2 {
+		lines = append(lines, s.Selected.Render(formatLabel)+": "+formatValue+" "+s.Dim.Render("(↑↓ to change)"))
+	} else {
+		lines = append(lines, s.Dim.Render(formatLabel)+": "+formatValue)
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, s.KeyBinding.Render("[Enter]")+" Run  "+s.KeyBinding.Render("[Esc]")+" Cancel  "+s.KeyBinding.Render("[Tab]")+" Next field")
+
+	return strings.Join(lines, "\n")
+}
+
+func (p *DiscoverPanel) viewRunningContent(width int, focused bool) string {
+	s := p.styles
+	elapsed := time.Since(*p.startTime).Round(time.Millisecond)
+
+	lines := []string{
+		s.Header.Render("Discovering Devices..."),
+		"",
+		fmt.Sprintf("Elapsed: %v", elapsed),
+		"",
+		s.Dim.Render("Sending ListIdentity broadcasts..."),
+		"",
+		s.KeyBinding.Render("[Esc]") + " Cancel",
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (p *DiscoverPanel) viewResultContent(width int, focused bool) string {
+	s := p.styles
+
+	if p.result == nil {
+		return "No results"
+	}
+
+	lines := []string{
+		s.Header.Render("Discovery Results"),
+		"",
+	}
+
+	// Parse and display result lines
+	if len(p.resultLines) == 0 && p.result.Output != "" {
+		p.resultLines = strings.Split(filterOutputForDisplay(p.result.Output), "\n")
+	}
+
+	// Show result with scrolling
+	maxLines := 15
+	start := p.resultScroll
+	end := start + maxLines
+	if end > len(p.resultLines) {
+		end = len(p.resultLines)
+	}
+
+	for i := start; i < end; i++ {
+		lines = append(lines, p.resultLines[i])
+	}
+
+	if len(p.resultLines) > maxLines {
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render(fmt.Sprintf("Showing %d-%d of %d lines", start+1, end, len(p.resultLines))))
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, s.KeyBinding.Render("[Enter/Esc]")+" Done  "+s.KeyBinding.Render("[r]")+" Re-run  "+s.KeyBinding.Render("[↑↓]")+" Scroll")
+
+	return strings.Join(lines, "\n")
+}
+
+// SetResult sets the result and transitions to result mode.
+func (p *DiscoverPanel) SetResult(result CommandResult) {
+	p.result = &result
+	p.resultLines = nil
+	p.resultScroll = 0
+	p.mode = PanelResult
 }

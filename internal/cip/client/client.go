@@ -29,6 +29,8 @@ type ConnectionParams struct {
 	Class                 uint16
 	Instance              uint16
 	ConnectionPathHex     string // optional raw EPATH override
+	MulticastGroup        string // multicast group address for Transport="multicast"
+	MulticastTTL          int    // multicast TTL (default 32)
 }
 
 // IOConnection represents an active connected I/O connection
@@ -563,7 +565,18 @@ func (c *ENIPClient) ForwardOpen(ctx context.Context, params ConnectionParams) (
 	}
 
 	var ioTransport Transport
-	if transportType == "udp" {
+	switch transportType {
+	case "multicast":
+		mcastTransport := NewMulticastTransport(MulticastConfig{
+			GroupAddress: params.MulticastGroup,
+			TTL:          params.MulticastTTL,
+			Port:         2222,
+		})
+		if err := mcastTransport.Connect(ctx, ""); err != nil {
+			return nil, fmt.Errorf("connect multicast transport for I/O: %w", err)
+		}
+		ioTransport = mcastTransport
+	case "udp":
 		// Create UDP transport for I/O data on port 2222
 		udpTransport := NewUDPTransport()
 		udpAddr := fmt.Sprintf("%s:2222", c.targetIP)
@@ -571,7 +584,7 @@ func (c *ENIPClient) ForwardOpen(ctx context.Context, params ConnectionParams) (
 			return nil, fmt.Errorf("connect UDP transport for I/O: %w", err)
 		}
 		ioTransport = udpTransport
-	} else {
+	default:
 		// Use the main TCP transport for I/O data
 		ioTransport = c.transport
 	}

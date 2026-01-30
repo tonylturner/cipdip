@@ -37,6 +37,7 @@ const (
 	EmbedPCAP
 	EmbedCatalog
 	EmbedOrch
+	EmbedDiscover
 )
 
 // Model is the main TUI model.
@@ -49,18 +50,18 @@ type Model struct {
 	error    string
 
 	// Embedded panel on dashboard
-	embeddedPanel EmbeddedPanel
-	clientPanel   *ClientPanel
-	serverPanel   *ServerPanel
-	pcapPanel     *PCAPPanel
-	catalogPanel  *CatalogPanel
-	orchPanel     *OrchestrationPanel
+	embeddedPanel  EmbeddedPanel
+	clientPanel    *ClientPanel
+	serverPanel    *ServerPanel
+	pcapPanel      *PCAPPanel
+	catalogPanel   *CatalogPanel
+	orchPanel      *OrchestrationPanel
+	discoverPanel  *DiscoverPanel
 
 	// Screen-specific models (for full-screen views)
-	mainScreen     *MainScreenModel
-	catalogScreen  *CatalogScreenModel
-	catalogV2      *CatalogV2Model // New enhanced catalog workflow
-	runsScreen     *RunsScreenModel
+	mainScreen *MainScreenModel
+	catalogV2  *CatalogV2Model // Enhanced catalog workflow
+	runsScreen *RunsScreenModel
 }
 
 // NewModel creates a new TUI model.
@@ -77,6 +78,7 @@ func NewModel(state *AppState) *Model {
 		pcapPanel:     NewPCAPPanel(styles),
 		catalogPanel:  NewCatalogPanel(styles, state),
 		orchPanel:     NewOrchestrationPanelWithWorkspace(styles, state.WorkspaceRoot),
+		discoverPanel: NewDiscoverPanel(styles),
 	}
 
 	// Refresh PCAP files with workspace context
@@ -312,6 +314,35 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.mainScreen.LoadFromPCAP(pcapFile)
 				}
 			}
+		}
+		return m, nil
+
+	case startDiscoverRunMsg:
+		// Start discover operation
+		return m, StartDiscoverRunCmd(m.discoverPanel.runCtx, msg.config)
+
+	case discoverRunResultMsg:
+		// Discover completed
+		m.discoverPanel.SetResult(CommandResult{
+			Output:   msg.output,
+			ExitCode: msg.exitCode,
+			Err:      msg.err,
+		})
+
+		// Track as recent run
+		run := RecentRun{
+			Time:    time.Now(),
+			Type:    "discover",
+			Details: "ListIdentity",
+			Target:  "broadcast",
+			Status:  "ok",
+		}
+		if msg.exitCode != 0 || msg.err != nil {
+			run.Status = "error"
+		}
+		m.state.RecentRuns = append([]RecentRun{run}, m.state.RecentRuns...)
+		if len(m.state.RecentRuns) > 20 {
+			m.state.RecentRuns = m.state.RecentRuns[:20]
 		}
 		return m, nil
 
@@ -699,6 +730,13 @@ func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.orchPanel.mode = PanelConfig
 		return m, nil
 
+	case "d":
+		// Discover panel
+		m.embeddedPanel = EmbedDiscover
+		m.discoverPanel.mode = PanelConfig
+		m.discoverPanel.focusedField = 0
+		return m, nil
+
 	case "K":
 		// Full-screen catalog (CatalogV2)
 		m.screen = ScreenCatalog
@@ -714,7 +752,7 @@ func (m *Model) handleMainScreenKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "tab":
 		// Cycle through embedded panels
-		m.embeddedPanel = (m.embeddedPanel + 1) % 6 // None, Client, Server, PCAP, Catalog, Orch
+		m.embeddedPanel = (m.embeddedPanel + 1) % 7 // None, Client, Server, PCAP, Catalog, Orch, Discover
 		return m, nil
 	}
 
@@ -772,6 +810,14 @@ func (m *Model) handleEmbeddedPanelKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.orchPanel.Mode() == PanelIdle && msg.String() == "esc" {
 			m.embeddedPanel = EmbedNone
 		}
+
+	case EmbedDiscover:
+		newPanel, c := m.discoverPanel.Update(msg, true)
+		m.discoverPanel = newPanel.(*DiscoverPanel)
+		cmd = c
+		if m.discoverPanel.Mode() == PanelIdle && msg.String() == "esc" {
+			m.embeddedPanel = EmbedNone
+		}
 	}
 
 	return m, cmd
@@ -789,6 +835,8 @@ func (m *Model) getActiveEmbeddedPanel() Panel {
 		return m.catalogPanel
 	case EmbedOrch:
 		return m.orchPanel
+	case EmbedDiscover:
+		return m.discoverPanel
 	}
 	return nil
 }

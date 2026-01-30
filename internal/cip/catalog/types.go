@@ -47,6 +47,7 @@ const (
 	PersonalityAny       Personality = "any"
 	PersonalityAdapter   Personality = "adapter"
 	PersonalityLogixLike Personality = "logix_like"
+	PersonalityPCCC      Personality = "pccc"
 )
 
 // EPATH defines the path specification for a catalog entry.

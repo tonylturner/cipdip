@@ -13,13 +13,40 @@ import (
 
 // ServerRunConfig contains the configuration for a server run.
 type ServerRunConfig struct {
-	ListenAddr  string
-	Port        int
-	Personality string
-	PCAPFile    string
-	Interface   string
-	Profile     string
-	OutputDir   string
+	ListenAddr         string
+	Port               int
+	Personality        string
+	PCAPFile           string
+	Interface          string
+	Profile            string
+	OutputDir          string
+	EnableUDPIO        bool
+	UDPPort            int
+	MulticastGroup     string
+	MulticastInterface string
+
+	// Fault injection
+	FaultEnabled       bool
+	LatencyBaseMs      int
+	LatencyJitterMs    int
+	DropResponseEveryN int
+	CloseConnEveryN    int
+
+	// Session policy
+	MaxSessions      int
+	MaxSessionsPerIP int
+	SessionTimeoutMs int
+
+	// Identity customization
+	VendorID    int
+	DeviceType  int
+	ProductCode int
+	ProductName string
+
+	// Modbus configuration
+	ModbusEnabled   bool
+	ModbusCIPTunnel bool
+	ModbusPort      int
 }
 
 // startServerRunMsg signals the model to start a server run.
@@ -61,6 +88,20 @@ func (cfg ServerRunConfig) BuildCommandArgs() []string {
 		}
 	}
 
+	if cfg.EnableUDPIO {
+		args = append(args, "--enable-udp-io")
+		if cfg.UDPPort != 0 {
+			args = append(args, "--udp-port", strconv.Itoa(cfg.UDPPort))
+		}
+	}
+
+	if cfg.MulticastGroup != "" {
+		args = append(args, "--multicast-group", cfg.MulticastGroup)
+		if cfg.MulticastInterface != "" {
+			args = append(args, "--multicast-interface", cfg.MulticastInterface)
+		}
+	}
+
 	if cfg.PCAPFile != "" {
 		// Combine OutputDir (workspace root) with relative PCAP path
 		pcapPath := cfg.PCAPFile
@@ -70,6 +111,59 @@ func (cfg ServerRunConfig) BuildCommandArgs() []string {
 		args = append(args, "--pcap", pcapPath)
 		if cfg.Interface != "" {
 			args = append(args, "--capture-interface", cfg.Interface)
+		}
+	}
+
+	// Fault injection options
+	if cfg.FaultEnabled {
+		args = append(args, "--fault-enabled")
+		if cfg.LatencyBaseMs > 0 {
+			args = append(args, "--latency-base-ms", strconv.Itoa(cfg.LatencyBaseMs))
+		}
+		if cfg.LatencyJitterMs > 0 {
+			args = append(args, "--latency-jitter-ms", strconv.Itoa(cfg.LatencyJitterMs))
+		}
+		if cfg.DropResponseEveryN > 0 {
+			args = append(args, "--drop-response-every-n", strconv.Itoa(cfg.DropResponseEveryN))
+		}
+		if cfg.CloseConnEveryN > 0 {
+			args = append(args, "--close-conn-every-n", strconv.Itoa(cfg.CloseConnEveryN))
+		}
+	}
+
+	// Session policy options
+	if cfg.MaxSessions > 0 && cfg.MaxSessions != 256 {
+		args = append(args, "--max-sessions", strconv.Itoa(cfg.MaxSessions))
+	}
+	if cfg.MaxSessionsPerIP > 0 && cfg.MaxSessionsPerIP != 64 {
+		args = append(args, "--max-sessions-per-ip", strconv.Itoa(cfg.MaxSessionsPerIP))
+	}
+	if cfg.SessionTimeoutMs > 0 && cfg.SessionTimeoutMs != 60000 {
+		args = append(args, "--session-timeout-ms", strconv.Itoa(cfg.SessionTimeoutMs))
+	}
+
+	// Identity customization
+	if cfg.VendorID > 0 {
+		args = append(args, "--vendor-id", strconv.Itoa(cfg.VendorID))
+	}
+	if cfg.DeviceType > 0 {
+		args = append(args, "--device-type", strconv.Itoa(cfg.DeviceType))
+	}
+	if cfg.ProductCode > 0 {
+		args = append(args, "--product-code", strconv.Itoa(cfg.ProductCode))
+	}
+	if cfg.ProductName != "" {
+		args = append(args, "--product-name", cfg.ProductName)
+	}
+
+	// Modbus configuration
+	if cfg.ModbusEnabled {
+		args = append(args, "--modbus-enabled")
+		if cfg.ModbusCIPTunnel {
+			args = append(args, "--modbus-cip-tunnel")
+		}
+		if cfg.ModbusPort > 0 && cfg.ModbusPort != 502 {
+			args = append(args, "--modbus-port", strconv.Itoa(cfg.ModbusPort))
 		}
 	}
 
