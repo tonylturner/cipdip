@@ -13,13 +13,17 @@ import (
 
 // ServerRunConfig contains the configuration for a server run.
 type ServerRunConfig struct {
-	ListenAddr  string
-	Port        int
-	Personality string
-	PCAPFile    string
-	Interface   string
-	Profile     string
-	OutputDir   string
+	ListenAddr         string
+	Port               int
+	Personality        string
+	PCAPFile           string
+	Interface          string
+	Profile            string
+	OutputDir          string
+	EnableUDPIO        bool
+	UDPPort            int
+	MulticastGroup     string
+	MulticastInterface string
 }
 
 // startServerRunMsg signals the model to start a server run.
@@ -58,6 +62,20 @@ func (cfg ServerRunConfig) BuildCommandArgs() []string {
 		// Manual config - need personality
 		if cfg.Personality != "" {
 			args = append(args, "--personality", cfg.Personality)
+		}
+	}
+
+	if cfg.EnableUDPIO {
+		args = append(args, "--enable-udp-io")
+		if cfg.UDPPort != 0 {
+			args = append(args, "--udp-port", strconv.Itoa(cfg.UDPPort))
+		}
+	}
+
+	if cfg.MulticastGroup != "" {
+		args = append(args, "--multicast-group", cfg.MulticastGroup)
+		if cfg.MulticastInterface != "" {
+			args = append(args, "--multicast-interface", cfg.MulticastInterface)
 		}
 	}
 

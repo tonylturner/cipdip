@@ -675,7 +675,7 @@ func (p *ClientPanel) Title() string {
 func (p *ClientPanel) viewIdleContent(width int, focused bool) string {
 	s := p.styles
 	var modeInfo string
-	if p.useProfile && len(p.profiles) > 0 {
+	if p.useProfile && p.profileIndex < len(p.profiles) {
 		prof := p.profiles[p.profileIndex]
 		role := "default"
 		if p.roleIndex < len(p.roles) {
@@ -753,6 +753,8 @@ func (p *ClientPanel) viewConfigContent(width int, focused bool) string {
 				pType := "logix"
 				if prof.Personality == "adapter" {
 					pType = "i/o"
+				} else if prof.Personality == "pccc" {
+					pType = "pccc"
 				}
 				label := fmt.Sprintf("%-18s [%s]", prof.Name, pType)
 				style := s.Dim
@@ -1251,12 +1253,15 @@ type ServerPanel struct {
 	opMode      int // Operating mode
 
 	// Advanced options
-	showAdvanced bool
-	cipEnergy    bool
-	cipSafety    bool
-	cipMotion    bool
-	udpIO        bool
-	udpPort      string
+	showAdvanced       bool
+	cipEnergy          bool
+	cipSafety          bool
+	cipMotion          bool
+	udpIO              bool
+	udpPort            string
+	multicastIO        bool
+	multicastGroup     string
+	multicastInterface string
 
 	// PCAP capture
 	pcapEnabled           bool
@@ -1287,18 +1292,19 @@ type ServerPanel struct {
 	logScroll  int
 }
 
-var serverPersonalities = []string{"adapter", "logix_like", "minimal"}
+var serverPersonalities = []string{"adapter", "logix_like", "pccc", "minimal"}
 var serverOpModes = []string{"baseline", "realistic", "dpi-torture", "perf"}
 
 // NewServerPanel creates a new server panel.
 func NewServerPanel(styles Styles) *ServerPanel {
 	sp := &ServerPanel{
-		mode:       PanelIdle,
-		styles:     styles,
-		listenAddr: "0.0.0.0",
-		port:       "44818",
-		udpPort:    "2222",
-		recentReqs: make([]string, 0),
+		mode:           PanelIdle,
+		styles:         styles,
+		listenAddr:     "0.0.0.0",
+		port:           "44818",
+		udpPort:        "2222",
+		multicastGroup: "239.192.1.0",
+		recentReqs:     make([]string, 0),
 	}
 	sp.loadProfiles()
 	sp.updateAutoDetectedInterface()
@@ -1319,6 +1325,8 @@ func (p *ServerPanel) loadProfiles() {
 			p.personality = 0
 		} else if profiles[0].Personality == "logix_like" {
 			p.personality = 1
+		} else if profiles[0].Personality == "pccc" {
+			p.personality = 2
 		}
 	}
 }
@@ -1357,6 +1365,17 @@ func (p *ServerPanel) BuildRunConfig(workspaceRoot string) ServerRunConfig {
 
 	if p.useProfile && p.profileIndex < len(p.profiles) {
 		cfg.Profile = p.profiles[p.profileIndex].Name
+	}
+
+	if p.udpIO {
+		cfg.EnableUDPIO = true
+		udpPort, _ := strconv.Atoi(p.udpPort)
+		cfg.UDPPort = udpPort
+	}
+
+	if p.multicastIO {
+		cfg.MulticastGroup = p.multicastGroup
+		cfg.MulticastInterface = p.multicastInterface
 	}
 
 	if p.pcapEnabled {
@@ -1407,7 +1426,7 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 	// Basic fields: listen, port, personality, op mode, PCAP
 	maxField := 5
 	if p.showAdvanced {
-		maxField = 10 // Add: CIP x3, UDP I/O, UDP port
+		maxField = 13 // Add: CIP x3, UDP I/O, UDP port, Multicast I/O, Multicast Group, Multicast Interface
 	}
 
 	switch msg.String() {
@@ -1438,12 +1457,14 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 	case "p":
 		p.useProfile = !p.useProfile
 		p.focusedField = 0
-		if p.useProfile && len(p.profiles) > 0 {
+		if p.useProfile && p.profileIndex < len(p.profiles) {
 			// Set personality based on selected profile
 			if p.profiles[p.profileIndex].Personality == "adapter" {
 				p.personality = 0
 			} else if p.profiles[p.profileIndex].Personality == "logix_like" {
 				p.personality = 1
+			} else if p.profiles[p.profileIndex].Personality == "pccc" {
+				p.personality = 2
 			}
 		}
 	case "r":
@@ -1467,6 +1488,8 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 						p.personality = 0
 					} else if p.profiles[p.profileIndex].Personality == "logix_like" {
 						p.personality = 1
+					} else if p.profiles[p.profileIndex].Personality == "pccc" {
+						p.personality = 2
 					}
 				}
 			} else {
@@ -1490,6 +1513,8 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 						p.personality = 0
 					} else if p.profiles[p.profileIndex].Personality == "logix_like" {
 						p.personality = 1
+					} else if p.profiles[p.profileIndex].Personality == "pccc" {
+						p.personality = 2
 					}
 				}
 			} else {
@@ -1517,6 +1542,8 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 			p.cipMotion = !p.cipMotion
 		case 8: // UDP I/O (advanced)
 			p.udpIO = !p.udpIO
+		case 10: // Multicast I/O (advanced)
+			p.multicastIO = !p.multicastIO
 		}
 	case "backspace":
 		p.handleBackspace()
@@ -1545,6 +1572,14 @@ func (p *ServerPanel) handleBackspace() {
 		if len(p.udpPort) > 0 {
 			p.udpPort = p.udpPort[:len(p.udpPort)-1]
 		}
+	case 11: // Multicast Group (advanced)
+		if len(p.multicastGroup) > 0 {
+			p.multicastGroup = p.multicastGroup[:len(p.multicastGroup)-1]
+		}
+	case 12: // Multicast Interface (advanced)
+		if len(p.multicastInterface) > 0 {
+			p.multicastInterface = p.multicastInterface[:len(p.multicastInterface)-1]
+		}
 	}
 }
 
@@ -1565,6 +1600,12 @@ func (p *ServerPanel) handleChar(ch string) {
 		if ch >= "0" && ch <= "9" {
 			p.udpPort += ch
 		}
+	case 11: // Multicast Group (advanced)
+		if ch == "." || (ch >= "0" && ch <= "9") {
+			p.multicastGroup += ch
+		}
+	case 12: // Multicast Interface (advanced)
+		p.multicastInterface += ch
 	}
 }
 
@@ -1736,7 +1777,7 @@ func (p *ServerPanel) Title() string {
 func (p *ServerPanel) viewIdleContent(width int, focused bool) string {
 	s := p.styles
 	var modeInfo string
-	if p.useProfile && len(p.profiles) > 0 {
+	if p.useProfile && p.profileIndex < len(p.profiles) {
 		prof := p.profiles[p.profileIndex]
 		modeInfo = fmt.Sprintf("Profile: %s (%s)", s.Dim.Render(prof.Name), s.Dim.Render(prof.Personality))
 	} else {
@@ -1810,6 +1851,8 @@ func (p *ServerPanel) viewConfigContent(width int, focused bool) string {
 				pType := "logix"
 				if prof.Personality == "adapter" {
 					pType = "i/o"
+				} else if prof.Personality == "pccc" {
+					pType = "pccc"
 				}
 				label := fmt.Sprintf("%-18s [%s]", prof.Name, pType)
 				style := s.Dim
@@ -1868,6 +1911,25 @@ func (p *ServerPanel) viewConfigContent(width int, focused bool) string {
 				rightCol = append(rightCol, "  "+s.Selected.Render("UDP Port")+": "+p.udpPort+s.Cursor.Render("█"))
 			} else {
 				rightCol = append(rightCol, "  "+s.Dim.Render("UDP Port")+": "+p.udpPort)
+			}
+		}
+
+		// Multicast I/O (advanced fields 10,11,12)
+		rightCol = append(rightCol, p.renderCheckbox("Multicast I/O", p.multicastIO, p.focusedField == 10, s))
+		if p.multicastIO {
+			if p.focusedField == 11 {
+				rightCol = append(rightCol, "  "+s.Selected.Render("Group")+": "+p.multicastGroup+s.Cursor.Render("█"))
+			} else {
+				rightCol = append(rightCol, "  "+s.Dim.Render("Group")+": "+p.multicastGroup)
+			}
+			if p.focusedField == 12 {
+				rightCol = append(rightCol, "  "+s.Selected.Render("Interface")+": "+p.multicastInterface+s.Cursor.Render("█"))
+			} else {
+				iface := p.multicastInterface
+				if iface == "" {
+					iface = "(auto)"
+				}
+				rightCol = append(rightCol, "  "+s.Dim.Render("Interface")+": "+iface)
 			}
 		}
 	}
@@ -1993,6 +2055,11 @@ func (p *ServerPanel) viewRunningContent(width int, focused bool) string {
 	// UDP I/O status if enabled
 	if p.udpIO {
 		lines = append(lines, fmt.Sprintf("UDP I/O:     %s", s.Info.Render("port "+p.udpPort)))
+	}
+
+	// Multicast status if enabled
+	if p.multicastIO {
+		lines = append(lines, fmt.Sprintf("Multicast:   %s", s.Info.Render(p.multicastGroup)))
 	}
 
 	// Recent requests
@@ -2259,7 +2326,7 @@ type PacketInfo struct {
 	Summary   string
 }
 
-var pcapModes = []string{"Summary", "Report", "Coverage", "Replay", "Rewrite", "Dump", "Diff"}
+var pcapModes = []string{"Summary", "Report", "Coverage", "Replay", "Rewrite", "Dump", "Diff", "Multi-Proto"}
 
 // NewPCAPPanel creates a new PCAP panel.
 func NewPCAPPanel(styles Styles) *PCAPPanel {
@@ -3083,6 +3150,21 @@ func (p *PCAPPanel) viewConfigContent(width int, focused bool) string {
 		}
 		lines = append(lines, "")
 		lines = append(lines, s.Dim.Render("[b] Browse  [←/→] Switch  [↑/↓] Select"))
+
+	case 7: // Multi-Proto
+		lines = append(lines, s.Header.Render("Multi-protocol analysis:"))
+		lines = append(lines, "")
+		for i := range p.files {
+			cursor := "  "
+			if i == p.selectedFile {
+				cursor = s.Selected.Render("> ")
+			}
+			lines = append(lines, cursor+p.getFileEntry(i, width-4))
+		}
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render("[b] Browse for file"))
+		lines = append(lines, "")
+		lines = append(lines, s.Dim.Render("Analyzes: ENIP, Modbus TCP, DH+"))
 	}
 
 	lines = append(lines, "")
@@ -3128,6 +3210,8 @@ func (p *PCAPPanel) viewResultContent(width int, focused bool) string {
 		return p.viewDumpResultContent(width, focused)
 	case 6: // Diff
 		return p.viewDiffResultContent(width, focused)
+	case 7: // Multi-Proto
+		return p.viewSummaryResultContent(width, focused)
 	default:
 		return p.viewSummaryResultContent(width, focused)
 	}

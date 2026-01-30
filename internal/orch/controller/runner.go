@@ -297,8 +297,9 @@ func (r *Runner) GetMeta() *bundle.RoleMeta {
 		stdoutPath := filepath.Join(roleDir, bundle.StdoutLog)
 		stderrPath := filepath.Join(roleDir, bundle.StderrLog)
 
-		os.WriteFile(stdoutPath, []byte(r.stdoutBuf.String()), 0644)
-		os.WriteFile(stderrPath, []byte(r.stderrBuf.String()), 0644)
+		// SECURITY: Use 0600 for log files as they may contain sensitive data
+		os.WriteFile(stdoutPath, []byte(r.stdoutBuf.String()), 0600)
+		os.WriteFile(stderrPath, []byte(r.stderrBuf.String()), 0600)
 	}
 
 	return &meta

@@ -279,7 +279,8 @@ func (w *Writer) WriteMetric(m Metric) error {
 		if err := w.csvWriter.Write(record); err != nil {
 			return fmt.Errorf("write CSV record: %w", err)
 		}
-		w.csvWriter.Flush()
+		// Note: Flush is called in Close() for better performance.
+		// Per-record flush removed to avoid O(n) syscalls.
 	}
 
 	// Write to JSON

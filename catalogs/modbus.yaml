@@ -1,0 +1,207 @@
+# =============================================================================
+# Modbus Service Catalog - CIP-Tunneled Modbus (Class 0x44) Operations
+# =============================================================================
+#
+# Modbus function codes tunneled through CIP Modbus Object (class 0x44).
+# These entries describe Modbus operations accessible via EtherNet/IP.
+#
+# =============================================================================
+
+version: 1
+name: modbus
+
+entries:
+  # ---------------------------------------------------------------------------
+  # Modbus: Coil/Discrete Input Read Operations
+  # ---------------------------------------------------------------------------
+  - key: modbus.read_coils
+    name: Read Coils
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x01 - Read coils (1-2000 bits)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x01
+
+  - key: modbus.read_discrete_inputs
+    name: Read Discrete Inputs
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x02 - Read discrete inputs (1-2000 bits)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x02
+
+  # ---------------------------------------------------------------------------
+  # Modbus: Register Read Operations
+  # ---------------------------------------------------------------------------
+  - key: modbus.read_holding_registers
+    name: Read Holding Registers
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x03 - Read holding registers (1-125)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x03
+
+  - key: modbus.read_input_registers
+    name: Read Input Registers
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x04 - Read input registers (1-125)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x04
+
+  # ---------------------------------------------------------------------------
+  # Modbus: Single Write Operations
+  # ---------------------------------------------------------------------------
+  - key: modbus.write_single_coil
+    name: Write Single Coil
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x05 - Write single coil (ON/OFF)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x05
+
+  - key: modbus.write_single_register
+    name: Write Single Register
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x06 - Write single holding register"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x06
+
+  # ---------------------------------------------------------------------------
+  # Modbus: Multiple Write Operations
+  # ---------------------------------------------------------------------------
+  - key: modbus.write_multiple_coils
+    name: Write Multiple Coils
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x0F - Write multiple coils (1-1968)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x0F
+
+  - key: modbus.write_multiple_registers
+    name: Write Multiple Registers
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x10 - Write multiple holding registers (1-123)"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x10
+
+  # ---------------------------------------------------------------------------
+  # Modbus: Advanced Operations
+  # ---------------------------------------------------------------------------
+  - key: modbus.mask_write_register
+    name: Mask Write Register
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x16 - Mask write to a holding register"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x16
+
+  - key: modbus.read_write_multiple
+    name: Read/Write Multiple Registers
+    service_code: 0x0E
+    service_name: Get_Attribute_Single
+    object_name: Modbus
+    object_class: 0x44
+    epath:
+      kind: logical
+      class: 0x44
+      instance: 0x01
+      attribute: 0x00
+    category: io
+    domain: modbus
+    description: "Modbus FC 0x17 - Read and write multiple registers in single transaction"
+    payload_type: modbus_pdu
+    payload_params:
+      function_code: 0x17

@@ -173,6 +173,177 @@ func buildENIPUDPPacket(t *testing.T, srcIP, dstIP string, srcPort, dstPort uint
 	return buf.Bytes()
 }
 
+// --- IPv6 packet builders ---
+
+func buildENIPTCPPacket6(t *testing.T, srcIP, dstIP string, srcPort, dstPort uint16, payload []byte) []byte {
+	t.Helper()
+	eth := &layers.Ethernet{
+		SrcMAC:       net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DstMAC:       net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb},
+		EthernetType: layers.EthernetTypeIPv6,
+	}
+	ip6 := &layers.IPv6{
+		Version:    6,
+		HopLimit:   64,
+		SrcIP:      net.ParseIP(srcIP),
+		DstIP:      net.ParseIP(dstIP),
+		NextHeader: layers.IPProtocolTCP,
+	}
+	tcp := &layers.TCP{
+		SrcPort: layers.TCPPort(srcPort),
+		DstPort: layers.TCPPort(dstPort),
+		Seq:     1,
+		ACK:     true,
+		Window:  14600,
+	}
+	tcp.SetNetworkLayerForChecksum(ip6)
+
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
+	if err := gopacket.SerializeLayers(buf, opts, eth, ip6, tcp, gopacket.Payload(payload)); err != nil {
+		t.Fatalf("serialize ipv6 tcp packet: %v", err)
+	}
+	return buf.Bytes()
+}
+
+func buildENIPUDPPacket6(t *testing.T, srcIP, dstIP string, srcPort, dstPort uint16, payload []byte) []byte {
+	t.Helper()
+	eth := &layers.Ethernet{
+		SrcMAC:       net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		DstMAC:       net.HardwareAddr{0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb},
+		EthernetType: layers.EthernetTypeIPv6,
+	}
+	ip6 := &layers.IPv6{
+		Version:    6,
+		HopLimit:   64,
+		SrcIP:      net.ParseIP(srcIP),
+		DstIP:      net.ParseIP(dstIP),
+		NextHeader: layers.IPProtocolUDP,
+	}
+	udp := &layers.UDP{
+		SrcPort: layers.UDPPort(srcPort),
+		DstPort: layers.UDPPort(dstPort),
+	}
+	udp.SetNetworkLayerForChecksum(ip6)
+
+	buf := gopacket.NewSerializeBuffer()
+	opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
+	if err := gopacket.SerializeLayers(buf, opts, eth, ip6, udp, gopacket.Payload(payload)); err != nil {
+		t.Fatalf("serialize ipv6 udp packet: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// --- IPv6 extraction tests ---
+
+func TestExtractENIPFromPCAPMetadataTCPIPv6(t *testing.T) {
+	payload := enip.BuildRegisterSession([8]byte{0x10})
+	packet := buildENIPTCPPacket6(t, "2001:db8::1", "2001:db8::2", 12000, 44818, payload)
+	pcapPath := writeENIPPCAP(t, packet)
+
+	packets, err := ExtractENIPFromPCAP(pcapPath)
+	if err != nil {
+		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("expected 1 packet, got %d", len(packets))
+	}
+	pkt := packets[0]
+	if pkt.Transport != "tcp" {
+		t.Errorf("Transport = %q, want tcp", pkt.Transport)
+	}
+	if pkt.SrcPort != 12000 || pkt.DstPort != 44818 {
+		t.Errorf("ports: src=%d dst=%d", pkt.SrcPort, pkt.DstPort)
+	}
+	// Verify IPv6 addresses are extracted.
+	if pkt.SrcIP != "2001:db8::1" {
+		t.Errorf("SrcIP = %q, want 2001:db8::1", pkt.SrcIP)
+	}
+	if pkt.DstIP != "2001:db8::2" {
+		t.Errorf("DstIP = %q, want 2001:db8::2", pkt.DstIP)
+	}
+	if pkt.Timestamp.IsZero() {
+		t.Error("expected timestamp to be set")
+	}
+}
+
+func TestExtractENIPFromPCAPMetadataUDPIPv6(t *testing.T) {
+	payload := enip.BuildListIdentity([8]byte{0x11})
+	packet := buildENIPUDPPacket6(t, "fd00::10", "fd00::20", 12001, 44818, payload)
+	pcapPath := writeENIPPCAP(t, packet)
+
+	packets, err := ExtractENIPFromPCAP(pcapPath)
+	if err != nil {
+		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("expected 1 packet, got %d", len(packets))
+	}
+	pkt := packets[0]
+	if pkt.Transport != "udp" {
+		t.Errorf("Transport = %q, want udp", pkt.Transport)
+	}
+	if pkt.SrcIP != "fd00::10" {
+		t.Errorf("SrcIP = %q, want fd00::10", pkt.SrcIP)
+	}
+	if pkt.DstIP != "fd00::20" {
+		t.Errorf("DstIP = %q, want fd00::20", pkt.DstIP)
+	}
+}
+
+func TestExtractENIPFromPCAPTCPReassemblyIPv6(t *testing.T) {
+	payload := enip.BuildRegisterSession([8]byte{0x12})
+	if len(payload) < 10 {
+		t.Fatalf("unexpected ENIP payload length: %d", len(payload))
+	}
+	part1 := payload[:10]
+	part2 := payload[10:]
+
+	pkt1 := buildENIPTCPPacket6(t, "2001:db8::1", "2001:db8::2", 12002, 44818, part1)
+	pkt2 := buildENIPTCPPacket6(t, "2001:db8::1", "2001:db8::2", 12002, 44818, part2)
+	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
+
+	packets, err := ExtractENIPFromPCAP(pcapPath)
+	if err != nil {
+		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("expected 1 reassembled packet, got %d", len(packets))
+	}
+	if len(packets[0].FullPacket) != len(payload) {
+		t.Fatalf("full packet length = %d, want %d", len(packets[0].FullPacket), len(payload))
+	}
+	if packets[0].SrcIP != "2001:db8::1" {
+		t.Errorf("SrcIP = %q, want 2001:db8::1", packets[0].SrcIP)
+	}
+}
+
+func TestStreamKeyIPv6Format(t *testing.T) {
+	// Verify that IPv6 packets produce distinct, consistent stream keys
+	// for TCP reassembly (colons in addresses don't cause issues).
+	payload := enip.BuildRegisterSession([8]byte{0x13})
+
+	// Two packets from same flow (same IPs+ports).
+	pkt1 := buildENIPTCPPacket6(t, "2001:db8::100", "2001:db8::200", 12003, 44818, payload)
+	// One packet from a different flow (different source IP).
+	pkt2 := buildENIPTCPPacket6(t, "2001:db8::101", "2001:db8::200", 12003, 44818, payload)
+
+	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
+
+	packets, err := ExtractENIPFromPCAP(pcapPath)
+	if err != nil {
+		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
+	}
+	// Both packets are complete ENIP frames, so we expect 2.
+	if len(packets) != 2 {
+		t.Fatalf("expected 2 packets, got %d", len(packets))
+	}
+	// Verify they have different source IPs (meaning stream keys differentiated them).
+	if packets[0].SrcIP == packets[1].SrcIP {
+		t.Error("expected different SrcIPs for different flows")
+	}
+}
+
 func writeENIPPCAP(t *testing.T, packets ...[]byte) string {
 	t.Helper()
 	dir := t.TempDir()

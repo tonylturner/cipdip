@@ -11,6 +11,7 @@ import (
 	"github.com/tturner/cipdip/internal/cip/spec"
 	"github.com/tturner/cipdip/internal/config"
 	"github.com/tturner/cipdip/internal/logging"
+	"github.com/tturner/cipdip/internal/modbus"
 	"github.com/tturner/cipdip/internal/server/handlers"
 	"github.com/tturner/cipdip/internal/server/handlers/standard"
 	"github.com/tturner/cipdip/internal/server/handlers/vendors/rockwell"
@@ -49,8 +50,23 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 		}
 		registry.RegisterHandler(handlers.ClassAny, handlers.ServiceAny, logixHandler)
 
+	case "pccc":
+		pcccHandler, err := standard.NewPCCCPersonality(cfg, logger)
+		if err != nil {
+			return nil, fmt.Errorf("create pccc personality: %w", err)
+		}
+		registry.RegisterHandler(spec.CIPClassPCCCObject, handlers.ServiceAny, pcccHandler)
+
 	default:
 		return nil, fmt.Errorf("unknown personality: %s", cfg.Server.Personality)
+	}
+
+	// Register Modbus CIP tunnel handler (class 0x44) if enabled.
+	if cfg.ModbusConfig.Enabled {
+		modbusStore := buildModbusDataStore(cfg)
+		modbusHandler := handlers.NewModbusHandler(modbusStore, logger)
+		registry.RegisterHandler(spec.CIPClassModbus, handlers.ServiceAny, modbusHandler)
+		logger.Info("Registered Modbus CIP handler (class 0x%04X)", spec.CIPClassModbus)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -62,6 +78,8 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 		personality = catalog.PersonalityAdapter
 	case "logix_like":
 		personality = catalog.PersonalityLogixLike
+	case "pccc":
+		personality = catalog.PersonalityPCCC
 	default:
 		personality = catalog.PersonalityAny
 	}
@@ -95,6 +113,24 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 	}
 
 	return s, nil
+}
+
+func buildModbusDataStore(cfg *config.ServerConfig) *modbus.DataStore {
+	mc := cfg.ModbusConfig
+	dsCfg := modbus.DefaultDataStoreConfig()
+	if mc.CoilCount > 0 {
+		dsCfg.CoilCount = mc.CoilCount
+	}
+	if mc.DiscreteInputCount > 0 {
+		dsCfg.DiscreteInputCount = mc.DiscreteInputCount
+	}
+	if mc.InputRegisterCount > 0 {
+		dsCfg.InputRegisterCount = mc.InputRegisterCount
+	}
+	if mc.HoldingRegisterCount > 0 {
+		dsCfg.HoldingRegisterCount = mc.HoldingRegisterCount
+	}
+	return modbus.NewDataStore(dsCfg)
 }
 
 func buildProfileClassSet(profiles []string, overrides map[string][]uint16) map[uint16]struct{} {

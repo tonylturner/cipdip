@@ -63,6 +63,20 @@ func GetScenario(name string) (Scenario, error) {
 		return &FirewallScenario{Vendor: "dynics"}, nil
 	case "firewall_pack":
 		return &FirewallScenario{Vendor: "pack"}, nil
+	case "pccc":
+		return &PCCCScenario{}, nil
+	case "modbus":
+		return &ModbusScenario{}, nil
+	case "modbus_pipeline":
+		return &ModbusPipelineScenario{}, nil
+	case "evasion_segment":
+		return &EvasionSegmentScenario{}, nil
+	case "evasion_fuzz":
+		return &EvasionFuzzScenario{}, nil
+	case "evasion_anomaly":
+		return &EvasionAnomalyScenario{}, nil
+	case "evasion_timing":
+		return &EvasionTimingScenario{}, nil
 	default:
 		return nil, &UnknownScenarioError{Name: name}
 	}

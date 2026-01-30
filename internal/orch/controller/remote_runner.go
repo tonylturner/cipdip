@@ -20,6 +20,22 @@ func remotePath(parts ...string) string {
 	return strings.Join(parts, "/")
 }
 
+// shellQuote quotes a string for safe use in a POSIX shell command.
+// It wraps the string in single quotes and escapes any internal single quotes.
+func shellQuote(s string) string {
+	// Single quotes prevent all shell interpretation except for single quotes themselves
+	// To include a single quote, we: close the quote, add escaped single quote, reopen quote
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+// psEscape escapes a string for safe use in a PowerShell command.
+// It handles special characters that PowerShell interprets.
+func psEscape(s string) string {
+	// Use single quotes for literal strings in PowerShell
+	// Double any internal single quotes
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
 // RemoteRunner manages execution of a role on a remote host via SSH.
 type RemoteRunner struct {
 	role      string
@@ -141,13 +157,23 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 		// On Windows, use PowerShell to find cipdip in PATH or common locations
 		// SSH sessions may not have the same PATH as interactive sessions
 		// Install locations per install.go: C:\Windows\System32, C:\Windows, or first writable PATH dir
-		args := strings.Join(cmd[1:], " ")
+		// SECURITY: Properly escape each argument to prevent injection attacks
+		var escapedArgs []string
+		for _, arg := range cmd[1:] {
+			escapedArgs = append(escapedArgs, psEscape(arg))
+		}
+		args := strings.Join(escapedArgs, " ")
 		psScript := fmt.Sprintf(`$ErrorActionPreference='Stop'; $paths=@('cipdip','cipdip.exe','C:\Windows\System32\cipdip.exe','C:\Windows\cipdip.exe',"$env:USERPROFILE\go\bin\cipdip.exe"); foreach($p in $paths){try{$cmd=Get-Command $p -ErrorAction SilentlyContinue; if($cmd){& $cmd.Source %s; exit $LASTEXITCODE}}catch{}}; Write-Error 'cipdip not found in PATH or common locations'; exit 1`, args)
 		cmd = []string{"powershell", "-NoProfile", "-Command", psScript}
 	} else {
 		// On Unix, wrap in shell to find cipdip in common locations
 		// (PATH may not include /usr/local/bin in non-interactive SSH)
-		cipdipCmd := strings.Join(cmd, " ")
+		// SECURITY: Properly quote each argument to prevent injection attacks
+		var quotedArgs []string
+		for _, arg := range cmd {
+			quotedArgs = append(quotedArgs, shellQuote(arg))
+		}
+		cipdipCmd := strings.Join(quotedArgs, " ")
 		shellCmd := fmt.Sprintf(`PATH=/usr/local/bin:/opt/homebrew/bin:$HOME/go/bin:$PATH %s`, cipdipCmd)
 		cmd = []string{"sh", "-c", shellCmd}
 	}
@@ -284,10 +310,11 @@ func (r *RemoteRunner) CollectArtifacts(ctx context.Context) error {
 	r.mu.Unlock()
 
 	// Write captured logs locally
-	if err := os.WriteFile(filepath.Join(roleDir, bundle.StdoutLog), []byte(stdout), 0644); err != nil {
+	// SECURITY: Use 0600 for log files as they may contain sensitive data
+	if err := os.WriteFile(filepath.Join(roleDir, bundle.StdoutLog), []byte(stdout), 0600); err != nil {
 		return fmt.Errorf("write stdout log: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(roleDir, bundle.StderrLog), []byte(stderr), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(roleDir, bundle.StderrLog), []byte(stderr), 0600); err != nil {
 		return fmt.Errorf("write stderr log: %w", err)
 	}
 

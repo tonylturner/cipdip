@@ -16,10 +16,6 @@ Protocol-aware CIP/EtherNet-IP deep packet inspection test harness. CIPDIP gener
 - **TCP Metrics** - Retransmit, reset, and lost segment detection via tshark integration
 - **Workspace Management** - Organize runs, profiles, and captures per project
 
-## Screenshot
-
-<!-- TODO: Add TUI screenshot here -->
-
 ## Quick Start
 
 ```bash

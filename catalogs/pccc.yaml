@@ -1,0 +1,137 @@
+# =============================================================================
+# PCCC Service Catalog - Execute PCCC (0x4B) Operations
+# =============================================================================
+#
+# PCCC (Programmable Controller Communication Commands) services tunneled
+# through CIP Execute PCCC (service 0x4B) to PCCC Object (class 0x67).
+#
+# Used with SLC-500, PLC-5, and MicroLogix processors.
+#
+# =============================================================================
+
+version: 1
+name: pccc
+
+entries:
+  # ---------------------------------------------------------------------------
+  # PCCC: Typed Read Operations
+  # ---------------------------------------------------------------------------
+  - key: pccc.typed_read_integer
+    name: Typed Read Integer
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+      attribute: 0x00
+    category: legacy
+    domain: legacy
+    personality: pccc
+    description: "PCCC Typed Read (FNC 0x68) - Integer file N7:0"
+    payload_type: rockwell_pccc
+    payload_params:
+      pccc_example: status
+
+  - key: pccc.typed_read_float
+    name: Typed Read Float
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+      attribute: 0x00
+    category: legacy
+    domain: legacy
+    personality: pccc
+    description: "PCCC Typed Read (FNC 0x68) - Float file F8:0"
+    payload_type: rockwell_pccc
+    payload_params:
+      pccc_example: status
+
+  - key: pccc.typed_read_timer
+    name: Typed Read Timer ACC
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+      attribute: 0x00
+    category: legacy
+    domain: legacy
+    personality: pccc
+    description: "PCCC Typed Read (FNC 0x68) - Timer T4:0.ACC"
+    payload_type: rockwell_pccc
+    payload_params:
+      pccc_example: status
+
+  # ---------------------------------------------------------------------------
+  # PCCC: Typed Write Operations
+  # ---------------------------------------------------------------------------
+  - key: pccc.typed_write_integer
+    name: Typed Write Integer
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+      attribute: 0x00
+    category: legacy
+    domain: legacy
+    personality: pccc
+    description: "PCCC Typed Write (FNC 0x67) - Integer file N7:0"
+    payload_type: rockwell_pccc
+    payload_params:
+      pccc_example: noop
+
+  # ---------------------------------------------------------------------------
+  # PCCC: Diagnostic Operations
+  # ---------------------------------------------------------------------------
+  - key: pccc.echo
+    name: PCCC Echo
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+      attribute: 0x00
+    category: legacy
+    domain: legacy
+    personality: pccc
+    description: "PCCC Echo (FNC 0x06) - Echo test payload"
+    payload_type: rockwell_pccc
+    payload_params:
+      pccc_example: status
+
+  - key: pccc.diagnostic_status
+    name: PCCC Diagnostic Status
+    service_code: 0x4B
+    service_name: Execute_PCCC
+    object_name: PCCC
+    object_class: 0x67
+    epath:
+      kind: logical
+      class: 0x67
+      instance: 0x01
+      attribute: 0x00
+    category: legacy
+    domain: legacy
+    personality: pccc
+    description: "PCCC Diagnostic Read (FNC 0x41) - Read processor diagnostics"
+    payload_type: rockwell_pccc
+    payload_params:
+      pccc_example: status

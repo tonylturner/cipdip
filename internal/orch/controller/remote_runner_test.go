@@ -306,3 +306,59 @@ func (m *mockTransport) ExecStream(ctx context.Context, cmd []string, env map[st
 	// Not needed for these tests
 	return 0, nil
 }
+
+// TestShellQuote tests the POSIX shell quoting function for security
+func TestShellQuote(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"simple", "hello", "'hello'"},
+		{"with spaces", "hello world", "'hello world'"},
+		{"with single quote", "it's", "'it'\\''s'"},
+		{"injection attempt", "foo; rm -rf /", "'foo; rm -rf /'"},
+		{"backtick injection", "$(whoami)", "'$(whoami)'"},
+		{"variable injection", "$HOME", "'$HOME'"},
+		{"pipe injection", "foo | bar", "'foo | bar'"},
+		{"semicolon injection", "foo; bar", "'foo; bar'"},
+		{"double quote", "foo\"bar", "'foo\"bar'"},
+		{"newline injection", "foo\nbar", "'foo\nbar'"},
+		{"empty string", "", "''"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shellQuote(tt.input)
+			if got != tt.want {
+				t.Errorf("shellQuote(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPsEscape tests the PowerShell escaping function for security
+func TestPsEscape(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"simple", "hello", "'hello'"},
+		{"with spaces", "hello world", "'hello world'"},
+		{"with single quote", "it's", "'it''s'"},
+		{"injection attempt", "foo; Remove-Item C:\\ -Recurse", "'foo; Remove-Item C:\\ -Recurse'"},
+		{"variable injection", "$env:PATH", "'$env:PATH'"},
+		{"subexpression", "$(Get-Process)", "'$(Get-Process)'"},
+		{"empty string", "", "''"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := psEscape(tt.input)
+			if got != tt.want {
+				t.Errorf("psEscape(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

@@ -5,6 +5,7 @@ package metrics
 import (
 	"math"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -248,10 +249,10 @@ func (s *Sink) updateSummary(m Metric) {
 	} else {
 		s.summary.FailedOps++
 		if m.Error != "" {
-			if m.Error == "timeout" || contains(m.Error, "timeout") {
+			if m.Error == "timeout" || strings.Contains(m.Error, "timeout") {
 				s.summary.TimeoutCount++
 			}
-			if contains(m.Error, "connection") || contains(m.Error, "connect") {
+			if strings.Contains(m.Error, "connection") || strings.Contains(m.Error, "connect") {
 				s.summary.ConnectionFailures++
 			}
 		}
@@ -402,20 +403,3 @@ func percentile(sorted []float64, p float64) float64 {
 	return sorted[rank]
 }
 
-// contains checks if a string contains a substring (case-insensitive)
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr ||
-		(len(s) > len(substr) &&
-			(s[:len(substr)] == substr ||
-				s[len(s)-len(substr):] == substr ||
-				containsMiddle(s, substr))))
-}
-
-func containsMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
