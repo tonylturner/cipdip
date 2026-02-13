@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:7cdf4fb3-1bb5-457e-b79d-c064992ace2b",
+  "serialNumber": "urn:uuid:a1ba652a-49b7-4a80-9926-12bdedbf03f4",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-02-13T02:33:03-05:00",
+    "timestamp": "2026-02-13T02:38:49-05:00",
     "tools": [
       {
         "vendor": "CycloneDX",
@@ -46,11 +46,11 @@
       }
     ],
     "component": {
-      "bom-ref": "pkg:golang/github.com/tonylturner/cipdip@v0.0.0-20260213072503-9502277cc96e?type=module#cmd/cipdip",
+      "bom-ref": "pkg:golang/github.com/tonylturner/cipdip@v0.0.0-20260213073331-fa4b28bb8ce3?type=module#cmd/cipdip",
       "type": "application",
       "name": "github.com/tonylturner/cipdip",
-      "version": "v0.0.0-20260213072503-9502277cc96e",
-      "purl": "pkg:golang/github.com/tonylturner/cipdip@v0.0.0-20260213072503-9502277cc96e?goarch=arm64\u0026goos=darwin\u0026type=module#cmd/cipdip",
+      "version": "v0.0.0-20260213073331-fa4b28bb8ce3",
+      "purl": "pkg:golang/github.com/tonylturner/cipdip@v0.0.0-20260213073331-fa4b28bb8ce3?goarch=arm64\u0026goos=darwin\u0026type=module#cmd/cipdip",
       "externalReferences": [
         {
           "url": "https://github.com/tonylturner/cipdip",
@@ -72,7 +72,7 @@
         },
         {
           "name": "cdx:gomod:build:env:GOVERSION",
-          "value": "go1.25.5"
+          "value": "go1.26.0"
         }
       ]
     }
@@ -557,7 +557,7 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:golang/github.com/tonylturner/cipdip@v0.0.0-20260213072503-9502277cc96e?type=module#cmd/cipdip",
+      "ref": "pkg:golang/github.com/tonylturner/cipdip@v0.0.0-20260213073331-fa4b28bb8ce3?type=module#cmd/cipdip",
       "dependsOn": [
         "pkg:golang/github.com/charmbracelet/bubbletea@v0.27.0?type=module",
         "pkg:golang/github.com/charmbracelet/lipgloss@v0.11.0?type=module",
