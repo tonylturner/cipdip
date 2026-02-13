@@ -605,7 +605,7 @@ func writeSelftestManifest(opts SelfTestScenariosOptions, results []selfTestResu
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Scenarios: scenarios,
 		Duration:  opts.DurationSec,
-		Version:   "0.2.3",
+		Version:   "0.2.4",
 	}
 
 	data, err := json.MarshalIndent(m, "", "  ")

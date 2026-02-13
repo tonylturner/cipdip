@@ -9,77 +9,23 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build (${{ matrix.name }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - name: linux-amd64
-            runner: ubuntu-latest
-            artifact: cipdip-linux-amd64
-            setup: sudo apt-get update && sudo apt-get install -y libpcap-dev
-          - name: darwin-arm64
-            runner: macos-latest
-            artifact: cipdip-darwin-arm64
-            setup: ''
-          - name: windows-amd64
-            runner: windows-latest
-            artifact: cipdip-windows-amd64.exe
-            setup: ''
-    env:
-      CGO_ENABLED: '1'
+  release:
+    name: Release
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.26.x'
 
-      - name: Install dependencies
-        if: matrix.setup != ''
-        run: ${{ matrix.setup }}
-
-      - name: Build
-        run: go build -ldflags="-s -w" -o ${{ matrix.artifact }} ./cmd/cipdip
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          name: ${{ matrix.name }}
-          path: ${{ matrix.artifact }}
-
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: dist/
-          merge-multiple: true
-
-      - name: Create archives and checksums
-        working-directory: dist
-        run: |
-          tar czf cipdip-linux-amd64.tar.gz cipdip-linux-amd64 && rm cipdip-linux-amd64
-          tar czf cipdip-darwin-arm64.tar.gz cipdip-darwin-arm64 && rm cipdip-darwin-arm64
-          zip cipdip-windows-amd64.zip cipdip-windows-amd64.exe && rm cipdip-windows-amd64.exe
-          sha256sum * > checksums.txt
-
-      - name: Upload assets to release
+          version: '~> v2'
+          args: release --clean
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag="${{ github.ref_name }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" dist/* --clobber
-          else
-            gh release create "$tag" dist/* \
-              --title "$tag" \
-              --generate-notes
-          fi
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
