@@ -5,6 +5,8 @@
 
 Protocol-aware CIP/EtherNet-IP deep packet inspection test harness. CIPDIP generates strict ODVA-framed traffic with optional vendor-variant profiles, designed for evaluating industrial firewall DPI engines, validating protocol implementations, and testing CIP/ENIP security controls.
 
+![CIPDIP TUI Dashboard](docs/assets/cipdip_tui.png)
+
 ## Use Cases
 
 - **Firewall DPI evaluation** -- Generate controlled CIP traffic to measure detection accuracy, false positive rates, and protocol parsing depth
