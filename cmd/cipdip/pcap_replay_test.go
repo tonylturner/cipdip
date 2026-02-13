@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,9 @@ func TestHasPerFlowTCPHandshake(t *testing.T) {
 	pcapPath := writeTestPCAP(t, buildHandshakePCAPPackets(t, true))
 	ok, stats, err := pcap.HasPerFlowTCPHandshake(pcapPath)
 	if err != nil {
+		if strings.Contains(err.Error(), "wpcap.dll") || strings.Contains(err.Error(), "couldn't load") {
+			t.Skip("Skipping: pcap library not available")
+		}
 		t.Fatalf("hasPerFlowTCPHandshake error: %v", err)
 	}
 	if !ok {
@@ -31,6 +35,9 @@ func TestHasPerFlowTCPHandshake(t *testing.T) {
 	pcapPath = writeTestPCAP(t, buildHandshakePCAPPackets(t, false))
 	ok, stats, err = pcap.HasPerFlowTCPHandshake(pcapPath)
 	if err != nil {
+		if strings.Contains(err.Error(), "wpcap.dll") || strings.Contains(err.Error(), "couldn't load") {
+			t.Skip("Skipping: pcap library not available")
+		}
 		t.Fatalf("hasPerFlowTCPHandshake error (missing ack): %v", err)
 	}
 	if ok {
@@ -49,6 +56,9 @@ func TestSummarizePcapForReplay(t *testing.T) {
 	pcapPath := writeTestPCAP(t, packets)
 	summary, err := pcap.SummarizePcapForReplay(pcapPath)
 	if err != nil {
+		if strings.Contains(err.Error(), "wpcap.dll") || strings.Contains(err.Error(), "couldn't load") {
+			t.Skip("Skipping: pcap library not available")
+		}
 		t.Fatalf("summarizePcapForReplay error: %v", err)
 	}
 	if summary.Total != 5 {

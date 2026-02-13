@@ -112,6 +112,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				// Check deadline before each operation
 				select {
 				case <-ctxVariant.Done():
+					cancel()
 					return nil
 				default:
 				}
@@ -156,6 +157,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				// Check deadline before each operation
 				select {
 				case <-ctxVariant.Done():
+					cancel()
 					return nil
 				default:
 				}
@@ -205,12 +207,14 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				// Check deadline before each operation
 				select {
 				case <-ctxVariant.Done():
+					cancel()
 					return nil
 				default:
 				}
 
 				serviceCode, err := serviceCodeForTarget(target.Service, target.ServiceCode)
 				if err != nil {
+					cancel()
 					return err
 				}
 				req := protocol.CIPRequest{
@@ -224,6 +228,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 				}
 				req, err = applyTargetPayload(req, target.PayloadType, target.PayloadParams, target.RequestPayloadHex)
 				if err != nil {
+					cancel()
 					return fmt.Errorf("custom target %s payload: %w", target.Name, err)
 				}
 

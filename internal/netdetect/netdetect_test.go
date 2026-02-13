@@ -210,7 +210,8 @@ func TestListInterfacesReturnsResults(t *testing.T) {
 	if err != nil {
 		if strings.Contains(err.Error(), "permission") ||
 			strings.Contains(err.Error(), "access") ||
-			strings.Contains(err.Error(), "no devices") {
+			strings.Contains(err.Error(), "no devices") ||
+			strings.Contains(err.Error(), "wpcap.dll") {
 			t.Skip("Skipping: insufficient permissions or no pcap devices available")
 		}
 		t.Fatalf("ListInterfaces() error: %v", err)

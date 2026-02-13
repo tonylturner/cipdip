@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
@@ -196,7 +197,7 @@ func (s *EvasionFuzzScenario) Run(ctx context.Context, client cipclient.Client, 
 }
 
 func (s *EvasionFuzzScenario) sendRawENIP(ip string, port int, payload []byte) (bool, error) {
-	addr := fmt.Sprintf("%s:%d", ip, port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return false, fmt.Errorf("connect: %w", err)
@@ -304,7 +305,7 @@ func (s *EvasionAnomalyScenario) Run(ctx context.Context, client cipclient.Clien
 }
 
 func (s *EvasionAnomalyScenario) sendRawPacket(ip string, port int, payload []byte) (bool, error) {
-	addr := fmt.Sprintf("%s:%d", ip, port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return false, err
@@ -412,7 +413,7 @@ func (s *EvasionTimingScenario) Run(ctx context.Context, client cipclient.Client
 }
 
 func (s *EvasionTimingScenario) executeTiming(ip string, port int, plan *evasion.TimingPlan) (bool, error) {
-	addr := fmt.Sprintf("%s:%d", ip, port)
+	addr := net.JoinHostPort(ip, strconv.Itoa(port))
 	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return false, err
