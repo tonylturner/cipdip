@@ -20,6 +20,7 @@ func TestExtractENIPFromPCAPMetadataTCP(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -43,6 +44,7 @@ func TestExtractENIPFromPCAPMetadataUDP(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -71,6 +73,7 @@ func TestExtractENIPFromPCAPTCPReassembly(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet1, packet2)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -103,6 +106,7 @@ func TestExtractENIPFromPCAPResponseDetection(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -242,6 +246,7 @@ func TestExtractENIPFromPCAPMetadataTCPIPv6(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -273,6 +278,7 @@ func TestExtractENIPFromPCAPMetadataUDPIPv6(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -304,6 +310,7 @@ func TestExtractENIPFromPCAPTCPReassemblyIPv6(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}
@@ -331,6 +338,7 @@ func TestStreamKeyIPv6Format(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
 
 	packets, err := ExtractENIPFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractENIPFromPCAP error: %v", err)
 	}

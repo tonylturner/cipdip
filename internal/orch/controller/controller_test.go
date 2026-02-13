@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -194,6 +195,9 @@ func TestRunner_StartWait_Failure(t *testing.T) {
 }
 
 func TestRunner_Stop(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping: SIGTERM not supported on Windows")
+	}
 	// Start a long-running process
 	args := []string{"sleep", "60"}
 	r, _ := NewRunner("test", args, nil)

@@ -39,6 +39,13 @@ func TestPcapSummaryReportCoverageDump(t *testing.T) {
 	enipPacket := enip.BuildSendRRData(0x12345678, [8]byte{0x01}, cipData)
 	pcapPath := writeSinglePacketPCAP(t, enipPacket)
 
+	// Check if pcap library is available before running subtests.
+	if _, checkErr := pcap.SummarizeENIPFromPCAP(pcapPath); checkErr != nil {
+		if strings.Contains(checkErr.Error(), "wpcap.dll") || strings.Contains(checkErr.Error(), "couldn't load") {
+			t.Skip("Skipping: pcap library not available")
+		}
+	}
+
 	t.Run("summary counts", func(t *testing.T) {
 		summary, err := pcap.SummarizeENIPFromPCAP(pcapPath)
 		if err != nil {
