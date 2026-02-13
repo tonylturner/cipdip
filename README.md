@@ -1,6 +1,6 @@
 # CIPDIP
 
-![Go](https://img.shields.io/badge/go-1.26+-00ADD8?logo=go) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![Version](https://img.shields.io/badge/version-0.2.2-green)
+![Go](https://img.shields.io/badge/go-1.26+-00ADD8?logo=go) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![Version](https://img.shields.io/badge/version-0.2.3-green)
 ![SBOM](https://img.shields.io/badge/SBOM-CycloneDX-brightgreen) ![PCAP Validated](https://img.shields.io/badge/pcap-validated-brightgreen) ![CIP](https://img.shields.io/badge/protocol-CIP%20%2F%20EtherNet%2FIP-blue) ![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D6)
 
 Protocol-aware CIP/EtherNet-IP deep packet inspection test harness. CIPDIP generates strict ODVA-framed traffic with optional vendor-variant profiles, designed for evaluating industrial firewall DPI engines, validating protocol implementations, and testing CIP/ENIP security controls.
@@ -104,10 +104,31 @@ The interactive dashboard (`cipdip ui`) provides a unified workspace with real-t
 # Discovery
 ./cipdip discover --timeout 5
 
+# Metrics analysis
+./cipdip metrics-analyze --input results/baseline_metrics.csv
+./cipdip metrics-report --dir results/
+
 # Help
 ./cipdip help
 ./cipdip <command> --help
 ```
+
+## Scenario Automation
+
+CIPDIP provides an end-to-end workflow for running all 20 DPI test scenarios against the built-in server emulator, collecting per-scenario metrics, and generating a batch-aligned report covering all 8 DPI test batches.
+
+```bash
+# 1. Run all scenarios via selftest (starts in-process server, runs all 20 scenarios)
+./cipdip selftest --scenarios all --metrics-dir results/ --duration-seconds 30
+
+# 2. Generate the batch-aligned DPI test report
+./cipdip metrics-report --dir results/
+
+# 3. Analyze a single scenario's metrics in detail
+./cipdip metrics-analyze --input results/baseline_metrics.csv
+```
+
+`selftest` writes one `*_metrics.csv` per scenario plus a `_manifest.json` for run coherence tracking. `metrics-report` reads all CSVs, groups them by batch (1-8), and prints per-batch metrics tables matching the DPI test batches specification. `metrics-analyze` provides detailed statistics for a single CSV file.
 
 ## Configuration
 

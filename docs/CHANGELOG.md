@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-02-13
+
+### Added
+- **`metrics-report` command**: Batch-aligned DPI test report generator. Reads all `*_metrics.csv` files from a directory, groups them by DPI test batch (1-8), computes batch-specific metrics, and prints a formatted report matching the `dpi_test_batches.md` specification. Supports all 8 batches with per-batch metrics tables (baseline pass-through rates, stress throughput, churn ForwardOpen stats, vendor variant per-profile breakdown, DPI explicit per-phase verdicts, evasion per-technique results, edge/legacy pass rates, and mixed regression totals with firewall pack details).
+- **Selftest manifest**: `selftest --metrics-dir` now writes a `_manifest.json` alongside the CSVs containing run timestamp, scenario list, duration, and cipdip version. Used by `metrics-report` for run coherence validation.
+- **Shared CSV reader**: Extracted `metrics.ReadMetricsCSV()` into `internal/metrics/csv_reader.go` for reuse by both `metrics-analyze` and `metrics-report`.
+- **Timestamp coherence checking**: `metrics-report` warns when CSV files span >1 hour or when files appear to be from different runs.
+
+### Changed
+- **`metrics-analyze` refactored**: Now uses the shared `metrics.ReadMetricsCSV()` function instead of inline CSV parsing, reducing code duplication.
+
 ## [0.2.2] - 2026-02-13
 
 ### Fixed

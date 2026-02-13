@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	version = "0.2.2"
+	version = "0.2.3"
 	commit  = "unknown"
 	date    = "unknown"
 )
@@ -56,6 +56,7 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 	rootCmd.AddCommand(newAgentCmd())
 	rootCmd.AddCommand(newDiffRunCmd())
 	rootCmd.AddCommand(newMetricsAnalyzeCmd())
+	rootCmd.AddCommand(newMetricsReportCmd())
 
 	// Let Cobra handle help automatically - it will show flags and detailed descriptions
 

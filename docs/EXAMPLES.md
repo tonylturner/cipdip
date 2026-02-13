@@ -239,6 +239,62 @@ adapter_assemblies:
     update_pattern: "counter"
 ```
 
+## Scenario Automation
+
+### Run All Scenarios with Selftest
+
+Run all 20 DPI test scenarios against the built-in server emulator and collect per-scenario metrics:
+
+```bash
+# Run all scenarios (5-second duration each)
+cipdip selftest --scenarios all --metrics-dir results/ --duration-seconds 5
+
+# Run a subset of scenarios
+cipdip selftest --scenarios baseline,stress,mixed --metrics-dir results/ --duration-seconds 10
+```
+
+### Generate Batch-Aligned Report
+
+After running selftest (or standalone client runs), generate a report covering all 8 DPI test batches:
+
+```bash
+cipdip metrics-report --dir results/
+```
+
+The report groups scenarios into batches matching the DPI test batches specification:
+- Batch 1: Baseline ODVA Compliance
+- Batch 2: High-Frequency Stress Reads
+- Batch 3: Forward Open / I/O Churn
+- Batch 4: Vendor Variant Profile Cycling
+- Batch 5: DPI Explicit Messaging (6-Phase)
+- Batch 6: Evasion Techniques
+- Batch 7: Edge Cases + Legacy Protocol Tunneling
+- Batch 8: Mixed Realistic Workload (Regression)
+
+### Analyze Individual Scenario Metrics
+
+For detailed statistics on a single scenario:
+
+```bash
+cipdip metrics-analyze --input results/baseline_metrics.csv
+```
+
+### Complete Automation Workflow
+
+```bash
+# Build
+go build ./cmd/cipdip
+
+# Run all scenarios and collect metrics
+./cipdip selftest --scenarios all --metrics-dir /tmp/dpi_results --duration-seconds 30
+
+# Generate the full batch-aligned report
+./cipdip metrics-report --dir /tmp/dpi_results
+
+# Drill into a specific scenario
+./cipdip metrics-analyze --input /tmp/dpi_results/stress_metrics.csv
+```
+
 ## Advanced Usage
 
 ### Custom Metrics Output

@@ -1,12 +1,8 @@
 package main
 
 import (
-	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
-	"strconv"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/tonylturner/cipdip/internal/metrics"
@@ -49,105 +45,14 @@ If --input is omitted, the first positional argument is used.`,
 }
 
 func runMetricsAnalyze(flags *metricsAnalyzeFlags) error {
-	file, err := os.Open(flags.inputFile)
+	records, firstTime, lastTime, err := metrics.ReadMetricsCSV(flags.inputFile)
 	if err != nil {
-		return fmt.Errorf("open metrics CSV: %w", err)
-	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-
-	// Read and validate header
-	header, err := reader.Read()
-	if err != nil {
-		return fmt.Errorf("read CSV header: %w", err)
-	}
-
-	colIndex := make(map[string]int, len(header))
-	for i, col := range header {
-		colIndex[col] = i
-	}
-
-	requiredCols := []string{"timestamp", "scenario", "operation", "success", "rtt_ms"}
-	for _, col := range requiredCols {
-		if _, ok := colIndex[col]; !ok {
-			return fmt.Errorf("CSV missing required column: %s", col)
-		}
+		return err
 	}
 
 	sink := metrics.NewSink()
-	var firstTime, lastTime time.Time
-	rowCount := 0
-
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("read CSV row %d: %w", rowCount+2, err)
-		}
-
-		m := metrics.Metric{}
-
-		if idx, ok := colIndex["timestamp"]; ok && idx < len(record) {
-			if t, err := time.Parse(time.RFC3339Nano, record[idx]); err == nil {
-				m.Timestamp = t
-				if rowCount == 0 {
-					firstTime = t
-				}
-				lastTime = t
-			}
-		}
-		if idx, ok := colIndex["scenario"]; ok && idx < len(record) {
-			m.Scenario = record[idx]
-		}
-		if idx, ok := colIndex["target_type"]; ok && idx < len(record) {
-			m.TargetType = metrics.TargetType(record[idx])
-		}
-		if idx, ok := colIndex["operation"]; ok && idx < len(record) {
-			m.Operation = metrics.OperationType(record[idx])
-		}
-		if idx, ok := colIndex["target_name"]; ok && idx < len(record) {
-			m.TargetName = record[idx]
-		}
-		if idx, ok := colIndex["service_code"]; ok && idx < len(record) {
-			m.ServiceCode = record[idx]
-		}
-		if idx, ok := colIndex["success"]; ok && idx < len(record) {
-			m.Success = record[idx] == "true"
-		}
-		if idx, ok := colIndex["rtt_ms"]; ok && idx < len(record) && record[idx] != "" {
-			if v, err := strconv.ParseFloat(record[idx], 64); err == nil {
-				m.RTTMs = v
-			}
-		}
-		if idx, ok := colIndex["jitter_ms"]; ok && idx < len(record) && record[idx] != "" {
-			if v, err := strconv.ParseFloat(record[idx], 64); err == nil {
-				m.JitterMs = v
-			}
-		}
-		if idx, ok := colIndex["status"]; ok && idx < len(record) && record[idx] != "" {
-			if v, err := strconv.ParseUint(record[idx], 10, 8); err == nil {
-				m.Status = uint8(v)
-			}
-		}
-		if idx, ok := colIndex["error"]; ok && idx < len(record) {
-			m.Error = record[idx]
-		}
-		if idx, ok := colIndex["outcome"]; ok && idx < len(record) {
-			m.Outcome = record[idx]
-		}
-		if idx, ok := colIndex["expected_outcome"]; ok && idx < len(record) {
-			m.ExpectedOutcome = record[idx]
-		}
-
+	for _, m := range records {
 		sink.Record(m)
-		rowCount++
-	}
-
-	if rowCount == 0 {
-		return fmt.Errorf("no data rows in CSV file")
 	}
 
 	summary := sink.GetSummary()
@@ -161,7 +66,7 @@ func runMetricsAnalyze(flags *metricsAnalyzeFlags) error {
 		}
 	}
 
-	fmt.Fprintf(os.Stdout, "Metrics analysis: %s (%d records)\n\n", flags.inputFile, rowCount)
+	fmt.Fprintf(os.Stdout, "Metrics analysis: %s (%d records)\n\n", flags.inputFile, len(records))
 	fmt.Fprint(os.Stdout, metrics.FormatSummary(summary))
 
 	return nil

@@ -2,8 +2,10 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -169,6 +171,11 @@ func RunSelfTestScenarios(opts SelfTestScenariosOptions) error {
 		}
 
 		srv.Stop()
+	}
+
+	// Write manifest for metrics-report coherence checking
+	if opts.MetricsDir != "" {
+		writeSelftestManifest(opts, results)
 	}
 
 	// --- Summary ---
@@ -575,4 +582,37 @@ func buildSelfTestClientConfig(port int) *config.Config {
 			},
 		},
 	}
+}
+
+// writeSelftestManifest writes a _manifest.json alongside the metrics CSVs
+// so that metrics-report can validate run coherence.
+func writeSelftestManifest(opts SelfTestScenariosOptions, results []selfTestResult) {
+	type manifest struct {
+		Timestamp string   `json:"timestamp"`
+		Scenarios []string `json:"scenarios"`
+		Duration  int      `json:"duration_seconds"`
+		Version   string   `json:"version"`
+	}
+
+	var scenarios []string
+	for _, r := range results {
+		if r.Status != "SKIP" {
+			scenarios = append(scenarios, r.Name)
+		}
+	}
+
+	m := manifest{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Scenarios: scenarios,
+		Duration:  opts.DurationSec,
+		Version:   "0.2.3",
+	}
+
+	data, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return
+	}
+
+	manifestPath := filepath.Join(opts.MetricsDir, "_manifest.json")
+	_ = os.WriteFile(manifestPath, data, 0644)
 }
