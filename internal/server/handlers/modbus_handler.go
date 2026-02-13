@@ -12,9 +12,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/modbus"
 )
 
 // ModbusHandler handles CIP requests targeting the Modbus Object (class 0x44).

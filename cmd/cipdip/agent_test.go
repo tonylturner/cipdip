@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/transport"
+	"github.com/tonylturner/cipdip/internal/transport"
 )
 
 func TestGetAgentStatus(t *testing.T) {

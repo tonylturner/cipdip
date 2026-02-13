@@ -10,8 +10,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tturner/cipdip/internal/orch/controller"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/orch/controller"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // Screen represents the current active screen.

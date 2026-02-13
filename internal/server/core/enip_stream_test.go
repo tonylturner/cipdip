@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func TestParseENIPStreamSplitAndCoalesce(t *testing.T) {

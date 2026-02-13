@@ -4,7 +4,7 @@ package catalog
 import (
 	"fmt"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 )
 
 // EPATHKind identifies the type of EPATH encoding.

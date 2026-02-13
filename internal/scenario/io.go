@@ -8,11 +8,11 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/metrics"
-	"github.com/tturner/cipdip/internal/progress"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/progress"
 )
 
 // IOScenario implements the io scenario

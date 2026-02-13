@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
 )
 
 // CIPDataType encodes CIP primitive data types used by CIPDIP.

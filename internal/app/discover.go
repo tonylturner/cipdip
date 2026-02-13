@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
 )
 
 type DiscoverOptions struct {

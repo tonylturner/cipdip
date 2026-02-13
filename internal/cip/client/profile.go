@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 // ProtocolProfile defines protocol encoding and framing behavior.

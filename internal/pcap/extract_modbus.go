@@ -9,7 +9,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/tturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/modbus"
 )
 
 // ModbusPacket represents an extracted Modbus frame from a PCAP.

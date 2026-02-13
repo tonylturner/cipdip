@@ -3,7 +3,7 @@ package client
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 )
 
 func TestBuildForwardOpenRequestIncludesPathSize(t *testing.T) {

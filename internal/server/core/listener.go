@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 // Start starts the server.

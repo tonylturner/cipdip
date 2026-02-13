@@ -3,8 +3,8 @@ package pcap
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/enip"
-	"github.com/tturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/modbus"
 )
 
 func TestExtractMultiProtocol_MixedENIPModbus(t *testing.T) {

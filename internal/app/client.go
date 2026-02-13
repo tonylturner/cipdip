@@ -12,16 +12,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tturner/cipdip/internal/artifact"
-	"github.com/tturner/cipdip/internal/capture"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/config"
-	cipdipErrors "github.com/tturner/cipdip/internal/errors"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/metrics"
-	processprofile "github.com/tturner/cipdip/internal/profile"
-	"github.com/tturner/cipdip/internal/scenario"
+	"github.com/tonylturner/cipdip/internal/artifact"
+	"github.com/tonylturner/cipdip/internal/capture"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/config"
+	cipdipErrors "github.com/tonylturner/cipdip/internal/errors"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/metrics"
+	processprofile "github.com/tonylturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/scenario"
 )
 
 type ClientOptions struct {

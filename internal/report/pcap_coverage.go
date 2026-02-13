@@ -5,9 +5,9 @@ import (
 	"io"
 	"sort"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 // WritePCAPCoverageReport renders a coverage report in Markdown format.

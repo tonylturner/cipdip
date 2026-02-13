@@ -51,7 +51,7 @@ go build ./cmd/cipdip
 
 ```bash
 # From source
-git clone https://github.com/tturner/cipdip.git
+git clone https://github.com/tonylturner/cipdip.git
 cd cipdip
 go build ./cmd/cipdip
 

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/orch/bundle"
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func newDiffRunCmd() *cobra.Command {

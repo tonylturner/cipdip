@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/tturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/modbus"
 )
 
 // buildModbusTCPPacket builds a synthetic Ethernet+IPv4+TCP packet for Modbus traffic.

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/profile"
 )
 
 // EventRecord logs an event occurrence.

@@ -5,7 +5,7 @@ package protocol
 import (
 	"fmt"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
 )
 
 // CIPServiceCode represents a CIP service code.

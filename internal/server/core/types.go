@@ -9,10 +9,10 @@ import (
 
 	"golang.org/x/net/ipv4"
 
-	"github.com/tturner/cipdip/internal/cip/catalog"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/server/handlers"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/server/handlers"
 )
 
 // Server represents an EtherNet/IP CIP server.

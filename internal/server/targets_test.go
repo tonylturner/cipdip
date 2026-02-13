@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 func TestApplyServerTarget(t *testing.T) {

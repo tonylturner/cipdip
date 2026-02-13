@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 // createTestConfigWithWrites creates a test config with read and write targets

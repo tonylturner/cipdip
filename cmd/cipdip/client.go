@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/app"
+	"github.com/tonylturner/cipdip/internal/app"
 )
 
 type clientFlags struct {

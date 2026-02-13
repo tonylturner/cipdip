@@ -3,9 +3,9 @@ package cipclient
 import (
 	"encoding/binary"
 
-	clientpkg "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/enip"
+	clientpkg "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 // ProtocolProfile and related helpers are forwarded to the new client package.

@@ -3,7 +3,7 @@ package spec
 import (
 	"fmt"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 )
 
 const (

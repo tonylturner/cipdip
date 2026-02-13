@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // PCAPRunConfig contains the configuration for a PCAP operation.

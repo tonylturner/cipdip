@@ -16,8 +16,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	"github.com/tturner/cipdip/internal/dhplus"
-	"github.com/tturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/dhplus"
+	"github.com/tonylturner/cipdip/internal/modbus"
 )
 
 // ProtocolMessage is a unified representation of a protocol message

@@ -6,10 +6,10 @@ import (
 	"context"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/metrics"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 // ScenarioParams contains parameters for running a scenario

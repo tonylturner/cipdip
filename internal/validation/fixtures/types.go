@@ -1,8 +1,8 @@
 package fixtures
 
 import (
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/validation"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/validation"
 )
 
 type PacketExpectation = validation.PacketExpectation

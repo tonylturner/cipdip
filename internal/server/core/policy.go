@@ -3,8 +3,8 @@ package core
 import (
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 func resolveENIPSupport(cfg *config.ServerConfig) enipSupportConfig {

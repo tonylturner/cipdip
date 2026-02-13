@@ -3,10 +3,10 @@ package client
 import (
 	"fmt"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/enip"
-	"github.com/tturner/cipdip/internal/validation"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/validation"
 )
 
 // PacketValidator validates packets for ODVA compliance.

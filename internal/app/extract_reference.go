@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tturner/cipdip/internal/pcap"
-	"github.com/tturner/cipdip/internal/reference"
+	"github.com/tonylturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/reference"
 )
 
 type ExtractReferenceOptions struct {

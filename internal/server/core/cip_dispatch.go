@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/catalog"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/codec"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func (s *Server) handleSendRRData(encap enip.ENIPEncapsulation, remoteAddr string) []byte {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 )
 
 func TestFileObjectRequestValidation(t *testing.T) {

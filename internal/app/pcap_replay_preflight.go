@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	pcappkg "github.com/tturner/cipdip/internal/pcap"
+	pcappkg "github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func warnIfMissingHandshake(opts *PCAPReplayOptions) error {

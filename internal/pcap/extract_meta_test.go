@@ -10,8 +10,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
-	"github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func TestExtractENIPFromPCAPMetadataTCP(t *testing.T) {

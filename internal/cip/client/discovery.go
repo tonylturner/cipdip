@@ -5,7 +5,7 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/enip"
 	"net"
 	"time"
 )

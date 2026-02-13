@@ -8,7 +8,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
-	pcappkg "github.com/tturner/cipdip/internal/pcap"
+	pcappkg "github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func runRawReplay(opts *PCAPReplayOptions) error {

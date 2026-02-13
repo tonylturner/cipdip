@@ -3,7 +3,7 @@ package client
 import (
 	"encoding/binary"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
 )
 
 // UnconnectedSendOptions defines UCMM unconnected send payload settings.

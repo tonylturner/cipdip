@@ -1,11 +1,11 @@
 package core
 
 import (
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 func TestCIPPolicyDenyOverride(t *testing.T) {

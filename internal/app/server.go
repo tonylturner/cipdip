@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/tturner/cipdip/internal/capture"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/profile"
-	"github.com/tturner/cipdip/internal/server"
+	"github.com/tonylturner/cipdip/internal/capture"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/server"
 )
 
 type ServerOptions struct {

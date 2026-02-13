@@ -1,6 +1,6 @@
 package spec
 
-import "github.com/tturner/cipdip/internal/cip/protocol"
+import "github.com/tonylturner/cipdip/internal/cip/protocol"
 
 // Rule defines a strict validation rule that can be applied to service shapes.
 type Rule interface {

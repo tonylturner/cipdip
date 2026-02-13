@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	clientpkg "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/enip"
-	"github.com/tturner/cipdip/internal/reference"
+	clientpkg "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/reference"
 )
 
 func TestReferencePackets(t *testing.T) {

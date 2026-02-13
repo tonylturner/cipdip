@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/profile"
 )
 
 func newProfileCmd() *cobra.Command {

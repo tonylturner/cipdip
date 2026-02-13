@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // Run starts the POC TUI.

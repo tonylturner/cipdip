@@ -3,8 +3,8 @@ package core
 import (
 	"fmt"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/enip"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func (s *Server) parseSendRRData(data []byte) ([]byte, error) {

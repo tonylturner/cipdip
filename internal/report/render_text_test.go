@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func TestWritePCAPSummary(t *testing.T) {

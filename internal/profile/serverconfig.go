@@ -1,7 +1,7 @@
 package profile
 
 import (
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 // ToServerConfig converts a profile to a ServerConfig.

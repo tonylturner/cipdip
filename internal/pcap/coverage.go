@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 // CIPCoverageEntry captures a CIP request (service + path) observed in PCAPs.

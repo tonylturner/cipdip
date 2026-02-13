@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func WritePCAPClassifyCSV(path string, rows []pcap.ClassifyRow) error {

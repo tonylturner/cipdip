@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/pcap"
-	"github.com/tturner/cipdip/internal/report"
+	"github.com/tonylturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/report"
 )
 
 type pcapReportFlags struct {

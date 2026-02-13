@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 // RunMetadata contains metadata about a profile run.

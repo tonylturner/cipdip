@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 // WritePCAPSummary renders a PCAP summary in text form.

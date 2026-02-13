@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 func resolveFaultPolicy(cfg *config.ServerConfig) faultPolicy {

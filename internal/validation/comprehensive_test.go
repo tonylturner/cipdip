@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/metrics"
-	"github.com/tturner/cipdip/internal/profile"
-	"github.com/tturner/cipdip/internal/scenario"
-	"github.com/tturner/cipdip/internal/server"
-	"github.com/tturner/cipdip/internal/validation"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/scenario"
+	"github.com/tonylturner/cipdip/internal/server"
+	"github.com/tonylturner/cipdip/internal/validation"
 )
 
 // scenarioTestCase defines a scenario to test

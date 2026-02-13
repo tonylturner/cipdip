@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/manifest"
-	"github.com/tturner/cipdip/internal/orch/controller"
+	"github.com/tonylturner/cipdip/internal/manifest"
+	"github.com/tonylturner/cipdip/internal/orch/controller"
 )
 
 func newRunCmd() *cobra.Command {

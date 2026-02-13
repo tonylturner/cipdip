@@ -2,14 +2,14 @@ package standard
 
 import (
 	"context"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"testing"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
 )
 
 var cipOrder = cipclient.CurrentProtocolProfile().CIPByteOrder

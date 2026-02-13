@@ -1,9 +1,9 @@
 package core
 
 import (
-	"github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/enip"
-	"github.com/tturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/logging"
 )
 
 func parseENIPStream(buffer []byte, logger *logging.Logger) ([]enip.ENIPEncapsulation, []byte) {

@@ -3,7 +3,7 @@ package spec
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 )
 
 func TestLabelServiceContextual(t *testing.T) {

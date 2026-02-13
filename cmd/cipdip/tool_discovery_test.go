@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/app"
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/app"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func TestResolveTsharkPath(t *testing.T) {

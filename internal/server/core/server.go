@@ -6,15 +6,15 @@ import (
 	"net"
 	"os"
 
-	"github.com/tturner/cipdip/internal/cip/catalog"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/modbus"
-	"github.com/tturner/cipdip/internal/server/handlers"
-	"github.com/tturner/cipdip/internal/server/handlers/standard"
-	"github.com/tturner/cipdip/internal/server/handlers/vendors/rockwell"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/server/handlers"
+	"github.com/tonylturner/cipdip/internal/server/handlers/standard"
+	"github.com/tonylturner/cipdip/internal/server/handlers/vendors/rockwell"
 )
 
 // NewServer creates a new CIP server.

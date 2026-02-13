@@ -9,8 +9,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/server"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/server"
 )
 
 func TestServerHelpDoesNotStart(t *testing.T) {

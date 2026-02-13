@@ -9,7 +9,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
-	"github.com/tturner/cipdip/internal/validation"
+	"github.com/tonylturner/cipdip/internal/validation"
 )
 
 func WriteENIPPCAP(path string, packets []ValidationPacket) error {

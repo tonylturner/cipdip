@@ -6,8 +6,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tturner/cipdip/internal/manifest"
-	"github.com/tturner/cipdip/internal/orch/controller"
+	"github.com/tonylturner/cipdip/internal/manifest"
+	"github.com/tonylturner/cipdip/internal/orch/controller"
 )
 
 // OrchRunConfig holds configuration for an orchestration run.

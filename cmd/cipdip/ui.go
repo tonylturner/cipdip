@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/tui"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/tui"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 type uiFlags struct {

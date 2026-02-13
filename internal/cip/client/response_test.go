@@ -3,8 +3,8 @@ package client
 // Response structure validation tests
 
 import (
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"testing"
 )
 

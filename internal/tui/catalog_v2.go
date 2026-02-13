@@ -10,9 +10,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/catalog"
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 )
 
 // CatalogScreen represents the current catalog screen.

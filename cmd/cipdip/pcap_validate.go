@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/pcap"
-	"github.com/tturner/cipdip/internal/report"
-	"github.com/tturner/cipdip/internal/validation"
-	"github.com/tturner/cipdip/internal/validation/fixtures"
+	"github.com/tonylturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/report"
+	"github.com/tonylturner/cipdip/internal/validation"
+	"github.com/tonylturner/cipdip/internal/validation/fixtures"
 )
 
 type pcapValidateFlags struct {

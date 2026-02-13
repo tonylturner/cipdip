@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/reference"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/reference"
 )
 
 // FindReferencePackets finds key reference packets from a PCAP file.

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // ServerRunConfig contains the configuration for a server run.

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 )
 
 // TestChurnScenarioBasicExecution tests basic churn scenario execution

@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
 )
 
 // Runner manages execution of a single role (server or client).

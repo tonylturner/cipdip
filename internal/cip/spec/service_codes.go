@@ -1,6 +1,6 @@
 package spec
 
-import "github.com/tturner/cipdip/internal/cip/protocol"
+import "github.com/tonylturner/cipdip/internal/cip/protocol"
 
 // CIP service codes (authoritative registry).
 const (

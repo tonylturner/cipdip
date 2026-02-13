@@ -3,11 +3,11 @@ package scenario
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"sync"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
 )
 
 // MockClient is a mock implementation of cipclient.Client for testing

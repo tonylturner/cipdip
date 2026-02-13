@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/profile"
 )
 
 func TestNewClientEngine(t *testing.T) {

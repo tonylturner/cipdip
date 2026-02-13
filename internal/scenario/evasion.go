@@ -11,14 +11,14 @@ import (
 	"net"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/enip"
-	"github.com/tturner/cipdip/internal/evasion"
-	"github.com/tturner/cipdip/internal/metrics"
-	"github.com/tturner/cipdip/internal/progress"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/evasion"
+	"github.com/tonylturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/progress"
 )
 
 // EvasionSegmentScenario splits CIP payloads across TCP segment boundaries.

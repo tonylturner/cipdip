@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 type pcapMultiFlags struct {

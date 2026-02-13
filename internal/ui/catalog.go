@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/tturner/cipdip/internal/app"
+import "github.com/tonylturner/cipdip/internal/app"
 
 // Note: Workspace-based catalogs have been removed.
 // The single source of truth is /catalogs/core.yaml at repo root.

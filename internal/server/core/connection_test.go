@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/enip"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func TestHandleSendUnitDataInvalidSession(t *testing.T) {

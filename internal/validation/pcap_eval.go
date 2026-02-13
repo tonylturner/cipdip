@@ -3,12 +3,12 @@ package validation
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 )
 
 const (

@@ -3,15 +3,15 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 	"io"
 	"net"
 	"testing"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/enip"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func TestServerIntegrationModes(t *testing.T) {

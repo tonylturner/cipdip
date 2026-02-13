@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 // phaseAnalyze runs post-run PCAP analysis.

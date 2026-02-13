@@ -1,8 +1,8 @@
 package pcap
 
 import (
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 func extractCIPFromENIP(pkt ENIPPacket) ([]byte, bool, string) {

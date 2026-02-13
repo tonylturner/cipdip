@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 // ServerTargetPreset defines default server behavior for a known vendor profile.

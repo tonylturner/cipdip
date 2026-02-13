@@ -1,6 +1,6 @@
 package report
 
-import "github.com/tturner/cipdip/internal/validation"
+import "github.com/tonylturner/cipdip/internal/validation"
 
 // ValidationReport captures per-PCAP validation results.
 type ValidationReport struct {

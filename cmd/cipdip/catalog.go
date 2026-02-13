@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/app"
-	"github.com/tturner/cipdip/internal/cip/catalog"
+	"github.com/tonylturner/cipdip/internal/app"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
 )
 
 func newCatalogCmd() *cobra.Command {

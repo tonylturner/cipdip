@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/validation"
-	"github.com/tturner/cipdip/internal/validation/fixtures"
+	"github.com/tonylturner/cipdip/internal/validation"
+	"github.com/tonylturner/cipdip/internal/validation/fixtures"
 )
 
 func TestGeneratedPCAPsValidateWithTshark(t *testing.T) {

@@ -11,10 +11,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tturner/cipdip/internal/cip/catalog"
-	"github.com/tturner/cipdip/internal/netdetect"
-	"github.com/tturner/cipdip/internal/profile"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
+	"github.com/tonylturner/cipdip/internal/netdetect"
+	"github.com/tonylturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // PanelMode represents the state of a panel.

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 // createTestConfigWithIO creates a test config with I/O connections

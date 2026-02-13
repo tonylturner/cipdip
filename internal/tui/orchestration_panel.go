@@ -13,11 +13,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/tturner/cipdip/internal/manifest"
-	"github.com/tturner/cipdip/internal/orch/bundle"
-	"github.com/tturner/cipdip/internal/orch/controller"
-	"github.com/tturner/cipdip/internal/profile"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/manifest"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/orch/controller"
+	"github.com/tonylturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // OrchView represents the current sub-view of the orchestration panel.

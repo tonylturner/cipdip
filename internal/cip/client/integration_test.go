@@ -5,7 +5,7 @@ package client
 
 import (
 	"context"
-	"github.com/tturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
 	"testing"
 	"time"
 )

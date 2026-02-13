@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/app"
-	pcappkg "github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/app"
+	pcappkg "github.com/tonylturner/cipdip/internal/pcap"
 )
 
 type pcapReplayFlags struct {

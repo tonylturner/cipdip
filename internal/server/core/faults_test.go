@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 func TestFaultPolicyActions(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcapgo"
-	"github.com/tturner/cipdip/internal/cip/codec"
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func TestHasPerFlowTCPHandshake(t *testing.T) {

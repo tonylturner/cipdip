@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"time"
 
-	cipclient "github.com/tturner/cipdip/internal/cip/client"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/cip/spec"
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/metrics"
-	"github.com/tturner/cipdip/internal/modbus"
-	"github.com/tturner/cipdip/internal/progress"
+	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/modbus"
+	"github.com/tonylturner/cipdip/internal/progress"
 )
 
 // ModbusScenario exercises Modbus function codes via CIP class 0x44.

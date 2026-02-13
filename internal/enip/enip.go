@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
 )
 
 // Options controls ENIP encoding and CPF usage.

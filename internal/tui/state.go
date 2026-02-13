@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/catalog"
-	"github.com/tturner/cipdip/internal/orch/controller"
-	"github.com/tturner/cipdip/internal/ui"
+	"github.com/tonylturner/cipdip/internal/cip/catalog"
+	"github.com/tonylturner/cipdip/internal/orch/controller"
+	"github.com/tonylturner/cipdip/internal/ui"
 )
 
 // Type aliases from catalog package - single source of truth

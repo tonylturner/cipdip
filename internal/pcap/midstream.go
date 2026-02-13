@@ -23,9 +23,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/tturner/cipdip/internal/dhplus"
-	"github.com/tturner/cipdip/internal/enip"
-	"github.com/tturner/cipdip/internal/pccc"
+	"github.com/tonylturner/cipdip/internal/dhplus"
+	"github.com/tonylturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/pccc"
 )
 
 // SessionConfidence indicates how the session was observed.

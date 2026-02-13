@@ -11,8 +11,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
-	"github.com/tturner/cipdip/internal/manifest"
-	"github.com/tturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/manifest"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
 )
 
 func newBundleCmd() *cobra.Command {

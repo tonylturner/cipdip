@@ -43,6 +43,12 @@ workspaces/**/run.json
 workspaces/**/agents.yaml
 workspaces/**/profiles/
 
+# Generated manifests (may contain credentials)
+manifests/
+
+# Workspace metadata
+workspaces/**/workspace.yaml
+
 # Root-level run artifacts (orchestration runs)
 runs/
 

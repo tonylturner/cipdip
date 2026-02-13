@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 func TestModbusScenarioBasicExecution(t *testing.T) {

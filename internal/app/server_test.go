@@ -3,7 +3,7 @@ package app
 import (
 	"testing"
 
-	"github.com/tturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/config"
 )
 
 // createMinimalServerConfig creates a minimal server config for testing

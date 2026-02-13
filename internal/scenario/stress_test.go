@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 // TestStressScenarioBasicExecution tests basic stress scenario execution

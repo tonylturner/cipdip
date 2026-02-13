@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tturner/cipdip/internal/orch/bundle"
-	"github.com/tturner/cipdip/internal/transport"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/transport"
 )
 
 // remotePath joins path components using forward slashes for SSH/SFTP.

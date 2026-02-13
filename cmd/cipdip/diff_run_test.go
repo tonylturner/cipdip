@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/orch/bundle"
-	"github.com/tturner/cipdip/internal/pcap"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/pcap"
 )
 
 func TestFindRolePcap(t *testing.T) {

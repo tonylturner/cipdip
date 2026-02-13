@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tturner/cipdip/internal/profile"
+	"github.com/tonylturner/cipdip/internal/profile"
 )
 
 // ReadRequest represents a tag read request.

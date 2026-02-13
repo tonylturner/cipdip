@@ -1,4 +1,4 @@
-module github.com/tturner/cipdip
+module github.com/tonylturner/cipdip
 
 go 1.25.5
 

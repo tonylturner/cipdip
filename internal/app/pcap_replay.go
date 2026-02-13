@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	pcappkg "github.com/tturner/cipdip/internal/pcap"
+	pcappkg "github.com/tonylturner/cipdip/internal/pcap"
 )
 
 type PCAPReplayOptions struct {

@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 var enipOrderDiscovery = currentENIPByteOrder()

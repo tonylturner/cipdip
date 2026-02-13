@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/config"
-	"github.com/tturner/cipdip/internal/logging"
-	"github.com/tturner/cipdip/internal/metrics"
+	"github.com/tonylturner/cipdip/internal/config"
+	"github.com/tonylturner/cipdip/internal/logging"
+	"github.com/tonylturner/cipdip/internal/metrics"
 )
 
 func TestEdgeValidScenarioRequiresTargets(t *testing.T) {

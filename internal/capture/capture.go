@@ -9,7 +9,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
-	"github.com/tturner/cipdip/internal/netdetect"
+	"github.com/tonylturner/cipdip/internal/netdetect"
 )
 
 // Capture represents a packet capture session

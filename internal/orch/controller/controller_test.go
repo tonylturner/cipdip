@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tturner/cipdip/internal/manifest"
-	"github.com/tturner/cipdip/internal/orch/bundle"
-	"github.com/tturner/cipdip/internal/transport"
+	"github.com/tonylturner/cipdip/internal/manifest"
+	"github.com/tonylturner/cipdip/internal/orch/bundle"
+	"github.com/tonylturner/cipdip/internal/transport"
 )
 
 func TestNewController(t *testing.T) {

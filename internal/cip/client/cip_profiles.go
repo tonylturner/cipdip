@@ -3,7 +3,7 @@ package client
 import (
 	"strings"
 
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 )
 
 // CIPProfileClassSet captures CIP application profile class coverage.

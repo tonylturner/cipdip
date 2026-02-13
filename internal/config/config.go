@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/tturner/cipdip/internal/errors"
+	"github.com/tonylturner/cipdip/internal/errors"
 )
 
 // ServiceType represents the type of CIP service

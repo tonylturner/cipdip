@@ -1,6 +1,6 @@
 package spec
 
-import "github.com/tturner/cipdip/internal/cip/protocol"
+import "github.com/tonylturner/cipdip/internal/cip/protocol"
 
 func registerDefaultServices(registry *Registry) {
 	registerGenericService := func(code protocol.CIPServiceCode, name string, requiresInstance, requiresAttribute bool, minReq, minResp int) {

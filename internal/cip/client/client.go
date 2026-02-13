@@ -6,14 +6,14 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"github.com/tturner/cipdip/internal/cip/spec"
+	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"time"
 
-	"github.com/tturner/cipdip/internal/cip/codec"
-	"github.com/tturner/cipdip/internal/cip/protocol"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/cip/codec"
+	"github.com/tonylturner/cipdip/internal/cip/protocol"
+	"github.com/tonylturner/cipdip/internal/enip"
 
-	"github.com/tturner/cipdip/internal/errors"
+	"github.com/tonylturner/cipdip/internal/errors"
 )
 
 // ConnectionParams represents parameters for establishing a connected I/O connection

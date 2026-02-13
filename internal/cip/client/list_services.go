@@ -2,7 +2,7 @@ package client
 
 import (
 	"fmt"
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/enip"
 )
 
 // BuildListServices builds a ListServices encapsulation.

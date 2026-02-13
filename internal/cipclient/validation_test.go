@@ -1,7 +1,7 @@
 package cipclient
 
 import (
-	"github.com/tturner/cipdip/internal/enip"
+	"github.com/tonylturner/cipdip/internal/enip"
 	"testing"
 )
 
