@@ -2,6 +2,7 @@ package scenario
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,10 +44,10 @@ func TestDPIExplicitScenarioMetricsRecording(t *testing.T) {
 		t.Error("Expected metrics to be recorded")
 	}
 
-	// Verify metrics have correct scenario name
+	// Verify metrics have correct scenario name with phase labels
 	for _, m := range recordedMetrics {
-		if m.Scenario != "dpi_explicit" {
-			t.Errorf("Expected scenario 'dpi_explicit', got '%s'", m.Scenario)
+		if !strings.HasPrefix(m.Scenario, "dpi_explicit:phase_") {
+			t.Errorf("Expected scenario prefix 'dpi_explicit:phase_', got '%s'", m.Scenario)
 		}
 	}
 }

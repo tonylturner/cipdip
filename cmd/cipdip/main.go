@@ -55,6 +55,7 @@ CIP/EtherNet-IP traffic for firewall DPI research testing.`,
 	rootCmd.AddCommand(newRunCmd())
 	rootCmd.AddCommand(newAgentCmd())
 	rootCmd.AddCommand(newDiffRunCmd())
+	rootCmd.AddCommand(newMetricsAnalyzeCmd())
 
 	// Let Cobra handle help automatically - it will show flags and detailed descriptions
 

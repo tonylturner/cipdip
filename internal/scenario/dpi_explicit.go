@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
@@ -66,6 +67,16 @@ func jitterSleep(ctx context.Context) {
 	case <-ctx.Done():
 	case <-time.After(jitter):
 	}
+}
+
+// phaseSlug converts a phase name to a lowercase slug for metric labels.
+func phaseSlug(name string) string {
+	return strings.ToLower(strings.ReplaceAll(name, " ", "_"))
+}
+
+// phaseScenarioLabel returns the scenario label for a given phase result.
+func phaseScenarioLabel(result *PhaseResult) string {
+	return fmt.Sprintf("dpi_explicit:phase_%d_%s", result.Phase.Number, phaseSlug(result.Phase.Name))
 }
 
 // Run executes the DPI explicit scenario for the requested duration.
@@ -343,7 +354,7 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 				result.Notes = append(result.Notes, fmt.Sprintf("ForwardOpen %d failed: %v", connectionID, err))
 				params.MetricsSink.Record(metrics.Metric{
 					Timestamp:  time.Now(),
-					Scenario:   "dpi_explicit",
+					Scenario:   phaseScenarioLabel(result),
 					TargetType: params.TargetType,
 					Operation:  metrics.OperationForwardOpen,
 					TargetName: fmt.Sprintf("churn_%d", connectionID),
@@ -359,7 +370,7 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 			result.RTTs = append(result.RTTs, rtt)
 			params.MetricsSink.Record(metrics.Metric{
 				Timestamp:  time.Now(),
-				Scenario:   "dpi_explicit",
+				Scenario:   phaseScenarioLabel(result),
 				TargetType: params.TargetType,
 				Operation:  metrics.OperationForwardOpen,
 				TargetName: fmt.Sprintf("churn_%d", connectionID),
@@ -380,7 +391,7 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 				result.Failures++
 				params.MetricsSink.Record(metrics.Metric{
 					Timestamp:  time.Now(),
-					Scenario:   "dpi_explicit",
+					Scenario:   phaseScenarioLabel(result),
 					TargetType: params.TargetType,
 					Operation:  metrics.OperationForwardClose,
 					TargetName: fmt.Sprintf("churn_%d", connectionID),
@@ -393,7 +404,7 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 				result.RTTs = append(result.RTTs, closeRTT)
 				params.MetricsSink.Record(metrics.Metric{
 					Timestamp:  time.Now(),
-					Scenario:   "dpi_explicit",
+					Scenario:   phaseScenarioLabel(result),
 					TargetType: params.TargetType,
 					Operation:  metrics.OperationForwardClose,
 					TargetName: fmt.Sprintf("churn_%d", connectionID),
@@ -654,7 +665,7 @@ func (s *DPIExplicitScenario) testRequest(ctx context.Context, client cipclient.
 	// Record metric
 	params.MetricsSink.Record(metrics.Metric{
 		Timestamp:   time.Now(),
-		Scenario:    "dpi_explicit",
+		Scenario:    phaseScenarioLabel(result),
 		TargetType:  params.TargetType,
 		Operation:   metrics.OperationCustom,
 		TargetName:  name,
@@ -701,7 +712,7 @@ func (s *DPIExplicitScenario) testRequestExpectError(ctx context.Context, client
 
 	params.MetricsSink.Record(metrics.Metric{
 		Timestamp:   time.Now(),
-		Scenario:    "dpi_explicit",
+		Scenario:    phaseScenarioLabel(result),
 		TargetType:  params.TargetType,
 		Operation:   metrics.OperationCustom,
 		TargetName:  name,

@@ -354,6 +354,9 @@ func FormatSummary(summary *Summary) string {
 	var buf string
 
 	buf += fmt.Sprintf("Total Operations: %d\n", summary.TotalOperations)
+	if summary.ThroughputOpsPerSec > 0 {
+		buf += fmt.Sprintf("Throughput: %.0f ops/sec\n", summary.ThroughputOpsPerSec)
+	}
 	buf += fmt.Sprintf("Successful: %d (%.1f%%)\n",
 		summary.SuccessfulOps,
 		float64(summary.SuccessfulOps)/float64(summary.TotalOperations)*100)
@@ -362,13 +365,18 @@ func FormatSummary(summary *Summary) string {
 		float64(summary.FailedOps)/float64(summary.TotalOperations)*100)
 
 	if summary.TimeoutCount > 0 {
-		buf += fmt.Sprintf("Timeouts: %d\n", summary.TimeoutCount)
+		timeoutRate := float64(summary.TimeoutCount) / float64(summary.TotalOperations) * 100
+		buf += fmt.Sprintf("Timeouts: %d (%.3f%%)\n", summary.TimeoutCount, timeoutRate)
 	}
 	if summary.ConnectionFailures > 0 {
 		buf += fmt.Sprintf("Connection Failures: %d\n", summary.ConnectionFailures)
 	}
+	if summary.TCPResetCount > 0 {
+		buf += fmt.Sprintf("TCP Resets: %d\n", summary.TCPResetCount)
+	}
 	if summary.Misclassifications > 0 {
-		buf += fmt.Sprintf("Misclassifications: %d\n", summary.Misclassifications)
+		misclassRate := float64(summary.Misclassifications) / float64(summary.TotalOperations) * 100
+		buf += fmt.Sprintf("Misclassifications: %d (%.1f%%)\n", summary.Misclassifications, misclassRate)
 	}
 
 	if summary.SuccessfulOps > 0 {

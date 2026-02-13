@@ -95,13 +95,14 @@ func (s *ModbusScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 		}
 
 		m := metrics.Metric{
-			Timestamp:  start,
-			Scenario:   "modbus",
-			TargetType: params.TargetType,
-			Operation:  opType,
-			TargetName: op.name,
-			Success:    success,
-			RTTMs:      float64(rtt.Microseconds()) / 1000.0,
+			Timestamp:   start,
+			Scenario:    "modbus",
+			TargetType:  params.TargetType,
+			Operation:   opType,
+			TargetName:  op.name,
+			ServiceCode: "0x0E",
+			Success:     success,
+			RTTMs:       float64(rtt.Microseconds()) / 1000.0,
 		}
 		if err != nil {
 			m.Error = err.Error()
@@ -132,8 +133,8 @@ func (s *ModbusScenario) executeCIPModbus(ctx context.Context, client cipclient.
 	payload = append(payload, op.data...)
 
 	cipReq := protocol.CIPRequest{
-		Service: spec.CIPServiceGetAttributeSingle, // Generic service for class 0x44
-		Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 1},
+		Service: spec.CIPServiceGetAttributeSingle,
+		Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 1, Attribute: 3}, // Attribute 3 = Data
 		Payload: payload,
 	}
 
@@ -256,7 +257,7 @@ func (s *ModbusPipelineScenario) executeCIPModbus(ctx context.Context, client ci
 
 	cipReq := protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeSingle,
-		Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 1},
+		Path:    protocol.CIPPath{Class: spec.CIPClassModbus, Instance: 1, Attribute: 3}, // Attribute 3 = Data
 		Payload: payload,
 	}
 

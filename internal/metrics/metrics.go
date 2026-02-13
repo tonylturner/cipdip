@@ -72,8 +72,9 @@ type Summary struct {
 	SuccessfulOps      int
 	FailedOps          int
 	TimeoutCount       int
-	ConnectionFailures int
-	Misclassifications int
+	ConnectionFailures  int
+	TCPResetCount       int
+	Misclassifications  int
 	MinRTT             float64
 	MaxRTT             float64
 	AvgRTT             float64
@@ -88,8 +89,10 @@ type Summary struct {
 	P90Jitter          float64
 	P95Jitter          float64
 	P99Jitter          float64
-	jitterCount        int
-	RTTBuckets         map[string]int
+	DurationMs          float64
+	ThroughputOpsPerSec float64
+	jitterCount         int
+	RTTBuckets          map[string]int
 	JitterBuckets      map[string]int
 	RTTByOperation     map[OperationType]*OperationStats
 	RTTByScenario      map[string]*ScenarioStats
@@ -173,9 +176,12 @@ func (s *Sink) GetSummary() *Summary {
 		SuccessfulOps:      s.summary.SuccessfulOps,
 		FailedOps:          s.summary.FailedOps,
 		TimeoutCount:       s.summary.TimeoutCount,
-		ConnectionFailures: s.summary.ConnectionFailures,
-		Misclassifications: s.summary.Misclassifications,
-		MinRTT:             s.summary.MinRTT,
+		ConnectionFailures:  s.summary.ConnectionFailures,
+		TCPResetCount:       s.summary.TCPResetCount,
+		Misclassifications:  s.summary.Misclassifications,
+		DurationMs:          s.summary.DurationMs,
+		ThroughputOpsPerSec: s.summary.ThroughputOpsPerSec,
+		MinRTT:              s.summary.MinRTT,
 		MaxRTT:             s.summary.MaxRTT,
 		AvgRTT:             s.summary.AvgRTT,
 		P50RTT:             s.summary.P50RTT,
@@ -254,6 +260,10 @@ func (s *Sink) updateSummary(m Metric) {
 			}
 			if strings.Contains(m.Error, "connection") || strings.Contains(m.Error, "connect") {
 				s.summary.ConnectionFailures++
+			}
+			if strings.Contains(m.Error, "reset") || strings.Contains(m.Error, "RST") ||
+				strings.Contains(m.Error, "connection refused") {
+				s.summary.TCPResetCount++
 			}
 		}
 	}

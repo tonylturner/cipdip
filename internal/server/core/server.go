@@ -61,6 +61,16 @@ func NewServer(cfg *config.ServerConfig, logger *logging.Logger) (*Server, error
 		return nil, fmt.Errorf("unknown personality: %s", cfg.Server.Personality)
 	}
 
+	// Register PCCC handler alongside primary personality when data tables are configured.
+	if cfg.Server.Personality != "pccc" && len(cfg.PCCCDataTables) > 0 {
+		pcccHandler, err := standard.NewPCCCPersonality(cfg, logger)
+		if err != nil {
+			return nil, fmt.Errorf("create pccc handler: %w", err)
+		}
+		registry.RegisterHandler(spec.CIPClassPCCCObject, handlers.ServiceAny, pcccHandler)
+		logger.Info("Registered PCCC handler (class 0x%04X) alongside %s personality", spec.CIPClassPCCCObject, cfg.Server.Personality)
+	}
+
 	// Register Modbus CIP tunnel handler (class 0x44) if enabled.
 	if cfg.ModbusConfig.Enabled {
 		modbusStore := buildModbusDataStore(cfg)

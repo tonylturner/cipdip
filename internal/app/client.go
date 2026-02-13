@@ -67,9 +67,15 @@ func RunClient(opts ClientOptions) error {
 			"firewall_dynics":     true,
 			"firewall_pack":       true,
 			"dpi_explicit":        true,
+			"pccc":                true,
+			"modbus":              true,
+			"evasion_segment":     true,
+			"evasion_fuzz":        true,
+			"evasion_anomaly":     true,
+			"evasion_timing":      true,
 		}
 		if !validScenarios[opts.Scenario] {
-			return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack, dpi_explicit", opts.Scenario)
+			return fmt.Errorf("invalid scenario '%s'; must be one of: baseline, mixed, stress, churn, io, edge_valid, edge_vendor, rockwell, vendor_variants, mixed_state, unconnected_send, firewall_hirschmann, firewall_moxa, firewall_dynics, firewall_pack, dpi_explicit, pccc, modbus, evasion_segment, evasion_fuzz, evasion_anomaly, evasion_timing", opts.Scenario)
 		}
 
 		if opts.IntervalMs == 0 {
@@ -100,6 +106,18 @@ func RunClient(opts ClientOptions) error {
 				opts.IntervalMs = 100
 			case "dpi_explicit":
 				opts.IntervalMs = 100
+			case "pccc":
+				opts.IntervalMs = 200
+			case "modbus":
+				opts.IntervalMs = 200
+			case "evasion_segment":
+				opts.IntervalMs = 200
+			case "evasion_fuzz":
+				opts.IntervalMs = 500
+			case "evasion_anomaly":
+				opts.IntervalMs = 300
+			case "evasion_timing":
+				opts.IntervalMs = 1000
 			}
 		}
 	}
@@ -348,6 +366,10 @@ func RunClient(opts ClientOptions) error {
 	}
 
 	summary := metricsSink.GetSummary()
+	summary.DurationMs = elapsed.Seconds() * 1000
+	if summary.DurationMs > 0 {
+		summary.ThroughputOpsPerSec = float64(summary.TotalOperations) / elapsed.Seconds()
+	}
 
 	if metricsWriter != nil {
 		for _, m := range metricsSink.GetMetrics() {
@@ -360,12 +382,8 @@ func RunClient(opts ClientOptions) error {
 		}
 	}
 
-	if opts.Verbose || opts.Debug {
-		fmt.Fprintf(os.Stdout, "\n%s", metrics.FormatSummary(summary))
-	} else {
-		fmt.Fprintf(os.Stdout, "Completed scenario '%s' in %.1fs (%d operations, %d errors)\n",
-			scenarioName, elapsed.Seconds(), summary.TotalOperations, summary.FailedOps)
-	}
+	fmt.Fprintf(os.Stdout, "\nCompleted scenario '%s' in %.1fs\n", scenarioName, elapsed.Seconds())
+	fmt.Fprintf(os.Stdout, "\n%s", metrics.FormatSummary(summary))
 
 	// Print pcap path if capture was enabled
 	if opts.PCAPFile != "" {

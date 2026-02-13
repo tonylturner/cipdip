@@ -112,13 +112,14 @@ func (s *PCCCScenario) Run(ctx context.Context, client cipclient.Client, cfg *co
 		}
 
 		m := metrics.Metric{
-			Timestamp:  start,
-			Scenario:   "pccc",
-			TargetType: params.TargetType,
-			Operation:  opType,
-			TargetName: op.name,
-			Success:    success,
-			RTTMs:      float64(rtt.Microseconds()) / 1000.0,
+			Timestamp:   start,
+			Scenario:    "pccc",
+			TargetType:  params.TargetType,
+			Operation:   opType,
+			TargetName:  op.name,
+			ServiceCode: "0x4B",
+			Success:     success,
+			RTTMs:       float64(rtt.Microseconds()) / 1000.0,
 		}
 		if err != nil {
 			m.Error = err.Error()

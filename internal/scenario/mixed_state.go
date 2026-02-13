@@ -42,9 +42,28 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
 
 	var ioConns []*cipclient.IOConnection
+	defer func() {
+		// ForwardClose each I/O connection with metrics before disconnect
+		for i, conn := range ioConns {
+			connName := cfg.IOConnections[i].Name
+			fcStart := time.Now()
+			fcErr := client.ForwardClose(ctx, conn)
+			fcRTT := time.Since(fcStart).Seconds() * 1000
+			params.MetricsSink.Record(metrics.Metric{
+				Timestamp:  fcStart,
+				Scenario:   "mixed_state",
+				TargetType: params.TargetType,
+				Operation:  metrics.OperationForwardClose,
+				TargetName: connName,
+				Success:    fcErr == nil,
+				RTTMs:      fcRTT,
+				Error:      errorString(fcErr),
+			})
+		}
+		client.Disconnect(ctx)
+	}()
 	for _, connCfg := range cfg.IOConnections {
 		transport := connCfg.Transport
 		if transport == "" {
@@ -64,7 +83,19 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			ConnectionPathHex:     connCfg.ConnectionPathHex,
 		}
 
+		foStart := time.Now()
 		conn, err := client.ForwardOpen(ctx, connParams)
+		foRTT := time.Since(foStart).Seconds() * 1000
+		params.MetricsSink.Record(metrics.Metric{
+			Timestamp:  foStart,
+			Scenario:   "mixed_state",
+			TargetType: params.TargetType,
+			Operation:  metrics.OperationForwardOpen,
+			TargetName: connCfg.Name,
+			Success:    err == nil,
+			RTTMs:      foRTT,
+			Error:      errorString(err),
+		})
 		if err != nil {
 			params.Logger.Error("Failed to open I/O connection %s: %v", connCfg.Name, err)
 			continue
