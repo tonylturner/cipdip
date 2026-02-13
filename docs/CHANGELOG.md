@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Test coverage**: Added test files for `internal/errors`, `internal/logging`, `internal/progress`, and `internal/validation/fixtures` — 73 new test cases covering all previously untested packages.
 
 ### Changed
-- **Release workflow**: Replaced manual multi-platform build matrix with GoReleaser. Releases now produce 6 binaries (linux/darwin/windows x amd64/arm64) with automatic checksums, archives, and changelog generation.
-- **GoReleaser config**: Added version/commit/date ldflags injection for build metadata in `cipdip version` output.
+- **Release workflow**: Expanded platform matrix from 3 to 5 native builds (added linux-arm64 and darwin-amd64). Added version/commit/date ldflags injection. Archives and checksums generated dynamically for any number of artifacts.
+- **GoReleaser config**: Added version/commit/date ldflags for local CGO_ENABLED=0 builds via `goreleaser release --clean`.
 
 ## [0.2.3] - 2026-02-13
 
