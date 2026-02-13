@@ -8,9 +8,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in CIPDIP, please report it responsibly.
-
-**Email:** security@sentinel24.com
+If you discover a security vulnerability in CIPDIP, please report it through [GitHub Security Advisories](https://github.com/tonylturner/cipdip/security/advisories/new).
 
 Please include:
 
@@ -19,7 +17,7 @@ Please include:
 - Potential impact
 - Suggested fix (if any)
 
-We will acknowledge receipt within 48 hours and provide an initial assessment within 7 days.
+Do not open a public issue for security vulnerabilities. We will acknowledge receipt within 48 hours and provide an initial assessment within 7 days.
 
 ## Scope
 

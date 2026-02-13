@@ -72,7 +72,7 @@ cipdip extract-reference --baseline-dir ./my_captures --real-world-dir ./real_pc
 ### Comparing Generated Packets
 
 ```go
-import "github.com/tturner/cipdip/internal/cip/client"
+import "github.com/tonylturner/cipdip/internal/cip/client"
 
 // Generate a packet
 packet := client.BuildRegisterSession(senderContext)
