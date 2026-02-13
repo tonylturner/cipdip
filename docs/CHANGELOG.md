@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-13
+
+### Security
+- Wire SFTP path traversal validation into Put/Get/Mkdir/Stat/Remove
+- Gate SSH password authentication behind explicit AllowPassword flag
+- Add nil guards to TUI channel reads in handleTick
+- Add input validation to Client/Server TUI panels
+- Remove hardcoded credentials from repository and git history
+- Bump Go to 1.26.0 (fixes CVE-2025-68121, CVE-2025-61730, CVE-2025-61726, CVE-2025-61728)
+
 ### Added
 - **PCAP Summary Improvements**: Contextual CIP service labeling for Rockwell tag services (0x4B/0x4C/0x4D), Unconnected Send decoding, and embedded service counts.
 - **PCAP Dump Command**: Added `cipdip pcap-dump` to extract sample CIP packets for a specific service code.
@@ -59,6 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - RegisterSession packets validated
   - CIP requests validated
   - CIP responses validated (non-strict mode)
+
+### Added (Infrastructure)
+- GitHub Actions CI (test on Linux/macOS/Windows, go vet, govulncheck)
+- CycloneDX SBOM at docs/sbom.cdx.json
+- SECURITY.md with responsible disclosure via GitHub Security Advisories
+- CONTRIBUTING.md with development guidelines
+- .goreleaser.yml for cross-platform binary releases
+- TUI dashboard screenshot in README
 
 ### Improved
 - **UX**: Better error messages make troubleshooting easier
