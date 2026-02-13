@@ -872,7 +872,8 @@ func (m *Model) handleTick() (tea.Model, tea.Cmd) {
 	}
 
 	// Poll server stats if running
-	if m.state.ServerRunning && m.serverPanel.Mode() == PanelRunning {
+	if m.state.ServerRunning && m.serverPanel.Mode() == PanelRunning &&
+		m.state.ServerStatsChan != nil && m.state.ServerResultChan != nil {
 		select {
 		case stats := <-m.state.ServerStatsChan:
 			m.serverPanel.UpdateStats(stats)
@@ -884,7 +885,8 @@ func (m *Model) handleTick() (tea.Model, tea.Cmd) {
 	}
 
 	// Poll client stats if running
-	if m.state.ClientRunning && m.clientPanel.Mode() == PanelRunning {
+	if m.state.ClientRunning && m.clientPanel.Mode() == PanelRunning &&
+		m.state.ClientStatsChan != nil && m.state.ClientResultChan != nil {
 		select {
 		case stats := <-m.state.ClientStatsChan:
 			m.clientPanel.UpdateStats(stats)

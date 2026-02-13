@@ -24,6 +24,11 @@ go.work.sum
 # env file
 .env
 
+# Credentials and keys
+agents.yaml
+*.pem
+*.key
+
 # Baseline/test capture outputs
 pcaps/
 pcaps/validation_generated/
@@ -35,6 +40,8 @@ workspaces/**/reports/
 workspaces/**/tmp/
 workspaces/**/manifests/
 workspaces/**/run.json
+workspaces/**/agents.yaml
+workspaces/**/profiles/
 
 # Root-level run artifacts (orchestration runs)
 runs/

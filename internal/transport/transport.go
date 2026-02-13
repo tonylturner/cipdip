@@ -68,6 +68,7 @@ type SSHOptions struct {
 	KeyFile        string // Path to private key file
 	KeyPassphrase  string // Passphrase for encrypted key (optional)
 	Password       string // Password authentication (fallback)
+	AllowPassword  bool   // Must be true to use password authentication
 	Agent          bool   // Use SSH agent for authentication
 
 	// Host verification

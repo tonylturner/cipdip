@@ -321,6 +321,29 @@ func (p *ClientPanel) BuildRunConfig(workspaceRoot string) ClientRunConfig {
 	return cfg
 }
 
+// ValidateFields checks that all numeric input fields contain valid values.
+// Returns a list of human-readable error messages (empty if all valid).
+// Empty strings are considered valid (they use defaults).
+func (p *ClientPanel) ValidateFields() []string {
+	var errs []string
+	if p.port != "" {
+		if _, err := strconv.Atoi(p.port); err != nil {
+			errs = append(errs, fmt.Sprintf("port %q is not a valid number", p.port))
+		}
+	}
+	if p.duration != "" {
+		if _, err := strconv.Atoi(p.duration); err != nil {
+			errs = append(errs, fmt.Sprintf("duration %q is not a valid number", p.duration))
+		}
+	}
+	if p.interval != "" {
+		if _, err := strconv.Atoi(p.interval); err != nil {
+			errs = append(errs, fmt.Sprintf("interval %q is not a valid number", p.interval))
+		}
+	}
+	return errs
+}
+
 func (p *ClientPanel) Update(msg tea.KeyMsg, focused bool) (Panel, tea.Cmd) {
 	if !focused {
 		return p, nil
@@ -1492,6 +1515,18 @@ func (p *ServerPanel) BuildRunConfig(workspaceRoot string) ServerRunConfig {
 	}
 
 	return cfg
+}
+
+// ValidateFields checks that all numeric input fields contain valid values.
+// Returns a list of human-readable error messages (empty if all valid).
+func (p *ServerPanel) ValidateFields() []string {
+	var errs []string
+	if p.port != "" {
+		if _, err := strconv.Atoi(p.port); err != nil {
+			errs = append(errs, fmt.Sprintf("port %q is not a valid number", p.port))
+		}
+	}
+	return errs
 }
 
 func (p *ServerPanel) Mode() PanelMode { return p.mode }

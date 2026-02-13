@@ -1,0 +1,19 @@
+# CIPDIP Agent Registry
+#
+# Copy this file to agents.yaml and configure your test agents.
+# Run `cipdip agent check <transport>` to verify connectivity.
+#
+# Transport formats:
+#   local                              - local execution
+#   ssh://user@host                    - SSH with agent auth
+#   ssh://user@host:port?key=/path     - SSH with key file
+#   ssh://user@host?os=windows         - Windows remote agent
+#   ssh://user@host?elevate=true       - Enable sudo/admin elevation
+#
+agents:
+    linux-1:
+        name: linux-1
+        transport: ssh://testuser@192.168.1.10
+    windows-1:
+        name: windows-1
+        transport: ssh://testuser@192.168.1.20?os=windows

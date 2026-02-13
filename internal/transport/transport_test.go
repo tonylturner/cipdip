@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -578,5 +579,196 @@ func TestValidateRelativePath(t *testing.T) {
 				t.Errorf("ValidateRelativePath(%q, %q) error = %v, wantErr %v", tt.basePath, tt.relPath, err, tt.wantErr)
 			}
 		})
+	}
+}
+
+// --- Issue 1: SFTP path traversal enforcement ---
+
+func newTestSSH(t *testing.T) *SSH {
+	t.Helper()
+	opts := DefaultSSHOptions()
+	opts.ConnectTimeout = 10 * time.Millisecond // prevent slow DNS/TCP in tests
+	s, err := NewSSH("192.0.2.1", opts)        // RFC 5737 TEST-NET, won't route
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func TestSSH_Put_RejectsTraversalPath(t *testing.T) {
+	tests := []struct {
+		name       string
+		remotePath string
+		wantTraversalErr bool
+	}{
+		{"traversal up", "../../../etc/crontab", true},
+		{"traversal double", "../../etc/passwd", true},
+		{"double dot only", "..", true},
+		{"valid absolute", "/tmp/cipdip/file.txt", false},
+		{"valid relative", "workdir/file.txt", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestSSH(t)
+			err := s.Put(context.Background(), "/dev/null", tt.remotePath)
+			if tt.wantTraversalErr {
+				if err == nil {
+					t.Fatalf("Put() should reject traversal path %q", tt.remotePath)
+				}
+				if !strings.Contains(err.Error(), "traversal") {
+					t.Errorf("Put() error should mention traversal, got: %v", err)
+				}
+			} else if err != nil && strings.Contains(err.Error(), "traversal") {
+				t.Errorf("Put() should not reject valid path %q as traversal", tt.remotePath)
+			}
+		})
+	}
+}
+
+func TestSSH_Get_RejectsTraversalPath(t *testing.T) {
+	tests := []struct {
+		name       string
+		remotePath string
+		wantTraversalErr bool
+	}{
+		{"traversal up", "../../../etc/shadow", true},
+		{"traversal double", "../../etc/passwd", true},
+		{"valid absolute", "/tmp/cipdip/output.txt", false},
+		{"valid relative", "data/results.csv", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestSSH(t)
+			err := s.Get(context.Background(), tt.remotePath, "/dev/null")
+			if tt.wantTraversalErr {
+				if err == nil {
+					t.Fatalf("Get() should reject traversal path %q", tt.remotePath)
+				}
+				if !strings.Contains(err.Error(), "traversal") {
+					t.Errorf("Get() error should mention traversal, got: %v", err)
+				}
+			} else if err != nil && strings.Contains(err.Error(), "traversal") {
+				t.Errorf("Get() should not reject valid path %q as traversal", tt.remotePath)
+			}
+		})
+	}
+}
+
+func TestSSH_Mkdir_RejectsTraversalPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		path    string
+		wantTraversalErr bool
+	}{
+		{"traversal up", "../../etc", true},
+		{"traversal double", "../../../root", true},
+		{"valid absolute", "/tmp/cipdip/workdir", false},
+		{"valid relative", "runs/output", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTestSSH(t)
+			err := s.Mkdir(context.Background(), tt.path)
+			if tt.wantTraversalErr {
+				if err == nil {
+					t.Fatalf("Mkdir() should reject traversal path %q", tt.path)
+				}
+				if !strings.Contains(err.Error(), "traversal") {
+					t.Errorf("Mkdir() error should mention traversal, got: %v", err)
+				}
+			} else if err != nil && strings.Contains(err.Error(), "traversal") {
+				t.Errorf("Mkdir() should not reject valid path %q as traversal", tt.path)
+			}
+		})
+	}
+}
+
+func TestSSH_Stat_RejectsTraversalPath(t *testing.T) {
+	s := newTestSSH(t)
+	_, err := s.Stat(context.Background(), "../../../etc/passwd")
+	if err == nil || !strings.Contains(err.Error(), "traversal") {
+		t.Errorf("Stat() should reject traversal path, got: %v", err)
+	}
+}
+
+func TestSSH_Remove_RejectsTraversalPath(t *testing.T) {
+	s := newTestSSH(t)
+	err := s.Remove(context.Background(), "../../../etc/passwd")
+	if err == nil || !strings.Contains(err.Error(), "traversal") {
+		t.Errorf("Remove() should reject traversal path, got: %v", err)
+	}
+}
+
+// --- Issue 2: SSH password auth gating ---
+
+func TestSSH_PasswordAuth_BlockedByDefault(t *testing.T) {
+	// Point HOME to empty dir so no default keys are found.
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("SSH_AUTH_SOCK", "")
+
+	s, err := NewSSH("example.com", SSHOptions{
+		Password: "secret",
+		Agent:    false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = s.buildSSHConfig()
+	// With no agent, no key files, and AllowPassword=false,
+	// there should be no auth methods available.
+	if err == nil {
+		t.Fatal("buildSSHConfig() should fail with no auth methods when AllowPassword is false")
+	}
+	if !strings.Contains(err.Error(), "no authentication methods") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestSSH_PasswordAuth_AllowedWhenExplicit(t *testing.T) {
+	s, err := NewSSH("example.com", SSHOptions{
+		Password:           "secret",
+		AllowPassword:      true,
+		Agent:              false,
+		InsecureIgnoreHost: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config, err := s.buildSSHConfig()
+	if err != nil {
+		t.Fatalf("buildSSHConfig() should succeed when AllowPassword=true, got: %v", err)
+	}
+	if len(config.Auth) == 0 {
+		t.Error("should have at least one auth method (password)")
+	}
+}
+
+func TestParse_SSHPassword_SetsAllowPassword(t *testing.T) {
+	tr, err := Parse("ssh://user:mypass@host?insecure=true")
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	s, ok := tr.(*SSH)
+	if !ok {
+		t.Fatal("expected *SSH transport")
+	}
+	if s.opts.Password != "mypass" {
+		t.Errorf("Password = %q, want %q", s.opts.Password, "mypass")
+	}
+	if !s.opts.AllowPassword {
+		t.Error("AllowPassword should be true when password is provided in URL")
+	}
+}
+
+func TestDefaultSSHOptions_AllowPasswordFalse(t *testing.T) {
+	opts := DefaultSSHOptions()
+	if opts.AllowPassword {
+		t.Error("AllowPassword should be false by default")
 	}
 }

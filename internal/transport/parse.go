@@ -61,6 +61,7 @@ func parseSSHURL(u *url.URL, opts Options) (Transport, error) {
 		sshOpts.User = u.User.Username()
 		if pw, ok := u.User.Password(); ok {
 			sshOpts.Password = pw
+			sshOpts.AllowPassword = true
 		}
 	}
 

@@ -124,8 +124,8 @@ func (s *SSH) buildSSHConfig() (*ssh.ClientConfig, error) {
 		}
 	}
 
-	// Password authentication as fallback
-	if s.opts.Password != "" {
+	// Password authentication (only when explicitly allowed)
+	if s.opts.Password != "" && s.opts.AllowPassword {
 		authMethods = append(authMethods, ssh.Password(s.opts.Password))
 	}
 
@@ -315,6 +315,9 @@ func (s *SSH) ExecStream(ctx context.Context, cmd []string, env map[string]strin
 
 // Put copies a local file to the remote host.
 func (s *SSH) Put(ctx context.Context, localPath, remotePath string) error {
+	if err := ValidatePath(remotePath); err != nil {
+		return fmt.Errorf("put remote path: %w", err)
+	}
 	if err := s.connect(); err != nil {
 		return err
 	}
@@ -365,6 +368,9 @@ func (s *SSH) Put(ctx context.Context, localPath, remotePath string) error {
 
 // Get copies a remote file to the local host.
 func (s *SSH) Get(ctx context.Context, remotePath, localPath string) error {
+	if err := ValidatePath(remotePath); err != nil {
+		return fmt.Errorf("get remote path: %w", err)
+	}
 	if err := s.connect(); err != nil {
 		return err
 	}
@@ -410,6 +416,9 @@ func (s *SSH) Get(ctx context.Context, remotePath, localPath string) error {
 
 // Mkdir creates a directory on the remote host.
 func (s *SSH) Mkdir(ctx context.Context, path string) error {
+	if err := ValidatePath(path); err != nil {
+		return fmt.Errorf("mkdir remote path: %w", err)
+	}
 	if err := s.connect(); err != nil {
 		return err
 	}
@@ -424,6 +433,9 @@ func (s *SSH) Mkdir(ctx context.Context, path string) error {
 
 // Stat returns file info for a remote path.
 func (s *SSH) Stat(ctx context.Context, path string) (os.FileInfo, error) {
+	if err := ValidatePath(path); err != nil {
+		return nil, fmt.Errorf("stat remote path: %w", err)
+	}
 	if err := s.connect(); err != nil {
 		return nil, err
 	}
@@ -438,6 +450,9 @@ func (s *SSH) Stat(ctx context.Context, path string) (os.FileInfo, error) {
 
 // Remove deletes a file or empty directory on the remote host.
 func (s *SSH) Remove(ctx context.Context, path string) error {
+	if err := ValidatePath(path); err != nil {
+		return fmt.Errorf("remove remote path: %w", err)
+	}
 	if err := s.connect(); err != nil {
 		return err
 	}
