@@ -34,7 +34,7 @@ jobs:
             goarch: arm64
             setup: ''
           - name: darwin-amd64
-            runner: macos-13
+            runner: macos-latest
             artifact: cipdip-darwin-amd64
             goos: darwin
             goarch: amd64
