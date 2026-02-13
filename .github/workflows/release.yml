@@ -71,10 +71,15 @@ jobs:
           zip cipdip-windows-amd64.zip cipdip-windows-amd64.exe && rm cipdip-windows-amd64.exe
           sha256sum * > checksums.txt
 
-      - name: Create GitHub Release
+      - name: Upload assets to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" dist/* \
-            --title "${{ github.ref_name }}" \
-            --generate-notes
+          tag="${{ github.ref_name }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* \
+              --title "$tag" \
+              --generate-notes
+          fi
