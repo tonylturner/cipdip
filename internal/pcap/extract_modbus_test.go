@@ -3,12 +3,20 @@ package pcap
 import (
 	"encoding/binary"
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/tonylturner/cipdip/internal/modbus"
 )
+
+func skipIfNoPcap(t *testing.T, err error) {
+	t.Helper()
+	if err != nil && (strings.Contains(err.Error(), "wpcap.dll") || strings.Contains(err.Error(), "couldn't load")) {
+		t.Skip("Skipping: pcap library not available")
+	}
+}
 
 // buildModbusTCPPacket builds a synthetic Ethernet+IPv4+TCP packet for Modbus traffic.
 func buildModbusTCPPacket(t *testing.T, srcIP, dstIP string, srcPort, dstPort uint16, payload []byte) []byte {
@@ -77,6 +85,7 @@ func TestExtractModbusFromPCAP_ReadHoldingRegisters(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractModbusFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractModbusFromPCAP: %v", err)
 	}
@@ -123,6 +132,7 @@ func TestExtractModbusFromPCAP_MultipleFrames(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, pkt1, pkt2, pkt3)
 
 	packets, err := ExtractModbusFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractModbusFromPCAP: %v", err)
 	}
@@ -161,6 +171,7 @@ func TestExtractModbusFromPCAP_TCPReassembly(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
 
 	packets, err := ExtractModbusFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractModbusFromPCAP: %v", err)
 	}
@@ -182,6 +193,7 @@ func TestExtractModbusFromPCAP_ExceptionResponse(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, packet)
 
 	packets, err := ExtractModbusFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractModbusFromPCAP: %v", err)
 	}
@@ -219,6 +231,7 @@ func TestExtractModbusFromPCAP_DirectionDetection(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, reqPkt, respPkt)
 
 	packets, err := ExtractModbusFromPCAP(pcapPath)
+	skipIfNoPcap(t, err)
 	if err != nil {
 		t.Fatalf("ExtractModbusFromPCAP: %v", err)
 	}

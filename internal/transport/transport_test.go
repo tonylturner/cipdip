@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -92,8 +93,15 @@ func TestLocal_Exec_WithCwd(t *testing.T) {
 	if exitCode != 0 {
 		t.Errorf("exitCode = %d, want 0", exitCode)
 	}
-	// stdout should contain the temp directory path
-	if stdout[:len(stdout)-1] != tmpDir { // Remove trailing newline
+	// stdout should contain the temp directory path.
+	// On Windows, pwd may return MSYS2-style paths that differ from t.TempDir().
+	got := strings.TrimSpace(stdout)
+	if runtime.GOOS == "windows" {
+		base := filepath.Base(tmpDir)
+		if !strings.Contains(got, base) {
+			t.Errorf("stdout = %q, expected to contain %q", got, base)
+		}
+	} else if got != tmpDir {
 		t.Errorf("stdout = %q, want %q", stdout, tmpDir+"\n")
 	}
 }

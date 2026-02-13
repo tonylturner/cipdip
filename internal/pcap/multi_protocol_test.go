@@ -1,11 +1,19 @@
 package pcap
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/tonylturner/cipdip/internal/enip"
 	"github.com/tonylturner/cipdip/internal/modbus"
 )
+
+func skipIfNoPcapLib(t *testing.T, err error) {
+	t.Helper()
+	if err != nil && (strings.Contains(err.Error(), "wpcap.dll") || strings.Contains(err.Error(), "couldn't load")) {
+		t.Skip("Skipping: pcap library not available")
+	}
+}
 
 func TestExtractMultiProtocol_MixedENIPModbus(t *testing.T) {
 	// Build one ENIP packet (port 44818) and one Modbus packet (port 502).
@@ -18,6 +26,7 @@ func TestExtractMultiProtocol_MixedENIPModbus(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, enipPkt, modbusPkt)
 
 	result, err := ExtractMultiProtocol(pcapPath)
+	skipIfNoPcapLib(t, err)
 	if err != nil {
 		t.Fatalf("ExtractMultiProtocol: %v", err)
 	}
@@ -50,6 +59,7 @@ func TestExtractMultiProtocol_OnlyENIP(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
 
 	result, err := ExtractMultiProtocol(pcapPath)
+	skipIfNoPcapLib(t, err)
 	if err != nil {
 		t.Fatalf("ExtractMultiProtocol: %v", err)
 	}
@@ -75,6 +85,7 @@ func TestExtractMultiProtocol_OnlyModbus(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, pkt1, pkt2)
 
 	result, err := ExtractMultiProtocol(pcapPath)
+	skipIfNoPcapLib(t, err)
 	if err != nil {
 		t.Fatalf("ExtractMultiProtocol: %v", err)
 	}
@@ -191,6 +202,7 @@ func TestMultiProtocolResult_PortSummary(t *testing.T) {
 	pcapPath := writeENIPPCAP(t, enipPkt, modbusPkt)
 
 	result, err := ExtractMultiProtocol(pcapPath)
+	skipIfNoPcapLib(t, err)
 	if err != nil {
 		t.Fatalf("ExtractMultiProtocol: %v", err)
 	}
