@@ -429,3 +429,156 @@ func TestShortenServiceName(t *testing.T) {
 		}
 	}
 }
+
+// --- Issue 3: TUI channel nil guards ---
+
+func TestModel_HandleTick_NilChannels(t *testing.T) {
+	state := &AppState{
+		WorkspaceRoot: "/tmp/test",
+		WorkspaceName: "test",
+		ServerRunning: true,
+		ClientRunning: true,
+		// Channels intentionally left nil
+	}
+	model := NewModel(state)
+	model.serverPanel.mode = PanelRunning
+	model.clientPanel.mode = PanelRunning
+
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("handleTick panicked with nil channels: %v", r)
+		}
+	}()
+
+	_, _ = model.handleTick()
+
+	// Running state should be preserved (not corrupted)
+	if !state.ServerRunning {
+		t.Error("ServerRunning should still be true")
+	}
+	if !state.ClientRunning {
+		t.Error("ClientRunning should still be true")
+	}
+}
+
+func TestModel_HandleTick_WithActiveChannels(t *testing.T) {
+	statsChan := make(chan StatsUpdate, 1)
+	resultChan := make(chan CommandResult, 1)
+
+	state := &AppState{
+		WorkspaceRoot:    "/tmp/test",
+		WorkspaceName:    "test",
+		ServerRunning:    true,
+		ServerStatsChan:  statsChan,
+		ServerResultChan: resultChan,
+	}
+	model := NewModel(state)
+	model.serverPanel.mode = PanelRunning
+
+	// Send a stats update
+	statsChan <- StatsUpdate{TotalRequests: 42}
+
+	_, _ = model.handleTick()
+
+	if model.serverPanel.stats.TotalRequests != 42 {
+		t.Errorf("expected 42 requests, got %d", model.serverPanel.stats.TotalRequests)
+	}
+}
+
+// --- Issue 4: TUI input validation ---
+
+func TestClientPanel_ValidateFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		port     string
+		duration string
+		interval string
+		wantErrs int
+	}{
+		{"all valid", "44818", "60", "100", 0},
+		{"invalid port", "abc", "60", "100", 1},
+		{"invalid duration", "44818", "xyz", "100", 1},
+		{"invalid interval", "44818", "60", "!!!", 1},
+		{"all invalid", "abc", "xyz", "!!!", 3},
+		{"empty fields use defaults", "", "", "", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			panel := NewClientPanel(DefaultStyles)
+			panel.port = tt.port
+			panel.duration = tt.duration
+			panel.interval = tt.interval
+
+			errs := panel.ValidateFields()
+			if len(errs) != tt.wantErrs {
+				t.Errorf("ValidateFields() returned %d errors, want %d: %v",
+					len(errs), tt.wantErrs, errs)
+			}
+		})
+	}
+}
+
+func TestServerPanel_ValidateFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		port     string
+		wantErrs int
+	}{
+		{"valid port", "44818", 0},
+		{"invalid port", "abc", 1},
+		{"empty port uses default", "", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			panel := NewServerPanel(DefaultStyles)
+			panel.port = tt.port
+
+			errs := panel.ValidateFields()
+			if len(errs) != tt.wantErrs {
+				t.Errorf("ValidateFields() returned %d errors, want %d: %v",
+					len(errs), tt.wantErrs, errs)
+			}
+		})
+	}
+}
+
+func TestClientPanel_BuildRunConfig_ValidFields(t *testing.T) {
+	panel := NewClientPanel(DefaultStyles)
+	panel.targetIP = "10.0.0.50"
+	panel.port = "44818"
+	panel.duration = "120"
+	panel.interval = "500"
+
+	cfg := panel.BuildRunConfig("/tmp/ws")
+	if cfg.TargetIP != "10.0.0.50" {
+		t.Errorf("TargetIP = %q, want %q", cfg.TargetIP, "10.0.0.50")
+	}
+	if cfg.Port != 44818 {
+		t.Errorf("Port = %d, want 44818", cfg.Port)
+	}
+	if cfg.DurationS != 120 {
+		t.Errorf("DurationS = %d, want 120", cfg.DurationS)
+	}
+	if cfg.IntervalMs != 500 {
+		t.Errorf("IntervalMs = %d, want 500", cfg.IntervalMs)
+	}
+	if cfg.OutputDir != "/tmp/ws" {
+		t.Errorf("OutputDir = %q, want %q", cfg.OutputDir, "/tmp/ws")
+	}
+}
+
+func TestServerPanel_BuildRunConfig_ValidFields(t *testing.T) {
+	panel := NewServerPanel(DefaultStyles)
+	panel.listenAddr = "0.0.0.0"
+	panel.port = "44818"
+
+	cfg := panel.BuildRunConfig("/tmp/ws")
+	if cfg.Port != 44818 {
+		t.Errorf("Port = %d, want 44818", cfg.Port)
+	}
+	if cfg.ListenAddr != "0.0.0.0" {
+		t.Errorf("ListenAddr = %q, want %q", cfg.ListenAddr, "0.0.0.0")
+	}
+}

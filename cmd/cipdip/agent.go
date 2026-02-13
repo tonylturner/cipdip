@@ -414,8 +414,9 @@ func checkRemoteAgent(ctx context.Context, t transport.Transport, spec string) *
 		"/opt/homebrew/bin/cipdip",
 		"/usr/bin/cipdip",
 	}
-	// Try to get HOME for the go/bin path - works for both local and SSH
-	exitCode, homeOut, _, _ := t.Exec(ctx, []string{"sh", "-c", "echo $HOME"}, nil, "")
+	// Get remote HOME directory for go/bin path.
+	// Uses printenv (no shell interpolation) instead of sh -c to avoid shell exec.
+	exitCode, homeOut, _, _ := t.Exec(ctx, []string{"printenv", "HOME"}, nil, "")
 	if exitCode == 0 && trimOutput(homeOut) != "" {
 		cipdipPaths = append(cipdipPaths, filepath.Join(trimOutput(homeOut), "go", "bin", "cipdip"))
 	}
