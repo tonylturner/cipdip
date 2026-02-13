@@ -67,6 +67,7 @@ func (s *PCCCScenario) Run(ctx context.Context, client cipclient.Client, cfg *co
 
 	loopCount := 0
 	tns := uint16(1)
+	var lastOp time.Time
 
 	fmt.Printf("[CLIENT] Starting PCCC scenario (cycling %d operations every %dms)\n",
 		len(operations), params.Interval.Milliseconds())
@@ -84,6 +85,7 @@ func (s *PCCCScenario) Run(ctx context.Context, client cipclient.Client, cfg *co
 			break
 		}
 
+		jitterMs := computeJitterMs(&lastOp, params.Interval)
 		op := operations[loopCount%len(operations)]
 		start := time.Now()
 
@@ -120,6 +122,7 @@ func (s *PCCCScenario) Run(ctx context.Context, client cipclient.Client, cfg *co
 			ServiceCode: "0x4B",
 			Success:     success,
 			RTTMs:       float64(rtt.Microseconds()) / 1000.0,
+			JitterMs:    jitterMs,
 		}
 		if err != nil {
 			m.Error = err.Error()

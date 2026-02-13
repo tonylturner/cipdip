@@ -66,6 +66,8 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	progressBar := progress.NewProgressBar(totalOps, "Mixed scenario")
 	defer progressBar.Finish()
 
+	var lastOp time.Time
+
 	// Main loop
 	for {
 		select {
@@ -79,6 +81,8 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		if time.Now().After(deadline) {
 			break
 		}
+
+		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		// Perform reads for all read targets
 		for _, target := range cfg.ReadTargets {
@@ -136,8 +140,10 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
+				Outcome:     classifyOutcome(err, resp.Status),
 			}
 			params.MetricsSink.Record(metric)
 
@@ -200,8 +206,10 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(serviceCode)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
+				Outcome:     classifyOutcome(err, resp.Status),
 			}
 			params.MetricsSink.Record(metric)
 
@@ -276,8 +284,10 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceSetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
+				Outcome:     classifyOutcome(err, resp.Status),
 			}
 			params.MetricsSink.Record(metric)
 

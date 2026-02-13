@@ -67,6 +67,7 @@ func (s *ModbusScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 	defer progressBar.Finish()
 
 	loopCount := 0
+	var lastOp time.Time
 	fmt.Printf("[CLIENT] Starting Modbus scenario (cycling %d operations every %dms)\n",
 		len(operations), params.Interval.Milliseconds())
 
@@ -83,6 +84,7 @@ func (s *ModbusScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 			break
 		}
 
+		jitterMs := computeJitterMs(&lastOp, params.Interval)
 		op := operations[loopCount%len(operations)]
 		start := time.Now()
 
@@ -103,6 +105,7 @@ func (s *ModbusScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 			ServiceCode: "0x0E",
 			Success:     success,
 			RTTMs:       float64(rtt.Microseconds()) / 1000.0,
+			JitterMs:    jitterMs,
 		}
 		if err != nil {
 			m.Error = err.Error()
@@ -196,6 +199,7 @@ func (s *ModbusPipelineScenario) Run(ctx context.Context, client cipclient.Clien
 	// Send batches of read requests to different register ranges.
 	loopCount := 0
 	batchSize := 5
+	var lastOpPipeline time.Time
 
 	fmt.Printf("[CLIENT] Starting Modbus pipeline scenario (batch=%d, interval=%dms)\n",
 		batchSize, params.Interval.Milliseconds())
@@ -212,6 +216,7 @@ func (s *ModbusPipelineScenario) Run(ctx context.Context, client cipclient.Clien
 			break
 		}
 
+		pipelineJitterMs := computeJitterMs(&lastOpPipeline, params.Interval)
 		start := time.Now()
 		successes := 0
 
@@ -238,6 +243,7 @@ func (s *ModbusPipelineScenario) Run(ctx context.Context, client cipclient.Clien
 			TargetName: fmt.Sprintf("batch_%d", loopCount),
 			Success:    successes == batchSize,
 			RTTMs:      float64(rtt.Microseconds()) / 1000.0,
+			JitterMs:   pipelineJitterMs,
 		}
 		params.MetricsSink.Record(m)
 

@@ -58,6 +58,8 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 	progressBar := progress.NewProgressBar(totalOps, "Stress scenario")
 	defer progressBar.Finish()
 
+	var lastOp time.Time
+
 	// Main loop
 	for {
 		select {
@@ -71,6 +73,8 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 		if time.Now().After(deadline) {
 			break
 		}
+
+		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		// Perform reads for each target (serial, one after another)
 		for _, target := range cfg.ReadTargets {
@@ -129,6 +133,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
 			}
@@ -196,6 +201,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(serviceCode)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
 			}

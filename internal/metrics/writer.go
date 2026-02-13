@@ -160,6 +160,23 @@ func (w *Writer) WriteSummary(summary *Summary, metrics []Metric) error {
 		return writer.Write(record)
 	}
 
+	// Write count-based aggregate stats row
+	countsRecord := []string{
+		"counts", "", "", "aggregate",
+		fmt.Sprintf("%d", summary.TotalOperations),
+		fmt.Sprintf("%d", summary.SuccessfulOps),
+		fmt.Sprintf("%d", summary.FailedOps),
+		fmt.Sprintf("%.3f", summary.ThroughputOpsPerSec),
+		fmt.Sprintf("%d", summary.TimeoutCount),
+		fmt.Sprintf("%d", summary.ConnectionFailures),
+		fmt.Sprintf("%d", summary.TCPResetCount),
+		fmt.Sprintf("%d", summary.Misclassifications),
+		"", "", "", "", "", "", "",
+	}
+	if err := writer.Write(countsRecord); err != nil {
+		return fmt.Errorf("write counts row: %w", err)
+	}
+
 	overallRTT := make([]float64, 0, len(metrics))
 	overallJitter := make([]float64, 0, len(metrics))
 	for _, m := range metrics {

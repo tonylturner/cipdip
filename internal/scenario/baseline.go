@@ -65,6 +65,8 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 	const reconnectDelay = 2 * time.Second
 	reconnectCount := 0
 
+	var lastOp time.Time
+
 	// Main loop
 	for {
 		select {
@@ -90,6 +92,8 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 			}
 			fmt.Printf("[CLIENT] Reconnected successfully\n")
 		}
+
+		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		// Perform reads for each target
 		for _, target := range cfg.ReadTargets {
@@ -149,8 +153,10 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
+				Outcome:     classifyOutcome(err, resp.Status),
 			}
 			params.MetricsSink.Record(metric)
 
@@ -215,8 +221,10 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(serviceCode)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
+				Outcome:     classifyOutcome(err, resp.Status),
 			}
 			params.MetricsSink.Record(metric)
 

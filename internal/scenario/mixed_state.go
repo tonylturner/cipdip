@@ -52,14 +52,17 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			fcErr := client.ForwardClose(ctx, conn)
 			fcRTT := time.Since(fcStart).Seconds() * 1000
 			params.MetricsSink.Record(metrics.Metric{
-				Timestamp:  fcStart,
-				Scenario:   "mixed_state",
-				TargetType: params.TargetType,
-				Operation:  metrics.OperationForwardClose,
-				TargetName: connName,
-				Success:    fcErr == nil,
-				RTTMs:      fcRTT,
-				Error:      errorString(fcErr),
+				Timestamp:       fcStart,
+				Scenario:        "mixed_state",
+				TargetType:      params.TargetType,
+				Operation:       metrics.OperationForwardClose,
+				TargetName:      connName,
+				ServiceCode:     "0x4E",
+				Success:         fcErr == nil,
+				RTTMs:           fcRTT,
+				Error:           errorString(fcErr),
+				Outcome:         classifyOutcome(fcErr, 0),
+				ExpectedOutcome: "success",
 			})
 		}
 		client.Disconnect(ctx)
@@ -87,14 +90,17 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 		conn, err := client.ForwardOpen(ctx, connParams)
 		foRTT := time.Since(foStart).Seconds() * 1000
 		params.MetricsSink.Record(metrics.Metric{
-			Timestamp:  foStart,
-			Scenario:   "mixed_state",
-			TargetType: params.TargetType,
-			Operation:  metrics.OperationForwardOpen,
-			TargetName: connCfg.Name,
-			Success:    err == nil,
-			RTTMs:      foRTT,
-			Error:      errorString(err),
+			Timestamp:       foStart,
+			Scenario:        "mixed_state",
+			TargetType:      params.TargetType,
+			Operation:       metrics.OperationForwardOpen,
+			TargetName:      connCfg.Name,
+			ServiceCode:     "0x54",
+			Success:         err == nil,
+			RTTMs:           foRTT,
+			Error:           errorString(err),
+			Outcome:         classifyOutcome(err, 0),
+			ExpectedOutcome: "success",
 		})
 		if err != nil {
 			params.Logger.Error("Failed to open I/O connection %s: %v", connCfg.Name, err)
@@ -170,18 +176,19 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			}
 
 			metric := metrics.Metric{
-				Timestamp:   time.Now(),
-				Scenario:    "mixed_state",
-				TargetType:  params.TargetType,
-				Operation:   metrics.OperationRead,
-				TargetName:  target.Name,
-				ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
-				Success:     success,
-				RTTMs:       rtt,
-				JitterMs:    jitterMs,
-				Status:      resp.Status,
-				Error:       errorMsg,
-				Outcome:     classifyOutcome(err, resp.Status),
+				Timestamp:       time.Now(),
+				Scenario:        "mixed_state",
+				TargetType:      params.TargetType,
+				Operation:       metrics.OperationRead,
+				TargetName:      target.Name,
+				ServiceCode:     fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
+				Success:         success,
+				RTTMs:           rtt,
+				JitterMs:        jitterMs,
+				Status:          resp.Status,
+				Error:           errorMsg,
+				Outcome:         classifyOutcome(err, resp.Status),
+				ExpectedOutcome: "success",
 			}
 			params.MetricsSink.Record(metric)
 		}
@@ -203,16 +210,17 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			rtt := time.Since(start).Seconds() * 1000
 
 			metric := metrics.Metric{
-				Timestamp:  time.Now(),
-				Scenario:   "mixed_state",
-				TargetType: params.TargetType,
-				Operation:  metrics.OperationOTToTSend,
-				TargetName: connCfg.Name,
-				Success:    err == nil,
-				RTTMs:      rtt,
-				JitterMs:   jitterMs,
-				Error:      errorString(err),
-				Outcome:    classifyOutcome(err, 0),
+				Timestamp:       time.Now(),
+				Scenario:        "mixed_state",
+				TargetType:      params.TargetType,
+				Operation:       metrics.OperationOTToTSend,
+				TargetName:      connCfg.Name,
+				Success:         err == nil,
+				RTTMs:           rtt,
+				JitterMs:        jitterMs,
+				Error:           errorString(err),
+				Outcome:         classifyOutcome(err, 0),
+				ExpectedOutcome: "success",
 			}
 			params.MetricsSink.Record(metric)
 
@@ -221,16 +229,17 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 			rtt = time.Since(start).Seconds() * 1000
 
 			metric = metrics.Metric{
-				Timestamp:  time.Now(),
-				Scenario:   "mixed_state",
-				TargetType: params.TargetType,
-				Operation:  metrics.OperationTToORecv,
-				TargetName: connCfg.Name,
-				Success:    err == nil,
-				RTTMs:      rtt,
-				JitterMs:   jitterMs,
-				Error:      errorString(err),
-				Outcome:    classifyOutcome(err, 0),
+				Timestamp:       time.Now(),
+				Scenario:        "mixed_state",
+				TargetType:      params.TargetType,
+				Operation:       metrics.OperationTToORecv,
+				TargetName:      connCfg.Name,
+				Success:         err == nil,
+				RTTMs:           rtt,
+				JitterMs:        jitterMs,
+				Error:           errorString(err),
+				Outcome:         classifyOutcome(err, 0),
+				ExpectedOutcome: "success",
 			}
 			params.MetricsSink.Record(metric)
 		}

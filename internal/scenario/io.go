@@ -82,12 +82,13 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 
 		// Record ForwardOpen metric
 		metric := metrics.Metric{
-			Timestamp:  time.Now(),
-			Scenario:   "io",
-			TargetType: params.TargetType,
-			Operation:  metrics.OperationForwardOpen,
-			TargetName: connCfg.Name,
-			Success:    true,
+			Timestamp:   time.Now(),
+			Scenario:    "io",
+			TargetType:  params.TargetType,
+			Operation:   metrics.OperationForwardOpen,
+			TargetName:  connCfg.Name,
+			ServiceCode: "0x54",
+			Success:     true,
 		}
 		params.MetricsSink.Record(metric)
 	}
@@ -133,6 +134,8 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 	progressBar := progress.NewProgressBar(totalOps, "I/O scenario")
 	defer progressBar.Finish()
 
+	var lastOp time.Time
+
 	// Main loop
 	for {
 		select {
@@ -146,6 +149,8 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		if time.Now().After(deadline) {
 			break
 		}
+
+		jitterMs := computeJitterMs(&lastOp, loopInterval)
 
 		// Process each I/O connection
 		for i, conn := range ioConns {
@@ -189,6 +194,7 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 				TargetName: connCfg.Name,
 				Success:    success,
 				RTTMs:      rtt,
+				JitterMs:   jitterMs,
 				Error:      errorMsg,
 			}
 			params.MetricsSink.Record(metric)
@@ -224,6 +230,7 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 				TargetName: connCfg.Name,
 				Success:    success,
 				RTTMs:      rtt,
+				JitterMs:   jitterMs,
 				Error:      errorMsg,
 			}
 			params.MetricsSink.Record(metric)
@@ -287,13 +294,14 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		}
 
 		metric := metrics.Metric{
-			Timestamp:  time.Now(),
-			Scenario:   "io",
-			TargetType: params.TargetType,
-			Operation:  metrics.OperationForwardClose,
-			TargetName: connCfg.Name,
-			Success:    success,
-			Error:      errorMsg,
+			Timestamp:   time.Now(),
+			Scenario:    "io",
+			TargetType:  params.TargetType,
+			Operation:   metrics.OperationForwardClose,
+			TargetName:  connCfg.Name,
+			ServiceCode: "0x4E",
+			Success:     success,
+			Error:       errorMsg,
 		}
 		params.MetricsSink.Record(metric)
 	}

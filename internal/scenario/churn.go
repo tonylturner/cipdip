@@ -45,6 +45,8 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	progressBar := progress.NewProgressBar(totalCycles, "Churn scenario")
 	defer progressBar.Finish()
 
+	var lastOp time.Time
+
 	// Outer loop: connection cycles
 	for {
 		select {
@@ -60,6 +62,7 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		}
 
 		cycleCount++
+		jitterMs := computeJitterMs(&lastOp, params.Interval)
 
 		// Connect
 		port := params.Port
@@ -81,6 +84,7 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				TargetType: params.TargetType,
 				Operation:  metrics.OperationRead,
 				Success:    false,
+				JitterMs:   jitterMs,
 				Error:      fmt.Sprintf("connection failed: %v", err),
 			}
 			params.MetricsSink.Record(metric)
@@ -155,6 +159,7 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 						ServiceCode: fmt.Sprintf("0x%02X", uint8(spec.CIPServiceGetAttributeSingle)),
 						Success:     success,
 						RTTMs:       rtt,
+						JitterMs:    jitterMs,
 						Status:      resp.Status,
 						Error:       errorMsg,
 					}
@@ -223,6 +228,7 @@ func (s *ChurnScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 				ServiceCode: fmt.Sprintf("0x%02X", uint8(serviceCode)),
 				Success:     success,
 				RTTMs:       rtt,
+				JitterMs:    jitterMs,
 				Status:      resp.Status,
 				Error:       errorMsg,
 			}

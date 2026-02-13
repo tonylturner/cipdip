@@ -421,6 +421,7 @@ func buildSelfTestClientConfig(port int) *config.Config {
 			{Mode: "strict_odva"},
 			{Mode: "vendor_variant", Variant: "schneider_m580"},
 			{Mode: "vendor_variant", Variant: "siemens_s7_1200"},
+			{Mode: "vendor_variant", Variant: "rockwell_v32"},
 		},
 		ReadTargets: []config.CIPTarget{
 			{

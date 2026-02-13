@@ -99,14 +99,15 @@ func (s *EvasionSegmentScenario) Run(ctx context.Context, client cipclient.Clien
 
 		rtt := time.Since(start)
 		m := metrics.Metric{
-			Timestamp:  start,
-			Scenario:   "evasion_segment",
-			TargetType: params.TargetType,
-			Operation:  metrics.OperationRead,
-			TargetName: fmt.Sprintf("segment_%s", sp),
-			Success:    success,
-			RTTMs:      float64(rtt.Microseconds()) / 1000.0,
-			Error:      errMsg,
+			Timestamp:   start,
+			Scenario:    "evasion_segment",
+			TargetType:  params.TargetType,
+			Operation:   metrics.OperationRead,
+			TargetName:  fmt.Sprintf("segment_%s", sp),
+			ServiceCode: "0x0E",
+			Success:     success,
+			RTTMs:       float64(rtt.Microseconds()) / 1000.0,
+			Error:       errMsg,
 		}
 		params.MetricsSink.Record(m)
 

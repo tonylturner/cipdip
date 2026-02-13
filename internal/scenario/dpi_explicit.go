@@ -69,6 +69,18 @@ func jitterSleep(ctx context.Context) {
 	}
 }
 
+// classifyOperation maps CIP service codes to metric operation types.
+func classifyOperation(svc protocol.CIPServiceCode) metrics.OperationType {
+	switch svc {
+	case spec.CIPServiceGetAttributeSingle, spec.CIPServiceGetAttributeAll:
+		return metrics.OperationRead
+	case spec.CIPServiceSetAttributeSingle:
+		return metrics.OperationWrite
+	default:
+		return metrics.OperationCustom
+	}
+}
+
 // phaseSlug converts a phase name to a lowercase slug for metric labels.
 func phaseSlug(name string) string {
 	return strings.ToLower(strings.ReplaceAll(name, " ", "_"))
@@ -353,14 +365,17 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 				result.Failures++
 				result.Notes = append(result.Notes, fmt.Sprintf("ForwardOpen %d failed: %v", connectionID, err))
 				params.MetricsSink.Record(metrics.Metric{
-					Timestamp:  time.Now(),
-					Scenario:   phaseScenarioLabel(result),
-					TargetType: params.TargetType,
-					Operation:  metrics.OperationForwardOpen,
-					TargetName: fmt.Sprintf("churn_%d", connectionID),
-					Success:    false,
-					RTTMs:      rtt,
-					Error:      err.Error(),
+					Timestamp:       time.Now(),
+					Scenario:        phaseScenarioLabel(result),
+					TargetType:      params.TargetType,
+					Operation:       metrics.OperationForwardOpen,
+					TargetName:      fmt.Sprintf("churn_%d", connectionID),
+					ServiceCode:     "0x54",
+					Success:         false,
+					RTTMs:           rtt,
+					Error:           err.Error(),
+					Outcome:         classifyOutcome(err, 0),
+					ExpectedOutcome: "success",
 				})
 				jitterSleep(ctx)
 				continue
@@ -369,13 +384,16 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 			result.Successes++
 			result.RTTs = append(result.RTTs, rtt)
 			params.MetricsSink.Record(metrics.Metric{
-				Timestamp:  time.Now(),
-				Scenario:   phaseScenarioLabel(result),
-				TargetType: params.TargetType,
-				Operation:  metrics.OperationForwardOpen,
-				TargetName: fmt.Sprintf("churn_%d", connectionID),
-				Success:    true,
-				RTTMs:      rtt,
+				Timestamp:       time.Now(),
+				Scenario:        phaseScenarioLabel(result),
+				TargetType:      params.TargetType,
+				Operation:       metrics.OperationForwardOpen,
+				TargetName:      fmt.Sprintf("churn_%d", connectionID),
+				ServiceCode:     "0x54",
+				Success:         true,
+				RTTMs:           rtt,
+				Outcome:         "success",
+				ExpectedOutcome: "success",
 			})
 
 			// Brief hold time before close
@@ -390,26 +408,32 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 			if err != nil {
 				result.Failures++
 				params.MetricsSink.Record(metrics.Metric{
-					Timestamp:  time.Now(),
-					Scenario:   phaseScenarioLabel(result),
-					TargetType: params.TargetType,
-					Operation:  metrics.OperationForwardClose,
-					TargetName: fmt.Sprintf("churn_%d", connectionID),
-					Success:    false,
-					RTTMs:      closeRTT,
-					Error:      err.Error(),
+					Timestamp:       time.Now(),
+					Scenario:        phaseScenarioLabel(result),
+					TargetType:      params.TargetType,
+					Operation:       metrics.OperationForwardClose,
+					TargetName:      fmt.Sprintf("churn_%d", connectionID),
+					ServiceCode:     "0x4E",
+					Success:         false,
+					RTTMs:           closeRTT,
+					Error:           err.Error(),
+					Outcome:         classifyOutcome(err, 0),
+					ExpectedOutcome: "success",
 				})
 			} else {
 				result.Successes++
 				result.RTTs = append(result.RTTs, closeRTT)
 				params.MetricsSink.Record(metrics.Metric{
-					Timestamp:  time.Now(),
-					Scenario:   phaseScenarioLabel(result),
-					TargetType: params.TargetType,
-					Operation:  metrics.OperationForwardClose,
-					TargetName: fmt.Sprintf("churn_%d", connectionID),
-					Success:    true,
-					RTTMs:      closeRTT,
+					Timestamp:       time.Now(),
+					Scenario:        phaseScenarioLabel(result),
+					TargetType:      params.TargetType,
+					Operation:       metrics.OperationForwardClose,
+					TargetName:      fmt.Sprintf("churn_%d", connectionID),
+					ServiceCode:     "0x4E",
+					Success:         true,
+					RTTMs:           closeRTT,
+					Outcome:         "success",
+					ExpectedOutcome: "success",
 				})
 			}
 
@@ -664,16 +688,18 @@ func (s *DPIExplicitScenario) testRequest(ctx context.Context, client cipclient.
 
 	// Record metric
 	params.MetricsSink.Record(metrics.Metric{
-		Timestamp:   time.Now(),
-		Scenario:    phaseScenarioLabel(result),
-		TargetType:  params.TargetType,
-		Operation:   metrics.OperationCustom,
-		TargetName:  name,
-		ServiceCode: fmt.Sprintf("0x%02X", uint8(req.Service)),
-		Success:     success,
-		RTTMs:       rtt,
-		Status:      resp.Status,
-		Error:       errorMsg,
+		Timestamp:       time.Now(),
+		Scenario:        phaseScenarioLabel(result),
+		TargetType:      params.TargetType,
+		Operation:       classifyOperation(req.Service),
+		TargetName:      name,
+		ServiceCode:     fmt.Sprintf("0x%02X", uint8(req.Service)),
+		Success:         success,
+		RTTMs:           rtt,
+		Status:          resp.Status,
+		Error:           errorMsg,
+		Outcome:         classifyOutcome(err, resp.Status),
+		ExpectedOutcome: "success",
 	})
 }
 
@@ -711,16 +737,18 @@ func (s *DPIExplicitScenario) testRequestExpectError(ctx context.Context, client
 	}
 
 	params.MetricsSink.Record(metrics.Metric{
-		Timestamp:   time.Now(),
-		Scenario:    phaseScenarioLabel(result),
-		TargetType:  params.TargetType,
-		Operation:   metrics.OperationCustom,
-		TargetName:  name,
-		ServiceCode: fmt.Sprintf("0x%02X", uint8(req.Service)),
-		Success:     gotProperError,
-		RTTMs:       rtt,
-		Status:      resp.Status,
-		Error:       errorMsg,
+		Timestamp:       time.Now(),
+		Scenario:        phaseScenarioLabel(result),
+		TargetType:      params.TargetType,
+		Operation:       classifyOperation(req.Service),
+		TargetName:      name,
+		ServiceCode:     fmt.Sprintf("0x%02X", uint8(req.Service)),
+		Success:         gotProperError,
+		RTTMs:           rtt,
+		Status:          resp.Status,
+		Error:           errorMsg,
+		Outcome:         classifyOutcome(err, resp.Status),
+		ExpectedOutcome: "error",
 	})
 }
 
