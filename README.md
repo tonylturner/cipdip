@@ -1,6 +1,6 @@
 # CIPDIP
 
-![Go](https://img.shields.io/badge/go-1.26+-00ADD8?logo=go) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![Version](https://img.shields.io/badge/version-0.2.1-green)
+![Go](https://img.shields.io/badge/go-1.26+-00ADD8?logo=go) ![License](https://img.shields.io/badge/license-Apache%202.0-blue) ![Version](https://img.shields.io/badge/version-0.2.2-green)
 ![SBOM](https://img.shields.io/badge/SBOM-CycloneDX-brightgreen) ![PCAP Validated](https://img.shields.io/badge/pcap-validated-brightgreen) ![CIP](https://img.shields.io/badge/protocol-CIP%20%2F%20EtherNet%2FIP-blue) ![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-0078D6)
 
 Protocol-aware CIP/EtherNet-IP deep packet inspection test harness. CIPDIP generates strict ODVA-framed traffic with optional vendor-variant profiles, designed for evaluating industrial firewall DPI engines, validating protocol implementations, and testing CIP/ENIP security controls.

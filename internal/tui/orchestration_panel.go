@@ -2570,7 +2570,7 @@ func (p *OrchestrationPanel) handleRunDone(result *controller.Result, err error)
 }
 
 // version is defined in main.go but we need it here
-var version = "0.2.1"
+var version = "0.2.2"
 
 // LoadManifestFiles returns a list of manifest files in the workspace.
 func LoadManifestFiles(workspaceRoot string) []string {

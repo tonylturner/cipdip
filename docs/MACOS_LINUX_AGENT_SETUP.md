@@ -171,7 +171,7 @@ Expected output:
 Agent Status
 ============
 
-Version:    0.2.1
+Version:    0.2.2
 OS/Arch:    darwin/arm64
 Hostname:   macbook
 

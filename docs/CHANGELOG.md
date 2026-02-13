@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-02-13
+
+### Fixed
+- Fix `go vet` IPv6 address formatting in evasion scenarios (use `net.JoinHostPort`)
+- Fix context leak in vendor_variants scenario (cancel not called on all return paths)
+- Skip pcap-dependent tests on Windows CI when npcap/wpcap is unavailable
+
 ## [0.2.1] - 2026-02-13
 
 ### Security
