@@ -3,7 +3,7 @@ metadata:
   description: "High-frequency discrete I/O"
   version: "1.0"
   seed: 11111
-  personality: adapter
+  personality: logix_like
   enable_udp_io: true
 
 data_model:

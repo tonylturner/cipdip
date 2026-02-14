@@ -13,10 +13,11 @@ import (
 
 // Writer handles writing metrics to files
 type Writer struct {
-	csvFile   *os.File
-	csvWriter *csv.Writer
-	jsonFile  *os.File
-	csvPath   string
+	csvFile     *os.File
+	csvWriter   *csv.Writer
+	jsonFile    *os.File
+	csvPath     string
+	jsonHasData bool // tracks whether JSON array has entries (avoids Seek syscall)
 }
 
 // NewWriter creates a new metrics writer
@@ -307,13 +308,13 @@ func (w *Writer) WriteMetric(m Metric) error {
 			return fmt.Errorf("marshal JSON: %w", err)
 		}
 
-		// Check if we need a comma (not the first entry)
-		pos, _ := w.jsonFile.Seek(0, 1) // Get current position
-		if pos > 2 {                    // More than just "[\n"
+		// Write comma separator between entries (no Seek syscall needed)
+		if w.jsonHasData {
 			if _, err := w.jsonFile.WriteString(",\n"); err != nil {
 				return fmt.Errorf("write JSON comma: %w", err)
 			}
 		}
+		w.jsonHasData = true
 
 		// Write indented JSON
 		var buf bytes.Buffer

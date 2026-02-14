@@ -147,6 +147,9 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 		cmd = append([]string{"cipdip"}, cmd...)
 	}
 
+	// Environment variables for the command
+	var env map[string]string
+
 	// Check if remote is Windows
 	isWindows := false
 	if sshTransport, ok := r.transport.(*transport.SSH); ok && sshTransport.IsWindows() {
@@ -166,16 +169,13 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 		psScript := fmt.Sprintf(`$ErrorActionPreference='Stop'; $paths=@('cipdip','cipdip.exe','C:\Windows\System32\cipdip.exe','C:\Windows\cipdip.exe',"$env:USERPROFILE\go\bin\cipdip.exe"); foreach($p in $paths){try{$cmd=Get-Command $p -ErrorAction SilentlyContinue; if($cmd){& $cmd.Source %s; exit $LASTEXITCODE}}catch{}}; Write-Error 'cipdip not found in PATH or common locations'; exit 1`, args)
 		cmd = []string{"powershell", "-NoProfile", "-Command", psScript}
 	} else {
-		// On Unix, wrap in shell to find cipdip in common locations
-		// (PATH may not include /usr/local/bin in non-interactive SSH)
-		// SECURITY: Properly quote each argument to prevent injection attacks
-		var quotedArgs []string
-		for _, arg := range cmd {
-			quotedArgs = append(quotedArgs, shellQuote(arg))
+		// On Unix, add common binary directories to PATH via env map.
+		// The transport layer prepends env vars to the command string,
+		// and the remote shell handles expansion of $HOME and $PATH.
+		// This avoids wrapping the command in sh -c.
+		env = map[string]string{
+			"PATH": "/usr/local/bin:/opt/homebrew/bin:$HOME/go/bin:$PATH",
 		}
-		cipdipCmd := strings.Join(quotedArgs, " ")
-		shellCmd := fmt.Sprintf(`PATH=/usr/local/bin:/opt/homebrew/bin:$HOME/go/bin:$PATH %s`, cipdipCmd)
-		cmd = []string{"sh", "-c", shellCmd}
 	}
 
 	// Create writers that capture to our buffers and check for readiness
@@ -197,7 +197,7 @@ func (r *RemoteRunner) runRemoteCommand(ctx context.Context) {
 	}
 
 	// Execute via transport
-	exitCode, err := r.transport.ExecStream(ctx, cmd, nil, r.workDir, stdoutWriter, stderrWriter)
+	exitCode, err := r.transport.ExecStream(ctx, cmd, env, r.workDir, stdoutWriter, stderrWriter)
 
 	r.mu.Lock()
 	r.finished = true

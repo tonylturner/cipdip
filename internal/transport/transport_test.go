@@ -494,6 +494,63 @@ func TestBuildCommandString(t *testing.T) {
 	}
 }
 
+func TestPrependEnvVars(t *testing.T) {
+	tests := []struct {
+		name     string
+		env      map[string]string
+		cmdStr   string
+		remoteOS string
+		want     string
+	}{
+		{
+			name:   "nil env",
+			env:    nil,
+			cmdStr: "cipdip client",
+			want:   "cipdip client",
+		},
+		{
+			name:   "empty env",
+			env:    map[string]string{},
+			cmdStr: "cipdip client",
+			want:   "cipdip client",
+		},
+		{
+			name:   "unix PATH with shell vars",
+			env:    map[string]string{"PATH": "/usr/local/bin:$HOME/go/bin:$PATH"},
+			cmdStr: "cipdip client --ip 10.0.0.50",
+			want:   `export PATH="/usr/local/bin:$HOME/go/bin:$PATH"; cipdip client --ip 10.0.0.50`,
+		},
+		{
+			name:     "windows env",
+			env:      map[string]string{"PATH": "C:\\bin;%PATH%"},
+			cmdStr:   "cipdip.exe client",
+			remoteOS: "windows",
+			want:     "$env:PATH='C:\\bin;%PATH%'; cipdip.exe client",
+		},
+		{
+			name:   "value with double quotes",
+			env:    map[string]string{"MSG": `say "hello"`},
+			cmdStr: "echo test",
+			want:   `export MSG="say \"hello\""; echo test`,
+		},
+		{
+			name:   "value with backticks",
+			env:    map[string]string{"CMD": "run `cmd`"},
+			cmdStr: "echo test",
+			want:   "export CMD=\"run \\`cmd\\`\"; echo test",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := prependEnvVars(tt.env, tt.cmdStr, tt.remoteOS)
+			if got != tt.want {
+				t.Errorf("prependEnvVars() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNeedsQuoting(t *testing.T) {
 	tests := []struct {
 		s    string

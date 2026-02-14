@@ -232,15 +232,12 @@ func (s *SSH) Exec(ctx context.Context, cmd []string, env map[string]string, cwd
 	}
 	defer session.Close()
 
-	// Set environment variables
-	for k, v := range env {
-		if err := session.Setenv(k, v); err != nil {
-			// Some servers don't allow setting env vars, ignore
-		}
-	}
-
 	// Build command string with elevation if configured
 	cmdStr := buildCommandString(cmd, cwd, s.opts.Elevate, s.opts.RemoteOS)
+
+	// Prepend environment variables to command string
+	// (more reliable than session.Setenv which requires AcceptEnv in sshd_config)
+	cmdStr = prependEnvVars(env, cmdStr, s.opts.RemoteOS)
 
 	var stdout, stderr bytes.Buffer
 	session.Stdout = &stdout
@@ -280,13 +277,12 @@ func (s *SSH) ExecStream(ctx context.Context, cmd []string, env map[string]strin
 	}
 	defer session.Close()
 
-	// Set environment variables
-	for k, v := range env {
-		session.Setenv(k, v)
-	}
-
 	// Build command string with elevation if configured
 	cmdStr := buildCommandString(cmd, cwd, s.opts.Elevate, s.opts.RemoteOS)
+
+	// Prepend environment variables to command string
+	// (more reliable than session.Setenv which requires AcceptEnv in sshd_config)
+	cmdStr = prependEnvVars(env, cmdStr, s.opts.RemoteOS)
 
 	session.Stdout = stdout
 	session.Stderr = stderr
@@ -649,6 +645,37 @@ func ValidateRelativePath(basePath, relativePath string) error {
 	}
 
 	return nil
+}
+
+// prependEnvVars prepends environment variables to a command string.
+// This is more reliable than session.Setenv, which requires AcceptEnv in sshd_config.
+// For Unix, values are double-quoted to allow shell expansion (e.g., $HOME, $PATH)
+// while preventing command injection.
+// For Windows, values use PowerShell $env: syntax.
+func prependEnvVars(env map[string]string, cmdStr, remoteOS string) string {
+	if len(env) == 0 {
+		return cmdStr
+	}
+
+	if remoteOS == "windows" {
+		var parts []string
+		for k, v := range env {
+			// PowerShell: $env:KEY='VALUE'
+			parts = append(parts, fmt.Sprintf("$env:%s='%s'", k, strings.ReplaceAll(v, "'", "''")))
+		}
+		return strings.Join(parts, "; ") + "; " + cmdStr
+	}
+
+	// POSIX: export KEY="VALUE"
+	// Double quotes allow shell expansion ($HOME, $PATH) while keeping values safe
+	var parts []string
+	for k, v := range env {
+		escaped := strings.ReplaceAll(v, `\`, `\\`)
+		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+		escaped = strings.ReplaceAll(escaped, "`", "\\`")
+		parts = append(parts, fmt.Sprintf(`export %s="%s"`, k, escaped))
+	}
+	return strings.Join(parts, "; ") + "; " + cmdStr
 }
 
 // buildCommandString builds a shell command string.

@@ -43,11 +43,10 @@ func newSingleCmd() *cobra.Command {
 	flags := &singleFlags{}
 
 	cmd := &cobra.Command{
-		Use:   "single",
-		Short: "Send a single CIP service request (DEPRECATED: use 'catalog test')",
-		Long: `DEPRECATED: Use 'cipdip catalog test <key>' instead.
-
-Send a single CIP service request without editing YAML configs.
+		Use:        "single",
+		Short:      "Send a single CIP service request",
+		Deprecated: "use 'cipdip catalog test <key>' instead",
+		Long: `Send a single CIP service request without editing YAML configs.
 Use this for quick firewall/DPI checks on a specific service/class/instance/attribute.
 
 Migration examples:

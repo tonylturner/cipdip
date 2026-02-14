@@ -48,7 +48,7 @@ func TestLoadProfile(t *testing.T) {
 			wantTags:    17,
 			wantStates:  5,
 			wantRoles:   3,
-			personality: "adapter",
+			personality: "logix_like",
 		},
 	}
 
