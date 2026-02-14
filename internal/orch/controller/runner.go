@@ -37,6 +37,7 @@ type Runner struct {
 	// Output capture
 	stdoutBuf strings.Builder
 	stderrBuf strings.Builder
+	captureWg sync.WaitGroup
 
 	// Readiness detection
 	readyCh chan struct{}
@@ -98,6 +99,7 @@ func (r *Runner) Start(ctx context.Context) error {
 	r.meta.AgentID = "local"
 
 	// Start output capture goroutines
+	r.captureWg.Add(2)
 	go r.captureStdout()
 	go r.captureStderr()
 
@@ -109,6 +111,7 @@ func (r *Runner) Start(ctx context.Context) error {
 
 // captureStdout reads and captures stdout.
 func (r *Runner) captureStdout() {
+	defer r.captureWg.Done()
 	scanner := bufio.NewScanner(r.stdout)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -140,6 +143,7 @@ func (r *Runner) captureStdout() {
 
 // captureStderr reads and captures stderr.
 func (r *Runner) captureStderr() {
+	defer r.captureWg.Done()
 	scanner := bufio.NewScanner(r.stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -162,6 +166,9 @@ func (r *Runner) captureStderr() {
 // waitForExit waits for the process to exit.
 func (r *Runner) waitForExit() {
 	err := r.cmd.Wait()
+
+	// Wait for capture goroutines to finish reading all buffered output
+	r.captureWg.Wait()
 
 	r.mu.Lock()
 	r.finished = true
