@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-02-13
+
+### Changed
+- **Lint cleanup**: Resolved all 220 golangci-lint issues across 83 files (errcheck: 91, unused: 48, staticcheck: 76, ineffassign: 5), removing ~700 lines of dead code
+- **CI**: golangci-lint now enforces zero issues on all code (removed `only-new-issues` workaround)
+- **errcheck exclusions**: Expanded `.golangci.yml` exclude-functions for common cleanup patterns (Close, Remove, Flush, Fprint, Sscanf)
+
 ## [0.2.5] - 2026-02-13
 
 ### Security
