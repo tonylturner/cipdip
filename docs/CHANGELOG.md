@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-02-13
+
+### Security
+- Remove `sh -c` shell wrapping from remote runner; PATH is now set via transport env map with `prependEnvVars()`, eliminating shell injection surface
+- Replace unreliable `session.Setenv` in SSH transport with command-string env prepending (works with any sshd config)
+
+### Added
+- **CI: race detector** — `go test -race ./...` now runs in CI to catch data races in concurrent code (TUI, server, orchestration)
+- **CI: golangci-lint** — Added `golangci-lint` step with `.golangci.yml` config (errcheck, staticcheck, unused, etc.)
+- **Test coverage**: `internal/cip/codec` (0% -> 100%), `internal/cip/protocol` (3.9% -> 45.6%), `internal/artifact` (0% -> 95.1%), plus `prependEnvVars` transport tests
+
+### Fixed
+- Fix stale version "0.2.2" in TUI orchestration panel; version is now set from main via `tui.SetVersion()` to avoid duplication
+- Fix `paint_shop_conveyor.yaml` personality mismatch (adapter -> logix_like; profile uses symbolic tags)
+- Replace JSON `Seek` syscall with boolean flag in metrics writer for I/O performance
+
+### Changed
+- Add Cobra `Deprecated` field to `single` command for proper deprecation warnings
+- Replace custom `contains()` reimplementations with `strings.Contains()` in 3 files
+
 ## [0.2.4] - 2026-02-13
 
 ### Added
