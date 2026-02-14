@@ -59,6 +59,8 @@ func (l *Local) Exec(ctx context.Context, cmd []string, env map[string]string, c
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 			err = nil // Exit with non-zero is not an error per se
+		} else {
+			exitCode = -1 // Command failed to start (e.g., not found)
 		}
 	}
 
@@ -103,6 +105,8 @@ func (l *Local) ExecStream(ctx context.Context, cmd []string, env map[string]str
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 			err = nil // Exit with non-zero is not an error per se
+		} else {
+			exitCode = -1 // Command failed to start (e.g., not found)
 		}
 	}
 
