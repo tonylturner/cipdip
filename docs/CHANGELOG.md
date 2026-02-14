@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-02-13
+
+### Fixed
+- Fix flaky `TestRunner_StartWait` CI failure: added `sync.WaitGroup` so `Wait()` doesn't return until stdout/stderr capture goroutines finish reading all buffered pipe data
+
 ## [0.2.6] - 2026-02-13
 
 ### Changed
