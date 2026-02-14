@@ -37,8 +37,12 @@ func TestNewOutputManager(t *testing.T) {
 }
 
 func TestNewOutputManager_InvalidPath(t *testing.T) {
-	// Use a path that cannot be created
-	_, err := NewOutputManager("/dev/null/impossible")
+	// Use a path nested under a regular file, which fails on all platforms
+	// (t.TempDir() creates a directory, we create a file in it, then try to mkdir under it)
+	dir := t.TempDir()
+	blocker := filepath.Join(dir, "blocker")
+	os.WriteFile(blocker, []byte("x"), 0644)
+	_, err := NewOutputManager(filepath.Join(blocker, "subdir"))
 	if err == nil {
 		t.Error("expected error for invalid path")
 	}
