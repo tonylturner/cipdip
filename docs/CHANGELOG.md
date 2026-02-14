@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.8] - 2026-02-13
+
+### Added
+- Unified scenario coverage across TUI Quick Run, selftest, and orchestrator (23 scenarios)
+- Shared scenario config defaults in `config/scenario_defaults.go` for consistent behavior across all interfaces
+- Orchestrator auto-enrichment: `pushClientConfig` and `pushServerConfig` now inject scenario-specific config sections (edge targets, protocol variants, PCCC tables, Modbus config, etc.)
+- Per-scenario interval and personality defaults in TUI Quick Run manifest generation
+- `rockwell` and `unconnected_send` scenarios added to selftest runner
+
 ## [0.2.7] - 2026-02-13
 
 ### Fixed

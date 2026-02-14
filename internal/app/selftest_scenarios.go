@@ -10,7 +10,6 @@ import (
 	"time"
 
 	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
-	"github.com/tonylturner/cipdip/internal/cip/spec"
 	"github.com/tonylturner/cipdip/internal/config"
 	"github.com/tonylturner/cipdip/internal/logging"
 	"github.com/tonylturner/cipdip/internal/metrics"
@@ -65,6 +64,8 @@ var allScenarios = []scenarioEntry{
 	// Batch 7
 	{Name: "edge_valid", IntervalMs: 200, NeedsCfg: true},
 	{Name: "edge_vendor", IntervalMs: 200, NeedsCfg: true, Personality: "logix_like"},
+	{Name: "rockwell", IntervalMs: 100, NeedsCfg: true, Personality: "logix_like"},
+	{Name: "unconnected_send", IntervalMs: 200, NeedsCfg: true},
 	{Name: "pccc", IntervalMs: 200},
 	{Name: "modbus", IntervalMs: 200},
 	// Batch 8
@@ -340,7 +341,9 @@ func buildServerConfigForPersonality(personality string, opts SelfTestScenariosO
 			EnableUDPIO:         false,
 			ConnectionTimeoutMs: 5000,
 		},
-		Protocol: config.ProtocolConfig{Mode: "strict_odva"},
+		Protocol:       config.ProtocolConfig{Mode: "strict_odva"},
+		PCCCDataTables: config.DefaultPCCCDataTables(),
+		ModbusConfig:   config.DefaultModbusConfig(),
 		Faults: config.ServerFaultConfig{
 			Enable: true,
 			Latency: config.ServerFaultLatencyConfig{
@@ -350,59 +353,13 @@ func buildServerConfigForPersonality(personality string, opts SelfTestScenariosO
 				SpikeDelayMs: 0,
 			},
 		},
-		PCCCDataTables: []config.PCCCDataTableConfig{
-			{FileType: "N", FileNumber: 7, Elements: 100},
-			{FileType: "F", FileNumber: 8, Elements: 50},
-			{FileType: "T", FileNumber: 4, Elements: 20},
-		},
-		ModbusConfig: config.ModbusServerConfig{
-			Enabled:              true,
-			CoilCount:            100,
-			DiscreteInputCount:   100,
-			InputRegisterCount:   100,
-			HoldingRegisterCount: 100,
-		},
 	}
 
 	switch personality {
 	case "adapter":
-		base.AdapterAssemblies = []config.AdapterAssemblyConfig{
-			{
-				Name:          "InputAssembly",
-				Class:         spec.CIPClassAssembly,
-				Instance:      0x65,
-				Attribute:     0x03,
-				SizeBytes:     16,
-				Writable:      false,
-				UpdatePattern: "counter",
-			},
-			{
-				Name:          "InputAssembly2",
-				Class:         spec.CIPClassAssembly,
-				Instance:      0x66,
-				Attribute:     0x03,
-				SizeBytes:     16,
-				Writable:      false,
-				UpdatePattern: "counter",
-			},
-			{
-				Name:          "OutputAssembly",
-				Class:         spec.CIPClassAssembly,
-				Instance:      0x67,
-				Attribute:     0x03,
-				SizeBytes:     16,
-				Writable:      true,
-				UpdatePattern: "static",
-			},
-		}
-
+		base.AdapterAssemblies = config.DefaultAdapterAssemblies()
 	case "logix_like":
-		base.LogixTags = []config.LogixTagConfig{
-			{Name: "scada", Type: "DINT", ArrayLength: 1, UpdatePattern: "counter"},
-			{Name: "sensor_temp", Type: "REAL", ArrayLength: 10, UpdatePattern: "sine"},
-			{Name: "motor_speed", Type: "INT", ArrayLength: 1, UpdatePattern: "static"},
-			{Name: "plc_status", Type: "DINT", ArrayLength: 4, UpdatePattern: "random"},
-		}
+		base.LogixTags = config.DefaultLogixTags()
 	}
 
 	return base
@@ -419,163 +376,12 @@ func buildSelfTestClientConfig(port int) *config.Config {
 		Protocol: config.ProtocolConfig{
 			Mode: "strict_odva",
 		},
-		ProtocolVariants: []config.ProtocolConfig{
-			{Mode: "strict_odva"},
-			{Mode: "vendor_variant", Variant: "schneider_m580"},
-			{Mode: "vendor_variant", Variant: "siemens_s7_1200"},
-			{Mode: "vendor_variant", Variant: "rockwell_v32"},
-		},
-		ReadTargets: []config.CIPTarget{
-			{
-				Name:      "Identity_VendorID",
-				Service:   config.ServiceGetAttributeSingle,
-				Class:     spec.CIPClassIdentityObject,
-				Instance:  0x01,
-				Attribute: 0x01,
-				Tags:      []string{"tc-enip-001-explicit", "tc-dyn-001-learn", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:      "Identity_ProductType",
-				Service:   config.ServiceGetAttributeSingle,
-				Class:     spec.CIPClassIdentityObject,
-				Instance:  0x01,
-				Attribute: 0x02,
-				Tags:      []string{"tc-enip-001-explicit", "tc-dyn-001-learn", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:      "Assembly_Input1",
-				Service:   config.ServiceGetAttributeSingle,
-				Class:     spec.CIPClassAssembly,
-				Instance:  0x65,
-				Attribute: 0x03,
-				Tags:      []string{"tc-enip-001-explicit", "tc-dyn-001-learn", "hirschmann", "moxa", "dynics"},
-			},
-		},
-		WriteTargets: []config.CIPTarget{
-			{
-				Name:         "Assembly_Output1",
-				Service:      config.ServiceSetAttributeSingle,
-				Class:        spec.CIPClassAssembly,
-				Instance:     0x67,
-				Attribute:    0x03,
-				Pattern:      "increment",
-				InitialValue: 0,
-				Tags:         []string{"tc-enip-001-explicit", "tc-dyn-001-learn", "hirschmann", "moxa", "dynics"},
-			},
-		},
-		CustomTargets: []config.CIPTarget{
-			{
-				Name:        "Identity_GetAll",
-				Service:     config.ServiceCustom,
-				ServiceCode: uint8(spec.CIPServiceGetAttributeAll),
-				Class:       spec.CIPClassIdentityObject,
-				Instance:    0x01,
-				Attribute:   0x00,
-				Tags:        []string{"tc-enip-001-explicit", "tc-hirsch-001-pccc", "tc-hirsch-002-wildcard", "tc-moxa-001-default-action", "tc-dyn-001-learn", "tc-dyn-001-novel", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:        "MessageRouter_GetAll",
-				Service:     config.ServiceCustom,
-				ServiceCode: uint8(spec.CIPServiceGetAttributeAll),
-				Class:       spec.CIPClassMessageRouter,
-				Instance:    0x01,
-				Attribute:   0x00,
-				Tags:        []string{"tc-enip-002-violation", "tc-hirsch-001-pccc", "tc-hirsch-002-wildcard", "tc-moxa-001-default-action", "tc-dyn-001-learn", "tc-dyn-001-novel", "hirschmann", "moxa", "dynics"},
-			},
-		},
-		EdgeTargets: []config.EdgeTarget{
-			// Standard CIP edge targets (used by edge_valid)
-			{
-				Name:            "Edge_HighInstance",
-				Service:         config.ServiceGetAttributeSingle,
-				Class:           spec.CIPClassIdentityObject,
-				Instance:        0x1000,
-				Attribute:       0x01,
-				ExpectedOutcome: "error",
-				Tags:            []string{"tc-enip-002-violation", "tc-hirsch-001-pccc", "tc-hirsch-002-wildcard", "tc-moxa-001-default-action", "tc-dyn-001-learn", "tc-dyn-001-novel", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:            "Edge_InvalidClass",
-				Service:         config.ServiceGetAttributeSingle,
-				Class:           0xFF,
-				Instance:        0x01,
-				Attribute:       0x01,
-				ExpectedOutcome: "error",
-				Tags:            []string{"tc-enip-004-allowlist", "tc-hirsch-002-wildcard", "tc-moxa-001-default-action", "tc-dyn-001-novel", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:            "Edge_ReservedService",
-				Service:         config.ServiceCustom,
-				ServiceCode:     0x20,
-				Class:           spec.CIPClassIdentityObject,
-				Instance:        0x01,
-				Attribute:       0x00,
-				ExpectedOutcome: "error",
-				Tags:            []string{"tc-enip-003-reset", "tc-hirsch-001-pccc", "tc-moxa-001-default-action", "tc-dyn-001-novel", "hirschmann", "moxa", "dynics"},
-			},
-			// Vendor-specific targets for edge_vendor scenario (matched by logix_like server).
-			// Payloads satisfy client-side CIP validation MinRequestLen requirements.
-			{
-				Name:              "Vendor_ExecutePCCC",
-				Service:           config.ServiceCustom,
-				ServiceCode:       uint8(spec.CIPServiceExecutePCCC),
-				Class:             spec.CIPClassPCCCObject,
-				Instance:          0x01,
-				Attribute:         0x00,
-				RequestPayloadHex: "0607000100", // PCCC echo command (cmd=06, sts=00, tns=0700, fnc=01, data=00)
-				ExpectedOutcome:   "any",
-				Tags:              []string{"tc-enip-001-explicit", "hirschmann", "moxa", "dynics"},
-			},
-			// Tag-based targets — names match LogixTags on the logix_like server
-			{
-				Name:              "scada",
-				Service:           config.ServiceCustom,
-				ServiceCode:       uint8(spec.CIPServiceReadTag),
-				Class:             spec.CIPClassSymbolObject,
-				Instance:          0x01,
-				Attribute:         0x00,
-				RequestPayloadHex: "0100", // Read 1 element
-				ExpectedOutcome:   "any",
-				Tags:              []string{"tc-enip-001-explicit", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:              "motor_speed",
-				Service:           config.ServiceCustom,
-				ServiceCode:       uint8(spec.CIPServiceWriteTag),
-				Class:             spec.CIPClassSymbolObject,
-				Instance:          0x01,
-				Attribute:         0x00,
-				RequestPayloadHex: "c3000100 0000", // Type=INT(0xC3), count=1, data=0x0000
-				ExpectedOutcome:   "any",
-				Tags:              []string{"tc-enip-001-explicit", "hirschmann", "moxa", "dynics"},
-			},
-			{
-				Name:              "sensor_temp",
-				Service:           config.ServiceCustom,
-				ServiceCode:       uint8(spec.CIPServiceReadTagFragmented),
-				Class:             spec.CIPClassSymbolObject,
-				Instance:          0x01,
-				Attribute:         0x00,
-				RequestPayloadHex: "0100 00000000", // Read 1 element, offset 0
-				ExpectedOutcome:   "any",
-				Tags:              []string{"tc-enip-001-explicit", "hirschmann", "moxa", "dynics"},
-			},
-		},
-		IOConnections: []config.IOConnectionConfig{
-			{
-				Name:                  "TestIO",
-				Transport:             "tcp",
-				OToTRPIMs:             100,
-				TToORPIMs:             100,
-				OToTSizeBytes:         8,
-				TToOSizeBytes:         8,
-				Priority:              "scheduled",
-				TransportClassTrigger: 3,
-				Class:                 spec.CIPClassAssembly,
-				Instance:              0x65,
-				Tags:                  []string{"tc-enip-001-implicit", "hirschmann", "moxa", "dynics"},
-			},
-		},
+		ProtocolVariants: config.DefaultProtocolVariants(),
+		ReadTargets:      config.DefaultReadTargets(),
+		WriteTargets:     config.DefaultWriteTargets(),
+		CustomTargets:    config.DefaultCustomTargets(),
+		EdgeTargets:      config.DefaultEdgeTargets(),
+		IOConnections:    []config.IOConnectionConfig{config.DefaultIOConnection()},
 	}
 }
 
@@ -600,7 +406,7 @@ func writeSelftestManifest(opts SelfTestScenariosOptions, results []selfTestResu
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Scenarios: scenarios,
 		Duration:  opts.DurationSec,
-		Version:   "0.2.7",
+		Version:   "0.2.8",
 	}
 
 	data, err := json.MarshalIndent(m, "", "  ")

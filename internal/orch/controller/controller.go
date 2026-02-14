@@ -510,6 +510,11 @@ func (c *Controller) pushServerConfig(ctx context.Context, t transport.Transport
 		}
 	}
 
+	// Enrich server config with scenario-specific defaults (additive only)
+	if c.manifest.Roles.Client != nil && c.manifest.Roles.Client.Scenario != "" {
+		config.EnrichServerForScenario(serverCfg, c.manifest.Roles.Client.Scenario)
+	}
+
 	// Marshal to YAML
 	data, err := yaml.Marshal(serverCfg)
 	if err != nil {
@@ -650,6 +655,11 @@ func (c *Controller) pushClientConfig(ctx context.Context, t transport.Transport
 			c.reportPhase(PhaseStage, fmt.Sprintf("Client config: %d read targets for logix_like profile (profile scenario uses tag names)",
 				len(clientCfg.ReadTargets)))
 		}
+	}
+
+	// Enrich config with scenario-specific defaults (additive only)
+	if c.manifest.Roles.Client != nil && c.manifest.Roles.Client.Scenario != "" {
+		config.EnrichForScenario(clientCfg, c.manifest.Roles.Client.Scenario)
 	}
 
 	// Marshal to YAML

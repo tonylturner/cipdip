@@ -13,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tonylturner/cipdip/internal/config"
 	"github.com/tonylturner/cipdip/internal/manifest"
 	"github.com/tonylturner/cipdip/internal/orch/controller"
 	"github.com/tonylturner/cipdip/internal/profile"
@@ -2596,18 +2597,29 @@ func LoadManifestFiles(workspaceRoot string) []string {
 // Scenarios marked with * require manual config (not auto-generated from profiles).
 func getAvailableScenarios() []string {
 	return []string{
-		"baseline",           // ✓ auto-generates read_targets from profile
-		"mixed",              // ✓ auto-generates read/write_targets from profile
-		"stress",             // ✓ auto-generates read_targets from profile
-		"churn",              // ✓ auto-generates read_targets from profile
-		"io",                 // ✓ auto-generates io_connections for adapter profiles
-		"dpi_explicit",       // ✓ built-in targets
-		"edge_valid*",        // * requires edge_targets in config
-		"edge_vendor*",       // * requires edge_targets in config
-		"rockwell*",          // * requires rockwell-specific config
-		"vendor_variants*",   // * requires protocol_variants in config
-		"mixed_state*",       // * requires both read_targets and io_connections
-		"unconnected_send*",  // * requires edge_targets in config
+		"baseline",              // ✓ auto-generates read_targets from profile
+		"mixed",                 // ✓ auto-generates read/write_targets from profile
+		"stress",                // ✓ auto-generates read_targets from profile
+		"churn",                 // ✓ auto-generates read_targets from profile
+		"io",                    // ✓ auto-generates io_connections for adapter profiles
+		"dpi_explicit",          // ✓ built-in targets
+		"edge_valid*",           // * requires edge_targets in config
+		"edge_vendor*",          // * requires edge_targets in config
+		"rockwell*",             // * requires rockwell-specific config
+		"vendor_variants*",      // * requires protocol_variants in config
+		"mixed_state*",          // * requires both read_targets and io_connections
+		"unconnected_send*",     // * requires edge_targets in config
+		"firewall_pack*",        // * requires tagged custom_targets in config
+		"firewall_hirschmann*",  // * requires tagged custom_targets in config
+		"firewall_moxa*",        // * requires tagged custom_targets in config
+		"firewall_dynics*",      // * requires tagged custom_targets in config
+		"pccc",                  // ✓ works against selftest server
+		"modbus",                // ✓ works against selftest server
+		"evasion_segment",       // ✓ works against selftest server
+		"evasion_fuzz",          // ✓ works against selftest server
+		"evasion_anomaly",       // ✓ works against selftest server
+		"evasion_timing",        // ✓ works against selftest server
+		"modbus_pipeline",       // ✓ works against selftest server
 	}
 }
 
@@ -2984,6 +2996,17 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 		fmt.Sscanf(p.quickRunTimeout, "%d", &duration)
 	}
 
+	// Resolve scenario name and per-scenario defaults
+	scenarioName := strings.TrimSuffix(p.quickRunScenarios[p.quickRunScenario], "*")
+	intervalMs := 100
+	scenarioPersonality := ""
+	if meta, ok := config.ScenarioMetaMap()[scenarioName]; ok {
+		if meta.IntervalMs > 0 {
+			intervalMs = meta.IntervalMs
+		}
+		scenarioPersonality = meta.Personality
+	}
+
 	// Create manifest
 	m := &manifest.Manifest{
 		APIVersion: manifest.APIVersion,
@@ -3002,10 +3025,10 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 			},
 			Client: &manifest.ClientRoleConfig{
 				Agent:           p.getAgentTransport(p.quickRunClientAgent),
-				Scenario:        strings.TrimSuffix(p.quickRunScenarios[p.quickRunScenario], "*"),
+				Scenario:        scenarioName,
 				ProfileRole:     p.getSelectedRole(),
 				DurationSeconds: duration,
-				IntervalMs:      100,
+				IntervalMs:      intervalMs,
 			},
 		},
 		Readiness: manifest.ReadinessConfig{
@@ -3056,6 +3079,11 @@ func (p *OrchestrationPanel) generateQuickRunManifest() (Panel, tea.Cmd) {
 	} else if personality != "" {
 		// Use generic personality without profile file
 		m.Roles.Server.Personality = personality
+	}
+
+	// Override server personality when required by scenario (e.g. edge_vendor → logix_like)
+	if scenarioPersonality != "" && m.Roles.Server.Personality == "" {
+		m.Roles.Server.Personality = scenarioPersonality
 	}
 
 	// Save manifest to temp file
