@@ -266,7 +266,7 @@ func runPcapValidate(flags *pcapValidateFlags) error {
 		}
 		if fileInvalid > 0 && len(evaluations) == 0 {
 			for i, result := range results {
-				if !(result.Malformed || len(result.Errors) > 0) {
+				if !result.Malformed && len(result.Errors) == 0 {
 					continue
 				}
 				fmt.Fprintf(os.Stdout, "  invalid #%d: %v %v\n", i+1, result.Errors, result.Warnings)

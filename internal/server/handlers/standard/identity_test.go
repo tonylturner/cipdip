@@ -1,6 +1,7 @@
 package standard
 
 import (
+	"context"
 	"testing"
 
 	"github.com/tonylturner/cipdip/internal/cip/protocol"
@@ -23,7 +24,7 @@ func TestIdentityGetAttributeSingle(t *testing.T) {
 	}
 	handler := NewIdentityHandler(cfg)
 
-	resp, err := handler.HandleCIPRequest(nil, protocol.CIPRequest{
+	resp, err := handler.HandleCIPRequest(context.TODO(), protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeSingle,
 		Path: protocol.CIPPath{
 			Class:     0x0001,
@@ -60,7 +61,7 @@ func TestIdentityGetAttributeAllIncludesName(t *testing.T) {
 	}
 	handler := NewIdentityHandler(cfg)
 
-	resp, err := handler.HandleCIPRequest(nil, protocol.CIPRequest{
+	resp, err := handler.HandleCIPRequest(context.TODO(), protocol.CIPRequest{
 		Service: spec.CIPServiceGetAttributeAll,
 		Path: protocol.CIPPath{
 			Class:     0x0001,

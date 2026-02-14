@@ -39,7 +39,7 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 	}
 	defer func() {
 		fmt.Printf("[CLIENT] Disconnecting...\n")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	// Create deadline for duration
@@ -245,7 +245,7 @@ func (s *BaselineScenario) Run(ctx context.Context, client cipclient.Client, cfg
 		// Sleep for interval
 		select {
 		case <-ctx.Done():
-			break
+			return nil
 		case <-time.After(params.Interval):
 		}
 	}

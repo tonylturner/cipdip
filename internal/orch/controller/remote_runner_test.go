@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"bytes"
 	"context"
 	"strings"
 	"sync"
@@ -279,32 +278,6 @@ func TestRemoteRunner_WaitForReadyStdout_Timeout(t *testing.T) {
 
 	// Clean up
 	r.Stop(ctx, 1*time.Second)
-}
-
-// mockTransport is a test transport that tracks calls
-type mockTransport struct {
-	transport.Transport
-	execCalls   int
-	execHandler func(ctx context.Context, cmd []string) (int, string, string, error)
-}
-
-func newMockTransport() *mockTransport {
-	return &mockTransport{
-		Transport: transport.NewLocal(transport.DefaultOptions()),
-	}
-}
-
-func (m *mockTransport) Exec(ctx context.Context, cmd []string, env map[string]string, cwd string) (int, string, string, error) {
-	m.execCalls++
-	if m.execHandler != nil {
-		return m.execHandler(ctx, cmd)
-	}
-	return m.Transport.Exec(ctx, cmd, env, cwd)
-}
-
-func (m *mockTransport) ExecStream(ctx context.Context, cmd []string, env map[string]string, cwd string, stdout, stderr *bytes.Buffer) (int, error) {
-	// Not needed for these tests
-	return 0, nil
 }
 
 // TestShellQuote tests the POSIX shell quoting function for security

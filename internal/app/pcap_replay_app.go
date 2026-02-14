@@ -50,7 +50,7 @@ func runAppReplay(opts *PCAPReplayOptions) error {
 	if err != nil {
 		return fmt.Errorf("udp connect: %w", err)
 	}
-	defer udpConn.Close()
+	defer func() { _ = udpConn.Close() }()
 
 	var lastTs time.Time
 	sent := 0

@@ -115,7 +115,7 @@ func (c *Controller) analyzePCAP(ctx context.Context, role, pcapPath string) (st
 	b.WriteString(fmt.Sprintf("  CIP Responses:    %d\n", summary.CIPResponses))
 
 	if summary.VendorID > 0 {
-		b.WriteString(fmt.Sprintf("\nDevice Identity:\n"))
+		b.WriteString("\nDevice Identity:\n")
 		b.WriteString(strings.Repeat("-", 40) + "\n")
 		b.WriteString(fmt.Sprintf("  Vendor ID:    0x%04X\n", summary.VendorID))
 		if summary.ProductName != "" {
@@ -124,7 +124,7 @@ func (c *Controller) analyzePCAP(ctx context.Context, role, pcapPath string) (st
 	}
 
 	if len(summary.Commands) > 0 {
-		b.WriteString(fmt.Sprintf("\nENIP Commands:\n"))
+		b.WriteString("\nENIP Commands:\n")
 		b.WriteString(strings.Repeat("-", 40) + "\n")
 		for cmd, count := range summary.Commands {
 			b.WriteString(fmt.Sprintf("  %s: %d\n", cmd, count))
@@ -132,7 +132,7 @@ func (c *Controller) analyzePCAP(ctx context.Context, role, pcapPath string) (st
 	}
 
 	if len(summary.CIPServices) > 0 {
-		b.WriteString(fmt.Sprintf("\nCIP Services:\n"))
+		b.WriteString("\nCIP Services:\n")
 		b.WriteString(strings.Repeat("-", 40) + "\n")
 		for svc, count := range summary.CIPServices {
 			b.WriteString(fmt.Sprintf("  %s: %d\n", svc, count))
@@ -220,7 +220,7 @@ func (c *Controller) interpretDPIDiff(result *pcap.DiffResult) string {
 	// Check latency for DPI inspection overhead
 	if result.BaselineTiming != nil && result.CompareTiming != nil {
 		if result.CompareTiming.AvgLatencyMs > result.BaselineTiming.AvgLatencyMs*1.5 {
-			b.WriteString(fmt.Sprintf("\n  LATENCY ANOMALY:\n"))
+			b.WriteString("\n  LATENCY ANOMALY:\n")
 			b.WriteString(fmt.Sprintf("    Client-side avg: %.2fms\n", result.BaselineTiming.AvgLatencyMs))
 			b.WriteString(fmt.Sprintf("    Server-side avg: %.2fms\n", result.CompareTiming.AvgLatencyMs))
 			b.WriteString("    This may indicate DPI inspection overhead\n")

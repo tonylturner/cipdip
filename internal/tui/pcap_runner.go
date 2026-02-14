@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/tonylturner/cipdip/internal/ui"
@@ -167,16 +166,6 @@ func (p *PCAPPanel) BuildPCAPRunConfig(workspaceRoot string) PCAPRunConfig {
 	}
 
 	return cfg
-}
-
-// Helper to parse service code from string (handles 0x prefix)
-func parseServiceCode(s string) (int, error) {
-	s = string([]byte(s)) // ensure clean string
-	if len(s) > 2 && s[:2] == "0x" {
-		val, err := strconv.ParseInt(s[2:], 16, 32)
-		return int(val), err
-	}
-	return strconv.Atoi(s)
 }
 
 // FormatPCAPOutput formats PCAP command output for display.

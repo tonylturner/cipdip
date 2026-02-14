@@ -56,7 +56,7 @@ func RunBaseline(opts BaselineOptions) error {
 	if err != nil {
 		return fmt.Errorf("start combined capture: %w", err)
 	}
-	defer combinedCapture.Stop()
+	defer func() { _ = combinedCapture.Stop() }()
 
 	for _, personality := range personalities {
 		fmt.Fprintf(os.Stdout, "\n=== Testing %s personality ===\n\n", personality)
@@ -100,7 +100,7 @@ func RunBaseline(opts BaselineOptions) error {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: failed to get scenario %s: %v\n", scenarioName, err)
 				if scenarioCapture != nil {
-					scenarioCapture.Stop()
+					_ = scenarioCapture.Stop()
 				}
 				continue
 			}
@@ -121,7 +121,7 @@ func RunBaseline(opts BaselineOptions) error {
 			cancel()
 
 			if scenarioCapture != nil {
-				scenarioCapture.Stop()
+				_ = scenarioCapture.Stop()
 				packetCount := scenarioCapture.GetPacketCount()
 				fmt.Fprintf(os.Stdout, "  Captured %d packets: %s\n", packetCount, scenarioPcapPath)
 			}
@@ -132,7 +132,7 @@ func RunBaseline(opts BaselineOptions) error {
 				fmt.Fprintf(os.Stdout, "  バ Completed successfully\n")
 			}
 
-			client.Disconnect(ctx)
+			_ = client.Disconnect(ctx)
 			time.Sleep(200 * time.Millisecond)
 		}
 
@@ -142,7 +142,7 @@ func RunBaseline(opts BaselineOptions) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	combinedCapture.Stop()
+	_ = combinedCapture.Stop()
 	combinedPacketCount := combinedCapture.GetPacketCount()
 	fmt.Fprintf(os.Stdout, "\n=== Baseline Suite Complete ===\n")
 	fmt.Fprintf(os.Stdout, "Combined capture: %d packets saved to %s\n", combinedPacketCount, combinedPcapPath)

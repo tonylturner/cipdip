@@ -50,7 +50,7 @@ func EncodeEPATH(path CIPPath) []byte {
 
 	// Class segment (8-bit class ID).
 	if path.Class <= 0xFF {
-		epath = append(epath, EPathSegmentClassID|0x00)
+		epath = append(epath, EPathSegmentClassID)
 		epath = append(epath, uint8(path.Class))
 	} else {
 		epath = append(epath, EPathSegmentClassID|0x01)
@@ -59,7 +59,7 @@ func EncodeEPATH(path CIPPath) []byte {
 
 	// Instance segment (8-bit instance ID).
 	if path.Instance <= 0xFF {
-		epath = append(epath, EPathSegmentInstanceID|0x00)
+		epath = append(epath, EPathSegmentInstanceID)
 		epath = append(epath, uint8(path.Instance))
 	} else {
 		epath = append(epath, EPathSegmentInstanceID|0x01)
@@ -68,7 +68,7 @@ func EncodeEPATH(path CIPPath) []byte {
 
 	// Attribute segment (8-bit or 16-bit attribute ID).
 	if path.Attribute <= 0xFF {
-		epath = append(epath, EPathSegmentAttributeID|0x00)
+		epath = append(epath, EPathSegmentAttributeID)
 		epath = append(epath, uint8(path.Attribute))
 	} else {
 		epath = append(epath, EPathSegmentAttributeID|0x01)
@@ -227,9 +227,8 @@ func DecodeCIPResponse(data []byte, path CIPPath) (CIPResponse, error) {
 
 	resp.Service = CIPServiceCode(data[0])
 
-	offset := 1
+	var offset int
 	if opts.IncludeRespReserved {
-		offset++
 		resp.Status = data[2]
 		extSizeWords := int(data[3])
 		offset = 4

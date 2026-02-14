@@ -211,11 +211,7 @@ func StartServerRunCmd(ctx context.Context, cfg ServerRunConfig, statsChan chan<
 
 		// Wait for result
 		result := <-uiResultChan
-		cmdResult := CommandResult{
-			Output:   result.Output,
-			ExitCode: result.ExitCode,
-			Err:      result.Err,
-		}
+		cmdResult := CommandResult(result)
 
 		// Forward result to model's channel
 		if resultChan != nil {

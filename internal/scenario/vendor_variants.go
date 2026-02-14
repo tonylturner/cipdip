@@ -47,7 +47,7 @@ func (s *VendorVariantsScenario) Run(ctx context.Context, client cipclient.Clien
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	prevProfile := cipclient.CurrentProtocolProfile()
 	defer cipclient.SetProtocolProfile(prevProfile)

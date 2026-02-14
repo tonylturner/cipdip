@@ -412,10 +412,6 @@ func parseExpertMessages(layerData map[string]interface{}) (bool, []string, stri
 		walk(key, val)
 	}
 
-	if maxRank > 0 && maxRank >= severityRank["error"] {
-		// Keep severity for reporting, but don't force malformed unless message text indicates it.
-	}
-
 	return malformed, messages, maxSeverity, experts
 }
 
@@ -537,48 +533,6 @@ func layerMap(layers map[string]interface{}, key string) map[string]interface{} 
 	return nil
 }
 
-func extractStringList(val interface{}) []string {
-	switch v := val.(type) {
-	case []interface{}:
-		out := []string{}
-		for _, item := range v {
-			if s := firstStringValue(item); s != "" {
-				out = append(out, s)
-			}
-		}
-		return out
-	default:
-		if s := firstStringValue(val); s != "" {
-			return []string{s}
-		}
-	}
-	return nil
-}
-
-func extractLengthList(val interface{}) []int {
-	switch v := val.(type) {
-	case []interface{}:
-		out := []int{}
-		for _, item := range v {
-			out = append(out, extractLengthList(item)...)
-		}
-		return out
-	case map[string]interface{}:
-		lengths := []int{}
-		if l := parseCPFInt(firstStringValue(v["enip.cpf.length"])); l >= 0 {
-			lengths = append(lengths, l)
-		}
-		if nested, ok := v["enip.cpf.typeid_tree"]; ok {
-			lengths = append(lengths, extractLengthList(nested)...)
-		}
-		return lengths
-	default:
-		if l := parseCPFInt(firstStringValue(val)); l >= 0 {
-			return []int{l}
-		}
-	}
-	return nil
-}
 
 func parseCPFInt(val string) int {
 	val = strings.TrimSpace(val)
@@ -741,7 +695,7 @@ func (v *WiresharkValidator) writePacketToPCAP(file *os.File, enipPacket []byte)
 		ACK:     true,
 		PSH:     true,
 	}
-	tcp.SetNetworkLayerForChecksum(ip)
+	_ = tcp.SetNetworkLayerForChecksum(ip)
 
 	// Serialize layers
 	err := gopacket.SerializeLayers(buffer, opts,

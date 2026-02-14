@@ -135,15 +135,17 @@ func ResolveProtocolProfile(mode, variant, enipEndian, cipEndian string, cipPath
 	}
 
 	// Apply overrides if provided.
-	if enipEndian == "big" {
+	switch enipEndian {
+	case "big":
 		profile.ENIPByteOrder = binary.BigEndian
-	} else if enipEndian == "little" {
+	case "little":
 		profile.ENIPByteOrder = binary.LittleEndian
 	}
 
-	if cipEndian == "big" {
+	switch cipEndian {
+	case "big":
 		profile.CIPByteOrder = binary.BigEndian
-	} else if cipEndian == "little" {
+	case "little":
 		profile.CIPByteOrder = binary.LittleEndian
 	}
 

@@ -104,7 +104,7 @@ func RunSelfTestScenarios(opts SelfTestScenariosOptions) error {
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
-	defer logger.Close()
+	defer func() { _ = logger.Close() }()
 
 	// Build client config (shared across all personality groups).
 	clientCfg := buildSelfTestClientConfig(0) // port updated per server instance
@@ -144,7 +144,7 @@ func RunSelfTestScenarios(opts SelfTestScenariosOptions) error {
 
 		addr := srv.TCPAddr()
 		if addr == nil {
-			srv.Stop()
+			_ = srv.Stop()
 			return fmt.Errorf("server did not expose TCP address")
 		}
 		port := addr.Port
@@ -161,16 +161,17 @@ func RunSelfTestScenarios(opts SelfTestScenariosOptions) error {
 			r := runSingleScenario(entry, clientCfg, port, opts, logger)
 			results = append(results, r)
 
-			if r.Status == "PASS" {
+			switch r.Status {
+			case "PASS":
 				fmt.Fprintf(os.Stdout, "[PASS] %d ops (%d ok, %d fail) %s\n", r.Ops, r.Success, r.Failed, r.RTT)
-			} else if r.Status == "SKIP" {
+			case "SKIP":
 				fmt.Fprintf(os.Stdout, "[SKIP] %s\n", r.Err)
-			} else {
+			default:
 				fmt.Fprintf(os.Stdout, "[FAIL] %s\n", r.Err)
 			}
 		}
 
-		srv.Stop()
+		_ = srv.Stop()
 	}
 
 	// Write manifest for metrics-report coherence checking
@@ -253,7 +254,7 @@ func runSingleScenario(entry scenarioEntry, clientCfg *config.Config, port int, 
 				_ = w.WriteMetric(m)
 			}
 			_ = w.WriteSummary(summary, sink.GetMetrics())
-			w.Close()
+			_ = w.Close()
 		}
 	}
 
@@ -405,12 +406,6 @@ func buildServerConfigForPersonality(personality string, opts SelfTestScenariosO
 	}
 
 	return base
-}
-
-// buildSelfTestServerConfig creates a server config using the default personality.
-// Kept for backward compatibility with the basic selftest path.
-func buildSelfTestServerConfig(opts SelfTestScenariosOptions) *config.ServerConfig {
-	return buildServerConfigForPersonality(opts.Personality, opts)
 }
 
 // buildSelfTestClientConfig creates a client config with all sections populated

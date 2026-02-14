@@ -65,10 +65,11 @@ func DetectTLS(data []byte) *SecurityIndicator {
 	// Higher confidence for ClientHello (handshake + sufficient length).
 	if contentType == TLSHandshake && len(data) > tlsRecordHeaderSize {
 		handshakeType := data[tlsRecordHeaderSize]
-		if handshakeType == 0x01 { // ClientHello
+		switch handshakeType {
+		case 0x01:
 			confidence = 0.95
 			details["handshake_type"] = "ClientHello"
-		} else if handshakeType == 0x02 { // ServerHello
+		case 0x02:
 			confidence = 0.95
 			details["handshake_type"] = "ServerHello"
 		}

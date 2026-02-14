@@ -172,7 +172,7 @@ func TestListProfilesNonExistent(t *testing.T) {
 	if err != nil {
 		t.Errorf("expected nil error for non-existent directory, got: %v", err)
 	}
-	if profiles != nil && len(profiles) != 0 {
+	if len(profiles) != 0 {
 		t.Errorf("expected empty slice for non-existent directory, got %d profiles", len(profiles))
 	}
 }

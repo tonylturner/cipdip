@@ -12,11 +12,26 @@ linters:
   settings:
     errcheck:
       exclude-functions:
+        # File/IO cleanup
         - (*os.File).Close
+        - (*os.File).Write
+        - (*os.File).Sync
+        - (io.Closer).Close
+        - os.Remove
+        - os.RemoveAll
+        - os.WriteFile
+        # Buffered writers
         - (*bufio.Writer).Flush
+        - (*text/tabwriter.Writer).Flush
+        # Formatting / console output
         - fmt.Fprintf
         - fmt.Fprintln
-        - (io.Closer).Close
+        - fmt.Fprint
+        - fmt.Sscanf
+        # Network cleanup / best-effort
+        - (net.Conn).Close
+        - (net.Conn).SetReadDeadline
+        - (net.Conn).SetWriteDeadline
 
   exclusions:
     rules:

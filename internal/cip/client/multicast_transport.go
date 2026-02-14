@@ -96,24 +96,24 @@ func (t *MulticastTransport) Connect(_ context.Context, addr string) error {
 	if t.config.Interface != "" {
 		ifi, err = net.InterfaceByName(t.config.Interface)
 		if err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return fmt.Errorf("interface %q: %w", t.config.Interface, err)
 		}
 	}
 
 	if err := p.JoinGroup(ifi, &net.UDPAddr{IP: groupIP}); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("join multicast group %s: %w", groupIP, err)
 	}
 
 	if err := p.SetMulticastTTL(t.config.TTL); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("set multicast TTL: %w", err)
 	}
 
 	// Enable multicast loopback so tests on a single host work.
 	if err := p.SetMulticastLoopback(true); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("set multicast loopback: %w", err)
 	}
 

@@ -19,9 +19,7 @@ func RenderReviewScreen(profile Profile, command CommandSpec) string {
 	if len(behavior) == 0 {
 		behavior = []string{"- No additional behavior details"}
 	}
-	for _, item := range behavior {
-		lines = append(lines, item)
-	}
+	lines = append(lines, behavior...)
 
 	lines = append(lines, "", "Actions:", "[Run] [Save Config] [Copy Command] [Back]")
 	return strings.Join(lines, "\n")

@@ -72,7 +72,7 @@ func RunSelfTest(opts SelfTestOptions) error {
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
-	defer logger.Close()
+	defer func() { _ = logger.Close() }()
 
 	srv, err := server.NewServer(cfg, logger)
 	if err != nil {
@@ -81,7 +81,7 @@ func RunSelfTest(opts SelfTestOptions) error {
 	if err := srv.Start(); err != nil {
 		return fmt.Errorf("start server: %w", err)
 	}
-	defer srv.Stop()
+	defer func() { _ = srv.Stop() }()
 
 	addr := srv.TCPAddr()
 	if addr == nil {
@@ -95,7 +95,7 @@ func RunSelfTest(opts SelfTestOptions) error {
 	if err := client.Connect(ctx, "127.0.0.1", addr.Port); err != nil {
 		return fmt.Errorf("connect client: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	validator := cipclient.NewPacketValidator(true)
 	if opts.Personality == "adapter" {

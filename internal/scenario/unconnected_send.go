@@ -40,7 +40,7 @@ func (s *UnconnectedSendScenario) Run(ctx context.Context, client cipclient.Clie
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	filtered := make([]config.EdgeTarget, 0, len(cfg.EdgeTargets))
 	for _, target := range cfg.EdgeTargets {

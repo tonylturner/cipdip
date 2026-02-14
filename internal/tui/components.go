@@ -376,14 +376,6 @@ func padCenter(s string, width int) string {
 	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
 }
 
-func padLeft(s string, width int) string {
-	w := lipgloss.Width(s)
-	if w >= width {
-		return s
-	}
-	return strings.Repeat(" ", width-w) + s
-}
-
 // truncateString truncates a string to max length, adding "..." if truncated.
 func truncateString(s string, max int) string {
 	if len(s) <= max {

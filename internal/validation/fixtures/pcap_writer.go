@@ -78,7 +78,7 @@ func WriteENIPPCAP(path string, packets []ValidationPacket) error {
 			Seq:     seq,
 			Ack:     ack,
 		}
-		tcp.SetNetworkLayerForChecksum(ip)
+		_ = tcp.SetNetworkLayerForChecksum(ip)
 
 		if packet.Expect.Direction == "response" {
 			flow.serverSeq += uint32(len(packet.Data))

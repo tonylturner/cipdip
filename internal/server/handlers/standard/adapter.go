@@ -164,11 +164,6 @@ func (ap *AdapterPersonality) handleSetAttributeSingle(asm *Assembly, req protoc
 		copy(asm.Data[:copyLen], req.Payload[:copyLen])
 	}
 
-	// Handle reflect_inputs pattern
-	if asm.Config.UpdatePattern == "reflect_inputs" {
-		// Data is already set, just acknowledge
-	}
-
 	return protocol.CIPResponse{
 		Service: req.Service,
 		Status:  0x00, // Success

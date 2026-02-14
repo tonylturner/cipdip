@@ -39,7 +39,7 @@ func (s *EdgeValidScenario) Run(ctx context.Context, client cipclient.Client, cf
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	deadline := time.Now().Add(params.Duration)
 	ctx, cancel := context.WithDeadline(ctx, deadline)

@@ -417,7 +417,7 @@ func (m *CatalogV2Model) executeTest() tea.Cmd {
 		if err := client.Connect(ctx, ip, portNum); err != nil {
 			return TestResultMsg{Error: fmt.Sprintf("Connect: %v", err)}
 		}
-		defer client.Disconnect(ctx)
+		defer func() { _ = client.Disconnect(ctx) }()
 
 		// Build request from entry
 		req := entry.ToCIPRequest()

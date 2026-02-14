@@ -138,13 +138,14 @@ func runInstall(flags *installFlags) error {
 	sourceFile := getCompletionSourceFile(shell)
 	if sourceFile != "" {
 		fmt.Fprintf(os.Stdout, "To enable completion, restart your shell or run:\n")
-		if shell == "zsh" {
+		switch shell {
+		case "zsh":
 			fmt.Fprintf(os.Stdout, "  source %s\n", sourceFile)
-		} else if shell == "bash" {
+		case "bash":
 			fmt.Fprintf(os.Stdout, "  source %s\n", sourceFile)
-		} else if shell == "fish" {
+		case "fish":
 			fmt.Fprintf(os.Stdout, "  (completion should work automatically)\n")
-		} else if shell == "powershell" {
+		case "powershell":
 			fmt.Fprintf(os.Stdout, "  (restart PowerShell to load profile)\n")
 		}
 	}

@@ -14,7 +14,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tonylturner/cipdip/internal/manifest"
-	"github.com/tonylturner/cipdip/internal/orch/bundle"
 	"github.com/tonylturner/cipdip/internal/orch/controller"
 	"github.com/tonylturner/cipdip/internal/profile"
 	"github.com/tonylturner/cipdip/internal/ui"
@@ -99,8 +98,7 @@ type OrchestrationPanel struct {
 	manifest        *manifest.Manifest
 	validationError string
 	isValid         bool
-	agents          []AgentMapping
-	selectedAgent   int
+	agents []AgentMapping
 
 	// Execution state
 	orchMode     OrchMode
@@ -124,8 +122,7 @@ type OrchestrationPanel struct {
 	agentRegistry        *ui.AgentRegistry
 	registeredAgents     []*ui.Agent
 	selectedAgentIdx     int
-	agentCheckInProgress bool
-	agentCheckMsg        string
+	agentCheckMsg string
 	deleteConfirmMode    bool   // True when waiting for DELETE confirmation
 	deleteConfirmInput   string // What user has typed for confirmation
 
@@ -301,11 +298,12 @@ func (p *OrchestrationPanel) Update(msg tea.KeyMsg, focused bool) (Panel, tea.Cm
 
 	case "tab":
 		// Toggle between Controller and Agents views
-		if p.view == OrchViewController {
+		switch p.view {
+		case OrchViewController:
 			p.view = OrchViewAgents
 			p.loadAgentRegistry()
 			p.refreshAgentInfo()
-		} else if p.view == OrchViewAgents {
+		case OrchViewAgents:
 			p.view = OrchViewController
 		}
 		// Don't switch views during wizard or add form
@@ -641,9 +639,7 @@ func (p *OrchestrationPanel) getAgentNameFromTransport(transport string) string 
 		}
 	}
 	// Parse SSH URL to get host
-	if strings.HasPrefix(transport, "ssh://") {
-		transport = strings.TrimPrefix(transport, "ssh://")
-	}
+	transport = strings.TrimPrefix(transport, "ssh://")
 	// Remove query params
 	if idx := strings.Index(transport, "?"); idx != -1 {
 		transport = transport[:idx]
@@ -1536,7 +1532,7 @@ func canBindAddress(addr string) bool {
 	if err != nil {
 		return false
 	}
-	ln.Close()
+	_ = ln.Close()
 	return true
 }
 
@@ -1573,8 +1569,7 @@ func (p *OrchestrationPanel) renderControllerView(width int, focused bool) strin
 	s := p.styles
 
 	// Header with view tabs
-	controllerTab := "Controller"
-	agentTab := "Agents"
+	var controllerTab, agentTab string
 	if p.view == OrchViewController {
 		controllerTab = s.Selected.Render("[Controller]")
 		agentTab = s.Dim.Render(" Agents ")
@@ -2507,13 +2502,6 @@ func (p *OrchestrationPanel) renderSSHWizardView(width int, focused bool) string
 }
 
 
-// orchPhaseMsg is sent when orchestration phase changes.
-type orchPhaseMsg struct {
-	phase string
-	done  bool
-	err   error
-}
-
 // handleOutputEvent processes real-time output from runners.
 func (p *OrchestrationPanel) handleOutputEvent(event controller.OutputEvent) {
 	// Add to log lines, keeping last 20
@@ -2604,15 +2592,6 @@ func LoadManifestFiles(workspaceRoot string) []string {
 	return manifests
 }
 
-// verifyBundle opens a bundle and verifies it.
-func verifyBundle(path string) (*bundle.VerifyResult, error) {
-	b, err := bundle.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	return b.Verify(bundle.DefaultVerifyOptions())
-}
-
 // getAvailableScenarios returns a list of known scenario names.
 // Scenarios marked with * require manual config (not auto-generated from profiles).
 func getAvailableScenarios() []string {
@@ -2630,32 +2609,6 @@ func getAvailableScenarios() []string {
 		"mixed_state*",       // * requires both read_targets and io_connections
 		"unconnected_send*",  // * requires edge_targets in config
 	}
-}
-
-// findProfileFiles looks for profile YAML files in common locations.
-func findProfileFiles(workspaceRoot string) []string {
-	var profiles []string
-
-	// Check common locations
-	searchPaths := []string{
-		filepath.Join(workspaceRoot, "profiles"),
-		"profiles",
-		filepath.Join(workspaceRoot, "workspaces", "workspace", "profiles"),
-	}
-
-	for _, searchPath := range searchPaths {
-		pattern := filepath.Join(searchPath, "*.yaml")
-		matches, _ := filepath.Glob(pattern)
-		for _, m := range matches {
-			// Skip non-profile files
-			base := filepath.Base(m)
-			if !strings.HasPrefix(base, "manifest") {
-				profiles = append(profiles, m)
-			}
-		}
-	}
-
-	return profiles
 }
 
 // startQuickRun initializes the quick run configuration view.
@@ -2811,11 +2764,12 @@ func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd)
 		return p.generateQuickRunManifest()
 
 	case "backspace":
-		if p.quickRunField == 5 { // duration
+		switch p.quickRunField {
+		case 5: // duration
 			if len(p.quickRunTimeout) > 0 {
 				p.quickRunTimeout = p.quickRunTimeout[:len(p.quickRunTimeout)-1]
 			}
-		} else if p.quickRunField == 6 { // target IP
+		case 6: // target IP
 			if len(p.quickRunTargetIP) > 0 {
 				p.quickRunTargetIP = p.quickRunTargetIP[:len(p.quickRunTargetIP)-1]
 			}
@@ -2824,11 +2778,12 @@ func (p *OrchestrationPanel) updateQuickRunView(msg tea.KeyMsg) (Panel, tea.Cmd)
 	default:
 		// Text input for editable fields
 		if len(key) == 1 {
-			if p.quickRunField == 5 { // duration - only digits
+			switch p.quickRunField {
+			case 5: // duration - only digits
 				if key >= "0" && key <= "9" {
 					p.quickRunTimeout += key
 				}
-			} else if p.quickRunField == 6 { // target IP
+			case 6: // target IP
 				// Allow digits and dots for IP
 				if (key >= "0" && key <= "9") || key == "." {
 					p.quickRunTargetIP += key

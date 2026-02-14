@@ -74,7 +74,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 	if err != nil {
 		return nil, fmt.Errorf("listen UDP: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Set read timeout
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
@@ -99,7 +99,7 @@ func DiscoverDevices(ctx context.Context, iface string, timeout time.Duration) (
 		// Update read deadline
 		remaining := time.Until(deadline)
 		if remaining > 0 {
-			conn.SetReadDeadline(time.Now().Add(remaining))
+			_ = conn.SetReadDeadline(time.Now().Add(remaining))
 		}
 
 		buffer := make([]byte, 1500) // Max UDP packet size

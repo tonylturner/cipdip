@@ -190,12 +190,6 @@ func buildClientArgs(m *Manifest, profilePath string) []string {
 		args = append(args, "--pcap", pcap)
 	}
 
-	// Bind IP
-	if m.Network.DataPlane.ClientBindIP != "" {
-		// Note: This would need a --bind-ip flag in the client
-		// For now, we'll skip this or add it to args
-	}
-
 	// Enable TUI stats
 	args = append(args, "--tui-stats")
 

@@ -240,7 +240,7 @@ func (s *DPIExplicitScenario) runBaselineSanityLoop(ctx context.Context, client 
 			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x01, Attribute: 0x07},
 		})
 
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		jitterSleep(ctx)
 	}
 }
@@ -313,7 +313,7 @@ func (s *DPIExplicitScenario) runReadOnlyAmbiguityLoop(ctx context.Context, clie
 			s.testRequest(ctx, client, params, result, "MSP Multi-Class", mcReq)
 		}
 
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		jitterSleep(ctx)
 	}
 }
@@ -341,7 +341,7 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 		for cycle := 0; cycle < 3; cycle++ {
 			select {
 			case <-ctx.Done():
-				client.Disconnect(ctx)
+				_ = client.Disconnect(ctx)
 				return
 			default:
 			}
@@ -440,7 +440,7 @@ func (s *DPIExplicitScenario) runConnectionLifecycleLoop(ctx context.Context, cl
 			jitterSleep(ctx)
 		}
 
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		jitterSleep(ctx)
 	}
 }
@@ -468,7 +468,7 @@ func (s *DPIExplicitScenario) runLargePayloadsLoop(ctx context.Context, client c
 		for _, size := range payloadSizes {
 			select {
 			case <-ctx.Done():
-				client.Disconnect(ctx)
+				_ = client.Disconnect(ctx)
 				return
 			default:
 			}
@@ -513,7 +513,7 @@ func (s *DPIExplicitScenario) runLargePayloadsLoop(ctx context.Context, client c
 			Path:    protocol.CIPPath{Class: 0xF5, Instance: 0x01},
 		})
 
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		jitterSleep(ctx)
 	}
 }
@@ -584,7 +584,7 @@ func (s *DPIExplicitScenario) runRealisticViolationsLoop(ctx context.Context, cl
 			Path:    protocol.CIPPath{Class: 0x01, Instance: 0x1000},
 		})
 
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		jitterSleep(ctx)
 	}
 }
@@ -651,7 +651,7 @@ func (s *DPIExplicitScenario) runAllowlistPrecisionLoop(ctx context.Context, cli
 			jitterSleep(ctx)
 		}
 
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 		jitterSleep(ctx)
 	}
 }

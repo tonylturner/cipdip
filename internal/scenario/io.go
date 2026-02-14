@@ -42,7 +42,7 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	// Establish I/O connections
 	var ioConns []*cipclient.IOConnection
@@ -141,7 +141,6 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		select {
 		case <-ctx.Done():
 			params.Logger.Info("IO scenario completed (duration expired or cancelled)")
-			break
 		default:
 		}
 
@@ -275,7 +274,6 @@ func (s *IOScenario) Run(ctx context.Context, client cipclient.Client, cfg *conf
 		// Sleep for loop interval
 		select {
 		case <-ctx.Done():
-			break
 		case <-time.After(sleepInterval):
 		}
 	}

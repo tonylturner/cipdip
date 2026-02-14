@@ -110,26 +110,13 @@ func StartClientRun(ctx context.Context, cfg ClientRunConfig, statsChan chan<- S
 	go func() {
 		for stats := range uiStatsChan {
 			// Convert ui.StatsUpdate to tui.StatsUpdate
-			statsChan <- StatsUpdate{
-				ActiveConnections:  stats.ActiveConnections,
-				TotalConnections:   stats.TotalConnections,
-				TotalRequests:      stats.TotalRequests,
-				TotalErrors:        stats.TotalErrors,
-				RecentClients:      stats.RecentClients,
-				SuccessfulRequests: stats.SuccessfulRequests,
-				FailedRequests:     stats.FailedRequests,
-				Timeouts:           stats.Timeouts,
-			}
+			statsChan <- StatsUpdate(stats)
 		}
 	}()
 
 	go func() {
 		result := <-uiResultChan
-		resultChan <- CommandResult{
-			Output:   result.Output,
-			ExitCode: result.ExitCode,
-			Err:      result.Err,
-		}
+		resultChan <- CommandResult(result)
 	}()
 }
 
@@ -180,11 +167,7 @@ func StartClientRunCmd(ctx context.Context, cfg ClientRunConfig, statsChan chan<
 
 		// Wait for result
 		result := <-uiResultChan
-		cmdResult := CommandResult{
-			Output:   result.Output,
-			ExitCode: result.ExitCode,
-			Err:      result.Err,
-		}
+		cmdResult := CommandResult(result)
 
 		// Forward result to model's channel
 		if resultChan != nil {

@@ -212,12 +212,7 @@ func TestRunner_Stop(t *testing.T) {
 		t.Fatalf("Stop() error = %v", err)
 	}
 
-	// Verify it's stopped
-	meta := r.GetMeta()
-	if meta.ExitCode == 0 {
-		// Process was killed, so exit code should be non-zero
-		// (unless it exited naturally, which is unlikely in 1 second)
-	}
+	_ = r.GetMeta()
 }
 
 func TestWaitForTCPReady_Timeout(t *testing.T) {

@@ -18,7 +18,6 @@ type replayRewriteState struct {
 	srcMAC    net.HardwareAddr
 	dstMAC    net.HardwareAddr
 	mu        *sync.RWMutex
-	lastARPIP net.IP
 }
 
 func buildReplayRewriteState(opts *PCAPReplayOptions) (*replayRewriteState, error) {

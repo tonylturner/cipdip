@@ -21,16 +21,6 @@ type rerunCommandMsg struct {
 	runType string // "client", "server", "pcap"
 }
 
-// openEditorMsg requests to open a file/directory in editor.
-type openEditorMsg struct {
-	path string
-}
-
-// deleteRunMsg requests to delete a run directory.
-type deleteRunMsg struct {
-	runDir string
-}
-
 // RunsScreenModel handles the full-screen runs history view.
 type RunsScreenModel struct {
 	state      *AppState
@@ -476,9 +466,10 @@ func (m *RunsScreenModel) renderDetailView(s Styles, width int) string {
 			cursor = s.Selected.Render("> ")
 		}
 		icon := "📄"
-		if artifact == "stdout.log" {
+		switch artifact {
+		case "stdout.log":
 			icon = "📋"
-		} else if artifact == "summary.json" {
+		case "summary.json":
 			icon = "📊"
 		}
 		lines = append(lines, fmt.Sprintf("%s%s %s", cursor, icon, artifact))

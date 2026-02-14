@@ -80,9 +80,7 @@ func ParseForwardOpenResponse(data []byte) (connectionID uint32, oToTConnID uint
 
 	order := currentCIPByteOrder()
 	oToTConnID = order.Uint32(data[offset : offset+4])
-	offset += 4
-	tToOConnID = order.Uint32(data[offset : offset+4])
-	offset += 4
+	tToOConnID = order.Uint32(data[offset+4 : offset+8])
 
 	// Use O->T connection ID as the primary connection ID
 	connectionID = oToTConnID

@@ -311,7 +311,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.pcapPanel.lastAnalyzedPath = pcapFile
 				// Refresh dashboard with this PCAP data
 				if m.mainScreen != nil {
-					m.mainScreen.LoadFromPCAP(pcapFile)
+					_ = m.mainScreen.LoadFromPCAP(pcapFile)
 				}
 			}
 		}

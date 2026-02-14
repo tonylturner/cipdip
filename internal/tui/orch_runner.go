@@ -61,7 +61,7 @@ func StartOrchRunCmd(ctx context.Context, cfg OrchRunConfig, outputCh chan<- con
 		if err != nil {
 			return orchRunDoneMsg{err: err}
 		}
-		defer ctrl.Close()
+		defer func() { _ = ctrl.Close() }()
 
 		// Set up phase callback
 		ctrl.SetPhaseCallback(func(phase controller.Phase, msg string) {

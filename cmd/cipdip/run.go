@@ -125,7 +125,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("create controller: %w", err)
 			}
-			defer ctrl.Close()
+			defer func() { _ = ctrl.Close() }()
 
 			// Validate remote agents if any
 			if ctrl.HasRemoteAgents() {

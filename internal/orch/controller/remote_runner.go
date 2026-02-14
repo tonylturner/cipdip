@@ -368,7 +368,7 @@ func (r *RemoteRunner) PushProfile(ctx context.Context, localPath string) (strin
 func (r *RemoteRunner) Cleanup(ctx context.Context) error {
 	// Try to remove workdir contents
 	// Note: This is best-effort cleanup
-	r.transport.Remove(ctx, r.workDir)
+	_ = r.transport.Remove(ctx, r.workDir)
 	return nil
 }
 

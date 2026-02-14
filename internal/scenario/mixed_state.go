@@ -65,7 +65,7 @@ func (s *MixedStateScenario) Run(ctx context.Context, client cipclient.Client, c
 				ExpectedOutcome: "success",
 			})
 		}
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 	for _, connCfg := range cfg.IOConnections {
 		transport := connCfg.Transport

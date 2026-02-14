@@ -110,7 +110,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("invalid transport spec: %w", err)
 			}
-			defer t.Close()
+			defer func() { _ = t.Close() }()
 
 			ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
 			defer cancel()
@@ -306,7 +306,7 @@ func canBindAddress(ip string) bool {
 	if err != nil {
 		return false
 	}
-	ln.Close()
+	_ = ln.Close()
 	return true
 }
 
@@ -472,7 +472,7 @@ func checkRemoteAgent(ctx context.Context, t transport.Transport, spec string) *
 	mkdirErr := t.Mkdir(ctx, testDir)
 	if mkdirErr == nil {
 		// Clean up - use rm with argv array
-		t.Exec(ctx, []string{"rm", "-rf", testDir}, nil, "")
+		_, _, _, _ = t.Exec(ctx, []string{"rm", "-rf", testDir}, nil, "")
 		result.Checks = append(result.Checks, CheckItem{
 			Name:   "workdir_writable",
 			Status: "pass",
@@ -599,9 +599,10 @@ func printCheckResult(result *CheckResult) {
 
 	for _, check := range result.Checks {
 		status := "PASS"
-		if check.Status == "fail" {
+		switch check.Status {
+		case "fail":
 			status = "FAIL"
-		} else if check.Status == "skip" {
+		case "skip":
 			status = "SKIP"
 		}
 		fmt.Printf("  [%s] %s", status, check.Name)

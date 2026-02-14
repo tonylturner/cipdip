@@ -835,7 +835,7 @@ func (c *Controller) phaseServerStop(ctx context.Context, result *Result) error 
 // stopServer is a helper to stop the server on error paths.
 func (c *Controller) stopServer(ctx context.Context) {
 	if c.serverRunner != nil {
-		c.serverRunner.Stop(ctx, 5*time.Second)
+		_ = c.serverRunner.Stop(ctx, 5*time.Second)
 	}
 }
 
@@ -946,7 +946,7 @@ func (c *Controller) writeRunMetaOnError(result *Result) {
 	}
 
 	// Best effort - ignore write errors on failure path
-	c.bundle.WriteRunMeta(runMeta)
+	_ = c.bundle.WriteRunMeta(runMeta)
 }
 
 func hostname() string {

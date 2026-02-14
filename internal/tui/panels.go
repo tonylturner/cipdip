@@ -115,9 +115,6 @@ type ClientPanel struct {
 	pcapInterface         string // User-selected interface (empty = auto)
 	autoDetectedInterface string // Auto-detected interface for display
 
-	// Config file
-	configFile string
-
 	// Command preview
 	showPreview bool
 
@@ -133,8 +130,7 @@ type ClientPanel struct {
 	startTime     *time.Time
 	lastResponse  string
 	recentErrors  []string
-	avgLatency    float64
-	successRate   float64
+	avgLatency float64
 
 	// Log view
 	showLog    bool
@@ -798,9 +794,10 @@ func (p *ClientPanel) viewConfigContent(width int, focused bool) string {
 				}
 				// Show personality type
 				pType := "logix"
-				if prof.Personality == "adapter" {
+				switch prof.Personality {
+				case "adapter":
 					pType = "i/o"
-				} else if prof.Personality == "pccc" {
+				case "pccc":
 					pType = "pccc"
 				}
 				label := fmt.Sprintf("%-18s [%s]", prof.Name, pType)
@@ -1219,47 +1216,6 @@ func (p *ClientPanel) viewResultContent(width int, focused bool) string {
 	return strings.Join(lines, "\n")
 }
 
-func (p *ClientPanel) renderBox(title, content string, width int, focused bool, accentColor lipgloss.Color) string {
-	borderColor := DefaultTheme.Border
-	if focused {
-		borderColor = accentColor
-	}
-
-	innerWidth := width - 4
-	titleBar := p.renderTitleBar(title, innerWidth)
-
-	contentLines := strings.Split(content, "\n")
-	var paddedLines []string
-	for _, line := range contentLines {
-		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
-		}
-		paddedLines = append(paddedLines, line)
-	}
-
-	var result strings.Builder
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╭") + titleBar + lipgloss.NewStyle().Foreground(borderColor).Render("╮") + "\n")
-	for _, line := range paddedLines {
-		result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("│ ") + line + lipgloss.NewStyle().Foreground(borderColor).Render(" │") + "\n")
-	}
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", innerWidth) + "╯"))
-
-	return result.String()
-}
-
-func (p *ClientPanel) renderTitleBar(title string, width int) string {
-	titleText := " " + title + " "
-	titleLen := lipgloss.Width(titleText)
-	remaining := width - titleLen - 1
-	if remaining < 0 {
-		remaining = 0
-	}
-	return lipgloss.NewStyle().Foreground(DefaultTheme.Border).Render("─") +
-		p.styles.Header.Render(titleText) +
-		lipgloss.NewStyle().Foreground(DefaultTheme.Border).Render(strings.Repeat("─", remaining))
-}
-
 // UpdateStats updates the panel with new stats.
 func (p *ClientPanel) UpdateStats(stats StatsUpdate) {
 	p.stats = stats
@@ -1354,9 +1310,8 @@ type ServerPanel struct {
 	showPreview bool
 
 	// Running stats
-	stats         StatsUpdate
-	connections   []string
-	recentReqs    []string
+	stats      StatsUpdate
+	recentReqs []string
 	statsHistory  []float64
 	startTime     *time.Time
 	endTime       *time.Time // Recorded when server stops
@@ -1419,11 +1374,12 @@ func (p *ServerPanel) loadProfiles() {
 
 	// Set personality based on first profile if available
 	if len(profiles) > 0 && p.useProfile {
-		if profiles[0].Personality == "adapter" {
+		switch profiles[0].Personality {
+		case "adapter":
 			p.personality = 0
-		} else if profiles[0].Personality == "logix_like" {
+		case "logix_like":
 			p.personality = 1
-		} else if profiles[0].Personality == "pccc" {
+		case "pccc":
 			p.personality = 2
 		}
 	}
@@ -1604,11 +1560,12 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 		p.focusedField = 0
 		if p.useProfile && p.profileIndex < len(p.profiles) {
 			// Set personality based on selected profile
-			if p.profiles[p.profileIndex].Personality == "adapter" {
+			switch p.profiles[p.profileIndex].Personality {
+			case "adapter":
 				p.personality = 0
-			} else if p.profiles[p.profileIndex].Personality == "logix_like" {
+			case "logix_like":
 				p.personality = 1
-			} else if p.profiles[p.profileIndex].Personality == "pccc" {
+			case "pccc":
 				p.personality = 2
 			}
 		}
@@ -1629,11 +1586,12 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 				if p.profileIndex > 0 {
 					p.profileIndex--
 					// Update personality based on selected profile
-					if p.profiles[p.profileIndex].Personality == "adapter" {
+					switch p.profiles[p.profileIndex].Personality {
+					case "adapter":
 						p.personality = 0
-					} else if p.profiles[p.profileIndex].Personality == "logix_like" {
+					case "logix_like":
 						p.personality = 1
-					} else if p.profiles[p.profileIndex].Personality == "pccc" {
+					case "pccc":
 						p.personality = 2
 					}
 				}
@@ -1654,11 +1612,12 @@ func (p *ServerPanel) updateConfig(msg tea.KeyMsg) (Panel, tea.Cmd) {
 				if p.profileIndex < len(p.profiles)-1 {
 					p.profileIndex++
 					// Update personality based on selected profile
-					if p.profiles[p.profileIndex].Personality == "adapter" {
+					switch p.profiles[p.profileIndex].Personality {
+					case "adapter":
 						p.personality = 0
-					} else if p.profiles[p.profileIndex].Personality == "logix_like" {
+					case "logix_like":
 						p.personality = 1
-					} else if p.profiles[p.profileIndex].Personality == "pccc" {
+					case "pccc":
 						p.personality = 2
 					}
 				}
@@ -2103,9 +2062,10 @@ func (p *ServerPanel) viewConfigContent(width int, focused bool) string {
 				}
 				// Show personality type
 				pType := "logix"
-				if prof.Personality == "adapter" {
+				switch prof.Personality {
+				case "adapter":
 					pType = "i/o"
-				} else if prof.Personality == "pccc" {
+				case "pccc":
 					pType = "pccc"
 				}
 				label := fmt.Sprintf("%-18s [%s]", prof.Name, pType)
@@ -2452,47 +2412,6 @@ func (p *ServerPanel) viewResultContent(width int, focused bool) string {
 	return strings.Join(lines, "\n")
 }
 
-func (p *ServerPanel) renderBox(title, content string, width int, focused bool, accentColor lipgloss.Color) string {
-	borderColor := DefaultTheme.Border
-	if focused {
-		borderColor = accentColor
-	}
-
-	innerWidth := width - 4
-	titleBar := p.renderTitleBar(title, innerWidth)
-
-	contentLines := strings.Split(content, "\n")
-	var paddedLines []string
-	for _, line := range contentLines {
-		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
-		}
-		paddedLines = append(paddedLines, line)
-	}
-
-	var result strings.Builder
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╭") + titleBar + lipgloss.NewStyle().Foreground(borderColor).Render("╮") + "\n")
-	for _, line := range paddedLines {
-		result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("│ ") + line + lipgloss.NewStyle().Foreground(borderColor).Render(" │") + "\n")
-	}
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", innerWidth) + "╯"))
-
-	return result.String()
-}
-
-func (p *ServerPanel) renderTitleBar(title string, width int) string {
-	titleText := " " + title + " "
-	titleLen := lipgloss.Width(titleText)
-	remaining := width - titleLen - 1
-	if remaining < 0 {
-		remaining = 0
-	}
-	return lipgloss.NewStyle().Foreground(DefaultTheme.Border).Render("─") +
-		p.styles.Header.Render(titleText) +
-		lipgloss.NewStyle().Foreground(DefaultTheme.Border).Render(strings.Repeat("─", remaining))
-}
-
 // UpdateStats updates the panel with new stats.
 func (p *ServerPanel) UpdateStats(stats StatsUpdate) {
 	p.stats = stats
@@ -2547,8 +2466,7 @@ type PCAPPanel struct {
 	dumpServiceCode string
 
 	// For viewer mode
-	viewerOffset int
-	selectedPkt  int
+	selectedPkt int
 	packets      []PacketInfo
 
 	// Display options
@@ -3848,9 +3766,10 @@ func (p *PCAPPanel) formatPCAPOutput(output string) []string {
 				count := strings.TrimSpace(parts[1])
 				// Color based on section
 				nameStyle := s.Base
-				if currentSection == "Command Counts" {
+				switch currentSection {
+				case "Command Counts":
 					nameStyle = s.Info
-				} else if currentSection == "CIP Service Counts" {
+				case "CIP Service Counts":
 					nameStyle = s.Success
 				}
 				lines = append(lines, "  "+nameStyle.Render(name)+": "+s.Dim.Render(count))
@@ -3992,90 +3911,6 @@ func (p *PCAPPanel) viewDiffResultContent(width int, focused bool) string {
 	return strings.Join(lines, "\n")
 }
 
-func (p *PCAPPanel) viewPacketViewerContent(width int, focused bool) string {
-	s := p.styles
-	var lines []string
-
-	lines = append(lines, s.Header.Render("Packet Viewer: ")+p.getFileName(p.selectedFile))
-	lines = append(lines, "")
-
-	// Column headers
-	hdr := fmt.Sprintf("  %-4s %-9s %-4s %-4s %-10s %-3s %-3s %s",
-		"#", "Time", "Proto", "Len", "Service", "Dir", "Sts", "Summary")
-	lines = append(lines, s.SectionName.Render(hdr))
-	lines = append(lines, s.Muted.Render("  "+strings.Repeat("─", width-4)))
-
-	// Packet list with scrolling
-	visibleRows := 8
-	startIdx := p.viewerOffset
-	if p.selectedPkt >= startIdx+visibleRows {
-		startIdx = p.selectedPkt - visibleRows + 1
-	}
-	if p.selectedPkt < startIdx {
-		startIdx = p.selectedPkt
-	}
-	p.viewerOffset = startIdx
-
-	endIdx := startIdx + visibleRows
-	if endIdx > len(p.packets) {
-		endIdx = len(p.packets)
-	}
-
-	for i := startIdx; i < endIdx; i++ {
-		pkt := p.packets[i]
-		cursor := "  "
-		if i == p.selectedPkt {
-			cursor = s.Selected.Render("> ")
-		}
-
-		// Status coloring
-		statusStyle := s.Success
-		if pkt.Status == "ERR" {
-			statusStyle = s.Error
-		}
-
-		// Direction coloring
-		dirStyle := s.Info
-		if pkt.Direction == "RSP" {
-			dirStyle = s.Warning
-		}
-
-		line := fmt.Sprintf("%s%-4d %-9s %-4s %-4d %-10s %s %s %s",
-			cursor,
-			pkt.Number,
-			s.Dim.Render(pkt.Timestamp),
-			pkt.Protocol,
-			pkt.Length,
-			pkt.Service,
-			dirStyle.Render(pkt.Direction),
-			statusStyle.Render(pkt.Status),
-			s.Dim.Render(pkt.Summary))
-		lines = append(lines, line)
-	}
-
-	// Scroll indicator
-	if len(p.packets) > visibleRows {
-		lines = append(lines, "")
-		scrollPct := (p.selectedPkt * 100) / len(p.packets)
-		lines = append(lines, s.Dim.Render(fmt.Sprintf("  Packet %d/%d (%d%%)", p.selectedPkt+1, len(p.packets), scrollPct)))
-	}
-
-	// Selected packet details
-	if p.selectedPkt < len(p.packets) {
-		pkt := p.packets[p.selectedPkt]
-		lines = append(lines, "")
-		lines = append(lines, s.Header.Render("Selected Packet Details:"))
-		lines = append(lines, fmt.Sprintf("  Service: %s (0x%02X)", pkt.Service, 0x0E))
-		lines = append(lines, fmt.Sprintf("  Path: %s", pkt.Summary))
-		lines = append(lines, fmt.Sprintf("  Length: %d bytes", pkt.Length))
-	}
-
-	lines = append(lines, "")
-	lines = append(lines, s.KeyBinding.Render("[Up/Down]")+" Navigate  "+s.KeyBinding.Render("[PgUp/PgDn]")+" Scroll  "+s.KeyBinding.Render("[Esc]")+" Close")
-
-	return strings.Join(lines, "\n")
-}
-
 func (p *PCAPPanel) renderMetricBar(label string, value, max float64, width int, s Styles) string {
 	labelWidth := 10
 	barWidth := width - labelWidth - 10
@@ -4090,47 +3925,6 @@ func (p *PCAPPanel) renderMetricBar(label string, value, max float64, width int,
 		s.Muted.Render(strings.Repeat("░", barWidth-filledWidth))
 
 	return fmt.Sprintf("%-*s %s %6.0f", labelWidth, label, bar, value)
-}
-
-func (p *PCAPPanel) renderBox(title, content string, width int, focused bool, accentColor lipgloss.Color) string {
-	borderColor := DefaultTheme.Border
-	if focused {
-		borderColor = accentColor
-	}
-
-	innerWidth := width - 4
-	titleBar := p.renderTitleBar(title, innerWidth)
-
-	contentLines := strings.Split(content, "\n")
-	var paddedLines []string
-	for _, line := range contentLines {
-		lineWidth := lipgloss.Width(line)
-		if lineWidth < innerWidth {
-			line += strings.Repeat(" ", innerWidth-lineWidth)
-		}
-		paddedLines = append(paddedLines, line)
-	}
-
-	var result strings.Builder
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╭") + titleBar + lipgloss.NewStyle().Foreground(borderColor).Render("╮") + "\n")
-	for _, line := range paddedLines {
-		result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("│ ") + line + lipgloss.NewStyle().Foreground(borderColor).Render(" │") + "\n")
-	}
-	result.WriteString(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", innerWidth) + "╯"))
-
-	return result.String()
-}
-
-func (p *PCAPPanel) renderTitleBar(title string, width int) string {
-	titleText := " " + title + " "
-	titleLen := lipgloss.Width(titleText)
-	remaining := width - titleLen - 1
-	if remaining < 0 {
-		remaining = 0
-	}
-	return lipgloss.NewStyle().Foreground(DefaultTheme.Border).Render("─") +
-		p.styles.Header.Render(titleText) +
-		lipgloss.NewStyle().Foreground(DefaultTheme.Border).Render(strings.Repeat("─", remaining))
 }
 
 // --------------------------------------------------------------------------
@@ -4915,69 +4709,6 @@ func (p *CatalogPanel) viewResult(width int) string {
 	return strings.Join(lines, "\n")
 }
 
-// getServiceName returns a friendly name for a CIP service code.
-// Standard CIP services (0x01-0x1C) have consistent names.
-// Object-specific services (0x4B+) vary by object class, so we show "Obj-Specific".
-func getServiceName(code string) string {
-	// Parse hex code string to uint8
-	code = strings.TrimPrefix(strings.ToLower(code), "0x")
-	var val uint8
-	if _, err := fmt.Sscanf(code, "%x", &val); err != nil {
-		return "Unknown"
-	}
-
-	// Standard CIP services have consistent names across objects
-	standardServices := map[uint8]string{
-		0x01: "Get_Attr_All",
-		0x02: "Set_Attr_All",
-		0x03: "Get_Attr_List",
-		0x04: "Set_Attr_List",
-		0x05: "Reset",
-		0x06: "Start",
-		0x07: "Stop",
-		0x08: "Create",
-		0x09: "Delete",
-		0x0A: "Multiple_Svc",
-		0x0D: "Apply_Attr",
-		0x0E: "Get_Attr_Single",
-		0x10: "Set_Attr_Single",
-		0x11: "Find_Next",
-		0x15: "Restore",
-		0x16: "Save",
-		0x17: "No_Op",
-		0x18: "Get_Member",
-		0x19: "Set_Member",
-		0x1A: "Insert_Member",
-		0x1B: "Remove_Member",
-	}
-
-	if name, ok := standardServices[val]; ok {
-		return name
-	}
-
-	// Object-specific services (0x4B+) - meaning varies by object class
-	// Connection Manager services
-	if val == 0x52 {
-		return "Unconn_Send"
-	}
-	if val == 0x54 {
-		return "Forward_Open"
-	}
-	if val == 0x4E {
-		return "Fwd_Close"
-	}
-	if val == 0x5B {
-		return "Large_Fwd_Open"
-	}
-
-	// For other object-specific codes, just indicate they're object-specific
-	if val >= 0x4B {
-		return "Obj-Specific"
-	}
-
-	return "Unknown"
-}
-
 // --------------------------------------------------------------------------
 // DiscoverPanel - Device discovery using ListIdentity
 // --------------------------------------------------------------------------
@@ -5006,8 +4737,6 @@ type DiscoverPanel struct {
 	resultScroll int
 	resultLines  []string
 
-	// Discovered devices
-	devices []DiscoveredDevice
 }
 
 // DiscoveredDevice represents a discovered CIP device.

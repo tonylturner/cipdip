@@ -89,68 +89,6 @@ type ENIPPacket struct {
 	DstPort     uint16
 }
 
-// extractENIPFromPacket extracts ENIP data from a gopacket.Packet.
-func extractENIPFromPacket(packet gopacket.Packet) *ENIPPacket {
-	// Check for TCP layer.
-	tcpLayer := packet.Layer(layers.LayerTypeTCP)
-	if tcpLayer != nil {
-		tcp, _ := tcpLayer.(*layers.TCP)
-		// Check if it's port 44818.
-		if tcp.DstPort == 44818 || tcp.SrcPort == 44818 {
-			// Try ApplicationLayer first (gopacket may have reassembled it).
-			if appLayer := packet.ApplicationLayer(); appLayer != nil {
-				payload := appLayer.Payload()
-				if len(payload) > 0 {
-					meta := extractPacketMeta(packet)
-					meta.Transport = "tcp"
-					meta.SrcPort = uint16(tcp.SrcPort)
-					meta.DstPort = uint16(tcp.DstPort)
-					if result := extractENIPFromPayload(payload, tcp.DstPort == 44818, meta); result != nil {
-						return result
-					}
-				}
-			}
-			// Fall back to TCP payload (for non-reassembled packets).
-			if len(tcp.Payload) > 0 {
-				meta := extractPacketMeta(packet)
-				meta.Transport = "tcp"
-				meta.SrcPort = uint16(tcp.SrcPort)
-				meta.DstPort = uint16(tcp.DstPort)
-				return extractENIPFromPayload(tcp.Payload, tcp.DstPort == 44818, meta)
-			}
-			// If still nothing, this might be an ACK/SYN packet without data.
-			return nil
-		}
-	}
-
-	// Check for UDP layer.
-	udpLayer := packet.Layer(layers.LayerTypeUDP)
-	if udpLayer != nil {
-		udp, _ := udpLayer.(*layers.UDP)
-		// Check if it's port 44818 or 2222.
-		if udp.DstPort == 44818 || udp.SrcPort == 44818 || udp.DstPort == 2222 || udp.SrcPort == 2222 {
-			if len(udp.Payload) > 0 {
-				meta := extractPacketMeta(packet)
-				meta.Transport = "udp"
-				meta.SrcPort = uint16(udp.SrcPort)
-				meta.DstPort = uint16(udp.DstPort)
-				return extractENIPFromPayload(udp.Payload, udp.DstPort == 44818 || udp.DstPort == 2222, meta)
-			}
-		}
-	}
-
-	return nil
-}
-
-// extractENIPFromPayload extracts ENIP data from a payload.
-func extractENIPFromPayload(payload []byte, isToServer bool, meta *ENIPMetadata) *ENIPPacket {
-	packets, _ := extractENIPFrames(payload, isToServer, meta)
-	if len(packets) == 0 {
-		return nil
-	}
-	return &packets[0]
-}
-
 type ENIPMetadata struct {
 	Timestamp time.Time
 	Transport string
@@ -187,11 +125,12 @@ func extractENIPFrames(payload []byte, isToServer bool, meta *ENIPMetadata) ([]E
 		status := order.Uint32(payload[offset+8 : offset+12])
 
 		var isRequest bool
-		if command == 0x0065 {
+		switch command {
+		case 0x0065:
 			isRequest = (status == 0 && sessionID == 0)
-		} else if command == enip.ENIPCommandListIdentity {
+		case enip.ENIPCommandListIdentity:
 			isRequest = isToServer
-		} else {
+		default:
 			isRequest = (status == 0)
 		}
 		if command == enip.ENIPCommandSendRRData || command == enip.ENIPCommandSendUnitData {

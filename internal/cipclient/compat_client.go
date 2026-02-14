@@ -1,8 +1,6 @@
 package cipclient
 
 import (
-	"encoding/binary"
-
 	clientpkg "github.com/tonylturner/cipdip/internal/cip/client"
 	"github.com/tonylturner/cipdip/internal/cip/protocol"
 	"github.com/tonylturner/cipdip/internal/enip"
@@ -166,26 +164,3 @@ func ParseListInterfacesResponse(data []byte) ([]enip.CPFItem, error) {
 	return clientpkg.ParseListInterfacesResponse(data)
 }
 
-// currentENIPByteOrder mirrors client byte-order helpers for validation.
-func currentENIPByteOrder() binary.ByteOrder {
-	return clientpkg.CurrentProtocolProfile().ENIPByteOrder
-}
-
-func currentCIPByteOrder() binary.ByteOrder {
-	return clientpkg.CurrentProtocolProfile().CIPByteOrder
-}
-
-func isValidENIPCommand(cmd uint16) bool {
-	switch cmd {
-	case enip.ENIPCommandRegisterSession,
-		enip.ENIPCommandUnregisterSession,
-		enip.ENIPCommandSendRRData,
-		enip.ENIPCommandSendUnitData,
-		enip.ENIPCommandListIdentity,
-		enip.ENIPCommandListServices,
-		enip.ENIPCommandListInterfaces:
-		return true
-	default:
-		return false
-	}
-}

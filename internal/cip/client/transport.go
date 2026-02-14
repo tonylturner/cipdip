@@ -67,7 +67,7 @@ func (t *TCPTransport) Connect(ctx context.Context, addr string) error {
 
 	tcpConn, ok := conn.(*net.TCPConn)
 	if !ok {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("not a TCP connection")
 	}
 
@@ -76,7 +76,7 @@ func (t *TCPTransport) Connect(ctx context.Context, addr string) error {
 
 	// Set keep-alive
 	if err := tcpConn.SetKeepAlive(true); err != nil {
-		tcpConn.Close()
+		_ = tcpConn.Close()
 		t.conn = nil
 		return fmt.Errorf("set keep-alive: %w", err)
 	}
@@ -287,11 +287,7 @@ func (t *UDPTransport) Receive(ctx context.Context, timeout time.Duration) ([]by
 		return nil, fmt.Errorf("incomplete packet: %d bytes (minimum 24)", n)
 	}
 
-	// Verify sender address matches expected (if set)
-	if t.addr != nil && addr.String() != t.addr.String() {
-		// Allow responses from different addresses for discovery
-		// but log or handle as needed
-	}
+	_ = addr
 
 	// Return the received packet
 	return buffer[:n], nil

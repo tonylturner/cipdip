@@ -46,7 +46,7 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	// Create deadline for duration
 	deadline := time.Now().Add(params.Duration)
@@ -308,7 +308,6 @@ func (s *MixedScenario) Run(ctx context.Context, client cipclient.Client, cfg *c
 		// Sleep for interval
 		select {
 		case <-ctx.Done():
-			break
 		case <-time.After(params.Interval):
 		}
 	}

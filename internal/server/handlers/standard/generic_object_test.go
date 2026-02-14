@@ -1,6 +1,7 @@
 package standard
 
 import (
+	"context"
 	"testing"
 
 	"github.com/tonylturner/cipdip/internal/cip/protocol"
@@ -21,7 +22,7 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 		},
 		Payload: []byte{0xDE, 0xAD},
 	}
-	resp, handled, err := handler.HandleCIPRequest(nil, req)
+	resp, handled, err := handler.HandleCIPRequest(context.TODO(), req)
 	if err != nil || !handled || resp.Status != 0x00 {
 		t.Fatalf("expected set success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
@@ -30,7 +31,7 @@ func TestGenericGetSetAttributeSingle(t *testing.T) {
 		Service: spec.CIPServiceGetAttributeSingle,
 		Path:    req.Path,
 	}
-	readResp, handled, err := handler.HandleCIPRequest(nil, readReq)
+	readResp, handled, err := handler.HandleCIPRequest(context.TODO(), readReq)
 	if err != nil || !handled || readResp.Status != 0x00 {
 		t.Fatalf("expected read success, handled=%v status=0x%02X err=%v", handled, readResp.Status, err)
 	}
@@ -56,7 +57,7 @@ func TestGenericGetAttributeList(t *testing.T) {
 			0x02, 0x00, // attr 2
 		},
 	}
-	resp, handled, err := handler.HandleCIPRequest(nil, req)
+	resp, handled, err := handler.HandleCIPRequest(context.TODO(), req)
 	if err != nil || !handled || resp.Status != 0x00 {
 		t.Fatalf("expected list success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
@@ -77,13 +78,13 @@ func TestEnergyMeteringServices(t *testing.T) {
 			Instance: 0x0001,
 		},
 	}
-	resp, handled, err := handler.HandleCIPRequest(nil, req)
+	resp, handled, err := handler.HandleCIPRequest(context.TODO(), req)
 	if err != nil || !handled || resp.Status != 0x00 {
 		t.Fatalf("expected start metering success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
 
 	req.Service = spec.CIPServiceReadTag
-	resp, handled, err = handler.HandleCIPRequest(nil, req)
+	resp, handled, err = handler.HandleCIPRequest(context.TODO(), req)
 	if err != nil || !handled || resp.Status != 0x00 {
 		t.Fatalf("expected stop metering success, handled=%v status=0x%02X err=%v", handled, resp.Status, err)
 	}
@@ -113,7 +114,7 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 			},
 			Payload: []byte{0xAA},
 		}
-		resp, handled, err := handler.HandleCIPRequest(nil, setReq)
+		resp, handled, err := handler.HandleCIPRequest(context.TODO(), setReq)
 		if err != nil || !handled || resp.Status != 0x00 {
 			t.Fatalf("class 0x%04X set failed: handled=%v status=0x%02X err=%v", classID, handled, resp.Status, err)
 		}
@@ -122,7 +123,7 @@ func TestGenericProfileClassesBasicReadWrite(t *testing.T) {
 			Service: spec.CIPServiceGetAttributeSingle,
 			Path:    setReq.Path,
 		}
-		resp, handled, err = handler.HandleCIPRequest(nil, getReq)
+		resp, handled, err = handler.HandleCIPRequest(context.TODO(), getReq)
 		if err != nil || !handled || resp.Status != 0x00 {
 			t.Fatalf("class 0x%04X get failed: handled=%v status=0x%02X err=%v", classID, handled, resp.Status, err)
 		}

@@ -230,7 +230,7 @@ func (s *SSH) Exec(ctx context.Context, cmd []string, env map[string]string, cwd
 	if err != nil {
 		return -1, "", "", fmt.Errorf("new session: %w", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// Build command string with elevation if configured
 	cmdStr := buildCommandString(cmd, cwd, s.opts.Elevate, s.opts.RemoteOS)
@@ -251,7 +251,7 @@ func (s *SSH) Exec(ctx context.Context, cmd []string, env map[string]string, cwd
 
 	select {
 	case <-ctx.Done():
-		session.Signal(ssh.SIGKILL)
+		_ = session.Signal(ssh.SIGKILL)
 		return -1, stdout.String(), stderr.String(), ctx.Err()
 	case err := <-done:
 		exitCode := 0
@@ -275,7 +275,7 @@ func (s *SSH) ExecStream(ctx context.Context, cmd []string, env map[string]strin
 	if err != nil {
 		return -1, fmt.Errorf("new session: %w", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// Build command string with elevation if configured
 	cmdStr := buildCommandString(cmd, cwd, s.opts.Elevate, s.opts.RemoteOS)
@@ -295,7 +295,7 @@ func (s *SSH) ExecStream(ctx context.Context, cmd []string, env map[string]strin
 
 	select {
 	case <-ctx.Done():
-		session.Signal(ssh.SIGKILL)
+		_ = session.Signal(ssh.SIGKILL)
 		return -1, ctx.Err()
 	case err := <-done:
 		exitCode := 0
@@ -338,16 +338,14 @@ func (s *SSH) Put(ctx context.Context, localPath, remotePath string) error {
 
 	// Ensure remote directory exists
 	remoteDir := filepath.Dir(remotePath)
-	if err := sftpClient.MkdirAll(remoteDir); err != nil {
-		// Ignore error, directory might exist
-	}
+	_ = sftpClient.MkdirAll(remoteDir)
 
 	// Create remote file
 	remoteFile, err := sftpClient.Create(remotePath)
 	if err != nil {
 		return fmt.Errorf("create remote file: %w", err)
 	}
-	defer remoteFile.Close()
+	defer func() { _ = remoteFile.Close() }()
 
 	// Copy content
 	if _, err := io.Copy(remoteFile, localFile); err != nil {
@@ -355,9 +353,7 @@ func (s *SSH) Put(ctx context.Context, localPath, remotePath string) error {
 	}
 
 	// Set permissions
-	if err := sftpClient.Chmod(remotePath, localInfo.Mode()); err != nil {
-		// Ignore permission errors
-	}
+	_ = sftpClient.Chmod(remotePath, localInfo.Mode())
 
 	return nil
 }
@@ -381,7 +377,7 @@ func (s *SSH) Get(ctx context.Context, remotePath, localPath string) error {
 	if err != nil {
 		return fmt.Errorf("open remote file: %w", err)
 	}
-	defer remoteFile.Close()
+	defer func() { _ = remoteFile.Close() }()
 
 	// Get remote file info for permissions
 	remoteInfo, err := remoteFile.Stat()

@@ -34,13 +34,6 @@ type epathYAML struct {
 	Member    string    `yaml:"member,omitempty"`
 }
 
-// fileYAML is the YAML representation of a catalog file.
-type fileYAML struct {
-	Version int         `yaml:"version"`
-	Name    string      `yaml:"name"`
-	Entries []entryYAML `yaml:"entries"`
-}
-
 // UnmarshalYAML implements yaml.Unmarshaler for Entry.
 func (e *Entry) UnmarshalYAML(value *yaml.Node) error {
 	var raw entryYAML

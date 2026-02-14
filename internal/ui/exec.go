@@ -58,16 +58,6 @@ type StatsUpdate struct {
 	Timeouts           int `json:"timeouts"`
 }
 
-// serverStatsMsg is sent to update server stats from subprocess output.
-type serverStatsMsg struct {
-	Stats StatsUpdate
-}
-
-// clientStatsMsg is sent to update client stats from subprocess output.
-type clientStatsMsg struct {
-	Stats StatsUpdate
-}
-
 // clientStatusMsg represents the final status of a client command.
 type clientStatusMsg struct {
 	Stopped  bool

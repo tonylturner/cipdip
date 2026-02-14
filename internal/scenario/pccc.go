@@ -39,7 +39,7 @@ func (s *PCCCScenario) Run(ctx context.Context, client cipclient.Client, cfg *co
 	}
 	defer func() {
 		fmt.Printf("[CLIENT] Disconnecting...\n")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	deadline := time.Now().Add(params.Duration)

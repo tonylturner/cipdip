@@ -116,10 +116,11 @@ func ApplyServerTarget(cfg *config.ServerConfig, name string) error {
 		cfg.Server.IdentityProductName = target.Identity.IdentityProductName
 	}
 
-	if target.Personality == "adapter" {
+	switch target.Personality {
+	case "adapter":
 		cfg.AdapterAssemblies = append([]config.AdapterAssemblyConfig(nil), target.Assemblies...)
 		cfg.LogixTags = nil
-	} else if target.Personality == "logix_like" {
+	case "logix_like":
 		cfg.LogixTags = append([]config.LogixTagConfig(nil), target.Tags...)
 		cfg.AdapterAssemblies = nil
 	}

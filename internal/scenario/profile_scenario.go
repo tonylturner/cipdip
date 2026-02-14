@@ -56,7 +56,7 @@ func (s *ProfileScenario) Run(ctx context.Context, client cipclient.Client, cfg 
 	}
 	defer func() {
 		params.Logger.Info("Disconnecting...")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	// Create deadline for duration
@@ -492,7 +492,7 @@ func (s *ProfileScenario) runAllRoles(ctx context.Context, client cipclient.Clie
 	}
 	defer func() {
 		params.Logger.Info("Disconnecting...")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	// Create deadline for duration

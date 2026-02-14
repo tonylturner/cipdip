@@ -102,7 +102,7 @@ func NewClient() Client {
 	}
 
 	// Generate random sender context
-	rand.Read(client.senderContext[:])
+	_, _ = rand.Read(client.senderContext[:])
 
 	return client
 }
@@ -136,12 +136,12 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 	validator := NewPacketValidator(profile.Name != "legacy_compat")
 	encapReq, _ := enip.DecodeENIP(regPacket)
 	if err := validator.ValidateENIP(encapReq); err != nil {
-		c.transport.Disconnect()
+		_ = c.transport.Disconnect()
 		return fmt.Errorf("invalid RegisterSession packet: %w", err)
 	}
 
 	if err := c.transport.Send(ctx, regPacket); err != nil {
-		c.transport.Disconnect()
+		_ = c.transport.Disconnect()
 		return errors.WrapNetworkError(err, ip, port)
 	}
 
@@ -149,24 +149,24 @@ func (c *ENIPClient) Connect(ctx context.Context, ip string, port int) error {
 	timeout := 5 * time.Second
 	respData, err := c.transport.Receive(ctx, timeout)
 	if err != nil {
-		c.transport.Disconnect()
+		_ = c.transport.Disconnect()
 		return errors.WrapNetworkError(err, ip, port)
 	}
 
 	encap, err := enip.DecodeENIP(respData)
 	if err != nil {
-		c.transport.Disconnect()
+		_ = c.transport.Disconnect()
 		return errors.WrapCIPError(err, "RegisterSession")
 	}
 
 	// Validate response
 	if err := validator.ValidateENIP(encap); err != nil {
-		c.transport.Disconnect()
+		_ = c.transport.Disconnect()
 		return errors.WrapCIPError(err, "RegisterSession response validation")
 	}
 
 	if encap.Status != enip.ENIPStatusSuccess {
-		c.transport.Disconnect()
+		_ = c.transport.Disconnect()
 		return errors.WrapCIPError(fmt.Errorf("RegisterSession failed with status: 0x%08X", encap.Status), "RegisterSession")
 	}
 
@@ -201,7 +201,7 @@ func (c *ENIPClient) Disconnect(ctx context.Context) error {
 		_ = c.transport.Send(ctx, unregPacket) // Ignore error on disconnect
 	}
 
-	c.transport.Disconnect()
+	_ = c.transport.Disconnect()
 	c.connected = false
 	c.sessionID = 0
 
@@ -271,11 +271,7 @@ func (c *ENIPClient) InvokeService(ctx context.Context, req protocol.CIPRequest)
 
 	resp.Service = req.Service
 
-	// Validate response
-	if err := validator.ValidateCIPResponse(resp, req.Service); err != nil {
-		// Log validation error but don't fail - device may be non-compliant
-		// In strict mode, this would fail
-	}
+	_ = validator.ValidateCIPResponse(resp, req.Service)
 
 	return resp, nil
 }

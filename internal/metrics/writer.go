@@ -398,7 +398,7 @@ func FormatSummary(summary *Summary) string {
 	}
 
 	if summary.SuccessfulOps > 0 {
-		buf += fmt.Sprintf("\nRTT Statistics (all operations):\n")
+		buf += "\nRTT Statistics (all operations):\n"
 		buf += fmt.Sprintf("  Min: %.3f ms\n", summary.MinRTT)
 		buf += fmt.Sprintf("  Max: %.3f ms\n", summary.MaxRTT)
 		buf += fmt.Sprintf("  Avg: %.3f ms\n", summary.AvgRTT)
@@ -421,7 +421,7 @@ func FormatSummary(summary *Summary) string {
 		}
 	}
 	if summary.AvgJitter > 0 {
-		buf += fmt.Sprintf("\nJitter Statistics (all operations):\n")
+		buf += "\nJitter Statistics (all operations):\n"
 		buf += fmt.Sprintf("  Min: %.3f ms\n", summary.MinJitter)
 		buf += fmt.Sprintf("  Max: %.3f ms\n", summary.MaxJitter)
 		buf += fmt.Sprintf("  Avg: %.3f ms\n", summary.AvgJitter)
@@ -446,7 +446,7 @@ func FormatSummary(summary *Summary) string {
 
 	// Per-operation statistics
 	if len(summary.RTTByOperation) > 0 {
-		buf += fmt.Sprintf("\nPer-Operation Statistics:\n")
+		buf += "\nPer-Operation Statistics:\n"
 		for op, stats := range summary.RTTByOperation {
 			buf += fmt.Sprintf("  %s: %d ops (%d success, %d failed)",
 				op, stats.Count, stats.Success, stats.Failed)
@@ -460,7 +460,7 @@ func FormatSummary(summary *Summary) string {
 
 	// Per-scenario statistics
 	if len(summary.RTTByScenario) > 0 {
-		buf += fmt.Sprintf("\nPer-Scenario Statistics:\n")
+		buf += "\nPer-Scenario Statistics:\n"
 		for scenario, stats := range summary.RTTByScenario {
 			buf += fmt.Sprintf("  %s: %d ops (%d success, %d failed)",
 				scenario, stats.Count, stats.Success, stats.Failed)

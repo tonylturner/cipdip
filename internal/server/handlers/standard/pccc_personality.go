@@ -20,11 +20,10 @@ import (
 // PCCCPersonality implements a PCCC/SLC-500 server personality with
 // in-memory data tables.
 type PCCCPersonality struct {
-	config   *config.ServerConfig
-	logger   *logging.Logger
-	tables   *pccc.DataTableSet
-	tnsCount uint16
-	mu       sync.RWMutex
+	config *config.ServerConfig
+	logger *logging.Logger
+	tables *pccc.DataTableSet
+	mu     sync.RWMutex
 }
 
 // NewPCCCPersonality creates a PCCC personality with default SLC-500 data tables.

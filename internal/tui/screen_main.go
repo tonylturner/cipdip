@@ -55,7 +55,6 @@ type MainScreenModel struct {
 	asyncInitDone   bool
 
 	// Scrolling hint banner
-	hintIndex  int
 	hintOffset int
 
 	// Help panel
@@ -1142,26 +1141,6 @@ func (m *MainScreenModel) renderActivePanelBox(name, content string, width int) 
 	return result.String()
 }
 
-// truncateToWidth truncates a string to fit within the specified visible width.
-func truncateToWidth(s string, maxWidth int) string {
-	if maxWidth < 3 {
-		maxWidth = 3
-	}
-	if lipgloss.Width(s) <= maxWidth {
-		return s
-	}
-	// Strip ANSI codes, truncate, but this loses styling
-	// Instead, truncate rune by rune until we fit
-	runes := []rune(s)
-	for i := len(runes); i > 0; i-- {
-		candidate := string(runes[:i])
-		if lipgloss.Width(candidate) <= maxWidth-3 {
-			return candidate + "..."
-		}
-	}
-	return "..."
-}
-
 func (m *MainScreenModel) renderHelpPanel(content string, width int) string {
 	s := m.styles
 	innerWidth := width - 4
@@ -1459,67 +1438,6 @@ configure orchestration.
 
 [Tab] Switch views`
 	}
-}
-
-func (m *MainScreenModel) renderCatalogContent(width int) string {
-	s := m.styles
-	entries := m.state.CatalogEntries
-
-	var lines []string
-
-	if len(entries) == 0 {
-		lines = append(lines, s.Dim.Render("No catalog entries loaded."))
-		lines = append(lines, "")
-		lines = append(lines, s.Dim.Render("Catalog loaded from:"))
-		lines = append(lines, s.Dim.Render("  /catalogs/core.yaml"))
-	} else {
-		// Header
-		lines = append(lines, s.Dim.Render(fmt.Sprintf("Entries: %d", len(entries))))
-		lines = append(lines, "")
-
-		// Show entries with full EPATH tuple
-		maxShow := 12
-		if len(entries) < maxShow {
-			maxShow = len(entries)
-		}
-
-		for i := 0; i < maxShow; i++ {
-			entry := entries[i]
-			// Build EPATH: Service/Class/Instance/Attribute
-			epath := fmt.Sprintf("0x%02X/0x%04X/0x%04X", entry.ServiceCode, entry.EPATH.Class, entry.EPATH.Instance)
-			if entry.EPATH.Attribute != 0 {
-				epath += fmt.Sprintf("/0x%04X", entry.EPATH.Attribute)
-			}
-
-			// Truncate name if needed
-			name := entry.Name
-			if name == "" {
-				name = entry.Key
-			}
-			maxName := width - len(epath) - 4
-			if maxName < 10 {
-				maxName = 10
-			}
-			if len(name) > maxName {
-				name = name[:maxName-3] + "..."
-			}
-
-			line := fmt.Sprintf("%-26s %s", epath, name)
-			lines = append(lines, line)
-		}
-
-		if len(entries) > maxShow {
-			lines = append(lines, "")
-			lines = append(lines, s.Dim.Render(fmt.Sprintf("  +%d more...", len(entries)-maxShow)))
-		}
-	}
-
-	// Pad content
-	for len(lines) < 10 {
-		lines = append(lines, "")
-	}
-
-	return strings.Join(lines, "\n")
 }
 
 func (m *MainScreenModel) panelBox(title, content string, width int) string {

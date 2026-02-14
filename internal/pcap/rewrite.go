@@ -159,7 +159,7 @@ func RewritePacket(packet gopacket.Packet, opts RewriteOptions) ([]byte, error) 
 			tcp.DstPort = layers.TCPPort(opts.DstPort)
 		}
 		if networkLayer != nil {
-			tcp.SetNetworkLayerForChecksum(networkLayer)
+			_ = tcp.SetNetworkLayerForChecksum(networkLayer)
 		}
 		layersOut = append(layersOut, &tcp)
 		layersOut = append(layersOut, gopacket.Payload(tcp.Payload))
@@ -172,7 +172,7 @@ func RewritePacket(packet gopacket.Packet, opts RewriteOptions) ([]byte, error) 
 			udp.DstPort = layers.UDPPort(opts.DstPort)
 		}
 		if networkLayer != nil {
-			udp.SetNetworkLayerForChecksum(networkLayer)
+			_ = udp.SetNetworkLayerForChecksum(networkLayer)
 		}
 		layersOut = append(layersOut, &udp)
 		layersOut = append(layersOut, gopacket.Payload(udp.Payload))

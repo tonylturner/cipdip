@@ -39,7 +39,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 	if err := client.Connect(ctx, params.IP, port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	// Create deadline for duration
 	deadline := time.Now().Add(params.Duration)
@@ -228,7 +228,6 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 		// Sleep for interval (short interval for stress)
 		select {
 		case <-ctx.Done():
-			break
 		case <-time.After(params.Interval):
 		}
 	}

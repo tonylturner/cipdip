@@ -699,7 +699,7 @@ func TestCIPResponseStructureODVA(t *testing.T) {
 			data[0], uint8(spec.CIPServiceGetAttributeSingle))
 	}
 
-	offset := 1
+	var offset int
 	if profile.IncludeCIPRespReserved {
 		if len(data) < 4 {
 			t.Fatalf("ODVA violation: Response too short for reserved fields")

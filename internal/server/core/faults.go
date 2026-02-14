@@ -75,10 +75,8 @@ func (s *Server) nextResponseFaultAction() responseFaultAction {
 		delay += stall
 	}
 
-	drop := false
-	if s.faults.dropEveryN > 0 && count%s.faults.dropEveryN == 0 {
-		drop = true
-	}
+	drop := s.faults.dropEveryN > 0 && count%s.faults.dropEveryN == 0
+
 	if s.faults.dropPct > 0 && s.faults.rng.Float64() < s.faults.dropPct {
 		drop = true
 	}
@@ -108,7 +106,7 @@ func (s *Server) writeResponse(conn *net.TCPConn, remoteAddr string, resp []byte
 			s.coalesceQueue[conn] = append([]byte(nil), resp...)
 			s.coalesceMu.Unlock()
 			if action.close {
-				conn.Close()
+				_ = conn.Close()
 				return io.EOF
 			}
 			return nil
@@ -118,7 +116,7 @@ func (s *Server) writeResponse(conn *net.TCPConn, remoteAddr string, resp []byte
 
 	if action.drop {
 		if action.close {
-			conn.Close()
+			_ = conn.Close()
 			return io.EOF
 		}
 		return nil
@@ -137,7 +135,7 @@ func (s *Server) writeResponse(conn *net.TCPConn, remoteAddr string, resp []byte
 	}
 
 	if action.close {
-		conn.Close()
+		_ = conn.Close()
 		return io.EOF
 	}
 	return nil

@@ -95,12 +95,3 @@ func parseCIPRequestPath(cipData []byte) ([]byte, bool, int, EPATHInfo, error) {
 	return nil, false, 0, EPATHInfo{}, fmt.Errorf("invalid EPATH")
 }
 
-func parseUnconnectedSendRequest(data []byte) ([]byte, bool) {
-	msg, _, ok := ParseUnconnectedSendRequestPayload(data)
-	return msg, ok
-}
-
-func parseUnconnectedSendResponse(payload []byte) ([]byte, bool) {
-	msg, ok := ParseUnconnectedSendResponsePayload(payload)
-	return msg, ok
-}

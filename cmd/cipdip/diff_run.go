@@ -377,7 +377,7 @@ func formatBundleDiffMarkdown(result *BundleDiffResult) string {
 
 	// Bundle context
 	b.WriteString("## Bundles\n\n")
-	b.WriteString(fmt.Sprintf("| | Path |\n"))
+	b.WriteString("| | Path |\n")
 	b.WriteString("|---|------|\n")
 	b.WriteString(fmt.Sprintf("| **Baseline** | `%s` |\n", result.BaselineBundle))
 	b.WriteString(fmt.Sprintf("| **Compare** | `%s` |\n", result.CompareBundle))

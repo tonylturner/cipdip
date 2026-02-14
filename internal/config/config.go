@@ -724,17 +724,14 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 	if cfg.Metrics.Port < 0 {
 		return fmt.Errorf("metrics.port must be >= 0")
 	}
-	if cfg.CIP.DefaultUnsupportedStatus == 0 {
-		// allow defaulting during load, but if explicitly set to 0 it's not useful
-	}
-
 	// Validate personality
 	if cfg.Server.Personality != "adapter" && cfg.Server.Personality != "logix_like" {
 		return fmt.Errorf("server.personality must be 'adapter' or 'logix_like', got '%s'", cfg.Server.Personality)
 	}
 
 	// Validate based on personality
-	if cfg.Server.Personality == "adapter" {
+	switch cfg.Server.Personality {
+	case "adapter":
 		if len(cfg.AdapterAssemblies) == 0 {
 			return fmt.Errorf("adapter_assemblies must have at least one entry when personality is 'adapter'")
 		}
@@ -745,7 +742,7 @@ func ValidateServerConfig(cfg *ServerConfig) error {
 				return err
 			}
 		}
-	} else if cfg.Server.Personality == "logix_like" {
+	case "logix_like":
 		if len(cfg.LogixTags) == 0 {
 			return fmt.Errorf("logix_tags must have at least one entry when personality is 'logix_like'")
 		}

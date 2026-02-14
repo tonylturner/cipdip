@@ -226,7 +226,7 @@ func ensureExpectationDefaults(expect validation.PacketExpectation, idx int) val
 	if expect.Direction == "response" {
 		expect.ExpectStatus = true
 	}
-	if !expect.ExpectSymbol && expect.ExpectCIPPath == false && expect.Direction != "response" {
+	if !expect.ExpectSymbol && !expect.ExpectCIPPath && expect.Direction != "response" {
 		expect.ExpectCIPPath = true
 	}
 	return expect

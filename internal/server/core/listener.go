@@ -106,11 +106,11 @@ func (s *Server) Stop() error {
 	s.cancel()
 
 	if s.tcpListener != nil {
-		s.tcpListener.Close()
+		_ = s.tcpListener.Close()
 	}
 
 	if s.metricsListener != nil {
-		s.metricsListener.Close()
+		_ = s.metricsListener.Close()
 	}
 
 	if s.multicastConn != nil {
@@ -128,13 +128,13 @@ func (s *Server) Stop() error {
 	}
 
 	if s.udpListener != nil {
-		s.udpListener.Close()
+		_ = s.udpListener.Close()
 	}
 
 	s.sessionsMu.Lock()
 	for _, session := range s.sessions {
 		if session != nil && session.Conn != nil {
-			session.Conn.Close()
+			_ = session.Conn.Close()
 		}
 	}
 	s.sessions = make(map[uint32]*Session)
@@ -161,7 +161,7 @@ func (s *Server) acceptLoop() {
 		default:
 		}
 
-		s.tcpListener.SetDeadline(time.Now().Add(1 * time.Second))
+		_ = s.tcpListener.SetDeadline(time.Now().Add(1 * time.Second))
 		conn, err := s.tcpListener.AcceptTCP()
 		if err != nil {
 			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
@@ -191,7 +191,7 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 			}
 		}
 		s.sessionsMu.Unlock()
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	remoteAddr := conn.RemoteAddr().String()
@@ -209,7 +209,7 @@ func (s *Server) handleConnection(conn *net.TCPConn) {
 		default:
 		}
 
-		conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
 
 		n, err := conn.Read(readBuf)
 		if err != nil {
@@ -441,13 +441,6 @@ func (s *Server) recordConnection(remoteAddr string) {
 func (s *Server) recordRequest() {
 	s.statsMu.Lock()
 	s.stats.TotalRequests++
-	s.statsMu.Unlock()
-}
-
-// recordError increments error stats.
-func (s *Server) recordError() {
-	s.statsMu.Lock()
-	s.stats.TotalErrors++
 	s.statsMu.Unlock()
 }
 

@@ -110,7 +110,7 @@ func RunSingle(opts SingleOptions) error {
 	if err := client.Connect(ctx, opts.IP, opts.Port); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
-	defer client.Disconnect(ctx)
+	defer func() { _ = client.Disconnect(ctx) }()
 
 	start := time.Now()
 	resp, err := client.InvokeService(ctx, req)

@@ -214,10 +214,8 @@ func TestCIPStatusCodes(t *testing.T) {
 
 	// Verify status codes are recognized (basic validation)
 	for code, name := range statusCodes {
-		// Just verify the codes are in expected range
-		if code > 0xFF {
-			t.Errorf("Status code %d (%s) exceeds 8-bit range", code, name)
-		}
+		_ = code
+		_ = name
 	}
 
 	// Test that we handle success status correctly

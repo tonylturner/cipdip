@@ -48,7 +48,7 @@ func (c *TagCondition) Evaluate(ctx *ConditionContext) bool {
 		return false
 	}
 
-	var compareValue interface{} = c.Value
+	compareValue := c.Value
 	if c.TagRef != "" {
 		if refValue, ok := ctx.TagValues[c.TagRef]; ok {
 			compareValue = refValue
@@ -160,7 +160,7 @@ func ParseCondition(condStr string) Condition {
 func parseTagCondition(s string) *TagCondition {
 	// Find operator
 	operators := []string{">=", "<=", "!=", "==", ">", "<"}
-	var opIdx int = -1
+	opIdx := -1
 	var op string
 
 	for _, o := range operators {

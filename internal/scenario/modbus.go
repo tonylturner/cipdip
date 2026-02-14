@@ -39,7 +39,7 @@ func (s *ModbusScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 	}
 	defer func() {
 		fmt.Printf("[CLIENT] Disconnecting...\n")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	deadline := time.Now().Add(params.Duration)
@@ -150,7 +150,7 @@ func (s *ModbusScenario) executeCIPModbus(ctx context.Context, client cipclient.
 	}
 	// Check if the Modbus response indicates an exception.
 	if len(resp.Payload) > 0 && resp.Payload[0]&0x80 != 0 {
-		return false, fmt.Errorf("Modbus exception: %s", modbus.DescribeCIPModbus(resp.Payload))
+		return false, fmt.Errorf("modbus exception: %s", modbus.DescribeCIPModbus(resp.Payload))
 	}
 	return true, nil
 }
@@ -182,7 +182,7 @@ func (s *ModbusPipelineScenario) Run(ctx context.Context, client cipclient.Clien
 	}
 	defer func() {
 		fmt.Printf("[CLIENT] Disconnecting...\n")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	deadline := time.Now().Add(params.Duration)

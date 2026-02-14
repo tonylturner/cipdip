@@ -56,7 +56,7 @@ func RunServer(opts ServerOptions) error {
 		if err != nil {
 			return fmt.Errorf("start packet capture on %s: %w", ifaceName, err)
 		}
-		defer pcapCapture.Stop()
+		defer func() { _ = pcapCapture.Stop() }()
 	}
 
 	var cfg *config.ServerConfig
@@ -182,7 +182,7 @@ func RunServer(opts ServerOptions) error {
 	}
 
 	if pcapCapture != nil {
-		pcapCapture.Stop()
+		_ = pcapCapture.Stop()
 		packetCount := pcapCapture.GetPacketCount()
 		absPath, _ := filepath.Abs(opts.PCAPFile)
 		fmt.Fprintf(os.Stdout, "Packets captured: %d\n", packetCount)

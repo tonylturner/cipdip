@@ -43,7 +43,7 @@ func (s *EvasionSegmentScenario) Run(ctx context.Context, client cipclient.Clien
 	}
 	defer func() {
 		fmt.Printf("[CLIENT] Disconnecting...\n")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	deadline := time.Now().Add(params.Duration)
@@ -238,7 +238,7 @@ func (s *EvasionAnomalyScenario) Run(ctx context.Context, client cipclient.Clien
 	}
 	defer func() {
 		fmt.Printf("[CLIENT] Disconnecting...\n")
-		client.Disconnect(ctx)
+		_ = client.Disconnect(ctx)
 	}()
 
 	deadline := time.Now().Add(params.Duration)

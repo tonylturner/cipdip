@@ -133,7 +133,7 @@ func RunClient(opts ClientOptions) error {
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
-	defer logger.Close()
+	defer func() { _ = logger.Close() }()
 
 	autoCreate := opts.QuickStart
 	cfg, err := config.LoadClientConfig(opts.ConfigPath, autoCreate)
@@ -216,7 +216,7 @@ func RunClient(opts ClientOptions) error {
 		if err != nil {
 			return fmt.Errorf("create metrics writer: %w", err)
 		}
-		defer metricsWriter.Close()
+		defer func() { _ = metricsWriter.Close() }()
 	}
 
 	var pcapCapture *capture.Capture
@@ -237,7 +237,7 @@ func RunClient(opts ClientOptions) error {
 		if err != nil {
 			return fmt.Errorf("start packet capture on %s: %w", ifaceName, err)
 		}
-		defer pcapCapture.Stop()
+		defer func() { _ = pcapCapture.Stop() }()
 	}
 
 	fmt.Fprintf(os.Stdout, "CIPDIP Client starting...\n")

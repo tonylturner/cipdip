@@ -6,7 +6,6 @@ import (
 )
 
 type extractFlags struct {
-	pcapDir      string
 	outputFile   string
 	baselineDir  string
 	realWorldDir string
