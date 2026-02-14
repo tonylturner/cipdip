@@ -1,6 +1,7 @@
 package profile
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -219,7 +220,7 @@ func TestProfileValidate(t *testing.T) {
 					t.Error("expected error, got nil")
 					return
 				}
-				if tt.errMsg != "" && !contains(err.Error(), tt.errMsg) {
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("error %q should contain %q", err.Error(), tt.errMsg)
 				}
 				return
@@ -311,15 +312,3 @@ func TestProfileGetters(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

@@ -1,0 +1,29 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  errcheck:
+    # Don't require checking errors on close/flush/write to stdout/stderr
+    exclude-functions:
+      - (*os.File).Close
+      - (*bufio.Writer).Flush
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - (io.Closer).Close
+
+issues:
+  # Don't limit the number of issues per linter
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Test files can be less strict
+    - path: _test\.go
+      linters:
+        - errcheck

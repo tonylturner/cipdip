@@ -5,9 +5,11 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/tonylturner/cipdip/internal/cip/protocol"
 	"github.com/tonylturner/cipdip/internal/cip/spec"
-	"time"
 
 	cipclient "github.com/tonylturner/cipdip/internal/cip/client"
 	"github.com/tonylturner/cipdip/internal/config"
@@ -102,7 +104,7 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 			if err != nil {
 				errorMsg = err.Error()
 				// Check for timeout
-				if contains(errorMsg, "timeout") || contains(errorMsg, "deadline") {
+				if strings.Contains(errorMsg, "timeout") || strings.Contains(errorMsg, "deadline") {
 					timeoutCount++
 				}
 			} else if resp.Status != 0 {
@@ -235,19 +237,6 @@ func (s *StressScenario) Run(ctx context.Context, client cipclient.Client, cfg *
 	params.Logger.Info("Stress scenario completed: %d loops in %v, %d timeouts", loopCount, elapsed, timeoutCount)
 
 	return nil
-}
-
-// contains checks if a string contains a substring (case-insensitive)
-func contains(s, substr string) bool {
-	if len(s) < len(substr) {
-		return false
-	}
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/tonylturner/cipdip/internal/tui"
 )
 
 var (
@@ -14,6 +15,9 @@ var (
 )
 
 func main() {
+	// Set version for internal packages that need it
+	tui.SetVersion(version)
+
 	rootCmd := &cobra.Command{
 		Use:   "cipdip",
 		Short: "CIP/EtherNet-IP Scanner for DPI Testing",

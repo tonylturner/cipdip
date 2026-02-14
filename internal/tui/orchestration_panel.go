@@ -2569,8 +2569,15 @@ func (p *OrchestrationPanel) handleRunDone(result *controller.Result, err error)
 	p.mode = PanelResult
 }
 
-// version is defined in main.go but we need it here
-var version = "0.2.2"
+// version is set by the main package via SetVersion().
+// Falls back to "dev" if not set (e.g., during tests).
+var version = "dev"
+
+// SetVersion sets the version string for the TUI package.
+// Called from main() to avoid duplicating the version constant.
+func SetVersion(v string) {
+	version = v
+}
 
 // LoadManifestFiles returns a list of manifest files in the workspace.
 func LoadManifestFiles(workspaceRoot string) []string {

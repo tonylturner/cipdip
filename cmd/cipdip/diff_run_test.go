@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tonylturner/cipdip/internal/orch/bundle"
@@ -206,10 +207,10 @@ func TestFormatBundleDiffText(t *testing.T) {
 	if output == "" {
 		t.Error("formatBundleDiffText() should produce output")
 	}
-	if !contains(output, "Bundle Diff Report") {
+	if !strings.Contains(output, "Bundle Diff Report") {
 		t.Error("Output should contain title")
 	}
-	if !contains(output, "client") {
+	if !strings.Contains(output, "client") {
 		t.Error("Output should contain role")
 	}
 }
@@ -238,13 +239,13 @@ func TestFormatBundleDiffMarkdown(t *testing.T) {
 	if output == "" {
 		t.Error("formatBundleDiffMarkdown() should produce output")
 	}
-	if !contains(output, "# Bundle Diff Report") {
+	if !strings.Contains(output, "# Bundle Diff Report") {
 		t.Error("Output should contain markdown title")
 	}
-	if !contains(output, "| Baseline |") {
+	if !strings.Contains(output, "| Baseline |") {
 		t.Error("Output should contain markdown table")
 	}
-	if !contains(output, "Added Services") {
+	if !strings.Contains(output, "Added Services") {
 		t.Error("Output should contain added services section")
 	}
 }
@@ -268,16 +269,4 @@ func TestMin(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
-}
 
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
